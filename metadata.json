@@ -1,0 +1,9 @@
+{
+  "name": "GMCONTROL",
+  "description": "Sistema profissional de gestão de pneus e estoque.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation",
+    "microphone"
+  ]
+}

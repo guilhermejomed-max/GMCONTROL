@@ -1,0 +1,344 @@
+import React, { useMemo, useState, FC } from 'react';
+import { Tire, Vehicle, SystemSettings, TireStatus } from '../types';
+import { 
+  TrendingUp, ShoppingCart, Calendar, AlertTriangle, BarChart3, 
+  DollarSign, Package, Filter, ArrowRight, Wallet, History,
+  CheckCircle2, Info, ChevronRight, BadgeAlert, Layers, Milestone
+} from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, AreaChart, Area } from 'recharts';
+
+interface DemandForecastProps {
+  tires: Tire[];
+  vehicles: Vehicle[];
+  settings?: SystemSettings;
+}
+
+interface ProjectionResult {
+  tire: Tire;
+  vehiclePlate: string;
+  remainingKm: number;
+  replacementDate: Date;
+  estimatedCost: number;
+  confidence: 'REAL' | 'ESTIMATIVA';
+  monthKey: string;
+}
+
+export const DemandForecast: FC<DemandForecastProps> = ({ tires, vehicles, settings }) => {
+  const [viewMode, setViewMode] = useState<'TIMELINE' | 'BY_SIZE'>('TIMELINE');
+
+  const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  const forecast = useMemo(() => {
+    const results: ProjectionResult[] = [];
+    const mountedTires = tires.filter(t => t.vehicleId && t.status !== TireStatus.DAMAGED);
+    const today = new Date();
+    
+    mountedTires.forEach(tire => {
+      const vehicle = vehicles.find(v => v.id === tire.vehicleId);
+      if (!vehicle) return;
+
+      const original = tire.originalTreadDepth || 18.0;
+      const current = tire.currentTreadDepth;
+      const safetyLimit = settings?.minTreadDepth || 3.0;
+      const monthlyKm = vehicle.avgMonthlyKm || settings?.defaultMonthlyKm || 10000;
+      const dailyKm = monthlyKm / 30;
+
+      let remainingKm = 80000;
+      let confidence: 'REAL' | 'ESTIMATIVA' = 'ESTIMATIVA';
+
+      // Cálculo de KM Rodado Real
+      let kmRun = tire.totalKms || 0;
+      if (tire.installOdometer) kmRun += Math.max(0, vehicle.odometer - tire.installOdometer);
+
+      const wear = original - current;
+
+      // Lógica de Projeção Smart
+      if (kmRun >= 5000 && wear >= 1.0) {
+        // Temos dados reais suficientes
+        const wearRate = wear / kmRun;
+        const remainingRubber = Math.max(0, current - safetyLimit);
+        remainingKm = remainingRubber / wearRate;
+        confidence = 'REAL';
+      } else {
+        // Usar benchmark do catálogo ou média global
+        const modelDef = settings?.tireModels?.find(m => m.brand === tire.brand && m.model === tire.model);
+        const estimatedTotalLife = modelDef?.estimatedLifespanKm || 80000;
+        remainingKm = Math.max(0, estimatedTotalLife - kmRun);
+        confidence = 'ESTIMATIVA';
+      }
+
+      // Cap de segurança para evitar datas infinitas
+      if (remainingKm > 200000) remainingKm = 200000;
+
+      const daysToReplacement = dailyKm > 0 ? remainingKm / dailyKm : 365;
+      const replacementDate = new Date();
+      replacementDate.setDate(today.getDate() + daysToReplacement);
+
+      const monthKey = `${replacementDate.getFullYear()}-${String(replacementDate.getMonth() + 1).padStart(2, '0')}`;
+
+      results.push({
+        tire,
+        vehiclePlate: vehicle.plate,
+        remainingKm: Math.round(remainingKm),
+        replacementDate,
+        estimatedCost: tire.price || 2500,
+        confidence,
+        monthKey
+      });
+    });
+
+    return results.sort((a, b) => a.replacementDate.getTime() - b.replacementDate.getTime());
+  }, [tires, vehicles, settings]);
+
+  const stats = useMemo(() => {
+    const today = new Date();
+    const next30 = new Date(); next30.setDate(today.getDate() + 30);
+    const next90 = new Date(); next90.setDate(today.getDate() + 90);
+
+    const urgent = forecast.filter(f => f.replacementDate <= next30);
+    const quarter = forecast.filter(f => f.replacementDate <= next90);
+
+    const budgetUrgent = urgent.reduce((a, b) => a + b.estimatedCost, 0);
+    const budgetQuarter = quarter.reduce((a, b) => a + b.estimatedCost, 0);
+
+    // Dados para o Gráfico Mensal
+    const monthlyData: Record<string, { name: string, qty: number, cost: number }> = {};
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthlyData[key] = { name: d.toLocaleString('pt-BR', { month: 'short' }), qty: 0, cost: 0 };
+    }
+
+    forecast.forEach(f => {
+        if (monthlyData[f.monthKey]) {
+            monthlyData[f.monthKey].qty++;
+            monthlyData[f.monthKey].cost += f.estimatedCost;
+        }
+    });
+
+    // Agrupamento por Medida (Essencial para Compras)
+    const bySize: Record<string, { size: string, qty: number, budget: number }> = {};
+    forecast.slice(0, 30).forEach(f => { // Foca nos 30 mais próximos
+        const key = `${f.tire.width}/${f.tire.profile} R${f.tire.rim}`;
+        if (!bySize[key]) bySize[key] = { size: key, qty: 0, budget: 0 };
+        bySize[key].qty++;
+        bySize[key].budget += f.estimatedCost;
+    });
+
+    return {
+        urgentCount: urgent.length,
+        quarterCount: quarter.length,
+        budgetUrgent,
+        budgetQuarter,
+        chartData: Object.values(monthlyData),
+        sizeData: Object.values(bySize).sort((a,b) => b.qty - a.qty)
+    };
+  }, [forecast]);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+      
+      {/* SUMMARY CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Urgência (30 dias)</p>
+          <h3 className="text-3xl font-black text-red-600">{stats.urgentCount} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
+          <div className="mt-2 text-xs font-bold text-slate-500 flex items-center gap-1">
+             <Wallet className="h-3 w-3" /> {money(stats.budgetUrgent)}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Próximo Trimestre</p>
+          <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.quarterCount} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
+          <div className="mt-2 text-xs font-bold text-slate-500 flex items-center gap-1">
+             <Wallet className="h-3 w-3" /> {money(stats.budgetQuarter)}
+          </div>
+        </div>
+        <div className="md:col-span-2 bg-indigo-600 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 text-white flex justify-between items-center relative overflow-hidden">
+           <div className="relative z-10">
+              <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">Previsão Orçamentária Anual</p>
+              <h3 className="text-4xl font-black">{money(forecast.reduce((a,b) => a + b.estimatedCost, 0))}</h3>
+              <p className="text-[10px] text-indigo-100 mt-2 opacity-80">*Baseado nos custos atuais de aquisição registrados.</p>
+           </div>
+           <div className="opacity-20"><ShoppingCart className="h-20 w-20" /></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* CHART SECTION */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-indigo-500" /> Fluxo de Reposição Mensal
+              </h3>
+            </div>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stats.chartData}>
+                  <defs>
+                    <linearGradient id="colorQty" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                  <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} dy={10} />
+                  <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="qty" name="Qtd Pneus" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorQty)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* LIST OF UPCOMING REPLACEMENTS */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-orange-500" /> Cronograma Detalhado (Próximos)
+              </h3>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                 <button onClick={() => setViewMode('TIMELINE')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'TIMELINE' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Por Data</button>
+                 <button onClick={() => setViewMode('BY_SIZE')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'BY_SIZE' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Por Medida</button>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              {viewMode === 'TIMELINE' ? (
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-950 text-slate-400 font-black text-[10px] uppercase border-b border-slate-100 dark:border-slate-800">
+                    <tr>
+                      <th className="p-4">Previsão</th>
+                      <th className="p-4">Pneu / Veículo</th>
+                      <th className="p-4">KM Restante</th>
+                      <th className="p-4">Confiança</th>
+                      <th className="p-4 text-right">Custo Est.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {forecast.slice(0, 20).map((f, i) => (
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="p-4">
+                           <div className="font-black text-slate-800 dark:text-white">{f.replacementDate.toLocaleDateString()}</div>
+                           <div className="text-[10px] text-slate-400 font-bold uppercase">{f.replacementDate.toLocaleString('pt-BR', { weekday: 'long' })}</div>
+                        </td>
+                        <td className="p-4">
+                           <div className="flex items-center gap-2">
+                             <span className="font-bold text-indigo-600">{f.tire.fireNumber}</span>
+                             <span className="text-slate-400">|</span>
+                             <span className="font-black text-slate-700 dark:text-slate-300 uppercase">{f.vehiclePlate}</span>
+                           </div>
+                           <div className="text-[10px] text-slate-400 font-medium">{f.tire.brand} {f.tire.model}</div>
+                        </td>
+                        <td className="p-4">
+                           <div className="font-mono font-bold text-slate-600 dark:text-slate-400">{f.remainingKm.toLocaleString()} <span className="text-[10px]">km</span></div>
+                        </td>
+                        <td className="p-4">
+                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${f.confidence === 'REAL' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                             {f.confidence === 'REAL' ? 'DADO REAL' : 'ESTIMADO'}
+                           </span>
+                        </td>
+                        <td className="p-4 text-right font-bold text-slate-700 dark:text-slate-300">
+                           {money(f.estimatedCost)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {stats.sizeData.map((s, i) => (
+                      <div key={i} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                         <div>
+                            <p className="text-[10px] font-black text-indigo-500 uppercase mb-1">Medida</p>
+                            <h4 className="font-black text-lg text-slate-800 dark:text-white">{s.size}</h4>
+                         </div>
+                         <div className="text-right">
+                            <div className="text-2xl font-black text-slate-800 dark:text-white">{s.qty} <span className="text-xs text-slate-400 font-medium">un</span></div>
+                            <div className="text-xs font-bold text-slate-500">{money(s.budget)}</div>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* SIDEBAR PLANNING */}
+        <div className="space-y-6">
+           
+           {/* RECENT INSPECTION IMPACT */}
+           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                 <History className="h-4 w-4 text-blue-500" /> Alertas Recentes
+              </h4>
+              <div className="space-y-4">
+                 {forecast.filter(f => f.confidence === 'REAL').slice(0, 4).map((f, i) => (
+                    <div key={i} className="flex gap-4 items-start p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                       <div className={`p-2 rounded-xl ${f.remainingKm < 10000 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                          <AlertTriangle className="h-4 w-4" />
+                       </div>
+                       <div>
+                          <p className="text-xs font-black text-slate-800 dark:text-white">{f.tire.fireNumber} ({f.vehiclePlate})</p>
+                          <p className="text-[10px] text-slate-500 leading-tight mt-1">Desgaste real acelerado. Previsão para <strong>{f.replacementDate.toLocaleDateString()}</strong>.</p>
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           </div>
+
+           {/* BUDGET SUMMARY BY QUARTER */}
+           <div className="bg-slate-900 p-6 rounded-3xl shadow-xl text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp className="h-24 w-24" /></div>
+              <h4 className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-6">Projeção de Verba</h4>
+              <div className="space-y-6 relative z-10">
+                 <div>
+                    <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
+                       <span>Restante do Mês</span>
+                       <span>{stats.urgentCount} un</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                       <div className="text-2xl font-black">{money(stats.budgetUrgent)}</div>
+                       <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-red-500" style={{ width: '40%' }}></div>
+                       </div>
+                    </div>
+                 </div>
+                 <div>
+                    <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
+                       <span>Próximo Trimestre</span>
+                       <span>{stats.quarterCount} un</span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                       <div className="text-2xl font-black">{money(stats.budgetQuarter)}</div>
+                       <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-indigo-500" style={{ width: '75%' }}></div>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+              <button className="w-full mt-8 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
+                 <Package className="h-4 w-4" /> Solicitar Cotação em Lote
+              </button>
+           </div>
+
+           <div className="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-3xl border border-blue-100 dark:border-blue-800">
+              <h4 className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                 <Info className="h-4 w-4" /> Nota Técnica
+              </h4>
+              <p className="text-[10px] text-blue-700/70 dark:text-blue-300/60 leading-relaxed">
+                 As projeções de troca são baseadas na taxa de consumo de borracha (mm/km) calculada entre a profundidade original do pneu e a última medição de sulco registrada na inspeção. Pneus sem inspeção recente utilizam a média teórica do catálogo.
+              </p>
+           </div>
+
+        </div>
+
+      </div>
+    </div>
+  );
+};
