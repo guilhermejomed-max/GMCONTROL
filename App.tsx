@@ -256,7 +256,6 @@ export const App = () => {
       case 'service': return 'Almoxarifado';
       case 'settings': return 'Configurações';
       case 'drivers': return 'Motoristas';
-      case 'acoustic-check': return 'Smart Sonic';
       default: return 'GM Control';
     }
   };

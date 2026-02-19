@@ -414,7 +414,7 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
                             value={formData.trailerDailyAverageKm || 0} 
                             onChange={e => setFormData({...formData, trailerDailyAverageKm: Number(e.target.value)})} 
                         />
-                        <p className="text-[10px] text-slate-500 mt-1">Se definido (>0), o sistema somará este valor ao hodômetro das carretas automaticamente todos os dias ao abrir o app.</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Se definido (&gt;0), o sistema somará este valor ao hodômetro das carretas automaticamente.</p>
                     </div>
                  </div>
               </div>

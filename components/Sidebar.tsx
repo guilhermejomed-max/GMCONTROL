@@ -41,7 +41,6 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'register', label: 'Cadastrar Pneu', icon: PlusCircle, modules: ['TIRES'] },
     { id: 'movement', label: 'Movimentação', icon: ArrowRightLeft, modules: ['TIRES'] },
     { id: 'inspection', label: 'Inspeção Pro', icon: ClipboardCheck, modules: ['TIRES'] },
-    { id: 'acoustic-check', label: 'Smart Sonic (Beta)', icon: Radio, modules: ['TIRES', 'VEHICLES'] }, // NOVO
     { id: 'retreading', label: 'Recapagem', icon: Recycle, modules: ['TIRES'] },
     // Relatórios removido a pedido
     { id: 'scrap', label: 'Sucata/Descarte', icon: Trash2, modules: ['TIRES'] },
