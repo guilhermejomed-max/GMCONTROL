@@ -210,9 +210,10 @@ interface TireCardProps {
   userLevel: UserLevel;
   onDelete: (id: string) => void;
   onClick: (tire: Tire) => void;
+  detailed?: boolean;
 }
 
-const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete, onClick }) => {
+const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete, onClick, detailed = false }) => {
     const depthPercent = Math.min(100, (tire.currentTreadDepth / (tire.originalTreadDepth || 18)) * 100);
     const healthColor = getHealthColor(tire.currentTreadDepth);
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
@@ -220,7 +221,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
     return (
         <div 
             onClick={() => onClick(tire)}
-            className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all group relative overflow-hidden cursor-pointer"
+            className={`bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all group relative overflow-hidden cursor-pointer ${detailed ? 'col-span-2' : ''}`}
         >
             {/* Status Badge */}
             <div className="absolute top-4 right-4">
@@ -267,6 +268,19 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
                 </div>
             </div>
 
+            {detailed && (
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto text-xs text-slate-500">
+                    <div>
+                        <p className="font-bold uppercase text-[10px]">KM 1ª Vida</p>
+                        <p>{(tire.firstLifeKms || 0).toLocaleString()} km</p>
+                    </div>
+                    <div>
+                        <p className="font-bold uppercase text-[10px]">KM Recapagem</p>
+                        <p>{(tire.retreadKms || 0).toLocaleString()} km</p>
+                    </div>
+                </div>
+            )}
+
             {/* Footer Actions */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto">
                 <span className="text-xs font-mono font-bold text-slate-400">{money(tire.price)}</span>
@@ -298,6 +312,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP'>(viewMode === 'scrap' ? 'SCRAP' : 'NEW');
   const [layoutMode, setLayoutMode] = useState<'GRID' | 'LIST'>('GRID');
+  const [detailedView, setDetailedView] = useState(false);
   const [selectedTire, setSelectedTire] = useState<Tire | null>(null);
 
   const filteredTires = useMemo(() => {
@@ -370,6 +385,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg shrink-0">
                   <button onClick={() => setLayoutMode('GRID')} className={`p-2 rounded-md ${layoutMode === 'GRID' ? 'bg-white dark:bg-slate-800 shadow text-blue-600' : 'text-slate-400'}`}><LayoutGrid className="h-4 w-4"/></button>
                   <button onClick={() => setLayoutMode('LIST')} className={`p-2 rounded-md ${layoutMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow text-blue-600' : 'text-slate-400'}`}><List className="h-4 w-4"/></button>
+                  {layoutMode === 'GRID' && (
+                    <button onClick={() => setDetailedView(!detailedView)} className={`p-2 rounded-md ${detailedView ? 'bg-white dark:bg-slate-800 shadow text-blue-600' : 'text-slate-400'}`}><FileText className="h-4 w-4"/></button>
+                  )}
               </div>
 
               {onRegister && (
@@ -401,6 +419,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                               userLevel={userLevel} 
                               onDelete={handleDelete}
                               onClick={setSelectedTire}
+                              detailed={detailedView}
                           />
                       ))}
                   </div>

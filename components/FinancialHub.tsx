@@ -1,11 +1,11 @@
 
 import React, { useMemo, useState } from 'react';
-import { Tire, TireStatus, Vehicle } from '../types';
+import { Tire, TireStatus, Vehicle, RetreadOrder } from '../types';
 import { 
   DollarSign, TrendingUp, PieChart as PieIcon, BarChart3, TrendingDown, 
   Wallet, Recycle, AlertCircle, FileSpreadsheet, Loader2, Printer, 
   X, Landmark, ArrowUpRight, ArrowDownRight, Coins, Briefcase, 
-  PiggyBank, ShieldCheck, BarChart, History, Layers, Calculator, Medal
+  PiggyBank, ShieldCheck, BarChart, History, Layers, Calculator, Medal, Calendar as CalendarIcon
 } from 'lucide-react';
 import { 
   BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -16,12 +16,13 @@ import {
 interface FinancialHubProps {
   tires: Tire[];
   vehicles?: Vehicle[];
+  retreadOrders?: RetreadOrder[];
 }
 
-export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = [] }) => {
+export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = [], retreadOrders = [] }) => {
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printStartDate, setPrintStartDate] = useState('');
-  const [printEndDate, setPrintEndDate] = useState('');
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
 
   const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -38,6 +39,8 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
     const brandStats: Record<string, { 
         totalCost: number, 
         totalKm: number, 
+        totalFirstLifeKm: number,
+        totalRetreadKm: number,
         count: number,
         brand: string,
         model: string 
@@ -87,6 +90,8 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
               brandStats[key] = { 
                   totalCost: 0, 
                   totalKm: 0, 
+                  totalFirstLifeKm: 0,
+                  totalRetreadKm: 0,
                   count: 0,
                   brand: tire.brand,
                   model: tire.model 
@@ -94,6 +99,8 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
           }
           brandStats[key].totalCost += investment;
           brandStats[key].totalKm += tireTotalKm;
+          brandStats[key].totalFirstLifeKm += (tire.firstLifeKms || 0);
+          brandStats[key].totalRetreadKm += (tire.retreadKms || 0);
           brandStats[key].count++;
       }
     });
@@ -107,6 +114,8 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
             brand: item.brand,
             count: item.count,
             avgTotalKm: item.totalKm / item.count,
+            avgFirstLifeKm: item.totalFirstLifeKm / item.count,
+            avgRetreadKm: item.totalRetreadKm / item.count,
             cpk: item.totalCost / item.totalKm,
             totalCost: item.totalCost
         }))
@@ -123,11 +132,81 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
     };
   }, [tires, vehicles]);
 
+  const reportData = useMemo(() => {
+    if (!reportStartDate || !reportEndDate) return null;
+
+    const start = new Date(reportStartDate);
+    const end = new Date(reportEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    let mountedCount = 0;
+    let mountedValue = 0;
+    let retreadCount = 0;
+    let retreadValue = 0;
+    let discardedCount = 0;
+    let discardedValue = 0;
+
+    // 1. Pneus Montados (Usados)
+    tires.forEach(tire => {
+        // Check history for 'MONTADO' events within range
+        const mountedEvents = tire.history.filter(h => {
+            const d = new Date(h.date);
+            return h.action === 'MONTADO' && d >= start && d <= end;
+        });
+        
+        if (mountedEvents.length > 0) {
+            mountedCount += mountedEvents.length;
+            // Value is tricky for multiple mounts, but let's approximate with current price * count
+            // Or better, just count the tire once if it was mounted? No, "Quantidade de Pneus Usados" implies volume.
+            mountedValue += (tire.price || 0) * mountedEvents.length;
+        }
+
+        // 3. Pneus Descartados
+        const discardEvents = tire.history.filter(h => {
+            const d = new Date(h.date);
+            return (h.action === 'DESCARTE' || (h.action === 'EDITADO' && h.details.includes('Status alterado para: Danificado/Descarte'))) && d >= start && d <= end;
+        });
+
+        if (discardEvents.length > 0) {
+            discardedCount += discardEvents.length;
+            discardedValue += (tire.totalInvestment || tire.price || 0) * discardEvents.length;
+        }
+    });
+
+    // 2. Recapagens Feitas
+    retreadOrders.forEach(order => {
+        // Use returnedDate or sentDate? Usually returnedDate implies "Feita" (Done).
+        // If returnedDate is missing, check status 'CONCLUIDO' and maybe use a fallback?
+        // Let's use returnedDate if available, otherwise ignore if not concluded.
+        if (order.status === 'CONCLUIDO' && order.returnedDate) {
+            const d = new Date(order.returnedDate);
+            if (d >= start && d <= end) {
+                retreadCount += order.tireIds.length; // Count tires, not orders
+                retreadValue += order.totalCost || 0;
+            }
+        }
+    });
+
+    return {
+        mountedCount,
+        mountedValue,
+        retreadCount,
+        retreadValue,
+        discardedCount,
+        discardedValue
+    };
+
+  }, [tires, retreadOrders, reportStartDate, reportEndDate]);
+
+  const handlePrintReport = () => {
+    window.print();
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-12 print:p-0 print:space-y-4">
       
       {/* HEADER E AÇÕES */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm print:hidden">
         <div>
            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
               <Landmark className="h-7 w-7 text-indigo-600" /> Console Financeiro
@@ -135,14 +214,17 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise de ativos, depreciação e retorno sobre investimento (ROI).</p>
         </div>
         <div className="flex gap-2 w-full lg:w-auto">
-           <button onClick={() => setShowPrintModal(true)} className="flex-1 lg:flex-none px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all">
-              <Printer className="h-4 w-4" /> Relatório
+           <button onClick={() => {
+               // Scroll to report section
+               document.getElementById('custom-report')?.scrollIntoView({ behavior: 'smooth' });
+           }} className="flex-1 lg:flex-none px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all">
+              <FileSpreadsheet className="h-4 w-4" /> Relatório Detalhado
            </button>
         </div>
       </div>
 
       {/* EQUITY SCORECARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Patrimônio Líquido (Equity)</p>
            <h3 className="text-2xl font-black text-slate-800 dark:text-white">{money(stats.currentEquity)}</h3>
@@ -181,7 +263,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
       </div>
 
       {/* RANK DE EFICIÊNCIA (NOVO) */}
-      <div className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden print:hidden">
          <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50">
             <div>
                <h3 className="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
@@ -198,6 +280,8 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
                      <th className="p-6">Marca & Modelo</th>
                      <th className="p-6 text-center">Amostra (Un)</th>
                      <th className="p-6 text-right">Média KM/Vida</th>
+                     <th className="p-6 text-right">KM 1ª Vida</th>
+                     <th className="p-6 text-right">KM Recap</th>
                      <th className="p-6 text-right bg-blue-50/50 dark:bg-blue-900/10">CPK Real</th>
                      <th className="p-6 text-center">Status</th>
                   </tr>
@@ -219,6 +303,12 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
                         </td>
                         <td className="p-6 text-right font-mono text-slate-600 dark:text-slate-400 text-sm">
                            <span className="font-bold">{Math.round(brand.avgTotalKm).toLocaleString()} km</span>
+                        </td>
+                        <td className="p-6 text-right font-mono text-slate-600 dark:text-slate-400 text-sm">
+                           <span className="font-bold">{Math.round(brand.avgFirstLifeKm).toLocaleString()} km</span>
+                        </td>
+                        <td className="p-6 text-right font-mono text-slate-600 dark:text-slate-400 text-sm">
+                           <span className="font-bold">{Math.round(brand.avgRetreadKm).toLocaleString()} km</span>
                         </td>
                         <td className="p-6 text-right font-mono font-black text-lg bg-blue-50/50 dark:bg-blue-900/10 border-l border-r border-blue-100 dark:border-blue-900/30">
                            <span className={`${idx === 0 ? 'text-emerald-600' : 'text-slate-800 dark:text-white'}`}>
@@ -243,32 +333,127 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
          </div>
       </div>
 
-      {/* PRINT MODAL (Existing logic preserved, just wrapper shown) */}
-      {showPrintModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-           <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl p-8 border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
-              <div className="flex justify-between items-center mb-6">
-                 <h3 className="font-black text-xl text-slate-800 dark:text-white">Gerar Relatório</h3>
-                 <button onClick={() => setShowPrintModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5"/></button>
+      {/* CUSTOM REPORT SECTION */}
+      <div id="custom-report" className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden print:shadow-none print:border-none">
+          <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50 dark:bg-slate-950/50 print:bg-white print:p-0 print:mb-4 print:border-none">
+              <div>
+                  <h3 className="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
+                      <FileSpreadsheet className="h-5 w-5 text-blue-600" /> Relatório de Movimentação
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 print:hidden">Gere relatórios detalhados de uso, recapagens e descartes por período.</p>
+                  <p className="text-xs text-slate-500 mt-1 hidden print:block">
+                      Período: {reportStartDate ? new Date(reportStartDate).toLocaleDateString() : 'Início'} até {reportEndDate ? new Date(reportEndDate).toLocaleDateString() : 'Fim'}
+                  </p>
               </div>
-              <p className="text-sm text-slate-500 mb-4">Selecione o período para análise financeira detalhada.</p>
-              <div className="space-y-4 mb-8">
-                 <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Período Inicial</label>
-                    <input type="date" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl font-bold" value={printStartDate} onChange={e => setPrintStartDate(e.target.value)} />
-                 </div>
-                 <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Período Final</label>
-                    <input type="date" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl font-bold" value={printEndDate} onChange={e => setPrintEndDate(e.target.value)} />
-                 </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto print:hidden">
+                  <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <CalendarIcon className="h-4 w-4 text-slate-400 ml-2" />
+                      <input 
+                          type="date" 
+                          className="bg-transparent border-none text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-0"
+                          value={reportStartDate}
+                          onChange={(e) => setReportStartDate(e.target.value)}
+                      />
+                      <span className="text-slate-300">|</span>
+                      <input 
+                          type="date" 
+                          className="bg-transparent border-none text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-0"
+                          value={reportEndDate}
+                          onChange={(e) => setReportEndDate(e.target.value)}
+                      />
+                  </div>
+                  <button 
+                      onClick={handlePrintReport}
+                      disabled={!reportData}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                      <Printer className="h-4 w-4" /> Imprimir
+                  </button>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                 <button onClick={() => setShowPrintModal(false)} className="py-3 font-bold text-slate-500">Cancelar</button>
-                 <button className="py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Imprimir PDF</button>
-              </div>
-           </div>
-        </div>
-      )}
+          </div>
+
+          <div className="p-8 print:p-0">
+              {!reportData ? (
+                  <div className="text-center py-12 text-slate-400 print:hidden">
+                      <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-sm font-medium">Selecione um período acima para visualizar os dados.</p>
+                  </div>
+              ) : (
+                  <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                      {/* PNEUS USADOS (MONTADOS) */}
+                      <div className="bg-blue-50 dark:bg-blue-900/10 rounded-2xl p-6 border border-blue-100 dark:border-blue-900/30 print:border print:border-slate-200">
+                          <div className="flex justify-between items-start mb-4">
+                              <div>
+                                  <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Pneus Montados (Uso)</p>
+                                  <h4 className="text-3xl font-black text-slate-800 dark:text-white mt-2">{reportData.mountedCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
+                              </div>
+                              <div className="p-3 bg-blue-100 dark:bg-blue-800/30 rounded-xl">
+                                  <Layers className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                              </div>
+                          </div>
+                          <div className="pt-4 border-t border-blue-100 dark:border-blue-900/30">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Valor Estimado em Uso</p>
+                              <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{money(reportData.mountedValue)}</p>
+                          </div>
+                      </div>
+
+                      {/* RECAPAGENS FEITAS */}
+                      <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl p-6 border border-emerald-100 dark:border-emerald-900/30 print:border print:border-slate-200">
+                          <div className="flex justify-between items-start mb-4">
+                              <div>
+                                  <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Recapagens Feitas</p>
+                                  <h4 className="text-3xl font-black text-slate-800 dark:text-white mt-2">{reportData.retreadCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
+                              </div>
+                              <div className="p-3 bg-emerald-100 dark:bg-emerald-800/30 rounded-xl">
+                                  <Recycle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                          </div>
+                          <div className="pt-4 border-t border-emerald-100 dark:border-emerald-900/30">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Custo Total</p>
+                              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{money(reportData.retreadValue)}</p>
+                          </div>
+                      </div>
+
+                      {/* PNEUS DESCARTADOS */}
+                      <div className="bg-red-50 dark:bg-red-900/10 rounded-2xl p-6 border border-red-100 dark:border-red-900/30 print:border print:border-slate-200">
+                          <div className="flex justify-between items-start mb-4">
+                              <div>
+                                  <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest">Pneus Descartados</p>
+                                  <h4 className="text-3xl font-black text-slate-800 dark:text-white mt-2">{reportData.discardedCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
+                              </div>
+                              <div className="p-3 bg-red-100 dark:bg-red-800/30 rounded-xl">
+                                  <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
+                              </div>
+                          </div>
+                          <div className="pt-4 border-t border-red-100 dark:border-red-900/30">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Valor Perdido (Investimento)</p>
+                              <p className="text-lg font-bold text-red-700 dark:text-red-300">{money(reportData.discardedValue)}</p>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  {/* RESUMO DO PERÍODO */}
+                  <div className="bg-slate-800 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
+                      <h4 className="font-black text-lg uppercase tracking-widest">Resumo Líquido do Período</h4>
+                      <div className="flex gap-8">
+                          <div className="text-center">
+                              <p className="text-[10px] text-slate-400 uppercase font-bold">Saldo de Pneus</p>
+                              <p className="text-xl font-black">{reportData.mountedCount - reportData.discardedCount}</p>
+                          </div>
+                          <div className="text-center">
+                              <p className="text-[10px] text-slate-400 uppercase font-bold">Fluxo Financeiro</p>
+                              <p className="text-xl font-black text-emerald-400">
+                                  {money(reportData.mountedValue - reportData.retreadValue - reportData.discardedValue)}
+                              </p>
+                          </div>
+                      </div>
+                  </div>
+                  </>
+              )}
+          </div>
+      </div>
 
     </div>
   );

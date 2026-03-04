@@ -56,6 +56,8 @@ export interface Tire {
   installDate?: string; // Data da montagem no veículo atual
   
   totalKms: number;
+  firstLifeKms: number;
+  retreadKms: number;
   totalInvestment: number;
   costPerKm: number;
   retreadCount: number;
@@ -261,7 +263,7 @@ export interface InspectionRecord {
     valveCondition?: 'OK' | 'BAD';
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

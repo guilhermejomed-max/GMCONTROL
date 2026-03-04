@@ -414,12 +414,15 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
                             value={formData.trailerDailyAverageKm || 0} 
                             onChange={e => setFormData({...formData, trailerDailyAverageKm: Number(e.target.value)})} 
                         />
-                        <p className="text-[10px] text-slate-500 mt-1">Se definido (&gt;0), o sistema somará este valor ao hodômetro das carretas automaticamente.</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Se definido (&gt;0), o sistema somará este valor ao hodômetro das carretas automaticamente todos os dias ao abrir o app.</p>
                     </div>
                  </div>
               </div>
 
-              <div className="pt-6 border-t border-slate-100 flex justify-end">
+              <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
+                  <button type="button" onClick={async () => { if(confirm("Tem certeza? Isso apagará todos os dados (pneus, serviços, estoques, logs, etc.), mantendo apenas os veículos cadastrados (com hodômetro zerado). Esta ação é irreversível.")) { await storageService.resetData(); alert("Dados resetados com sucesso! A página será recarregada."); window.location.reload(); } }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-sm flex items-center gap-2 text-sm">
+                     <Trash2 className="h-4 w-4" /> Resetar Dados
+                  </button>
                  <button type="submit" disabled={isSaving} className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
                     {saveSuccess ? <Check className="h-5 w-5" /> : <Save className="h-5 w-5" />} {saveSuccess ? 'Salvo!' : 'Salvar Alterações'}
                  </button>

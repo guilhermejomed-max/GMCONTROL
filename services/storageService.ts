@@ -722,5 +722,62 @@ export const storageService = {
       const snapshot = await db.collection("system_logs").orderBy("timestamp", "desc").limit(limit).get();
       return snapshot.docs.map(doc => doc.data() as SystemLog);
     } catch (e) { return []; }
+  },
+
+  resetData: async () => {
+    console.log("Iniciando resetData...");
+    
+    // 1. Handle LocalDB (which uses localStorage)
+    // Clear all relevant keys
+    const keysToClear = [
+        'vehicles', 'tires', 'system_logs', 'retreaders', 'tread_patterns', 
+        'service_orders', 'retread_orders', 'stock_items', 'stock_movements', 'drivers'
+    ];
+    
+    // Reset vehicles odometer specifically
+    const vehicles = LocalDB.get('vehicles') as any[] || [];
+    const resetVehicles = vehicles.map(v => ({
+        ...v,
+        odometer: 0
+    }));
+
+    // Clear everything from localStorage
+    keysToClear.forEach(key => localStorage.removeItem(key));
+    
+    // Restore reset vehicles
+    LocalDB.set('vehicles', resetVehicles);
+    
+    console.log("LocalDB/localStorage resetado.");
+
+    // 2. Handle Firebase
+    if (db && !mockUser) {
+        console.log("Resetando Firebase...");
+        const collectionsToClear = [
+            'tires', 'system_logs', 'retreaders', 'tread_patterns', 
+            'service_orders', 'retread_orders', 'stock_items', 
+            'stock_movements', 'drivers'
+        ];
+
+        for (const col of collectionsToClear) {
+            console.log("Limpando coleção:", col);
+            const snapshot = await db.collection(col).get();
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+        }
+
+        // Update vehicles in Firebase
+        console.log("Resetando hodômetro dos veículos no Firebase...");
+        const vehicleSnapshot = await db.collection('vehicles').get();
+        const batch = db.batch();
+        vehicleSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { odometer: 0 });
+        });
+        await batch.commit();
+        console.log("Firebase resetado.");
+    } else {
+        console.log("Firebase não resetado (db:", !!db, ", mockUser:", !!mockUser, ")");
+    }
+    console.log("resetData finalizado.");
   }
 };

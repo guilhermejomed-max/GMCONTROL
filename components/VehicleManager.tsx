@@ -22,6 +22,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingLocationId, setUpdatingLocationId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedVehicleRG, setSelectedVehicleRG] = useState<Vehicle | null>(null);
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'EMPTY' | 'MAINTENANCE'>('ALL');
   
   // Bulk Actions State
@@ -542,7 +543,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
           return (
             <div 
                 key={vehicle.id} 
-                onClick={() => isSelectionMode && toggleSelection(vehicle.id)}
+                onClick={() => isSelectionMode ? toggleSelection(vehicle.id) : setSelectedVehicleRG(vehicle)}
                 className={`bg-white dark:bg-slate-900 p-5 rounded-2xl border shadow-sm group transition-all relative overflow-hidden cursor-pointer 
                     ${isSelectionMode 
                         ? (isSelected ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100') 
@@ -643,6 +644,54 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
         })}
       </div>
 
+      {selectedVehicleRG && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
+              <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
+                <Truck className="h-6 w-6 text-blue-600" /> 
+                RG do Veículo: {selectedVehicleRG.plate}
+              </h3>
+              <button onClick={() => setSelectedVehicleRG(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
+            </div>
+            <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Modelo</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.model}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Tipo</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.type}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Eixos</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.axles}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
+                    </div>
+                </div>
+                <div>
+                    <h4 className="font-bold text-slate-800 dark:text-white mb-3">Pneus Montados</h4>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl max-h-60 overflow-y-auto">
+                        {tires.filter(t => t.vehicleId === selectedVehicleRG.id).map(tire => (
+                            <div key={tire.id} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700 last:border-0">
+                                <div>
+                                    <p className="font-bold text-sm text-slate-800 dark:text-white">{tire.fireNumber}</p>
+                                    <p className="text-[10px] text-slate-500">{tire.brand} {tire.model} - Pos: {tire.position}</p>
+                                </div>
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{tire.currentTreadDepth} mm</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {isAdding && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">

@@ -16,7 +16,7 @@ import { ServiceOrderHub } from './components/ServiceOrderHub';
 import { ServiceManager } from './components/ServiceManager';
 import { Settings } from './components/Settings';
 import { DriversHub } from './components/DriversHub';
-import { AcousticCheck } from './components/AcousticCheck';
+import { ReportsHub } from './components/ReportsHub';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
@@ -256,6 +256,7 @@ export const App = () => {
       case 'service': return 'Almoxarifado';
       case 'settings': return 'Configurações';
       case 'drivers': return 'Motoristas';
+      case 'reports': return 'Relatórios';
       default: return 'GM Control';
     }
   };
@@ -332,13 +333,13 @@ export const App = () => {
             {currentTab === 'retreading' && <RetreadingHub tires={tires} retreadOrders={retreadOrders} onUpdateTire={storageService.updateTire} onNotification={addToast} settings={settings} />}
             {currentTab === 'strategic-analysis' && <StrategicAnalysis tires={tires} vehicles={vehicles} settings={settings} />}
             {currentTab === 'demand-forecast' && <DemandForecast tires={tires} vehicles={vehicles} settings={settings} />}
-            {currentTab === 'financial' && <FinancialHub tires={tires} vehicles={vehicles} />}
+            {currentTab === 'financial' && <FinancialHub tires={tires} vehicles={vehicles} retreadOrders={retreadOrders} />}
             {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} />}
             {currentTab === 'service-orders' && <ServiceOrderHub serviceOrders={serviceOrders} vehicles={vehicles} tires={tires} onUpdateOrder={storageService.updateServiceOrder} onAddOrder={handleAddServiceOrder} settings={settings} />}
             {currentTab === 'service' && <ServiceManager userLevel={userRole} />}
+            {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} />}
             {currentTab === 'settings' && <Settings currentSettings={settings || {} as any} onUpdateSettings={storageService.saveSettings} />}
             {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={storageService.addDriver} onUpdateDriver={storageService.updateDriver} onDeleteDriver={storageService.deleteDriver} onUpdateVehicle={storageService.updateVehicle} />}
-            {currentTab === 'acoustic-check' && <AcousticCheck />}
         </div>
       </main>
 

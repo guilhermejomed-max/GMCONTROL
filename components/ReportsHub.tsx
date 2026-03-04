@@ -10,7 +10,7 @@ interface ReportsHubProps {
   retreadOrders: RetreadOrder[];
 }
 
-type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS';
+type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY';
 
 interface ColumnDef {
   id: string;
@@ -69,6 +69,10 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'ref', label: 'Ref (Placa/Fogo)', accessor: (item: any) => item.ref },
       { id: 'value', label: 'Valor', accessor: (item: any) => item.value, format: money },
       { id: 'desc', label: 'Descrição', accessor: (item: any) => item.desc },
+    ],
+    SUMMARY: [
+      { id: 'metric', label: 'Métrica', accessor: (item: any) => item.metric },
+      { id: 'value', label: 'Valor', accessor: (item: any) => item.value },
     ]
 };
 
@@ -83,6 +87,19 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchText, setSearchText] = useState('');
+
+  // --- PRESETS DE DATA ---
+  const setDateRange = (range: 'WEEK' | 'MONTH') => {
+      const end = new Date();
+      const start = new Date();
+      if (range === 'WEEK') {
+          start.setDate(end.getDate() - 7);
+      } else {
+          start.setMonth(end.getMonth() - 1);
+      }
+      setStartDate(start.toISOString().split('T')[0]);
+      setEndDate(end.toISOString().split('T')[0]);
+  };
 
   // --- HANDLER PARA TROCA DE FONTE ---
   // Atualiza a fonte e as colunas simultaneamente para evitar renderização vazia
@@ -133,6 +150,26 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
 
       rawData = [...purchases, ...retreads, ...services];
       rawData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (source === 'SUMMARY') {
+        // Cálculo do resumo
+        const filteredTires = tires.filter(t => {
+            const d = new Date(t.purchaseDate || new Date());
+            if (startDate && d < new Date(startDate)) return false;
+            if (endDate && d > new Date(endDate)) return false;
+            return true;
+        });
+
+        const discarded = filteredTires.filter(t => t.status === 'DISCARDED').length;
+        const retreaded = filteredTires.reduce((acc, t) => acc + (t.retreadCount || 0), 0);
+        const totalValue = filteredTires.reduce((acc, t) => acc + (t.totalInvestment || t.price || 0), 0);
+
+        rawData = [
+            { metric: 'Total de Pneus', value: filteredTires.length },
+            { metric: 'Total Investido', value: money(totalValue) },
+            { metric: 'Pneus Descartados', value: discarded },
+            { metric: 'Recapagens Realizadas', value: retreaded },
+        ];
+        return rawData; // Retorno direto para SUMMARY
     }
 
     // 2. Filtrar Dados
@@ -265,6 +302,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
                 <option value="VEHICLES">Frota e KM</option>
                 <option value="MOVEMENTS">Histórico de Movimentação</option>
                 <option value="COSTS">Custos e Despesas</option>
+                <option value="SUMMARY">Resumo Mensal/Semanal</option>
               </select>
             </div>
 
@@ -272,6 +310,10 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">2. Filtros</label>
               <div className="space-y-3">
+                <div className="flex gap-2">
+                    <button onClick={() => setDateRange('WEEK')} className="flex-1 p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-[10px] font-bold">Última Semana</button>
+                    <button onClick={() => setDateRange('MONTH')} className="flex-1 p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-[10px] font-bold">Último Mês</button>
+                </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400"/>
                   <input 

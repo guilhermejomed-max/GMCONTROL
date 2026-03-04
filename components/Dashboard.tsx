@@ -50,31 +50,39 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
 
     // 2. FLEET HEALTH SCORE
     let healthScore = 100;
-    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
-    healthScore -= (criticalCount * 3); 
-
-    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
-    const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
-    const inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
     
-    if (inspectionCompliance < 80) healthScore -= 10;
-    if (inspectionCompliance < 50) healthScore -= 15;
+    if (mountedTires.length === 0) {
+        healthScore = 0; // Ou um valor que indique "não calculado"
+    } else {
+        const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
+        healthScore -= (criticalCount * 3); 
 
-    healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
+        const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
+        const inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
+        
+        if (inspectionCompliance < 80) healthScore -= 10;
+        if (inspectionCompliance < 50) healthScore -= 15;
+
+        healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+    }
 
     // 3. AI INSIGHT
-    let aiInsight = "Operação estável. Continue o monitoramento.";
+    let aiInsight = mountedTires.length === 0 ? "Nenhum pneu monitorado." : "Operação estável. Continue o monitoramento.";
     let aiMood: 'GOOD' | 'WARN' | 'BAD' = 'GOOD';
+    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
 
-    if (criticalCount > 5) {
-        aiInsight = `Crítico: ${criticalCount} pneus atingiram o limite. Ação imediata requerida.`;
-        aiMood = 'BAD';
-    } else if (inspectionCompliance < 60) {
-        aiInsight = `Atenção: ${Math.round(100 - inspectionCompliance)}% da frota sem inspeção recente.`;
-        aiMood = 'WARN';
-    } else if (healthScore > 90) {
-        aiInsight = "Excelente gestão! Eficiência e segurança em níveis ótimos.";
-        aiMood = 'GOOD';
+    if (mountedTires.length > 0) {
+        if (criticalCount > 5) {
+            aiInsight = `Crítico: ${criticalCount} pneus atingiram o limite. Ação imediata requerida.`;
+            aiMood = 'BAD';
+        } else if (inspectionCompliance < 60) {
+            aiInsight = `Atenção: ${Math.round(100 - inspectionCompliance)}% da frota sem inspeção recente.`;
+            aiMood = 'WARN';
+        } else if (healthScore > 90) {
+            aiInsight = "Excelente gestão! Eficiência e segurança em níveis ótimos.";
+            aiMood = 'GOOD';
+        }
     }
 
     // 4. WATCHLIST
@@ -276,7 +284,7 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
             <div className="flex justify-between items-start z-10">
                 <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde da Frota</p>
-                    <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.healthScore} <span className="text-sm text-slate-400 font-bold">/100</span></h3>
+                    <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.totalTires > 0 ? stats.healthScore : '---'} <span className="text-sm text-slate-400 font-bold">{stats.totalTires > 0 ? '/100' : ''}</span></h3>
                 </div>
             </div>
             <div className="absolute right-[-10px] bottom-[-20px] w-24 h-24 opacity-20">
@@ -297,7 +305,7 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between group">
             <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Médio</p>
-                <h3 className="text-3xl font-black text-slate-800 dark:text-white font-mono">R$ {stats.avgCpk.toFixed(4)}</h3>
+                <h3 className="text-3xl font-black text-slate-800 dark:text-white font-mono">{stats.totalTires > 0 ? `R$ ${stats.avgCpk.toFixed(4)}` : '---'}</h3>
             </div>
             <div className="h-10 w-full mt-2 opacity-50 group-hover:opacity-100 transition-opacity">
                 <ResponsiveContainer width="100%" height="100%">

@@ -355,6 +355,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
             <div className="inline-flex items-center justify-center p-4 bg-slate-900 rounded-full shadow-2xl shadow-blue-900/20 mb-4 border border-slate-800">
                 <Radio className="h-8 w-8 text-blue-500 animate-pulse" />
             </div>
+            <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Smart Sonic™</h2>
             <p className="text-slate-500 dark:text-slate-400 font-medium">Análise Espectral de Frequência</p>
         </div>
 

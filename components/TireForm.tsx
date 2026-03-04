@@ -39,6 +39,8 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
     retreader: '', 
     retreadCost: 0,
     totalKms: 0,
+    firstLifeKms: 0,
+    retreadKms: 0,
     retreadCount: 0
   };
 
@@ -54,7 +56,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
     const { name, value } = e.target;
     setFormData(prev => ({ 
         ...prev, 
-        [name]: ['width', 'profile', 'rim', 'quantity', 'price', 'originalTreadDepth', 'currentTreadDepth', 'targetPressure', 'retreadCost', 'totalKms', 'retreadCount'].includes(name) ? Number(value) : value 
+        [name]: ['width', 'profile', 'rim', 'quantity', 'price', 'originalTreadDepth', 'currentTreadDepth', 'targetPressure', 'retreadCost', 'totalKms', 'firstLifeKms', 'retreadKms', 'retreadCount'].includes(name) ? Number(value) : value 
     }));
   };
 
@@ -102,6 +104,8 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
         pressure: formData.targetPressure,
         history: [{ date: new Date().toISOString(), action: 'CADASTRADO', details: 'Novo pneu registrado.' }],
         totalKms: formData.totalKms,
+        firstLifeKms: formData.firstLifeKms,
+        retreadKms: formData.retreadKms,
         totalInvestment: formData.price,
         costPerKm: 0,
         retreadCount: formData.retreadCount,
@@ -132,8 +136,8 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
   };
 
   const filteredCatalog = settings?.tireModels?.filter(m => 
-     m.brand.toLowerCase().includes(catalogSearch.toLowerCase()) || 
-     m.model.toLowerCase().includes(catalogSearch.toLowerCase())
+     (m.brand || '').toLowerCase().includes(catalogSearch.toLowerCase()) || 
+     (m.model || '').toLowerCase().includes(catalogSearch.toLowerCase())
   ) || [];
 
   if (successTire) {
@@ -167,7 +171,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                     Voltar ao Estoque
                 </button>
                 <button 
-                    onClick={() => { setSuccessTire(null); setFormData(prev => ({ ...initialFormData, fireNumber: '' })); }} 
+                    onClick={() => { setSuccessTire(null); setFormData(prev => ({ ...prev, fireNumber: '' })); }} 
                     className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2"
                 >
                     <Plus className="h-5 w-5"/> Cadastrar Outro
@@ -190,7 +194,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
             <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Novo Registro de Pneu</h2>
          </div>
          
-         {settings?.tireModels && settings.tireModels.length > 0 && (
+         {settings && (
             <button 
                onClick={() => setIsSelectorOpen(true)}
                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
@@ -319,7 +323,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 animate-in fade-in slide-in-from-top-2">
                            <div className="grid grid-cols-2 gap-4">
                                <div>
-                                   <label className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-1">KM Anterior</label>
+                                   <label className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-1">KM 1ª Vida</label>
                                    <input type="number" name="totalKms" value={formData.totalKms} onChange={handleChange} className="w-full p-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-center outline-none" />
                                </div>
                                <div>
@@ -395,9 +399,13 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                            </div>
                         </button>
                      ))}
-                     {filteredCatalog.length === 0 && (
-                        <div className="col-span-full text-center py-12 text-slate-400 font-medium">Nenhum modelo encontrado no catálogo.</div>
-                     )}
+                     {(!settings?.tireModels || settings.tireModels.length === 0) ? (
+                        <div className="col-span-full text-center py-12 text-slate-400 font-medium">
+                           O catálogo está vazio. Adicione modelos nas Configurações.
+                        </div>
+                     ) : filteredCatalog.length === 0 ? (
+                        <div className="col-span-full text-center py-12 text-slate-400 font-medium">Nenhum modelo encontrado para sua busca.</div>
+                     ) : null}
                   </div>
                </div>
             </div>

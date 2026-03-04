@@ -47,6 +47,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'strategic-analysis', label: 'Análise Estratégica', icon: PieChart, modules: ['TIRES'] },
     { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
+    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['TIRES'] },
     
     // --- MÓDULO VEÍCULOS ---
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
