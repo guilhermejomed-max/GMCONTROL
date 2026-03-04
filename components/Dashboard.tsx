@@ -50,22 +50,30 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
 
     // 2. FLEET HEALTH SCORE
     let healthScore = 100;
+    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
+    healthScore -= (criticalCount * 3); 
+
+    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
+    const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
     
-    if (mountedTires.length === 0) {
-        healthScore = 0; // Ou um valor que indique "não calculado"
-    } else {
-        const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
-        healthScore -= (criticalCount * 3); 
+    // 👇 ESTA É A LINHA QUE ESTÁ FALTANDO OU ESCRITA COM ERRO DE DIGITAÇÃO 👇
+    const inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
+    
+    if (inspectionCompliance < 80) healthScore -= 10;
+    if (inspectionCompliance < 50) healthScore -= 15;
 
-        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
-        const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
-        const inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
-        
-        if (inspectionCompliance < 80) healthScore -= 10;
-        if (inspectionCompliance < 50) healthScore -= 15;
+    healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
 
-        healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
-    }
+    // 3. AI INSIGHT
+    let aiInsight = "Operação estável. Continue o monitoramento.";
+    let aiMood: 'GOOD' | 'WARN' | 'BAD' = 'GOOD';
+
+    if (criticalCount > 5) {
+        aiInsight = `Crítico: ${criticalCount} pneus atingiram o limite. Ação imediata requerida.`;
+        aiMood = 'BAD';
+    } else if (inspectionCompliance < 60) {
+        aiInsight = `Atenção: ${Math.round(100 - inspectionCompliance)}% da frota sem inspeção recente.`;
+        aiMood = 'WARN';
 
     // 3. AI INSIGHT
     let aiInsight = mountedTires.length === 0 ? "Nenhum pneu monitorado." : "Operação estável. Continue o monitoramento.";
