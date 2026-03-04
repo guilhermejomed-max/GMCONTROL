@@ -1,4 +1,3 @@
-
 import { useMemo, useState, FC } from 'react';
 import { Tire, TireStatus, Vehicle, TabView, SystemSettings, ServiceOrder } from '../types';
 import { 
@@ -48,37 +47,28 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
 
     const mountedTires = filteredTires.filter(t => t.vehicleId);
 
-    // 2. FLEET HEALTH SCORE
+    // 2. FLEET HEALTH SCORE & AI INSIGHT PREPARATION
     let healthScore = 100;
-    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
-    healthScore -= (criticalCount * 3); 
-
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
+    
+    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
     const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
-    
-    // 👇 ESTA É A LINHA QUE ESTÁ FALTANDO OU ESCRITA COM ERRO DE DIGITAÇÃO 👇
     const inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
-    
-    if (inspectionCompliance < 80) healthScore -= 10;
-    if (inspectionCompliance < 50) healthScore -= 15;
 
-    healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+    if (mountedTires.length === 0) {
+        healthScore = 0; // Ou um valor que indique "não calculado"
+    } else {
+        healthScore -= (criticalCount * 3); 
 
-    // 3. AI INSIGHT
-    let aiInsight = "Operação estável. Continue o monitoramento.";
-    let aiMood: 'GOOD' | 'WARN' | 'BAD' = 'GOOD';
+        if (inspectionCompliance < 80) healthScore -= 10;
+        if (inspectionCompliance < 50) healthScore -= 15;
 
-    if (criticalCount > 5) {
-        aiInsight = `Crítico: ${criticalCount} pneus atingiram o limite. Ação imediata requerida.`;
-        aiMood = 'BAD';
-    } else if (inspectionCompliance < 60) {
-        aiInsight = `Atenção: ${Math.round(100 - inspectionCompliance)}% da frota sem inspeção recente.`;
-        aiMood = 'WARN';
+        healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+    }
 
     // 3. AI INSIGHT
     let aiInsight = mountedTires.length === 0 ? "Nenhum pneu monitorado." : "Operação estável. Continue o monitoramento.";
     let aiMood: 'GOOD' | 'WARN' | 'BAD' = 'GOOD';
-    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
 
     if (mountedTires.length > 0) {
         if (criticalCount > 5) {
@@ -131,7 +121,6 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
         .slice(0, 3);
 
     // 7. PREVISÃO DE COMPRA (Forecast simplificado: pneus < 5mm)
-    // Quantos pneus estão prestes a vencer (entre minDepth e minDepth + 2mm)
     const warningTiresCount = mountedTires.filter(t => t.currentTreadDepth > minDepth && t.currentTreadDepth <= (minDepth + 2)).length;
     const projectedCost = warningTiresCount * 2800; // Custo médio estimado
 
