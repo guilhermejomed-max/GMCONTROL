@@ -27,8 +27,18 @@ process.on('unhandledRejection', (reason, promise) => {
 function parseSascarDate(dateStr: any): Date {
     if (!dateStr) return new Date();
     
+    // NOVO BLOCO: Se a biblioteca SOAP já entregou como objeto Date
     if (dateStr instanceof Date) {
-        return isNaN(dateStr.getTime()) ? new Date() : dateStr;
+        // Verifica se a data é válida
+        if (isNaN(dateStr.getTime())) return new Date();
+        
+        // Cria uma cópia da data para não mutar o objeto original
+        const correctedDate = new Date(dateStr.getTime());
+        
+        // SOMA 3 HORAS para compensar a leitura errada em UTC do servidor
+        correctedDate.setHours(correctedDate.getHours() + 3);
+        
+        return correctedDate;
     }
 
     // Se já for um número (timestamp)
