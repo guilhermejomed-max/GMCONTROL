@@ -1,16 +1,14 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { createServer as createViteServer } from "vite";
 import soap from "soap";
 import path from "path";
-// ATENÇÃO: O pacote 'fs' foi removido porque ele causa crash na Vercel!
+// ATENÇÃO: O pacote 'fs' e o 'vite' (estático) foram removidos do topo para a Vercel não capotar!
 
 dotenv.config();
 
 // VERCEL É SERVERLESS (Não tem disco rígido). 
-// Usar fs.appendFileSync derruba o servidor instantaneamente.
-// Substituímos para usar apenas console.log, que aparece no painel da Vercel.
+// Usar fs derruba o servidor instantaneamente. Substituímos para console.log.
 function logToFile(msg: string) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
@@ -436,9 +434,13 @@ app.post("/api/sascar/vehicles", async (req, res) => {
 // CONFIGURAÇÃO DE ROTEAMENTO FINAL
 // -------------------------------------------------------------
 if (process.env.NODE_ENV !== "production") {
-  createViteServer({ server: { middlewareMode: true }, appType: "spa" }).then((vite) => {
-    app.use(vite.middlewares);
-    app.listen(PORT, "0.0.0.0", () => { console.log(`Rodando localmente`); });
+  // O SEGREDO ESTÁ AQUI: Importação Dinâmica!
+  // A Vercel ignora isso, mas o seu PC consegue ler.
+  import("vite").then(({ createServer: createViteServer }) => {
+    createViteServer({ server: { middlewareMode: true }, appType: "spa" }).then((vite) => {
+      app.use(vite.middlewares);
+      app.listen(PORT, "0.0.0.0", () => { console.log(`Rodando localmente`); });
+    });
   });
 } else {
   app.use(express.static("dist"));
