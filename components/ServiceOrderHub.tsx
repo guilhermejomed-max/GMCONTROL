@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer } from 'lucide-react';
+import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert } from '../types';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell } from 'lucide-react';
 
 interface ServiceOrderHubProps {
   serviceOrders: ServiceOrder[];
@@ -9,11 +9,12 @@ interface ServiceOrderHubProps {
   onUpdateOrder: (orderId: string, updates: Partial<ServiceOrder>) => Promise<void>;
   onAddOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
   settings?: SystemSettings;
+  arrivalAlerts?: ArrivalAlert[];
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
 
-export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, vehicles = [], tires = [], onUpdateOrder, onAddOrder, settings }) => {
+export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, vehicles = [], tires = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [] }) => {
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -26,6 +27,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
   
   const [isCreating, setIsCreating] = useState(false);
   const [isCustomTitle, setIsCustomTitle] = useState(false);
+
+  const pendingAlertsForVehicle = useMemo(() => {
+      if (!newOrderPlate) return [];
+      return arrivalAlerts.filter(a => 
+          a.status === 'PENDING' && 
+          a.vehiclePlate.toUpperCase().replace(/[^A-Z0-9]/g, '') === newOrderPlate.toUpperCase().replace(/[^A-Z0-9]/g, '')
+      );
+  }, [arrivalAlerts, newOrderPlate]);
 
   const filteredOrders = useMemo(() => {
     return serviceOrders
@@ -253,6 +262,21 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               }}
                           />
                       </div>
+                      
+                      {pendingAlertsForVehicle.length > 0 && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
+                              <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+                                  <Bell className="h-4 w-4"/> Agendamentos Pendentes
+                              </h4>
+                              <ul className="space-y-2">
+                                  {pendingAlertsForVehicle.map(alert => (
+                                      <li key={alert.id} className="text-xs text-blue-700 dark:text-blue-400 bg-white dark:bg-blue-950/50 p-2 rounded border border-blue-100 dark:border-blue-900">
+                                          <span className="font-bold">{alert.targetName}</span> - Criado em: {new Date(alert.createdAt).toLocaleDateString()}
+                                      </li>
+                                  ))}
+                              </ul>
+                          </div>
+                      )}
                       
                       {/* TIRE SELECTION (OPTIONAL) */}
                       <div>

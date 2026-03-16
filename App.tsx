@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { InventoryList } from './components/InventoryList';
@@ -10,6 +10,8 @@ import { RetreadingHub } from './components/RetreadingHub';
 import { StrategicAnalysis } from './components/StrategicAnalysis';
 import { DemandForecast } from './components/DemandForecast';
 import { FinancialHub } from './components/FinancialHub';
+import { EsgPanel } from './components/EsgPanel';
+import { RetreaderRanking } from './components/RetreaderRanking';
 import { VehicleManager } from './components/VehicleManager';
 import { LocationMap } from './components/LocationMap';
 import { ServiceOrderHub } from './components/ServiceOrderHub';
@@ -17,11 +19,13 @@ import { ServiceManager } from './components/ServiceManager';
 import { Settings } from './components/Settings';
 import { DriversHub } from './components/DriversHub';
 import { ReportsHub } from './components/ReportsHub';
+import TrackerSettingsComponent from './components/TrackerSettings';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
-import { TabView, Tire, Vehicle, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType } from './types';
+import { sascarService } from './services/sascarService';
+import { TabView, Tire, Vehicle, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle } from 'lucide-react';
 
 const LoginScreen = () => {
@@ -161,9 +165,11 @@ export const App = () => {
   const [retreadOrders, setRetreadOrders] = useState<RetreadOrder[]>([]);
   const [settings, setSettings] = useState<SystemSettings | undefined>(undefined);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [arrivalAlerts, setArrivalAlerts] = useState<ArrivalAlert[]>([]);
   
   const [userRole, setUserRole] = useState<UserLevel>('SENIOR'); 
   const [activeModule, setActiveModule] = useState<ModuleType>('TIRES');
+  const [trackerSettings, setTrackerSettings] = useState<TrackerSettings | null>(null);
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -171,6 +177,11 @@ export const App = () => {
   useEffect(() => {
     const unsubAuth = storageService.subscribeToAuth((u) => {
         setUser(u);
+        if (u && u.email && (u.email.toLowerCase().trim() === 'gui@gmail.com' || u.email.toLowerCase().trim() === 'guilherme.jomed@gmail.com')) {
+            setUserRole('CREATOR');
+        } else {
+            setUserRole('SENIOR');
+        }
         setLoadingAuth(false);
     });
     return () => unsubAuth();
@@ -185,6 +196,8 @@ export const App = () => {
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(setRetreadOrders);
     const unsubSettings = storageService.subscribeToSettings(setSettings);
     const unsubDrivers = storageService.subscribeToDrivers(setDrivers);
+    const unsubTracker = storageService.subscribeToTrackerSettings(setTrackerSettings);
+    const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(setArrivalAlerts);
     
     return () => {
         unsubTires();
@@ -193,6 +206,8 @@ export const App = () => {
         unsubRetreadOrders();
         unsubSettings();
         unsubDrivers();
+        unsubTracker();
+        unsubArrivalAlerts();
     };
   }, [user]);
 
@@ -202,6 +217,171 @@ export const App = () => {
           storageService.checkDailyTrailerIncrement(vehicles, settings);
       }
   }, [vehicles.length, settings]);
+
+  // ARRIVAL ALERTS CHECK
+  useEffect(() => {
+    if (vehicles.length === 0 || arrivalAlerts.length === 0) return;
+
+    const activeAlerts = arrivalAlerts.filter(a => a.status === 'PENDING');
+    if (activeAlerts.length === 0) return;
+
+    activeAlerts.forEach(alert => {
+      const vehicle = vehicles.find(v => v.plate === alert.vehiclePlate);
+      if (vehicle && vehicle.lastLocation) {
+        const { lat, lng } = vehicle.lastLocation;
+        
+        // Calculate distance (Haversine formula)
+        const R = 6371e3; // metres
+        const φ1 = lat * Math.PI/180;
+        const φ2 = alert.targetLat * Math.PI/180;
+        const Δφ = (alert.targetLat - lat) * Math.PI/180;
+        const Δλ = (alert.targetLng - lng) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distance = R * c; // in metres
+
+        if (distance <= alert.radius) {
+          // Vehicle arrived!
+          storageService.updateArrivalAlert(alert.id, { 
+            status: 'ARRIVED', 
+            actualArrivalDate: new Date().toISOString() 
+          });
+          
+          addToast('success', 'Chegada de Veículo', `O veículo ${alert.vehiclePlate} chegou ao destino: ${alert.targetName}`);
+          
+          // Also log activity
+          storageService.logActivity("Chegada", `Veículo ${alert.vehiclePlate} chegou em ${alert.targetName}`, 'VEHICLES');
+        }
+      }
+    });
+  }, [vehicles, arrivalAlerts]);
+
+  // SASCAR SYNC FUNCTION
+  const isSyncingRef = useRef(false);
+  const syncSascar = async () => {
+      if (isSyncingRef.current) return 0;
+      
+      const currentVehicles = vehicles;
+      if (currentVehicles.length === 0) return 0;
+
+      isSyncingRef.current = true;
+      let totalUpdated = 0;
+      try {
+        // Passar os IDs (sascarCode) ou placas para buscar apenas os veículos cadastrados
+        const plates = currentVehicles.map(v => String(v.sascarCode || v.plate || "")).filter(p => p && p.length > 0);
+        
+        console.log(`[Sascar Manual-Sync] Iniciando sincronização para ${plates.length} veículos usando Cód.Sascar ou Placa...`);
+        
+        const CHUNK_SIZE = 40;
+        const updatesBatch: any[] = [];
+        const processedIds = new Set<string>();
+
+        // Garantir que chamamos pelo menos uma vez se houver veículos, mesmo sem sascarCode (para pegar a fila)
+        const chunksToProcess = plates.length > 0 ? plates : [[] as string[]];
+
+        for (let i = 0; i < (plates.length > 0 ? plates.length : 1); i += CHUNK_SIZE) {
+            const chunk = plates.length > 0 ? plates.slice(i, i + CHUNK_SIZE) : [];
+            
+            // Otimização: Se já temos dados atualizados para todos nesse chunk (vindos de um flush anterior), podemos pular
+            if (chunk.length > 0) {
+                const missingInChunk = chunk.filter(p => {
+                    const cleanP = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                    const id = parseInt(p.replace(/\D/g, ""), 10);
+                    return !processedIds.has(cleanP) && (!isNaN(id) ? !processedIds.has(id.toString()) : true);
+                });
+                
+                if (i > 0 && missingInChunk.length === 0) {
+                    console.log(`[Sascar Manual-Sync] Lote ${i / CHUNK_SIZE + 1} já possui dados de um flush anterior.`);
+                    continue;
+                }
+            }
+
+            console.log(`[Sascar Manual-Sync] Sincronizando lote ${plates.length > 0 ? (i / CHUNK_SIZE + 1) : 1}...`);
+            
+            try {
+                const result = await sascarService.getVehicles(chunk.length > 0 ? chunk : undefined, trackerSettings || undefined);
+                const rawList = result.data?.return || result.data?.retornar || result.data || [];
+                
+                rawList.forEach((item: any) => {
+                    let sv = item;
+                    if (typeof item === 'string') {
+                        try { sv = JSON.parse(item); if (typeof sv === 'string') sv = JSON.parse(sv); } catch (e) { return; }
+                    }
+
+                    const sascarId = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
+                    const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                    
+                    if (isNaN(sascarId) && !sascarPlate) return;
+                    if (!isNaN(sascarId) && processedIds.has(sascarId.toString())) return;
+                    if (sascarPlate && processedIds.has(sascarPlate)) return;
+
+                    const localVehicle = currentVehicles.find(v => {
+                        // Match por ID
+                        const idApp = parseInt(String(v.sascarCode || "").replace(/\D/g, ""), 10);
+                        if (!isNaN(idApp) && !isNaN(sascarId) && idApp === sascarId) return true;
+                        
+                        // Match por Placa
+                        const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                        if (plateApp && sascarPlate && plateApp === sascarPlate) return true;
+                        
+                        return false;
+                    });
+
+                    if (localVehicle) {
+                        if (!isNaN(sascarId)) processedIds.add(sascarId.toString());
+                        if (sascarPlate) processedIds.add(sascarPlate);
+                        
+                        const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
+                        const finalOdo = Math.round(Number(rawOdo));
+                        const lat = Number(sv.latitude || sv.lat || 0);
+                        const lng = Number(sv.longitude || sv.lng || 0);
+
+                        updatesBatch.push({
+                            id: localVehicle.id,
+                            odometer: finalOdo,
+                            lastLocation: {
+                                ...localVehicle.lastLocation,
+                                lat: lat,
+                                lng: lng,
+                                address: sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS',
+                                city: sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida',
+                                state: sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || '',
+                                updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || new Date().toISOString()
+                            },
+                            lastAutoUpdateDate: new Date().toISOString()
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error(`[Sascar Manual-Sync] Erro ao sincronizar lote:`, error);
+            }
+        }
+
+        if (updatesBatch.length > 0) {
+            await storageService.updateVehicleBatch(updatesBatch);
+            totalUpdated = updatesBatch.length;
+            console.log(`[Sascar Manual-Sync] ${updatesBatch.length} veículos atualizados com sucesso.`);
+        } else {
+            console.log("[Sascar Manual-Sync] Nenhum veículo local correspondente encontrado nos dados da Sascar.");
+        }
+        return totalUpdated;
+      } catch (error) {
+        console.error("[Sascar Manual-Sync] Erro:", error);
+        return 0;
+      } finally {
+        isSyncingRef.current = false;
+      }
+    };
+
+  // Auto-sync when entering location tab
+  useEffect(() => {
+    if (currentTab === 'location' && user && trackerSettings?.active) {
+      syncSascar();
+    }
+  }, [currentTab, !!user, trackerSettings?.active]);
 
   const addToast = (type: any, title: string, message: string) => {
     const id = Date.now().toString();
@@ -246,10 +426,12 @@ export const App = () => {
       case 'movement': return 'Movimentação';
       case 'inspection': return 'Hub de Inspeção';
       case 'retreading': return 'Gestão de Reformas';
+      case 'retreader-ranking': return 'Ranking de Fornecedores';
       case 'scrap': return 'Sucata e Descarte';
       case 'strategic-analysis': return 'Análise Estratégica';
       case 'demand-forecast': return 'Previsão de Demanda';
       case 'financial': return 'Financeiro';
+      case 'esg-panel': return 'Painel ESG';
       case 'fleet': return 'Frota de Veículos';
       case 'location': return 'Rastreamento';
       case 'service-orders': return 'Ordens de Serviço';
@@ -257,6 +439,7 @@ export const App = () => {
       case 'settings': return 'Configurações';
       case 'drivers': return 'Motoristas';
       case 'reports': return 'Relatórios';
+      case 'tracker': return 'Configurações do Rastreador';
       default: return 'GM Control';
     }
   };
@@ -318,7 +501,11 @@ export const App = () => {
 
                     <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 md:p-2.5 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 bg-white/50 dark:bg-slate-900/50 rounded-xl transition-all shadow-sm border border-slate-200/50 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 hover:text-blue-600">
                         <Bell className="h-5 w-5" />
-                        {/* You can add a red dot here if there are notifications */}
+                        {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-950 animate-pulse">
+                                {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length}
+                            </span>
+                        )}
                     </button>
                 </div>
             </header>
@@ -326,24 +513,27 @@ export const App = () => {
             {currentTab === 'dashboard' && <Dashboard tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} onNavigate={setCurrentTab} settings={settings} />}
             {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} onDelete={storageService.deleteTire} onUpdateTire={storageService.updateTire} onRegister={() => setCurrentTab('register')} userLevel={userRole} />}
             {currentTab === 'scrap' && <InventoryList tires={tires} vehicles={vehicles} onDelete={storageService.deleteTire} onUpdateTire={storageService.updateTire} userLevel={userRole} viewMode="scrap" />}
-            {currentTab === 'register' && <TireForm onAddTire={storageService.addTire} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} />}
-            {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} userLevel={userRole} settings={settings} />}
-            {currentTab === 'fleet' && <VehicleManager vehicles={vehicles} tires={tires} serviceOrders={serviceOrders} onAddVehicle={storageService.addVehicle} onDeleteVehicle={storageService.deleteVehicle} onUpdateVehicle={storageService.updateVehicle} userLevel={userRole} settings={settings} />}
+            {currentTab === 'register' && <TireForm onAddTire={storageService.addTire} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
+            {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onAddTire={storageService.addTire} userLevel={userRole} settings={settings} />}
+            {currentTab === 'fleet' && <VehicleManager vehicles={vehicles} tires={tires} serviceOrders={serviceOrders} onAddVehicle={storageService.addVehicle} onDeleteVehicle={storageService.deleteVehicle} onUpdateVehicle={storageService.updateVehicle} userLevel={userRole} settings={settings} trackerSettings={trackerSettings} onSyncSascar={syncSascar} />}
             {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onCreateServiceOrder={storageService.addServiceOrder} settings={settings} />}
             {currentTab === 'retreading' && <RetreadingHub tires={tires} retreadOrders={retreadOrders} onUpdateTire={storageService.updateTire} onNotification={addToast} settings={settings} />}
+            {currentTab === 'retreader-ranking' && <RetreaderRanking tires={tires} retreadOrders={retreadOrders} />}
             {currentTab === 'strategic-analysis' && <StrategicAnalysis tires={tires} vehicles={vehicles} settings={settings} />}
             {currentTab === 'demand-forecast' && <DemandForecast tires={tires} vehicles={vehicles} settings={settings} />}
             {currentTab === 'financial' && <FinancialHub tires={tires} vehicles={vehicles} retreadOrders={retreadOrders} />}
-            {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} />}
-            {currentTab === 'service-orders' && <ServiceOrderHub serviceOrders={serviceOrders} vehicles={vehicles} tires={tires} onUpdateOrder={storageService.updateServiceOrder} onAddOrder={handleAddServiceOrder} settings={settings} />}
+            {currentTab === 'esg-panel' && <EsgPanel tires={tires} retreadOrders={retreadOrders} />}
+            {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} onSync={syncSascar} />}
+            {currentTab === 'service-orders' && <ServiceOrderHub serviceOrders={serviceOrders} vehicles={vehicles} tires={tires} onUpdateOrder={storageService.updateServiceOrder} onAddOrder={handleAddServiceOrder} settings={settings} arrivalAlerts={arrivalAlerts} />}
             {currentTab === 'service' && <ServiceManager userLevel={userRole} />}
             {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} />}
             {currentTab === 'settings' && <Settings currentSettings={settings || {} as any} onUpdateSettings={storageService.saveSettings} />}
             {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={storageService.addDriver} onUpdateDriver={storageService.updateDriver} onDeleteDriver={storageService.deleteDriver} onUpdateVehicle={storageService.updateVehicle} />}
+            {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent />}
         </div>
       </main>
 
-      <NotificationsPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} tires={tires} vehicles={vehicles} settings={settings || {} as any} />
+      <NotificationsPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} tires={tires} vehicles={vehicles} settings={settings || {} as any} arrivalAlerts={arrivalAlerts} />
       <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
     </div>
   );

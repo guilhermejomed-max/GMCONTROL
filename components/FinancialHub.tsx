@@ -47,7 +47,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
     }> = {};
 
     tires.forEach(tire => {
-      const investment = tire.totalInvestment || tire.price || 0;
+      const investment = Number(tire.totalInvestment || tire.price || 0);
       const original = tire.originalTreadDepth || 18;
       const current = tire.currentTreadDepth;
       const safetyLimit = 3.0;
@@ -64,7 +64,10 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
       // Savings
       if (tire.retreadCount > 0) {
           const avgNewPrice = 2800;
-          const totalRetreadCost = (tire.totalInvestment || 0) - (tire.price || 0);
+          let totalRetreadCost = Number(tire.totalInvestment || tire.price || 0) - Number(tire.price || 0);
+          if (totalRetreadCost <= 0) {
+              totalRetreadCost = tire.retreadCount * (avgNewPrice * 0.3);
+          }
           totalRetreadSavings += (avgNewPrice * tire.retreadCount) - totalRetreadCost;
       }
 
@@ -169,7 +172,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
 
         if (discardEvents.length > 0) {
             discardedCount += discardEvents.length;
-            discardedValue += (tire.totalInvestment || tire.price || 0) * discardEvents.length;
+            discardedValue += Number(tire.totalInvestment || tire.price || 0) * discardEvents.length;
         }
     });
 

@@ -38,7 +38,7 @@ const TireDetailModal: React.FC<{ tire: Tire; vehicles: Vehicle[]; onClose: () =
         currentRun = Math.max(0, vehicle.odometer - tire.installOdometer);
     }
     const totalKm = (tire.totalKms || 0) + currentRun;
-    const totalCost = tire.totalInvestment || tire.price || 0;
+    const totalCost = Number(tire.totalInvestment || tire.price || 0);
     const cpk = totalKm > 0 ? totalCost / totalKm : 0;
 
     // Processamento do Histórico para Linha do Tempo de Vidas
@@ -56,7 +56,7 @@ const TireDetailModal: React.FC<{ tire: Tire; vehicles: Vehicle[]; onClose: () =
                 {/* Header */}
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-start">
                     <div className="flex items-center gap-4">
-                        <div className={`p-4 rounded-2xl ${tire.status === 'DAMAGED' ? 'bg-red-100 text-red-600' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}>
+                        <div className={`p-4 rounded-2xl ${tire.status === TireStatus.DAMAGED ? 'bg-red-100 text-red-600' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}>
                             <Disc className="h-8 w-8" />
                         </div>
                         <div>
@@ -246,7 +246,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
                 <div className="flex justify-between items-end mb-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Sulco</span>
                     <span className={`text-sm font-black ${tire.currentTreadDepth <= 3 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
-                        {tire.currentTreadDepth.toFixed(1)} <span className="text-[9px]">mm</span>
+                        {Number(tire.currentTreadDepth || 0).toFixed(1)} <span className="text-[9px]">mm</span>
                     </span>
                 </div>
                 <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">

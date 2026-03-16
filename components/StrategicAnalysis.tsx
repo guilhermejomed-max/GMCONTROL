@@ -139,8 +139,8 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({ tires, vehicles,
         groups[key] = { brand: tire.brand.trim().toUpperCase(), model: tire.model.trim().toUpperCase(), items: [] };
       }
 
-      const acquisitionCost = tire.price > 0 ? tire.price : 0;
-      const totalLifecycleCost = tire.totalInvestment > 0 ? tire.totalInvestment : (acquisitionCost > 0 ? acquisitionCost : 2500);
+      const acquisitionCost = Number(tire.price) > 0 ? Number(tire.price) : 0;
+      const totalLifecycleCost = Number(tire.totalInvestment) > 0 ? Number(tire.totalInvestment) : (acquisitionCost > 0 ? acquisitionCost : 2500);
       const finalAcquisitionCost = acquisitionCost > 0 ? acquisitionCost : totalLifecycleCost;
 
       const originalDepth = tire.originalTreadDepth || 18.0;
@@ -347,6 +347,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({ tires, vehicles,
              <div className="xl:col-span-2 space-y-6">
                 
                 {/* CHAMPION CARD */}
+                {strategicData.length > 0 && (
                 <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
                    <div className="absolute top-0 right-0 p-8 opacity-10"><Crown className="h-40 w-40" /></div>
                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -371,6 +372,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({ tires, vehicles,
                       </div>
                    </div>
                 </div>
+                )}
 
                 {/* BAR CHART: RANKING */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
@@ -460,7 +462,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({ tires, vehicles,
                                                 <Cell key={`cell-${index}`} fill={SCRAP_COLORS[index % SCRAP_COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }}/>
+                                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} itemStyle={{ color: '#fff' }} />
                                     </RePieChart>
                                 </ResponsiveContainer>
                             </div>

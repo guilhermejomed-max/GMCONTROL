@@ -188,6 +188,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({ tires, vehicles, setti
                   <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
                   />
                   <Area type="monotone" dataKey="qty" name="Qtd Pneus" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorQty)" />
                 </AreaChart>

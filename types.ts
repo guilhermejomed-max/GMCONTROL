@@ -7,7 +7,7 @@ export enum TireStatus {
   DAMAGED = 'Danificado/Descarte'
 }
 
-export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR';
+export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR';
 
 export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES';
 
@@ -117,6 +117,44 @@ export interface Vehicle {
   lastLocation?: VehicleLocation;
   currentDriverId?: string; // Added currentDriverId property
   lastAutoUpdateDate?: string; // Data da última atualização automática de KM (para carretas)
+  sascarCode?: string; // Cód. Sascar para integração
+  
+  // Extended fields for "RG"
+  vin?: string; // Chassi
+  year?: number;
+  color?: string;
+  fuelType?: string;
+  fleetNumber?: string; // Prefixo
+  speed?: number;
+  ignition?: boolean;
+  brand?: string;
+  engine?: string;
+  transmission?: string;
+  renavam?: string;
+  tiresBrand?: string;
+  tiresSize?: string;
+}
+
+export interface LocationPoint {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  radius: number; // in meters
+}
+
+export interface ArrivalAlert {
+  id: string;
+  vehiclePlate: string;
+  targetName: string;
+  targetLat: number;
+  targetLng: number;
+  radius: number; // in meters
+  status: 'PENDING' | 'ARRIVED';
+  createdAt: string;
+  createdBy: string;
+  actualArrivalDate?: string;
+  services?: string;
 }
 
 export interface TireModelDefinition {
@@ -163,6 +201,7 @@ export interface SystemSettings {
   trailerDailyAverageKm?: number; // Média diária fixa para rodagem de carretas
   rotationIntervalKm?: number; // Novo: Intervalo para rodízio
   calibrationIntervalDays?: number; // Novo: Dias máx sem inspeção/calibragem
+  savedPoints?: LocationPoint[]; // Novos pontos salvos para agendamento
 }
 
 export interface TeamMember {
@@ -263,7 +302,27 @@ export interface InspectionRecord {
     valveCondition?: 'OK' | 'BAD';
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports';
+export interface TireLoan {
+  id: string;
+  tireId: string;
+  fireNumber: string;
+  borrowerName: string;
+  borrowerContact?: string;
+  loanDate: string;
+  expectedReturnDate?: string;
+  returnDate?: string;
+  status: 'ACTIVE' | 'RETURNED' | 'OVERDUE';
+  notes?: string;
+}
+
+export interface TrackerSettings {
+  apiUrl: string;
+  user: string;
+  pass: string;
+  active: boolean;
+}
+
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

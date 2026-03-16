@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Tire, Vehicle, ServiceOrder, RetreadOrder } from '../types';
+import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus } from '../types';
 import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface ReportsHubProps {
@@ -42,10 +42,10 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'status', label: 'Status', accessor: (t: Tire) => t.status },
       { id: 'vehicle', label: 'Veículo Atual', accessor: (t: Tire, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === t.vehicleId)?.plate || (t.location || 'Estoque') },
       { id: 'position', label: 'Posição', accessor: (t: Tire) => t.position || '-' },
-      { id: 'depth', label: 'Sulco (mm)', accessor: (t: Tire) => t.currentTreadDepth?.toFixed(1) || '0.0' },
+      { id: 'depth', label: 'Sulco (mm)', accessor: (t: Tire) => Number(t.currentTreadDepth || 0).toFixed(1) },
       { id: 'kms', label: 'KM Total', accessor: (t: Tire) => (t.totalKms || 0).toLocaleString() },
-      { id: 'cost', label: 'Investimento', accessor: (t: Tire) => t.totalInvestment || t.price, format: money },
-      { id: 'cpk', label: 'CPK Est.', accessor: (t: Tire) => (t.totalKms || 0) > 0 ? ((t.totalInvestment || t.price) / t.totalKms).toFixed(5) : '0.00000' },
+      { id: 'cost', label: 'Investimento', accessor: (t: Tire) => Number(t.totalInvestment || t.price || 0), format: money },
+      { id: 'cpk', label: 'CPK Est.', accessor: (t: Tire) => (t.totalKms || 0) > 0 ? (Number(t.totalInvestment || t.price || 0) / t.totalKms).toFixed(5) : '0.00000' },
       { id: 'dot', label: 'DOT', accessor: (t: Tire) => t.dot || '-' },
     ],
     VEHICLES: [
@@ -159,9 +159,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
             return true;
         });
 
-        const discarded = filteredTires.filter(t => t.status === 'DISCARDED').length;
+        const discarded = filteredTires.filter(t => t.status === TireStatus.DAMAGED).length;
         const retreaded = filteredTires.reduce((acc, t) => acc + (t.retreadCount || 0), 0);
-        const totalValue = filteredTires.reduce((acc, t) => acc + (t.totalInvestment || t.price || 0), 0);
+        const totalValue = filteredTires.reduce((acc, t) => acc + Number(t.totalInvestment || t.price || 0), 0);
 
         rawData = [
             { metric: 'Total de Pneus', value: filteredTires.length },

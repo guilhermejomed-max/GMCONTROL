@@ -151,7 +151,7 @@ export const MaintenanceHub: FC<MaintenanceHubProps> = ({ tires, vehicles, onUpd
                       // CPK Calculation
                       const currentRun = (selectedVehicle && tire.installOdometer) ? Math.max(0, selectedVehicle.odometer - tire.installOdometer) : 0;
                       const totalKm = (tire.totalKms || 0) + currentRun;
-                      const cost = tire.totalInvestment || tire.price;
+                      const cost = Number(tire.totalInvestment || tire.price || 0);
                       const cpk = totalKm > 0 ? cost / totalKm : 0;
 
                       // Color Logic

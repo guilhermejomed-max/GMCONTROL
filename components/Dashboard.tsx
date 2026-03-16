@@ -1,3 +1,4 @@
+
 import { useMemo, useState, FC } from 'react';
 import { Tire, TireStatus, Vehicle, TabView, SystemSettings, ServiceOrder } from '../types';
 import { 
@@ -33,33 +34,34 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
 
   const stats = useMemo(() => {
     const now = new Date();
+    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
     const currentHour = now.getHours();
     const greeting = currentHour < 12 ? 'Bom dia' : currentHour < 18 ? 'Boa tarde' : 'Boa noite';
     const minDepth = settings?.minTreadDepth || 3;
 
     // 1. FILTERING
-    const filteredVehicles = vehicles.filter(v => opFilter === 'ALL' || v.type === opFilter);
+    const filteredVehicles = vehicles?.filter(v => opFilter === 'ALL' || v.type === opFilter) || [];
     const vehicleIds = new Set(filteredVehicles.map(v => v.id));
     
     const filteredTires = opFilter === 'ALL' 
-        ? tires 
-        : tires.filter(t => t.vehicleId && vehicleIds.has(t.vehicleId));
+        ? (tires || [])
+        : (tires || []).filter(t => t.vehicleId && vehicleIds.has(t.vehicleId));
 
     const mountedTires = filteredTires.filter(t => t.vehicleId);
 
-    // 2. FLEET HEALTH SCORE & AI INSIGHT PREPARATION
+    // 2. FLEET HEALTH SCORE
     let healthScore = 100;
-    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
+    let inspectionCompliance = 0;
     
-    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
-    const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
-    const inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
-
     if (mountedTires.length === 0) {
-        healthScore = 0; // Ou um valor que indique "não calculado"
+        healthScore = 0; 
     } else {
+        const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
         healthScore -= (criticalCount * 3); 
 
+        const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
+        inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
+        
         if (inspectionCompliance < 80) healthScore -= 10;
         if (inspectionCompliance < 50) healthScore -= 15;
 
@@ -69,6 +71,7 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
     // 3. AI INSIGHT
     let aiInsight = mountedTires.length === 0 ? "Nenhum pneu monitorado." : "Operação estável. Continue o monitoramento.";
     let aiMood: 'GOOD' | 'WARN' | 'BAD' = 'GOOD';
+    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
 
     if (mountedTires.length > 0) {
         if (criticalCount > 5) {
@@ -93,22 +96,22 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
     
     const watchList = Object.entries(vehicleCriticalMap)
         .map(([vId, count]) => {
-            const v = vehicles.find(veh => veh.id === vId);
+            const v = vehicles?.find(veh => veh.id === vId);
             return v ? { ...v, criticalCount: count } : null;
         })
-        .filter(v => v !== null)
-        .sort((a,b) => (b?.criticalCount || 0) - (a?.criticalCount || 0))
+        .filter((v): v is Vehicle & { criticalCount: number } => v !== null)
+        .sort((a,b) => b.criticalCount - a.criticalCount)
         .slice(0, 3);
 
     // 5. LIVE OPERATIONS FEED (Global History)
-    const recentActivity = tires
+    const recentActivity = (tires || [])
         .flatMap(t => (t.history || []).map(h => ({ ...h, tire: t.fireNumber, id: t.id + h.date })))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5);
 
     // 6. STOCK VELOCITY (Most mounted models last 30 days)
     const velocityMap: Record<string, number> = {};
-    tires.forEach(t => {
+    (tires || []).forEach(t => {
         const recentMounts = t.history?.filter(h => h.action === 'MONTADO' && new Date(h.date) > thirtyDaysAgo);
         if(recentMounts?.length) {
             const key = `${t.brand} ${t.model}`;
@@ -120,66 +123,111 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
         .sort((a,b) => b.count - a.count)
         .slice(0, 3);
 
-    // 7. PREVISÃO DE COMPRA (Forecast simplificado: pneus < 5mm)
-    const warningTiresCount = mountedTires.filter(t => t.currentTreadDepth > minDepth && t.currentTreadDepth <= (minDepth + 2)).length;
-    const projectedCost = warningTiresCount * 2800; // Custo médio estimado
+    // 7. AVERAGE NEW TIRE PRICE
+    const newTires = filteredTires.filter(t => t.price && t.price > 0);
+    const calculatedAvgNewPrice = newTires.length > 0 
+        ? newTires.reduce((acc, t) => acc + Number(t.price || 0), 0) / newTires.length 
+        : 2800;
 
-    // 8. TAXA DE OCUPAÇÃO (Pneus Rodando / Total Ativos)
-    const totalActiveTires = tires.filter(t => t.status !== 'DAMAGED').length;
+    // 8. PREVISÃO DE COMPRA (Forecast simplificado: pneus < 5mm)
+    const warningTiresCount = mountedTires.filter(t => t.currentTreadDepth > minDepth && t.currentTreadDepth <= (minDepth + 2)).length;
+    const projectedCost = warningTiresCount * calculatedAvgNewPrice; 
+
+    // 9. TAXA DE OCUPAÇÃO (Pneus Rodando / Total Ativos)
+    const totalActiveTires = (tires || []).filter(t => t.status !== TireStatus.DAMAGED).length;
     const utilizationRate = totalActiveTires > 0 ? (mountedTires.length / totalActiveTires) * 100 : 0;
 
-    // 9. COST DISTRIBUTION
+    // 10. COST DISTRIBUTION
     let totalAcquisition = 0;
     let totalServices = 0;
     filteredTires.forEach(t => {
-        totalAcquisition += t.price || 0;
-        const serviceCost = (t.totalInvestment || 0) - (t.price || 0);
+        totalAcquisition += Number(t.price || 0);
+        const serviceCost = Number(t.totalInvestment || t.price || 0) - Number(t.price || 0);
         if (serviceCost > 0) totalServices += serviceCost;
     });
     const costDistribution = [
-        { name: 'Aquisição', value: totalAcquisition, color: '#3b82f6' },
-        { name: 'Serviços', value: totalServices, color: '#f59e0b' }
+        { name: 'Aquisição', value: totalAcquisition, color: '#0f172a' },
+        { name: 'Recapagem', value: totalServices, color: '#3b82f6' }
     ];
 
-    // 10. FINANCIAL DATA (Chart)
-    const monthlyData: Record<string, { name: string, fullDate: Date, custo: number, cpk: number }> = {};
-    for(let i=5; i>=0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-        monthlyData[key] = { name: key, fullDate: d, custo: 0, cpk: 0 };
+    // 11. FINANCIAL DATA (Chart)
+    const monthlyData: Record<string, { name: string, fullDate: Date, custo: number, aquisicao: number, recapagem: number, cpk: number }> = {};
+    
+    if (period === 'YTD') {
+        const currentMonth = now.getMonth();
+        for(let i=currentMonth; i>=0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
+            monthlyData[key] = { name: key, fullDate: d, custo: 0, aquisicao: 0, recapagem: 0, cpk: 0 };
+        }
+    } else {
+        // 30D - just show last 2 months to have some line/area
+        for(let i=1; i>=0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
+            monthlyData[key] = { name: key, fullDate: d, custo: 0, aquisicao: 0, recapagem: 0, cpk: 0 };
+        }
     }
 
-    let totalSpentYTD = 0;
+    let totalGlobalKms = 0;
+    let consumedGlobalValue = 0;
+
     filteredTires.forEach(t => {
-        const events = [
-            { date: t.purchaseDate, cost: t.price || 0 },
-            ...(t.history?.filter(h => h.action === 'RETORNO_RECAPAGEM').map(h => {
-                const match = h.details.match(/R\$\s?([\d.,]+)/);
-                const cost = match ? parseFloat(match[1].replace('.','').replace(',','.')) : 0;
-                return { date: h.date, cost };
-            }) || [])
-        ];
-        events.forEach(ev => {
-            if (ev.date) {
-                const d = new Date(ev.date);
-                const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-                if (monthlyData[key] && d.getFullYear() === now.getFullYear()) {
-                    monthlyData[key].custo += ev.cost;
-                    if (period === 'YTD') totalSpentYTD += ev.cost;
-                }
+        // CPK Calculation
+        const vehicle = vehicles?.find(v => v.id === t.vehicleId);
+        const currentRun = (vehicle && t.installOdometer) ? Math.max(0, vehicle.odometer - t.installOdometer) : 0;
+        const totalKm = (t.totalKms || 0) + currentRun;
+        
+        const investment = Number(t.totalInvestment || t.price || 0);
+        const original = t.originalTreadDepth || 18;
+        const current = t.currentTreadDepth || original;
+        const safetyLimit = settings?.minTreadDepth || 3;
+
+        if (totalKm > 1000) {
+            totalGlobalKms += totalKm;
+            const wearRatio = Math.min(1, Math.max(0, (original - current) / (original - safetyLimit)));
+            consumedGlobalValue += investment * wearRatio;
+        }
+
+        // Acquisition
+        if (t.purchaseDate) {
+            const d = new Date(t.purchaseDate);
+            const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
+            if (monthlyData[key] && d.getFullYear() === now.getFullYear()) {
+                const cost = t.price || 0;
+                monthlyData[key].custo += cost;
+                monthlyData[key].aquisicao += cost;
             }
-        });
+        }
+
+        // Retreads
+        const retreadEvents = t.history?.filter(h => h.action === 'RETORNO_RECAPAGEM') || [];
+        if (retreadEvents.length > 0) {
+            const totalRetreadCost = Number(t.totalInvestment || t.price || 0) - Number(t.price || 0);
+            const costPerRetread = totalRetreadCost / retreadEvents.length;
+            
+            retreadEvents.forEach(ev => {
+                if (ev.date) {
+                    const d = new Date(ev.date);
+                    const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
+                    if (monthlyData[key] && d.getFullYear() === now.getFullYear()) {
+                        monthlyData[key].custo += costPerRetread;
+                        monthlyData[key].recapagem += costPerRetread;
+                    }
+                }
+            });
+        }
     });
+
+    const avgCpk = totalGlobalKms > 0 ? consumedGlobalValue / totalGlobalKms : 0;
 
     const chartData = Object.values(monthlyData).map(d => ({
         ...d,
-        cpk: (Math.random() * 0.02) + 0.04 // Mock CPK for trend visual
+        cpk: avgCpk
     }));
-    const avgCpk = chartData.reduce((a,b) => a + b.cpk, 0) / (chartData.length || 1);
 
-    // 11. BURN RATE & SAVINGS
+    // 12. BURN RATE & SAVINGS
     let totalWearMm = 0, totalKmForWear = 0, totalRetreadSavings = 0;
-    const avgNewTirePrice = 2800;
     filteredTires.forEach(t => {
         const run = t.totalKms || 0;
         if (run > 10000) {
@@ -187,9 +235,13 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
             if (consumed > 0) { totalWearMm += consumed; totalKmForWear += run; }
         }
         if (t.retreadCount > 0) {
-            const investment = t.totalInvestment || t.price || 0;
-            const hypotheticalCost = (1 + t.retreadCount) * avgNewTirePrice;
-            totalRetreadSavings += (hypotheticalCost - investment);
+            let retreadCosts = Number(t.totalInvestment || t.price || 0) - Number(t.price || 0);
+            if (retreadCosts <= 0) {
+                // Se não temos o custo real registrado, estimamos o custo da recapagem em 30% do valor de um pneu novo
+                retreadCosts = t.retreadCount * (calculatedAvgNewPrice * 0.3);
+            }
+            const hypotheticalCost = t.retreadCount * calculatedAvgNewPrice;
+            totalRetreadSavings += (hypotheticalCost - retreadCosts);
         }
     });
     const burnRate = totalKmForWear > 0 ? (totalWearMm / totalKmForWear) * 10000 : 0;
@@ -224,12 +276,13 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
       {/* 1. TOP BAR */}
       <div className="flex flex-col xl:flex-row justify-between items-end gap-6">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
-            Executive Console <span className="text-2xl animate-pulse">📡</span>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+            <LayoutDashboard className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+            Dashboard Operacional
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 flex items-center gap-2 text-sm">
-            <CheckCircle2 className="h-4 w-4 text-green-500"/>
-            Sistema Operacional • <strong className="text-slate-700 dark:text-slate-200">{stats.activeVehicles} Veículos</strong> ativos.
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 flex items-center gap-2 text-sm">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Sistema Online • <strong className="text-slate-700 dark:text-slate-200">{stats.activeVehicles} Veículos</strong> monitorados
           </p>
         </div>
         
@@ -280,8 +333,8 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-indigo-300 transition-colors">
             <div className="flex justify-between items-start z-10">
                 <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde da Frota</p>
-                    <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.totalTires > 0 ? stats.healthScore : '---'} <span className="text-sm text-slate-400 font-bold">{stats.totalTires > 0 ? '/100' : ''}</span></h3>
+                    <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde da Frota</p>
+                    <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.totalTires > 0 ? stats.healthScore : '---'} <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">{stats.totalTires > 0 ? '/100' : ''}</span></h3>
                 </div>
             </div>
             <div className="absolute right-[-10px] bottom-[-20px] w-24 h-24 opacity-20">
@@ -301,7 +354,7 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
          {/* CPK METRIC */}
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between group">
             <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Médio</p>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Médio</p>
                 <h3 className="text-3xl font-black text-slate-800 dark:text-white font-mono">{stats.totalTires > 0 ? `R$ ${stats.avgCpk.toFixed(4)}` : '---'}</h3>
             </div>
             <div className="h-10 w-full mt-2 opacity-50 group-hover:opacity-100 transition-opacity">
@@ -317,22 +370,22 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5"><Percent className="h-16 w-16"/></div>
             <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Truck className="h-3 w-3 text-blue-500"/> Ocupação (Rodando)</p>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Truck className="h-3 w-3 text-blue-500"/> Ocupação (Rodando)</p>
                 <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.utilizationRate.toFixed(0)}%</h3>
             </div>
-            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl w-fit">
+            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl w-fit">
                 {stats.totalTires} Pneus Ativos
             </div>
          </div>
 
          {/* RETREAD SAVINGS */}
-         <div className="bg-emerald-600 p-5 rounded-[2rem] shadow-lg shadow-emerald-600/20 text-white relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"><Leaf className="h-16 w-16"/></div>
+         <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><Leaf className="h-16 w-16 text-emerald-500"/></div>
             <div>
-                <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest mb-1 flex items-center gap-1"><Leaf className="h-3 w-3"/> Economia (Recap)</p>
-                <h3 className="text-3xl font-black">{money(stats.totalRetreadSavings)}</h3>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Leaf className="h-3 w-3 text-emerald-500"/> Economia (Recap)</p>
+                <h3 className="text-3xl font-black text-slate-800 dark:text-white">{money(stats.totalRetreadSavings)}</h3>
             </div>
-            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-emerald-100 bg-white/10 px-3 py-1.5 rounded-xl w-fit backdrop-blur-sm">
+            <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl w-fit">
                 Evitado em pneus novos
             </div>
          </div>
@@ -366,20 +419,16 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
             <div className="flex-1 min-h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={stats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                            <linearGradient id="colorCusto" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
                         <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tick={{fill: '#94a3b8', fontWeight: 'bold'}} dy={10} />
                         <YAxis fontSize={10} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} tickFormatter={(v) => `R$${v/1000}k`} />
                         <Tooltip 
                             contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#1e293b', color: '#fff', fontSize: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                            itemStyle={{ color: '#fff' }}
                             formatter={(val: number) => money(val)}
                         />
-                        <Area type="monotone" dataKey="custo" name="Investimento" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorCusto)" />
+                        <Area type="monotone" dataKey="aquisicao" name="Aquisição" stackId="1" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.8} />
+                        <Area type="monotone" dataKey="recapagem" name="Recapagem" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.8} />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
@@ -407,7 +456,7 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
                                     <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                                 ))}
                             </Pie>
-                            <Tooltip formatter={(value: number) => money(value)} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} />
+                            <Tooltip formatter={(value: number) => money(value)} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} itemStyle={{ color: '#fff' }} />
                             <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
                         </PieChart>
                     </ResponsiveContainer>
@@ -450,23 +499,23 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* PURCHASE FORECAST (NEW) */}
-          <div className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 p-4 opacity-10"><ShoppingCart className="h-20 w-20"/></div>
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col">
+              <div className="absolute top-0 right-0 p-4 opacity-5"><ShoppingCart className="h-20 w-20 text-indigo-500"/></div>
               
               <div className="relative z-10">
-                  <h3 className="font-bold text-sm uppercase tracking-wide mb-1 flex items-center gap-2">
-                      <Target className="h-4 w-4 text-orange-400"/> Projeção de Compra
+                  <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide mb-1 flex items-center gap-2">
+                      <Target className="h-4 w-4 text-indigo-500"/> Projeção de Compra
                   </h3>
-                  <p className="text-xs text-slate-400 mb-4">Estimativa de reposição (Pneus &lt; 5mm)</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Estimativa de reposição (Pneus &lt; 5mm)</p>
                   
                   <div className="flex items-end gap-2 mb-2">
-                      <span className="text-4xl font-black text-orange-400">{stats.warningTiresCount}</span>
-                      <span className="text-sm font-bold text-slate-300 mb-2">pneus vencerão em breve</span>
+                      <span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">{stats.warningTiresCount}</span>
+                      <span className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">pneus vencerão em breve</span>
                   </div>
                   
-                  <div className="mt-auto pt-4 border-t border-white/10">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Custo Estimado de Reposição</p>
-                      <p className="text-2xl font-black text-white">{money(stats.projectedCost)}</p>
+                  <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Custo Estimado de Reposição</p>
+                      <p className="text-2xl font-black text-slate-800 dark:text-white">{money(stats.projectedCost)}</p>
                   </div>
               </div>
           </div>

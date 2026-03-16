@@ -23,7 +23,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
   // --- MOTOR DE ANÁLISE DETALHADA ---
   const tireAnalysis = useMemo(() => {
       return sortedTires.map(t => {
-          const data = inspectionData[t.id] || {};
+          const data = inspectionData[t.id] || ({} as Partial<InspectionRecord>);
           const currentDepth = data.depth !== undefined ? data.depth : t.currentTreadDepth;
           const pressure = data.pressure || t.pressure;
           const originalDepth = t.originalTreadDepth || 18.0;

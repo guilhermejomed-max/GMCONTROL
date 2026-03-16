@@ -1,7 +1,6 @@
-
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { Vehicle, Tire, SystemSettings } from '../types';
-import { Navigation, MapPin, Locate, Search, Truck, Container, X, Layers, Sun, Moon, Satellite, ShieldCheck, AlertTriangle, AlertOctagon, User, Activity, Wrench, ExternalLink, Disc, Zap } from 'lucide-react';
+import { Navigation, MapPin, Search, Truck, Container, X, Layers, Sun, Moon, Satellite, ShieldCheck, AlertTriangle, AlertOctagon, User, Activity, Wrench, ExternalLink, Disc, Zap, Gauge } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -13,12 +12,19 @@ interface LocationMapProps {
   vehicles: Vehicle[];
   tires: Tire[];
   settings?: SystemSettings;
+  onSync: () => Promise<number>;
 }
 
 type FilterStatus = 'ALL' | 'OK' | 'WARNING' | 'CRITICAL';
 type MapLayer = 'light' | 'dark' | 'satellite';
 
-export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, settings }) => {
+export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, settings, onSync }) => {
+  const [isSyncing, setIsSyncing] = useState(false);
+  const handleSync = async () => {
+    setIsSyncing(true);
+    await onSync();
+    setIsSyncing(false);
+  };
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markerLayerRef = useRef<any>(null);
@@ -27,6 +33,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
   const [activeLayer, setActiveLayer] = useState<MapLayer>('light');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [closestVehicle, setClosestVehicle] = useState<Vehicle | null>(null);
   const [searchText, setSearchText] = useState('');
   
   // Controle do Menu de Serviços
@@ -84,7 +91,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
 
   const filteredVehicles = useMemo(() => {
     return vehicles
-      .filter(v => v.lastLocation && v.lastLocation.lat && v.lastLocation.lng)
+      .filter(v => v.lastLocation && typeof v.lastLocation.lat === 'number' && typeof v.lastLocation.lng === 'number')
       .map(v => ({ ...v, ...getVehicleStats(v.id) }))
       .filter(v => {
         if (searchText && !v.plate.toLowerCase().includes(searchText.toLowerCase()) && !v.model.toLowerCase().includes(searchText.toLowerCase())) return false;
@@ -94,6 +101,26 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
   }, [vehicles, getVehicleStats, filterStatus, searchText]);
 
   const selectedVehicleData = useMemo(() => filteredVehicles.find(v => v.id === selectedVehicleId), [filteredVehicles, selectedVehicleId]);
+
+  // Calcular veículo mais próximo
+  useEffect(() => {
+    if (selectedVehicleData && selectedVehicleData.lastLocation) {
+        const { lat, lng } = selectedVehicleData.lastLocation;
+        let closest = null;
+        let minDistance = Infinity;
+        filteredVehicles.forEach(v => {
+            if (v.id === selectedVehicleData.id || !v.lastLocation) return;
+            const dist = Math.sqrt(Math.pow(v.lastLocation.lat - lat, 2) + Math.pow(v.lastLocation.lng - lng, 2));
+            if (dist < minDistance) {
+                minDistance = dist;
+                closest = v;
+            }
+        });
+        setClosestVehicle(closest);
+    } else {
+        setClosestVehicle(null);
+    }
+  }, [selectedVehicleData, filteredVehicles]);
 
   const stats = useMemo(() => {
       return {
@@ -160,12 +187,20 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
       let hasValidLocation = false;
 
       filteredVehicles.forEach(v => {
-          if (!v.lastLocation) return;
-          const latLng = [v.lastLocation.lat, v.lastLocation.lng];
+          if (!v.lastLocation || v.lastLocation.lat === undefined || v.lastLocation.lng === undefined) return;
+          
+          // Garantir que lat/lng sejam números
+          const lat = Number(v.lastLocation.lat);
+          const lng = Number(v.lastLocation.lng);
+          
+          if (isNaN(lat) || isNaN(lng)) return;
+
+          const latLng = [lat, lng];
           bounds.extend(latLng);
           hasValidLocation = true;
 
           const isSelected = v.id === selectedVehicleId;
+          const isClosest = v.id === closestVehicle?.id;
           
           let bgColor = '#64748b'; 
           if (v.health === 'OK') bgColor = '#10b981';
@@ -176,7 +211,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
             ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="22" height="15" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /><line x1="5" y1="14" x2="9" y2="14" /><line x1="15" y1="14" x2="19" y2="14" /><line x1="4" y1="18" x2="4" y2="21" /><line x1="20" y1="18" x2="20" y2="21" /></svg>`
             : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /><circle cx="7" cy="19" r="2" /><circle cx="17" cy="19" r="2" /></svg>`;
 
-          const size = isSelected ? 48 : 36;
+          const size = isSelected ? 48 : (isClosest ? 40 : 36);
           
           const html = `
             <div style="
@@ -186,11 +221,12 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
                 display: flex; align-items: center; justify-content: center;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.3);
                 position: relative;
-                transform: ${isSelected ? 'scale(1.1) translateY(-5px)' : 'scale(1)'};
+                transform: ${isSelected ? 'scale(1.1) translateY(-5px)' : (isClosest ? 'scale(1.05)' : 'scale(1)')};
                 transition: all 0.3s ease;
             ">
                 <div style="width: ${size * 0.6}px; height: ${size * 0.6}px;">${truckIconSvg}</div>
                 ${isSelected ? `<div style="position: absolute; bottom: -6px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid ${bgColor};"></div>` : ''}
+                ${isClosest ? `<div style="position: absolute; top: -20px; background: white; color: black; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">Mais Próximo</div>` : ''}
             </div>
           `;
 
@@ -236,34 +272,11 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
       }
   };
 
-  const handleLocateUser = () => {
-      if (!("geolocation" in navigator)) { alert("GPS não disponível."); return; }
-      navigator.geolocation.getCurrentPosition(
-          (pos) => {
-              const { latitude, longitude } = pos.coords;
-              if (mapInstance.current) {
-                  mapInstance.current.flyTo([latitude, longitude], 15);
-                  const L = window.L;
-                  L.marker([latitude, longitude], {
-                      icon: L.divIcon({
-                          className: 'custom-user-marker',
-                          html: `<div style="width: 16px; height: 16px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 0 2px #3b82f6;"></div>`,
-                          iconSize: [20, 20]
-                      })
-                  }).addTo(mapInstance.current).bindPopup("Você está aqui").openPopup();
-              }
-          },
-          () => alert("Erro ao obter localização.")
-      );
-  };
-
   const handleServiceSearch = (query: string) => {
       if (selectedVehicleData?.lastLocation) {
           const { lat, lng } = selectedVehicleData.lastLocation;
-          // FIX: Explicitly include coordinates in the query string (e.g. "Oficina Mecânica -23.123,-46.123")
-          // This forces Google Maps to anchor the search to that location and shows the coordinates in the search bar.
-          const searchQuery = `${query} ${lat},${lng}`;
-          const url = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}/@${lat},${lng},15z`;
+          // FIX: Utilizar uma estrutura de URL mais específica com o parâmetro 'data' para forçar a centralização.
+          const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}/@${lat},${lng},15z/data=!3m1!4b1`;
           window.open(url, '_blank');
       } else {
           alert("Localização do veículo não disponível.");
@@ -370,13 +383,10 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
 
           <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none">
              <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-lg flex flex-col gap-1 pointer-events-auto">
+                 <button onClick={handleSync} disabled={isSyncing} className={`p-2 rounded-lg transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Sincronizar Agora"><Zap className="h-5 w-5"/></button>
                  <button onClick={() => setActiveLayer('light')} className={`p-2 rounded-lg transition-all ${activeLayer === 'light' ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Mapa Padrão"><Sun className="h-5 w-5"/></button>
                  <button onClick={() => setActiveLayer('dark')} className={`p-2 rounded-lg transition-all ${activeLayer === 'dark' ? 'bg-slate-700 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Mapa Escuro"><Moon className="h-5 w-5"/></button>
                  <button onClick={() => setActiveLayer('satellite')} className={`p-2 rounded-lg transition-all ${activeLayer === 'satellite' ? 'bg-green-100 text-green-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Satélite"><Satellite className="h-5 w-5"/></button>
-             </div>
-             
-             <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-lg flex flex-col gap-1 mt-2 pointer-events-auto">
-                 <button onClick={handleLocateUser} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-blue-600 transition-colors"><Locate className="h-5 w-5"/></button>
              </div>
           </div>
 
@@ -402,6 +412,14 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
                            <p className="font-bold mb-0.5">Localização Atual</p>
                            <p className="leading-snug opacity-80">{formatFullAddress(selectedVehicleData.lastLocation)}</p>
                            <p className="text-[9px] text-slate-400 mt-1 font-mono">{getTimeAgo(selectedVehicleData.lastLocation?.updatedAt)}</p>
+                       </div>
+                   </div>
+
+                   <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
+                       <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg"><Gauge className="h-4 w-4"/></div>
+                       <div className="flex-1">
+                           <p className="font-bold mb-0.5">Hodômetro</p>
+                           <p className="font-mono text-sm">{selectedVehicleData.odometer?.toLocaleString()} km</p>
                        </div>
                    </div>
 

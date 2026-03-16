@@ -1,6 +1,6 @@
 
 import { FC, ChangeEvent } from 'react';
-import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy } from 'lucide-react';
 import { TabView, UserLevel, SystemSettings, ModuleType } from '../types';
 
 interface SidebarProps {
@@ -42,11 +42,13 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'movement', label: 'Movimentação', icon: ArrowRightLeft, modules: ['TIRES'] },
     { id: 'inspection', label: 'Inspeção Pro', icon: ClipboardCheck, modules: ['TIRES'] },
     { id: 'retreading', label: 'Recapagem', icon: Recycle, modules: ['TIRES'] },
+    { id: 'retreader-ranking', label: 'Ranking de Fornecedores', icon: Trophy, modules: ['TIRES'] },
     // Relatórios removido a pedido
     { id: 'scrap', label: 'Sucata/Descarte', icon: Trash2, modules: ['TIRES'] },
     { id: 'strategic-analysis', label: 'Análise Estratégica', icon: PieChart, modules: ['TIRES'] },
     { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
+    { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['TIRES'] },
     { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['TIRES'] },
     
     // --- MÓDULO VEÍCULOS ---
@@ -54,6 +56,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
     { id: 'service-orders', label: 'Ordens de Serviço', icon: Wrench, modules: ['VEHICLES'] },
+    { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
 
     // --- MÓDULO OFICINA/PEÇAS ---
     { id: 'service', label: 'Almoxarifado (Peças)', icon: Package, modules: ['MECHANICAL'] },
@@ -62,7 +65,11 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES'] }
   ];
 
-  const menuItems = allMenuItems.filter(item => item.modules.includes(activeModule));
+  const menuItems = allMenuItems.filter(item => {
+    const isModuleMatch = item.modules.includes(activeModule);
+    const isCreatorMatch = !(item as any).creatorOnly || userLevel === 'CREATOR';
+    return isModuleMatch && isCreatorMatch;
+  });
 
   // Alteração: Z-Index aumentado para sobrepor elementos do mapa (z-[9999])
   const baseClasses = `fixed z-[9999] w-72 bg-[#020617] text-slate-300 transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-800/50 h-screen inset-y-0 left-0`;

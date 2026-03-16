@@ -1,29 +1,635 @@
 
-import { useState, useMemo, FC, FormEvent, ChangeEvent } from 'react';
-import { Vehicle, UserLevel, VehicleLocation, Tire, SystemSettings } from '../types';
+import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
+import { Vehicle, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity } from 'lucide-react';
+import { sascarService } from '../services/sascarService';
+
+const SASCAR_CODES_CSV = `GBX3J82;1639616
+DAJ5H64;2215706
+GCE5G02;1445274
+GGC8A28;1590307
+FCZ2G83;1577457
+FPY7H26;1716132
+EHH1I41;1685967
+GHV9759;1239852
+FGX8606;1403430
+GGZ9G24;1698429
+TMD6E28;2166023
+FYZ5B31;1609984
+EHH1962;1392781
+EHH3A75;1696296
+CDX0074;1392782
+GBB9G73;1450874
+EDU8C62;1851666
+FLX9H76;1750770
+GDD7C71;1716135
+CQL0E74;1806480
+EHH9A90;520508
+FIE4967;1411830
+RHA7C60;2198999
+STT1J01;2251785
+DPC3D64;520488
+EZU6644;1639628
+SUU4F68;2039100
+RBB1G99;1477200
+GHZ5H28;1674718
+GIE3049;1189319
+FKK6B03;1716133
+DUH0B52;1943868
+GBT6G75;1330239
+MIW2420;563572
+GGC3E29;1161559
+EYA3F72;1888334
+CDX0071;1328757
+FMZ9F05;1881578
+ENN2C02;1825936
+FPQ1F05;1874435
+FCO8E14;1892729
+SWP2G45;2143746
+GHZ8D73;520487
+DUH0D52;1954772
+EXN3H08;1470416
+IUF4H69;1791846
+GCV0B66;1924596
+BSX3G15;1888336
+GCV0B73;1955396
+FNR7G23;1945442
+FPQ6D14;1945105
+FHH3D41;1946035
+FYB4J63;520485
+SVG5I37;2143744
+FOR9479;1340085
+DPB7G81;996570
+DTT0J45;1570365
+DUH0G72;2065758
+DUU5J13;2075455
+FCN1G83;1704874
+SSS2I03;1958155
+GDH6B36;1433383
+GDA4589;2031125
+FZO2F64;1816364
+EHH9H65;1850510
+FGA4D42;1750767
+SST7H08;1958154
+EWH2A20;536785
+FJR3D66;1732464
+FLX5D99;2127564
+EZU6H02;1737488
+SSY1F91;837801
+STT3E74;2039103
+IXW4H96;1923919
+EJX9A22;1950989
+RJG8E39;1953783
+SWO5D66;1974463
+EHW6060;1357611
+SWT8B78;2034057
+SUO9A93;2052718
+SVO4D71;2052712
+FUX0G54;1750769
+FMU5C09;1989201
+SWT7A63;2052717
+SFW7I58;2142913
+DNJ1F40;1925016
+JAX7F40;2016160
+SSR9H21;2052715
+DUH0F52;2052713
+SWW1J95;2039059
+SVL0G47;2073831
+DAJ4J42;2073827
+DUH2E24;2123392
+DAJ4J82;2126846
+FDZ2A95;881405
+TBG4B75;2183145
+FXG9H71;1442865
+DDF3G21;2039107
+GID1E75;1477199
+SVM8G85;2099373
+SSX0I98;1958153
+SWH2C17;2106775
+DAJ5E03;2102396
+BZR8G23;1888335
+DUH0A52;1903010
+DAJ0G24;2117576
+EEK3G45;2155478
+SVM0A66;2099366
+EHH7462;520516
+FLZ6H98;1601215
+DAJ4J62;2081632
+GDL1A61;1435212
+GIX1019;1154056
+SGC8H06;1985799
+DAJ3J21;2081631
+FZI0G13;1856071
+RBG7A56;1630760
+EMP9D51;2158232
+QRI8F67;2045459
+GCV0I91;2164731
+FCF0B85;2134687
+DAJ5E64;2117682
+HKA6H61;2112746
+SVM6G24;2099367
+EDU6G48;1294968
+DAJ5D01;2123052
+MRA6122;520539
+MFH7864;1879600
+SFW8C57;2142914
+DUH1E62;2171245
+TBC3H50;2172349
+FHC1F92;2201015
+TMD0I78;2166024
+GEH0F93;2172971
+SVP5C71;2073829
+DAJ5E74;2176201
+TKI3E40;2166929
+SVP8G07;2073830
+TBC3H66;2172347
+SUT2B63;2054173
+TLL9B77;2152306
+TBG4B71;2183107
+EVS1C62;2174160
+DUH0F41;2052716
+BZB9D63;1339556
+CUZ0I01;2189094
+QJU0G20;2187920
+GDD2C85;1814752
+TMD0A68;2179117
+TMD5G27;2179086
+TBC3H54;2172348
+DUU8B53;2195331
+TBC3H51;2172350
+TIT7E67;2166021
+TKI6H95;2166927
+FCY4A78;1609983
+TMD0A73;2179120
+TMD0A76;2188619
+TIQ0F74;2183714
+DAJ5D44;2081634
+GCV0B16;1743777
+CUZ0I03;2195799
+CNI4860;1347015
+TIS3G34;2194839
+FBY3889;2190102
+QJS0I20;2037577
+TBH7I73;2189760
+DUH3H62;2208957
+SWT8G56;2036123
+TMD8I55;2179103
+DPF0988;520510
+TIU4B05;2166931
+FTE0E41;1750772
+TLO4E05;2169597
+EVS2H62;2174164
+FZR1E14;2210234
+TMD0A71;2179115
+SUB7I83;2054169
+EVS0F91;2171247
+GHF0G55;1824193
+TJO1H56;2212137
+FXE0G65;1777546
+DAJ5D32;2123802
+EVS1J52;2173030
+TBG4B74;2183122
+PQJ1G16;2161251
+FPX7D86;1874444
+DAJ5F63;2176203
+CUC4410;520497
+GER6I64;2189743
+SSW3A65;1957839
+RMZ0G67;2207070
+DAJ3I72;2029989
+PPV8A16;2045823
+TBH7I48;2189765
+SVP0E27;1816222
+SUG2E86;2214423
+CDL7106;520541
+GIK1J15;1609988
+DAJ5G41;2215703
+RKO8C83;1952102
+OVJ9C24;1992674
+FNN7D24;1768761
+QJW4I29;2222392
+RPH6D64;2087899
+ESS7G33;1825935
+TBH7I71;2189749
+FCM8G15;1984529
+EVS7J83;2217986
+TBG4B72;2184788
+EVS1F71;2223989
+FXD6D01;1892726
+FIE0A42;2171260
+FTU8C81;1750771
+UFC0A27;2226360
+UFC0A16;2226361
+DUH2G41;2239436
+GCV3B27;2007263
+EJW0H19;2065789
+UFC0A29;2226350
+FXE0H43;1874443
+UFC0A49;2228322
+TIW0F21;2194840
+PRO4D68;2166806
+EHH7460;520514
+FNG2H61;2237690
+UFC0A06;2226358
+UFC2F15;2226382
+EYT7E62;967559
+UFC0A24;2226389
+QSY5D29;2225655
+UFC3B17;2226387
+UFC0A28;2226349
+DUH0H42;2072052
+CSK1015;520547
+RBE2C06;2251517
+GGH0G57;2159103
+UFC5D27;2226390
+FMO5F02;2238021
+SUQ8A53;2194837
+QTY6E09;2240681
+UFC0A15;2226386
+TLQ0C19;2166419
+SPJ3A16;2246285
+SVF8G61;2194838
+EVS1H13;2173554
+UFC9B82;2236070
+FSX0G86;1777544
+FXD4B71;2228312
+RBE0A90;2251515
+FDZ2B52;1892725
+SFQ5D29;1822507
+TJY0B04;2254022
+EVS1D32;2012172
+FIV1H06;2235547
+MQF9730;520522
+GDR1H28;1478033
+SWP1F91;2255047
+FSS2H65;1578030
+FZP4J65;2258772
+RJG8E38;1952103
+DUH3G42;2240685
+EUD8F27;2256039
+GGX3D12;1834406
+SUB9E14;2183713
+FYS0H29;2247221
+RKO8C55;1952104
+GHE1C16;1843007
+EVS8J83;2258596
+GDX8B75;1824194
+EKU3J75;2258074
+FQQ7E61;1814749
+SRK0E52;2262737
+EVS9H64;2258720
+GBB3H24;1814750
+SFQ9A94;1822508
+GGA5A74;1540968
+EVS3C41;2173028
+GGV5D15;933426
+SUX9F68;2258594
+FDD9I91;1679973
+TJQ4F58;2263838
+GHL2E83;1824090
+DUH0I32;2130634
+GDF7E16;1689674
+FWO6I42;2095023
+GHE3H15;1600962
+GHT8H34;1824195
+GBN0D25;1381015
+STT6D12;2039093
+MQL5684;520544
+DUH4F62;2258595
+EVS2G91;2171246
+GDI8H71;1642109
+FXQ1H73;1777542
+GEV3F26;1843006
+RAA0J67;1874708
+GIX1623;2183712
+7367SFS;2258717
+RXP5G37;1687002
+SXA7A63;2043704
+EUL8E93;1640820
+TJR9D91;2133977
+CFY9J94;1851116
+DXB8H01;1851117
+SVV0G11;1678465
+DPF8535;1678469
+TLL9F03;2161287
+TLL0F88;2161288
+FNZ6C25;1616895
+TJF0B61;2220005
+UES4I35;2220006
+UFC3F53;2220008
+SXJ0D03;2177396
+SXI9G03;2177397
+UFO2C37;2260809
+TJF0A63;2220450
+SWG7C92;2062964
+SVV3E18;2016804
+BYZ8D76;1873811
+CDR4A62;1873813
+CQU7J43;1873814
+BYI3D82;1873815
+CQL4I31;1873816
+QTR5E12;1690716
+FJF7A63;1827714
+QTR5F12;1690914
+RYY0A11;2013059
+BPQ6H14;1849271
+BYY8H02;1849272
+SUT0A44;2044299
+TKE0A28;2174584
+DMC2D72;1923451
+STX0C82;2134083
+STX0D61;2134084
+STX0D54;2134086
+STX0C83;2134087
+STX0B32;2134088
+STX0B61;2134089
+STX0B03;2134090
+STX0B92;2134091
+STX0D76;2134092
+STX0B04;2134093
+CQU3H14;1917980
+CUA9E36;1917981
+EDO4E43;1908328
+STX0A83;2134152
+TJA9E51;2196112
+TJQ6G15;2196116
+TJA0A15;2196117
+TJB7E46;2196119
+TJG5B42;2196121
+TPM3D14;2196127
+TPM3E34;2196129
+TLB1B53;2196131
+TPL6I79;2249158
+UDB8I22;2227943
+GJK5J75;1672664
+GAH7B37;1672665
+GGV3G02;1672666
+EDU8A62;1846211
+RLD7C49;1700344
+STR3I24;2029991
+SXX8I48;2233817
+TPI4H48;2233818
+CQU2F95;1877227
+TLJ4J66;2156003
+TLJ6E46;2156004
+TKH1E51;2171253
+TPN2F19;2249795
+CVN6281;1945605
+SUT6I47;2041329
+SUT8J94;2041330
+FFI8151;1663429
+FFW8241;1663435
+UDW1I40;2261039
+UDH6J71;2261046
+SUM0H63;2100155
+TKD8F58;2171788
+BZB8F24;1920625
+TKW1I97;2171926
+EHH9091;1663915
+EJV2302;1663917
+ESS6E18;1663941
+FFD1H21;1663952
+FFI8152;1663956
+FFI8154;1663958
+FJF0728;1663965
+REA6B16;1663995
+EDU6651;1663997
+TPM3C64;2209872
+RYP3J81;1998674
+FCV5B21;1837663
+BPO1J13;1859032
+STS8G48;2017391
+FYU6F11;1837793
+STX0A41;2131800
+BYP8D62;1874448
+CQU0E55;1874449
+BQU9H62;1874450
+GIT0G44;2252493
+TIV8H57;2153304
+TIV5A47;2153305
+SWQ5A86;2063894
+STZ0B34;2063895
+SVK0A53;2063897
+SUY2I48;2063898
+STX2A41;2017781
+TPZ5D47;2237652
+UDN7D17;2228016
+TPY1I67;2228019
+QSY1I10;2228020
+TKF1F44;2228021
+TLP6A02;2228024
+CKU0253;1636126
+CQU7940;1636127
+CQU8C54;1636128
+CUC6J48;1636129
+CUC7058;1636130
+CYB1643;1636132
+DPC3591;1636139
+TPJ3D00;1636140
+DPC3595;1636142
+UGP2E74;2259136
+TKU0F19;2169674
+SWI0H98;2085759
+SWK0B96;2085884
+FYZ5G13;1667349
+SXA6J93;2045497
+SXA4J93;2045498
+SXA6F13;2045499
+SVV6F23;2076423
+EOE7C86;1766729
+RYY0A61;2014518
+SXA6I23;2045500
+STX0C63;2135084
+STL9E01;2020370
+STU6E14;2020372
+STL2E14;2020374
+DPC3037;1559084
+BMR9A15;1673408
+CVN6280;1946036
+GED9G85;1955741
+SWU8H52;2098250
+STY9A16;2098251
+TLI3J05;2219436
+RDZ7A09;1574494
+TLL8B15;2219440
+EFW3H19;1664000
+STX0C84;2135815
+UDV2A35;2271520
+CQU1D21;1946667
+GIT9D43;1670119
+TKG3I43;2172901
+CYB1593;2216319
+DYH7F51;1838720
+CPL2D71;1556578
+CSK1031;1556581
+GEL9289;1556582
+CSK1176;1556583
+CUC6940;1556585
+CZX4G43;1556587
+CKU6C31;2101868
+CYR0707;1556616
+CZX4931;1556618
+DAJ6689;1556619
+DJC9888;1556620
+DJE7D93;1556624
+DPC3A43;1556625
+DRF5G15;1556629
+DYA7G24;1556630
+STZ8H98;1556631
+EWU2334;1556633
+EWU2335;1556634
+EWU2355;1556636
+EWU2366;1556637
+FYK6288;1556641
+GIA9856;1556643
+GIT7585;1556644
+GIX9754;1556646
+MTX6276;1556649
+ODN9193;1556650
+ODR3728;1556651
+ODR3730;1556653
+REA6C16;1556655
+CUC6951;1556688
+CQQ7G41;2101955
+SVV6G59;1912826
+TLN9F71;2222643
+ATO9070;1897043
+SUH1J45;2086316
+SSY7F66;2086326
+FYJ4F24;1609985
+EXU8I36;1630763
+EZL7G16;1850497
+GDO5C17;1782349
+FQU4G94;1782350
+GDU2F34;1782354
+CQU4B36;1782356
+GDX2D42;1652287`;
 
 interface VehicleManagerProps {
   vehicles: Vehicle[];
   tires: Tire[];
-  serviceOrders?: any[];
-  onAddVehicle: (vehicle: Vehicle) => Promise<void>;
+  serviceOrders: ServiceOrder[];
+  onAddVehicle: (v: Vehicle) => Promise<void>;
   onDeleteVehicle: (id: string) => Promise<void>;
-  onUpdateVehicle: (vehicle: Vehicle) => Promise<void>;
+  onUpdateVehicle: (v: Vehicle) => Promise<void>;
   userLevel: UserLevel;
-  settings?: SystemSettings;
+  settings: SystemSettings | null;
+  trackerSettings: TrackerSettings | null;
+  onSyncSascar?: () => Promise<number>;
 }
 
-export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAddVehicle, onDeleteVehicle, onUpdateVehicle, userLevel, settings }) => {
+export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAddVehicle, onDeleteVehicle, onUpdateVehicle, userLevel, settings, trackerSettings, onSyncSascar }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSyncingSascar, setIsSyncingSascar] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingLocationId, setUpdatingLocationId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVehicleRG, setSelectedVehicleRG] = useState<Vehicle | null>(null);
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'EMPTY' | 'MAINTENANCE'>('ALL');
+  
+  // Scheduling State
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [schedulingData, setSchedulingData] = useState({
+    targetName: '',
+    targetLat: 0,
+    targetLng: 0,
+    radius: 500, // meters
+    services: '',
+  });
+  const [isSavingAlert, setIsSavingAlert] = useState(false);
+  const [vehicleAlerts, setVehicleAlerts] = useState<ArrivalAlert[]>([]);
+
+  useEffect(() => {
+    if (selectedVehicleRG) {
+      const unsub = storageService.subscribeToArrivalAlerts((alerts) => {
+        setVehicleAlerts(alerts.filter(a => a.vehiclePlate === selectedVehicleRG.plate));
+      });
+      return () => unsub();
+    }
+  }, [selectedVehicleRG]);
+
+  useEffect(() => {
+    if (selectedVehicleRG) {
+      const updated = vehicles.find(v => v.id === selectedVehicleRG.id);
+      if (!updated) {
+        setSelectedVehicleRG(null);
+      } else if (JSON.stringify(updated) !== JSON.stringify(selectedVehicleRG)) {
+        setSelectedVehicleRG(updated);
+      }
+    }
+  }, [vehicles, selectedVehicleRG]);
+
+  const handleAddAlert = async () => {
+    if (!selectedVehicleRG) return;
+    if (!schedulingData.targetName || !schedulingData.targetLat || !schedulingData.targetLng) {
+      alert("Preencha todos os campos do agendamento.");
+      return;
+    }
+
+    setIsSavingAlert(true);
+    try {
+      const newAlert: ArrivalAlert = {
+        id: Date.now().toString(),
+        vehiclePlate: selectedVehicleRG.plate,
+        targetName: schedulingData.targetName,
+        targetLat: schedulingData.targetLat,
+        targetLng: schedulingData.targetLng,
+        radius: schedulingData.radius,
+        services: schedulingData.services,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+        createdBy: 'Usuário' // Ideally from auth
+      };
+      await storageService.addArrivalAlert(newAlert);
+      setIsScheduling(false);
+      setSchedulingData({ targetName: '', targetLat: 0, targetLng: 0, radius: 500, services: '' });
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao salvar agendamento.");
+    } finally {
+      setIsSavingAlert(false);
+    }
+  };
+
+  const handleDeleteAlert = async (id: string) => {
+    if (window.confirm("Deseja excluir este agendamento?")) {
+      await storageService.deleteArrivalAlert(id);
+    }
+  };
+
+  useEffect(() => {
+    const importCodes = async () => {
+      if (localStorage.getItem('sascar_codes_imported_v1') === 'true') return;
+      if (vehicles.length === 0) return; // Wait until vehicles are loaded
+
+      const lines = SASCAR_CODES_CSV.split('\n');
+      const codeMap = new Map<string, string>();
+      lines.forEach(line => {
+        const [plate, code] = line.split(';');
+        if (plate && code) {
+          codeMap.set(plate.trim().toUpperCase(), code.trim());
+        }
+      });
+
+      let importedCount = 0;
+      for (const vehicle of vehicles) {
+        const cleanPlate = vehicle.plate.replace(/[^A-Z0-9]/g, '').substring(0, 7).toUpperCase();
+        const code = codeMap.get(cleanPlate);
+        if (code && vehicle.sascarCode !== code) {
+          await onUpdateVehicle({ ...vehicle, sascarCode: code });
+          importedCount++;
+        }
+      }
+
+      console.log(`Imported ${importedCount} Sascar codes.`);
+      localStorage.setItem('sascar_codes_imported_v1', 'true');
+    };
+
+    importCodes();
+  }, [vehicles, onUpdateVehicle]);
   
   // Bulk Actions State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -36,9 +642,21 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
   const [formData, setFormData] = useState({
     plate: '',
     model: '',
+    brand: '',
     axles: 3,
     type: 'CAVALO' as 'CAVALO' | 'CARRETA',
-    odometer: 0
+    odometer: 0,
+    sascarCode: '',
+    vin: '',
+    year: '',
+    color: '',
+    fuelType: '',
+    fleetNumber: '',
+    engine: '',
+    transmission: '',
+    renavam: '',
+    tiresBrand: '',
+    tiresSize: ''
   });
 
   // Função para analisar o estado do veículo
@@ -104,7 +722,25 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
 
   const handleOpenAdd = () => {
     setEditingId(null);
-    setFormData({ plate: '', model: '', axles: 3, type: 'CAVALO', odometer: 0 });
+    setFormData({
+      plate: '',
+      model: '',
+      brand: '',
+      axles: 3,
+      type: 'CAVALO',
+      odometer: 0,
+      sascarCode: '',
+      vin: '',
+      year: '',
+      color: '',
+      fuelType: '',
+      fleetNumber: '',
+      engine: '',
+      transmission: '',
+      renavam: '',
+      tiresBrand: '',
+      tiresSize: ''
+    });
     setIsAdding(true);
   };
 
@@ -113,9 +749,21 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
     setFormData({
       plate: vehicle.plate,
       model: vehicle.model,
+      brand: vehicle.brand || '',
       axles: vehicle.axles,
       type: vehicle.type,
-      odometer: vehicle.odometer
+      odometer: vehicle.odometer,
+      sascarCode: vehicle.sascarCode || '',
+      vin: vehicle.vin || '',
+      year: vehicle.year ? vehicle.year.toString() : '',
+      color: vehicle.color || '',
+      fuelType: vehicle.fuelType || '',
+      fleetNumber: vehicle.fleetNumber || '',
+      engine: vehicle.engine || '',
+      transmission: vehicle.transmission || '',
+      renavam: vehicle.renavam || '',
+      tiresBrand: vehicle.tiresBrand || '',
+      tiresSize: vehicle.tiresSize || ''
     });
     setIsAdding(true);
   };
@@ -130,11 +778,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
         if (existingVehicle) {
           const updatedVehicle: Vehicle = {
             ...existingVehicle,
+            ...formData,
             plate: formData.plate.toUpperCase(),
-            model: formData.model,
-            axles: formData.axles,
-            type: formData.type,
-            odometer: formData.odometer
+            year: formData.year ? parseInt(formData.year) : undefined
           };
           await onUpdateVehicle(updatedVehicle);
         }
@@ -142,18 +788,20 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
         // Create new vehicle
         const newVehicle: Vehicle = {
           id: Date.now().toString(36),
+          ...formData,
           plate: formData.plate.toUpperCase(),
-          model: formData.model,
-          axles: formData.axles,
-          type: formData.type,
-          odometer: formData.odometer
+          year: formData.year ? parseInt(formData.year) : undefined
         };
         await onAddVehicle(newVehicle);
       }
       
       setIsAdding(false);
       setEditingId(null);
-      setFormData({ plate: '', model: '', axles: 3, type: 'CAVALO', odometer: 0 });
+      setFormData({ 
+        plate: '', model: '', brand: '', axles: 3, type: 'CAVALO', odometer: 0, sascarCode: '',
+        vin: '', year: '', color: '', fuelType: '', fleetNumber: '',
+        engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: ''
+      });
     } catch (error) {
       alert("Erro ao salvar veículo.");
     } finally {
@@ -168,7 +816,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
   };
 
   const toggleSelection = (id: string) => {
-      const newSet = new Set(selectedIds);
+      const newSet = new Set<string>(selectedIds);
       if (newSet.has(id)) newSet.delete(id);
       else newSet.add(id);
       setSelectedIds(newSet);
@@ -222,6 +870,26 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
   };
 
   const handleUpdateLocation = async (vehicle: Vehicle) => {
+    // Se o veículo tem código Sascar ou placa, tenta sincronizar via Sascar primeiro
+    if (vehicle.sascarCode || vehicle.plate) {
+      setUpdatingLocationId(vehicle.id);
+      try {
+        if (onSyncSascar) {
+          const updatedCount = await onSyncSascar();
+          if (updatedCount > 0) {
+            // O useEffect cuidará de atualizar o selectedVehicleRG no estado local
+            return;
+          } else {
+            console.log("Sascar sync returned 0 updates for this vehicle, falling back to manual GPS.");
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao sincronizar via Sascar:", error);
+      } finally {
+        setUpdatingLocationId(null);
+      }
+    }
+
     if (!confirm(`VOCÊ ESTÁ AO LADO DO VEÍCULO?\n\nEsta função usa o GPS do SEU CELULAR/PC para definir onde o veículo está.\n\nClique em OK apenas se você estiver fisicamente junto ao veículo.`)) {
       return;
     }
@@ -419,6 +1087,143 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
     e.target.value = '';
   };
 
+  const handleSyncSascar = async () => {
+    if (onSyncSascar) {
+        setIsSyncingSascar(true);
+        try {
+            await onSyncSascar();
+        } finally {
+            setIsSyncingSascar(false);
+        }
+        return;
+    }
+    
+    setIsSyncingSascar(true);
+    try {
+      // Passar os IDs (sascarCode) e placas para buscar os veículos cadastrados
+      const plates = vehicles.flatMap(v => [String(v.sascarCode || ""), String(v.plate || "")]).filter(p => p && p.length > 0);
+      
+      console.log(`[Sascar Sync Debug] Veículos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
+      console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} identificadores...`);
+      
+      const CHUNK_SIZE = 40;
+      let updatedCount = 0;
+      const bestUpdates = new Map(); // Usaremos isso para filtrar o melhor ponto de cada carro
+
+      // Garantir que chamamos pelo menos uma vez se houver veículos, mesmo sem sascarCode (para pegar a fila)
+      for (let i = 0; i < (plates.length > 0 ? plates.length : 1); i += CHUNK_SIZE) {
+          const chunk = plates.length > 0 ? plates.slice(i, i + CHUNK_SIZE) : [];
+          
+          // Otimização: Se já temos dados atualizados para todos nesse chunk (vindos de um flush anterior), podemos pular
+          if (chunk.length > 0) {
+              const missingInChunk = chunk.filter(p => {
+                  const numId = parseInt(p.replace(/\D/g, ""), 10);
+                  const cleanPlate = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                  return !bestUpdates.has(numId) && !bestUpdates.has(cleanPlate);
+              });
+              
+              if (i > 0 && missingInChunk.length === 0) {
+                  console.log(`[Sascar Sync] Lote ${i / CHUNK_SIZE + 1} já possui dados de um flush anterior.`);
+                  continue;
+              }
+          }
+
+          console.log(`[Sascar Sync] Sincronizando lote ${plates.length > 0 ? (i / CHUNK_SIZE + 1) : 1}...`);
+          
+          try {
+              const result = await sascarService.getVehicles(chunk.length > 0 ? chunk : undefined, trackerSettings || undefined);
+              const rawList = result.data?.return || result.data?.retornar || result.data || [];
+              
+              rawList.forEach((item: any) => {
+                  let sv = item;
+
+                  // CORREÇÃO 2: Decodifica o texto da Sascar para virar um objeto real
+                  if (typeof item === 'string') {
+                      try {
+                          sv = JSON.parse(item);
+                          if (typeof sv === 'string') sv = JSON.parse(sv); // Segundo parse se necessário
+                      } catch (e) { return; }
+                  }
+
+                  const idSascar = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
+                  const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                  
+                  if (isNaN(idSascar) && !sascarPlate) return;
+
+                  // CORREÇÃO 3: Match Blindado (converte ID do App e ID da Sascar para Inteiro)
+                  const localVehicle = vehicles.find(v => {
+                      // Match por ID
+                      const idApp = parseInt(String(v.sascarCode || "").replace(/\D/g, ""), 10);
+                      if (!isNaN(idApp) && !isNaN(idSascar) && idApp === idSascar) return true;
+                      
+                      // Match por Placa
+                      const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                      if (plateApp && sascarPlate && plateApp === sascarPlate) return true;
+                      
+                      return false;
+                  });
+
+                  if (localVehicle) {
+                      console.log(`[Sascar Sync Debug] Match encontrado: Local=${localVehicle.plate} (ID=${localVehicle.sascarCode}) <-> Sascar=${sascarPlate} (ID=${idSascar})`);
+                      const dataPosicaoNova = new Date(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date()).getTime();
+                      
+                      const matchKey = !isNaN(idSascar) ? idSascar : sascarPlate;
+
+                      // Só adiciona se não houver dados desse carro ainda OU se esse ponto for mais novo
+                      if (!bestUpdates.has(matchKey) || dataPosicaoNova > bestUpdates.get(matchKey).timestamp) {
+                          const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
+                          const latVal = Number(sv.latitude || sv.lat || 0);
+                          const lngVal = Number(sv.longitude || sv.lng || 0);
+                          console.log(`[Sascar Sync Debug] Atualizando dados: Odo=${rawOdo}, Lat=${latVal}, Lng=${lngVal}`);
+
+                          bestUpdates.set(matchKey, {
+                              timestamp: dataPosicaoNova,
+                              updateData: {
+                                  id: localVehicle.id,
+                                  odometer: Math.round(Number(rawOdo)),
+                                  lastLocation: {
+                                      ...localVehicle.lastLocation,
+                                      lat: latVal,
+                                      lng: lngVal,
+                                      address: sv.lastLocation?.address || sv.rua || sv.address || 'Coordenadas GPS',
+                                      city: sv.lastLocation?.city || sv.cidade || sv.city || 'Desconhecida',
+                                      state: sv.lastLocation?.state || sv.uf || sv.state || '',
+                                      updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || new Date().toISOString()
+                                  },
+                                  lastAutoUpdateDate: new Date().toISOString()
+                              }
+                          });
+                          updatedCount++;
+                      }
+                  } else {
+                      console.log(`[Sascar Sync Debug] Nenhum match encontrado para: Sascar=${sascarPlate} (ID=${idSascar})`, sv);
+                  }
+              });
+          } catch (error) {
+              console.error(`[Sascar Sync] Erro ao sincronizar lote:`, error);
+          }
+      }
+
+      // Agora transformamos o Map no array de updates final
+      const updatesBatch = Array.from(bestUpdates.values()).map(item => item.updateData);
+
+      if (updatesBatch.length > 0) {
+          console.log(`[Sascar Sync] Aplicando ${updatesBatch.length} atualizações no banco...`);
+          await storageService.updateVehicleBatch(updatesBatch);
+          console.log(`[Sascar Sync] ${updatesBatch.length} veículos atualizados com sucesso.`);
+          alert(`Sucesso! ${updatesBatch.length} veículos do GM CONTROL foram atualizados.`);
+      } else {
+          console.log("[Sascar Sync] Nenhum veículo local correspondente encontrado nos dados da Sascar.");
+          alert("Nenhum veículo correspondente foi encontrado para atualizar.");
+      }
+    } catch (error) {
+        console.error(`[Sascar Sync] Erro ao sincronizar:`, error);
+        alert("Falha técnica ao sincronizar. Verifique o console.");
+    } finally {
+        setIsSyncingSascar(false);
+    }
+  };
+
   const quickStats = useMemo(() => {
       let missingTires = 0;
       let lowTread = 0;
@@ -442,6 +1247,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
           <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie veículos e atualize localizações em tempo real.</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
+            <button 
+              onClick={handleSyncSascar} 
+              disabled={isSyncingSascar}
+              className={`flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${isSyncingSascar ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              {isSyncingSascar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
+              <span className="hidden md:inline">{isSyncingSascar ? 'Sincronizando...' : 'Sincronizar Sascar'}</span>
+              <span className="md:hidden">Sascar</span>
+            </button>
             <label className={`flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                 <span className="hidden md:inline">{isImporting ? 'Importando...' : 'Importar Excel'}</span>
@@ -618,8 +1432,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
               </div>
 
               <div className="flex justify-between items-center text-sm border-t border-slate-100 dark:border-slate-800 pt-3 mb-3">
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium">
-                  <Gauge className="h-4 w-4" /> {vehicle.odometer.toLocaleString()} km
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium">
+                    <Gauge className="h-4 w-4" /> {vehicle.odometer.toLocaleString()} km
+                  </div>
+                  {vehicle.sascarCode && (
+                    <div className="text-[10px] text-slate-400 font-medium">
+                      Cód. Sascar: {vehicle.sascarCode}
+                    </div>
+                  )}
                 </div>
                 <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded text-xs font-bold">{vehicle.axles} Eixos</span>
               </div>
@@ -652,39 +1473,263 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                 <Truck className="h-6 w-6 text-blue-600" /> 
                 RG do Veículo: {selectedVehicleRG.plate}
               </h3>
-              <button onClick={() => setSelectedVehicleRG(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setIsScheduling(!isScheduling)} 
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${isScheduling ? 'bg-orange-100 text-orange-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                >
+                  <Calendar className="h-4 w-4" />
+                  {isScheduling ? 'Fechar Agendamento' : 'Novo Agendamento'}
+                </button>
+                <button onClick={() => setSelectedVehicleRG(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
+              </div>
             </div>
-            <div className="p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                {isScheduling && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 p-4 rounded-xl space-y-4 animate-in slide-in-from-top-2">
+                    <h4 className="font-bold text-blue-800 dark:text-blue-300 text-sm flex items-center gap-2">
+                      <Bell className="h-4 w-4" /> Configurar Alerta de Chegada
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Selecionar Ponto Salvo</label>
+                        <select 
+                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-800 dark:text-white"
+                          onChange={e => {
+                            const point = settings?.savedPoints?.find(p => p.id === e.target.value);
+                            if (point) {
+                              setSchedulingData({
+                                targetName: point.name,
+                                targetLat: point.lat,
+                                targetLng: point.lng,
+                                radius: point.radius,
+                                services: schedulingData.services
+                              });
+                            }
+                          }}
+                        >
+                          <option value="">-- Selecione um local cadastrado --</option>
+                          {settings?.savedPoints?.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <p className="text-[9px] text-slate-400 mt-1 italic">Ou preencha os campos abaixo manualmente</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Destino</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ex: Porto de Santos" 
+                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                          value={schedulingData.targetName}
+                          onChange={e => setSchedulingData({...schedulingData, targetName: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Raio de Alerta (metros)</label>
+                        <input 
+                          type="number" 
+                          placeholder="500" 
+                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                          value={schedulingData.radius}
+                          onChange={e => setSchedulingData({...schedulingData, radius: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Latitude</label>
+                        <input 
+                          type="number" 
+                          step="any"
+                          placeholder="-23.9618" 
+                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                          value={schedulingData.targetLat}
+                          onChange={e => setSchedulingData({...schedulingData, targetLat: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Longitude</label>
+                        <input 
+                          type="number" 
+                          step="any"
+                          placeholder="-46.3322" 
+                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                          value={schedulingData.targetLng}
+                          onChange={e => setSchedulingData({...schedulingData, targetLng: Number(e.target.value)})}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Serviços a realizar</label>
+                        <textarea 
+                          placeholder="Descreva o que será feito no veículo (ex: Troca de óleo, Revisão de freios...)" 
+                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm min-h-[80px]"
+                          value={schedulingData.services}
+                          onChange={e => setSchedulingData({...schedulingData, services: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => setIsScheduling(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
+                      <button 
+                        onClick={handleAddAlert}
+                        disabled={isSavingAlert}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2"
+                      >
+                        {isSavingAlert ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                        Salvar Agendamento
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {vehicleAlerts.length > 0 && (
+                  <div>
+                    <h4 className="font-bold text-slate-800 dark:text-white mb-3 text-sm flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-blue-600" /> Agendamentos Ativos
+                    </h4>
+                    <div className="space-y-2">
+                      {vehicleAlerts.map(alert => (
+                        <div key={alert.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                          <div>
+                            <p className="font-bold text-sm text-slate-800 dark:text-white">{alert.targetName}</p>
+                            {alert.services && (
+                              <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">
+                                <Wrench className="h-3 w-3 inline mr-1" />
+                                {alert.services}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-slate-500">Raio: {alert.radius}m | Status: <span className={alert.status === 'ARRIVED' ? 'text-green-600' : 'text-orange-600'}>{alert.status}</span></p>
+                          </div>
+                          <button onClick={() => handleDeleteAlert(alert.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Mini Map Section */}
+                    <div className="md:col-span-3 space-y-2">
+                        <div className="bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 h-48 relative group">
+                            {selectedVehicleRG.lastLocation ? (
+                                <iframe 
+                                    width="100%" 
+                                    height="100%" 
+                                    frameBorder="0" 
+                                    scrolling="no" 
+                                    marginHeight={0} 
+                                    marginWidth={0} 
+                                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedVehicleRG.lastLocation.lng - 0.005},${selectedVehicleRG.lastLocation.lat - 0.005},${selectedVehicleRG.lastLocation.lng + 0.005},${selectedVehicleRG.lastLocation.lat + 0.005}&layer=mapnik&marker=${selectedVehicleRG.lastLocation.lat},${selectedVehicleRG.lastLocation.lng}`}
+                                    className="grayscale-[0.2] contrast-[1.1]"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                                    <MapPin className="h-8 w-8 mb-2 opacity-20" />
+                                    <p className="text-xs font-bold">Sem localização registrada</p>
+                                </div>
+                            )}
+                            <div className="absolute bottom-2 right-2">
+                                <button 
+                                    onClick={() => handleUpdateLocation(selectedVehicleRG)}
+                                    disabled={updatingLocationId === selectedVehicleRG.id}
+                                    className="bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-700 p-2 rounded-lg text-blue-600 hover:text-blue-700 transition-all flex items-center gap-2 text-[10px] font-bold"
+                                >
+                                    {updatingLocationId === selectedVehicleRG.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                        <LocateFixed className="h-3 w-3" />
+                                    )}
+                                    Atualizar GPS
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button 
+                            onClick={() => handleUpdateLocation(selectedVehicleRG)}
+                            disabled={updatingLocationId === selectedVehicleRG.id}
+                            className="w-full flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors text-left group"
+                        >
+                            <div className="bg-blue-600 p-2 rounded-lg text-white group-hover:scale-110 transition-transform">
+                                <MapPin className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-0.5 flex justify-between">
+                                    Localização Atual
+                                    <span className="text-slate-400 font-normal normal-case">Clique para atualizar</span>
+                                </p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-white truncate">
+                                    {selectedVehicleRG.lastLocation?.address || 'Endereço não identificado'}
+                                </p>
+                                <p className="text-[10px] text-slate-500 mt-0.5">
+                                    {selectedVehicleRG.lastLocation?.updatedAt 
+                                        ? `Última atualização: ${new Date(selectedVehicleRG.lastLocation.updatedAt).toLocaleString()}` 
+                                        : 'Sem registro de data/hora'}
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-slate-500 uppercase">Modelo</p>
                         <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.model}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-slate-500 uppercase">Tipo</p>
                         <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.type}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-slate-500 uppercase">Eixos</p>
                         <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.axles}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl">
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                         <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
                         <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
                     </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Ano</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.year || 'N/A'}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Cor</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.color || 'N/A'}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Combustível</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fuelType || 'N/A'}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Frota #</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fleetNumber || 'N/A'}</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Chassi (VIN)</p>
+                        <p className="text-sm font-black text-slate-800 dark:text-white truncate" title={selectedVehicleRG.vin}>{selectedVehicleRG.vin || 'N/A'}</p>
+                    </div>
                 </div>
+
                 <div>
-                    <h4 className="font-bold text-slate-800 dark:text-white mb-3">Pneus Montados</h4>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl max-h-60 overflow-y-auto">
-                        {tires.filter(t => t.vehicleId === selectedVehicleRG.id).map(tire => (
-                            <div key={tire.id} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700 last:border-0">
-                                <div>
-                                    <p className="font-bold text-sm text-slate-800 dark:text-white">{tire.fireNumber}</p>
-                                    <p className="text-[10px] text-slate-500">{tire.brand} {tire.model} - Pos: {tire.position}</p>
-                                </div>
-                                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{tire.currentTreadDepth} mm</p>
+                    <h4 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-blue-600" /> Pneus Montados ({tires.filter(t => t.vehicleId === selectedVehicleRG.id).length})
+                    </h4>
+                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl max-h-60 overflow-y-auto border border-slate-100 dark:border-slate-700">
+                        {tires.filter(t => t.vehicleId === selectedVehicleRG.id).length === 0 ? (
+                            <p className="text-xs text-slate-400 text-center py-4 italic">Nenhum pneu montado</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {tires.filter(t => t.vehicleId === selectedVehicleRG.id).map(tire => (
+                                    <div key={tire.id} className="flex justify-between items-center p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                                        <div>
+                                            <p className="font-bold text-xs text-slate-800 dark:text-white">{tire.fireNumber}</p>
+                                            <p className="text-[9px] text-slate-500">{tire.brand} {tire.model} - Pos: {tire.position}</p>
+                                        </div>
+                                        <p className="text-xs font-bold text-blue-600">{tire.currentTreadDepth} mm</p>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             </div>
@@ -702,7 +1747,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
               </h3>
               <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PLACA</label>
@@ -716,9 +1761,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MODELO</label>
-                <input required type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} placeholder="Ex: Scania R450" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} placeholder="Ex: Scania" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MODELO</label>
+                  <input required type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} placeholder="Ex: R450" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -728,6 +1779,60 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HODÔMETRO</label>
                   <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.odometer} onChange={e => setFormData({...formData, odometer: Number(e.target.value)})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ANO</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})} placeholder="Ex: 2022" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COR</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="Ex: Branco" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FROTA #</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fleetNumber} onChange={e => setFormData({...formData, fleetNumber: e.target.value})} placeholder="Ex: 1020" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RENAVAM</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.renavam} onChange={e => setFormData({...formData, renavam: e.target.value})} placeholder="Renavam" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CHASSI (VIN)</label>
+                <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MOTOR</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.engine} onChange={e => setFormData({...formData, engine: e.target.value})} placeholder="Ex: D13" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÂMBIO</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.transmission} onChange={e => setFormData({...formData, transmission: e.target.value})} placeholder="Ex: I-Shift" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COMBUSTÍVEL</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fuelType} onChange={e => setFormData({...formData, fuelType: e.target.value})} placeholder="Ex: Diesel" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÓD. SASCAR (Opcional)</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.sascarCode} onChange={e => setFormData({...formData, sascarCode: e.target.value})} placeholder="ID Sascar" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA PNEU PADRÃO</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresBrand} onChange={e => setFormData({...formData, tiresBrand: e.target.value})} placeholder="Ex: Michelin" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MEDIDA PNEU PADRÃO</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresSize} onChange={e => setFormData({...formData, tiresSize: e.target.value})} placeholder="Ex: 295/80 R22.5" />
                 </div>
               </div>
               <div className="pt-4 flex gap-3">

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, FC, FormEvent, ChangeEvent } from 'react';
-import { Tire, TireStatus, SystemSettings, TireModelDefinition } from '../types';
-import { Save, Flame, Loader2, CheckCircle2, Plus, X, Search, Activity, Ruler, CircleDollarSign, BookOpen, Calendar, ArrowLeft, Tag, Layers } from 'lucide-react';
+import { Tire, TireStatus, SystemSettings, TireModelDefinition, Vehicle } from '../types';
+import { Save, Flame, Loader2, CheckCircle2, Plus, X, Search, Activity, Ruler, CircleDollarSign, BookOpen, Calendar, ArrowLeft, Tag, Layers, Truck } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 interface TireFormProps {
@@ -11,9 +11,12 @@ interface TireFormProps {
   settings?: SystemSettings;
   onUpdateSettings?: (settings: SystemSettings) => void;
   existingTires?: Tire[];
+  vehicles?: Vehicle[];
+  autoMountVehicleId?: string;
+  autoMountPosition?: string;
 }
 
-export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, settings, onUpdateSettings, existingTires = [] }) => {
+export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, settings, onUpdateSettings, existingTires = [], vehicles = [], autoMountVehicleId, autoMountPosition }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [successTire, setSuccessTire] = useState<Tire | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -41,7 +44,9 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
     totalKms: 0,
     firstLifeKms: 0,
     retreadKms: 0,
-    retreadCount: 0
+    retreadCount: 0,
+    vehicleId: autoMountVehicleId || '',
+    position: autoMountPosition || ''
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -94,6 +99,8 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
           return;
       }
       
+      const selectedVehicle = formData.vehicleId ? vehicles.find(v => v.id === formData.vehicleId) : null;
+      
       const newTire: Tire = {
         id: Date.now().toString(36),
         ...formData,
@@ -102,7 +109,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
         model: formData.model.trim().toUpperCase(),
         currentTreadDepth: formData.currentTreadDepth,
         pressure: formData.targetPressure,
-        history: [{ date: new Date().toISOString(), action: 'CADASTRADO', details: 'Novo pneu registrado.' }],
+        history: [{ date: new Date().toISOString(), action: 'CADASTRADO', details: formData.vehicleId ? `Novo pneu registrado e montado no veículo ${selectedVehicle?.plate || ''}.` : 'Novo pneu registrado no estoque.' }],
         totalKms: formData.totalKms,
         firstLifeKms: formData.firstLifeKms,
         retreadKms: formData.retreadKms,
@@ -110,7 +117,13 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
         costPerKm: 0,
         retreadCount: formData.retreadCount,
         treadType: formData.treadType as 'LISO' | 'BORRACHUDO',
-        purchaseDate: formData.purchaseDate
+        purchaseDate: formData.purchaseDate,
+        status: formData.status,
+        vehicleId: formData.vehicleId || undefined,
+        position: formData.position || undefined,
+        installOdometer: selectedVehicle ? selectedVehicle.odometer : undefined,
+        installDate: formData.vehicleId ? new Date().toISOString() : undefined,
+        location: selectedVehicle ? selectedVehicle.plate : 'Estoque'
       };
       await onAddTire(newTire);
       setSuccessTire(newTire); 

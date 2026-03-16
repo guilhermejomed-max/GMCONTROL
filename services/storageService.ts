@@ -1,7 +1,7 @@
 
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver } from '../types';
+import { Tire, Vehicle, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint } from '../types';
 
 const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
@@ -15,7 +15,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   logoUrl: '',
   defaultMonthlyKm: 10000,
   trailerDailyAverageKm: 0,
-  serviceTypes: [] 
+  serviceTypes: [],
+  savedPoints: []
 };
 
 // --- LOCAL DB IMPLEMENTATION (OFFLINE/MOCK LAYER) ---
@@ -88,7 +89,7 @@ const getCurrentUser = () => {
   return (auth && auth.currentUser) || (mockUser ? { uid: mockUser.uid, displayName: mockUser.displayName, email: mockUser.email } : null);
 };
 
-const logActivity = async (action: string, details: string, module: ModuleType = 'TIRES') => {
+export const logActivity = async (action: string, details: string, module: ModuleType = 'TIRES') => {
   const user = getCurrentUser();
   if (!user) return;
 
@@ -129,7 +130,7 @@ export const storageService = {
     const isMockBypass = (cleanUser === 'admin' && pass === 'admin') || (cleanUser === 'demo' && pass === 'demo');
 
     if (isMockBypass) {
-        const uid = 'mock-admin-id';
+        const uid = cleanUser === 'admin' ? 'mock-admin-id' : 'mock-demo-id';
         const name = cleanUser === 'admin' ? 'Administrador Local' : 'Usuário Demo';
         const email = `${cleanUser}${INTERNAL_DOMAIN}`;
         
@@ -146,7 +147,7 @@ export const storageService = {
         const existingAdminIndex = localUsers.findIndex(u => u.id === uid);
 
         if (existingAdminIndex >= 0) {
-            localUsers[existingAdminIndex] = { ...localUsers[existingAdminIndex], lastLogin: now };
+            localUsers[existingAdminIndex] = { ...localUsers[existingAdminIndex], lastLogin: now, role: 'SENIOR' };
             LocalDB.set('users', localUsers);
         } else {
             const adminUser: TeamMember = {
@@ -700,6 +701,68 @@ export const storageService = {
   saveSettings: async (settings: SystemSettings) => {
     if (mockUser || !db) { LocalDB.set('settings', settings); return; }
     await db.collection("settings").doc("global").set(sanitize(settings));
+  },
+
+  subscribeToTrackerSettings: (callback: (settings: TrackerSettings) => void) => {
+    const DEFAULT_TRACKER: TrackerSettings = { 
+      apiUrl: 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService', 
+      user: 'JOMEDELOGTORREOPENTECH', 
+      pass: 'sascar', 
+      active: true 
+    };
+    if (mockUser || !db) return LocalDB.subscribe('tracker_settings', callback, DEFAULT_TRACKER);
+    return db.collection("settings").doc("tracker").onSnapshot((doc) => {
+      if (doc.exists) callback({ ...DEFAULT_TRACKER, ...doc.data() } as TrackerSettings);
+      else callback(DEFAULT_TRACKER);
+    }, () => callback(DEFAULT_TRACKER));
+  },
+
+  saveTrackerSettings: async (settings: TrackerSettings) => {
+    if (mockUser || !db) { LocalDB.set('tracker_settings', settings); return; }
+    await db.collection("settings").doc("tracker").set(sanitize(settings));
+  },
+
+  logActivity,
+
+  subscribeToArrivalAlerts: (callback: (alerts: ArrivalAlert[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe('arrival_alerts', callback, []);
+    return db.collection("arrival_alerts").onSnapshot((snapshot) => {
+      const alerts: ArrivalAlert[] = [];
+      snapshot.forEach((doc) => alerts.push({ ...doc.data(), id: doc.id } as ArrivalAlert));
+      callback(alerts);
+    }, () => callback([]));
+  },
+
+  addArrivalAlert: async (alert: ArrivalAlert) => {
+    if (mockUser || !db) { LocalDB.add('arrival_alerts', alert); return; }
+    await db.collection("arrival_alerts").doc(alert.id).set(sanitize(alert));
+  },
+
+  updateArrivalAlert: async (id: string, updates: Partial<ArrivalAlert>) => {
+    if (mockUser || !db) { LocalDB.update('arrival_alerts', id, updates); return; }
+    await db.collection("arrival_alerts").doc(id).update(sanitize(updates));
+  },
+
+  deleteArrivalAlert: async (id: string) => {
+    if (mockUser || !db) { LocalDB.delete('arrival_alerts', id); return; }
+    await db.collection("arrival_alerts").doc(id).delete();
+  },
+
+  subscribeToTireLoans: (callback: (loans: TireLoan[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe('tire_loans', callback, []);
+    return db.collection("tire_loans").onSnapshot((snapshot) => {
+      callback(snapshot.docs.map(doc => doc.data() as TireLoan));
+    }, () => callback([]));
+  },
+
+  addTireLoan: async (loan: TireLoan) => {
+    if (mockUser || !db) { LocalDB.add('tire_loans', loan); return; }
+    await db.collection("tire_loans").doc(loan.id).set(sanitize(loan));
+  },
+
+  updateTireLoan: async (id: string, updates: Partial<TireLoan>) => {
+    if (mockUser || !db) { LocalDB.update('tire_loans', id, updates); return; }
+    await db.collection("tire_loans").doc(id).update(sanitize(updates));
   },
 
   getLogsByUser: async (userId: string, limit = 300): Promise<SystemLog[]> => {

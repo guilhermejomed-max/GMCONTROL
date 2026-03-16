@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tire, TireStatus, RetreadOrder, TreadPattern, RetreadOrderItem, ToastType, SystemSettings } from '../types';
 import { storageService } from '../services/storageService';
-import { Recycle, Search, Send, CheckCircle2, X, Truck, DollarSign, Calendar, Clock, Filter, Users, Trash2, Plus, Disc, PenLine, Inbox, PackageCheck, ListTodo, AlertCircle, LayoutGrid, PlusCircle, ArrowRight, Wallet, History, AlertTriangle, ChevronRight, TrendingDown, Paperclip, FileText, Wrench, Factory, CheckSquare } from 'lucide-react';
+import { Recycle, Search, Send, CheckCircle2, X, Truck, DollarSign, Calendar, Clock, Filter, Users, Trash2, Plus, Disc, PenLine, Inbox, PackageCheck, ListTodo, AlertCircle, LayoutGrid, PlusCircle, ArrowRight, Wallet, History, AlertTriangle, ChevronRight, TrendingDown, Paperclip, FileText, Wrench, Factory, CheckSquare, Printer } from 'lucide-react';
 
 interface RetreadingHubProps {
   tires: Tire[];
@@ -114,7 +114,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
   const [editingPatternId, setEditingPatternId] = useState<string | null>(null);
 
   const [receivingOrder, setReceivingOrder] = useState<RetreadOrder | null>(null);
-  const [receiveData, setReceiveData] = useState<Record<string, { cost: number, newDepth: number, treadType: 'LISO' | 'BORRACHUDO' }>>({});
+  const [receiveData, setReceiveData] = useState<Record<string, { cost: number, newDepth: number, treadType: 'LISO' | 'BORRACHUDO', status: 'APROVADO' | 'RECUSADO', rejectionReason: string }>>({});
 
   useEffect(() => {
      const unsubP = storageService.subscribeToRetreaders(setPartners);
@@ -403,14 +403,14 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
   const handleStartReceiving = (order: RetreadOrder) => {
     const orderItems = order.items || order.tireIds.map(id => ({ tireId: id, pattern: order.requestedTreadPattern || 'Desconhecida', fireNumber: '', cost: 0 }));
 
-    const initialData: Record<string, { cost: number, newDepth: number, treadType: 'LISO' | 'BORRACHUDO' }> = {};
+    const initialData: Record<string, { cost: number, newDepth: number, treadType: 'LISO' | 'BORRACHUDO', status: 'APROVADO' | 'RECUSADO', rejectionReason: string }> = {};
     
     orderItems.forEach(item => {
        const pattern = treadPatterns.find(p => p.name === item.pattern);
        const suggestedCost = item.cost || pattern?.fixedCost || 0;
        const suggestedDepth = pattern?.standardDepth || 18.0;
        const suggestedType = pattern?.type || 'LISO';
-       initialData[item.tireId] = { cost: suggestedCost, newDepth: suggestedDepth, treadType: suggestedType };
+       initialData[item.tireId] = { cost: suggestedCost, newDepth: suggestedDepth, treadType: suggestedType, status: 'APROVADO', rejectionReason: '' };
     });
 
     setReceiveData(initialData);
@@ -435,27 +435,43 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
     
     receivingOrder.tireIds.forEach(id => {
       const tire = tires.find(t => t.id === id);
-      const data: { cost: number, newDepth: number, treadType: 'LISO' | 'BORRACHUDO' } = receiveData[id] || { cost: 0, newDepth: 18.0, treadType: 'LISO' };
+      const data = receiveData[id] || { cost: 0, newDepth: 18.0, treadType: 'LISO', status: 'APROVADO', rejectionReason: '' };
       
       if (tire) {
-        updates.push({
-            id: tire.id,
-            status: TireStatus.RETREADED,
-            location: 'Almoxarifado',
-            retreader: receivingOrder.retreaderName,
-            retreadCost: data.cost,
-            retreadCount: (tire.retreadCount || 0) + 1,
-            totalInvestment: (tire.totalInvestment || tire.price) + data.cost,
-            currentTreadDepth: data.newDepth,
-            originalTreadDepth: data.newDepth,
-            treadType: data.treadType as 'LISO' | 'BORRACHUDO',
-            history: [...(tire.history || []), {
-                date: new Date().toISOString(),
-                action: 'RETORNO_RECAPAGEM',
-                details: `Retorno ${receivingOrder.retreaderName}. Custo: R$${data.cost}. Sulco: ${data.newDepth}mm (${data.treadType}).`
-            }]
-        });
-        totalCost += data.cost;
+        if (data.status === 'APROVADO') {
+            updates.push({
+                id: tire.id,
+                status: TireStatus.RETREADED,
+                location: 'Almoxarifado',
+                retreader: receivingOrder.retreaderName,
+                retreadCost: data.cost,
+                retreadCount: (tire.retreadCount || 0) + 1,
+                totalInvestment: Number(tire.totalInvestment || tire.price || 0) + Number(data.cost || 0),
+                currentTreadDepth: data.newDepth,
+                originalTreadDepth: data.newDepth,
+                treadType: data.treadType as 'LISO' | 'BORRACHUDO',
+                history: [...(tire.history || []), {
+                    date: new Date().toISOString(),
+                    action: 'RETORNO_RECAPAGEM',
+                    details: `Retorno ${receivingOrder.retreaderName}. Custo: R$${data.cost}. Sulco: ${data.newDepth}mm (${data.treadType}).`
+                }]
+            });
+            totalCost += data.cost;
+        } else {
+            // RECUSADO
+            updates.push({
+                id: tire.id,
+                status: TireStatus.DAMAGED,
+                location: 'Sucata',
+                history: [...(tire.history || []), {
+                    date: new Date().toISOString(),
+                    action: 'DESCARTE',
+                    details: `Recusado na recapagem (${receivingOrder.retreaderName}). Motivo: ${data.rejectionReason}`
+                }]
+            });
+            // Cost for rejected tires is usually 0, or just an inspection fee. We add it to totalCost if they entered a cost.
+            totalCost += data.cost;
+        }
       }
     });
 
@@ -467,7 +483,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
         totalCost
     });
     
-    onNotification('success', 'Recebimento Concluído', `Ordem #${receivingOrder.orderNumber} finalizada. Pneus reestocados.`);
+    onNotification('success', 'Recebimento Concluído', `Ordem #${receivingOrder.orderNumber} finalizada. Pneus processados.`);
     setReceivingOrder(null);
     setReceiveData({});
   };
@@ -485,6 +501,80 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
     const isLate = daysLeft < 0 && order.status !== 'CONCLUIDO';
     
     return { progress, daysLeft, isLate };
+  };
+
+  const handlePrintManifest = (order: RetreadOrder) => {
+      const win = window.open('', '_blank');
+      if (!win) return;
+
+      const html = `
+          <html>
+          <head>
+              <title>Romaneio de Envio #${order.orderNumber}</title>
+              <style>
+                  body { font-family: sans-serif; padding: 20px; color: #333; }
+                  h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+                  .header { margin-bottom: 30px; }
+                  .header p { margin: 5px 0; }
+                  table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+                  th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+                  th { background-color: #f5f5f5; }
+                  .footer { margin-top: 50px; text-align: center; }
+                  .signature { margin-top: 50px; display: flex; justify-content: space-around; }
+                  .sig-line { border-top: 1px solid #333; width: 200px; padding-top: 5px; }
+              </style>
+          </head>
+          <body>
+              <h1>Romaneio de Envio para Recapagem</h1>
+              <div class="header">
+                  <p><strong>Ordem:</strong> #${String(order.orderNumber).padStart(4, '0')}</p>
+                  <p><strong>Parceiro (Recapadora):</strong> ${order.retreaderName}</p>
+                  <p><strong>Data de Envio:</strong> ${new Date(order.sentDate).toLocaleDateString()}</p>
+                  <p><strong>Previsão de Retorno:</strong> ${new Date(order.expectedReturnDate || '').toLocaleDateString()}</p>
+                  <p><strong>Total de Pneus:</strong> ${order.tireIds.length}</p>
+              </div>
+              
+              <table>
+                  <thead>
+                      <tr>
+                          <th>Item</th>
+                          <th>Nº de Fogo</th>
+                          <th>Serviço Solicitado</th>
+                          <th>Detalhes</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      ${(order.items || order.tireDetails.map(t => ({ fireNumber: t.fireNumber, pattern: order.requestedTreadPattern, serviceDetails: '' }))).map((item, idx) => `
+                          <tr>
+                              <td>${idx + 1}</td>
+                              <td><strong>${item.fireNumber}</strong></td>
+                              <td>${item.pattern}</td>
+                              <td>${item.serviceDetails || '-'}</td>
+                          </tr>
+                      `).join('')}
+                  </tbody>
+              </table>
+
+              <div class="signature">
+                  <div style="text-align: center;">
+                      <div class="sig-line">Assinatura do Responsável (Envio)</div>
+                  </div>
+                  <div style="text-align: center;">
+                      <div class="sig-line">Assinatura do Recebedor (Recapadora)</div>
+                  </div>
+              </div>
+              
+              <div class="footer">
+                  <p>Gerado pelo sistema GM Control Pro em ${new Date().toLocaleString()}</p>
+              </div>
+              <script>
+                  window.onload = function() { window.print(); }
+              </script>
+          </body>
+          </html>
+      `;
+      win.document.write(html);
+      win.document.close();
   };
 
   return (
@@ -729,6 +819,12 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                                 </div>
 
                                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2 items-center">
+                                    <button 
+                                        onClick={() => handlePrintManifest(order)}
+                                        className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 mr-4"
+                                    >
+                                        <Printer className="h-4 w-4"/> Imprimir Romaneio
+                                    </button>
                                     {order.collectionOrderUrl && (
                                         <button 
                                             onClick={() => {
@@ -1001,21 +1097,21 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                               <tr>
                                   <th className="p-4">Fogo</th>
                                   <th className="p-4">Serviço/Banda</th>
-                                  <th className="p-4 w-32">Tipo Banda</th>
-                                  <th className="p-4 w-32">Novo Sulco (mm)</th>
+                                  <th className="p-4 w-32">Status</th>
+                                  <th className="p-4 w-48">Detalhes (Sulco / Motivo)</th>
                                   <th className="p-4 w-40">Custo Final (R$)</th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                               {receivingOrder.tireIds.map(id => {
                                   const tire = tires.find(t => t.id === id);
-                                  const data: { cost: number, newDepth: number, treadType: 'LISO' | 'BORRACHUDO' } = receiveData[id] || { cost: 0, newDepth: 18, treadType: 'LISO' };
+                                  const data = receiveData[id] || { cost: 0, newDepth: 18, treadType: 'LISO', status: 'APROVADO', rejectionReason: '' };
                                   const itemSpec = receivingOrder.items?.find(i => i.tireId === id);
                                   
                                   if (!tire) return null;
 
                                   return (
-                                      <tr key={id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                                      <tr key={id} className={`hover:bg-slate-50 dark:hover:bg-slate-800 ${data.status === 'RECUSADO' ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
                                           <td className="p-4 font-black text-slate-800 dark:text-white">{tire.fireNumber}</td>
                                           <td className="p-4 text-slate-600 dark:text-slate-300">
                                               {itemSpec?.pattern || receivingOrder.requestedTreadPattern}
@@ -1023,21 +1119,42 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                                           </td>
                                           <td className="p-4">
                                               <select 
-                                                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none"
-                                                  value={data.treadType}
-                                                  onChange={e => handleReceiveDataChange(id, 'treadType', e.target.value)}
+                                                  className={`w-full p-2 border rounded-lg text-xs font-bold outline-none ${data.status === 'RECUSADO' ? 'bg-red-100 border-red-200 text-red-700' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}
+                                                  value={data.status}
+                                                  onChange={e => handleReceiveDataChange(id, 'status', e.target.value)}
                                               >
-                                                  <option value="LISO">LISO</option>
-                                                  <option value="BORRACHUDO">BORRACHUDO</option>
+                                                  <option value="APROVADO">APROVADO</option>
+                                                  <option value="RECUSADO">RECUSADO</option>
                                               </select>
                                           </td>
                                           <td className="p-4">
-                                              <input 
-                                                  type="number" step="0.1"
-                                                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-bold outline-none focus:border-green-500"
-                                                  value={data.newDepth}
-                                                  onChange={e => handleReceiveDataChange(id, 'newDepth', parseFloat(e.target.value))}
-                                              />
+                                              {data.status === 'APROVADO' ? (
+                                                  <div className="flex gap-2">
+                                                      <input 
+                                                          type="number" step="0.1"
+                                                          className="w-16 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-bold outline-none focus:border-green-500"
+                                                          value={data.newDepth}
+                                                          onChange={e => handleReceiveDataChange(id, 'newDepth', parseFloat(e.target.value))}
+                                                          title="Novo Sulco (mm)"
+                                                      />
+                                                      <select 
+                                                          className="flex-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none"
+                                                          value={data.treadType}
+                                                          onChange={e => handleReceiveDataChange(id, 'treadType', e.target.value)}
+                                                      >
+                                                          <option value="LISO">LISO</option>
+                                                          <option value="BORRACHUDO">BORRACHUDO</option>
+                                                      </select>
+                                                  </div>
+                                              ) : (
+                                                  <input 
+                                                      type="text"
+                                                      placeholder="Motivo da recusa..."
+                                                      className="w-full p-2 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 rounded-lg text-sm font-bold outline-none focus:border-red-500 text-red-700 dark:text-red-400"
+                                                      value={data.rejectionReason}
+                                                      onChange={e => handleReceiveDataChange(id, 'rejectionReason', e.target.value)}
+                                                  />
+                                              )}
                                           </td>
                                           <td className="p-4">
                                               <div className="relative">

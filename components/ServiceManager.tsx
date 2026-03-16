@@ -505,7 +505,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
                            <Pie data={stats.categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                               {stats.categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                            </Pie>
-                           <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} />
+                           <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} itemStyle={{ color: '#fff' }} />
                            <Legend verticalAlign="middle" align="right" layout="vertical" />
                         </PieChart>
                      </ResponsiveContainer>
@@ -520,7 +520,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
                            <CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.1} />
                            <XAxis type="number" hide />
                            <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: '#64748b'}} axisLine={false} tickLine={false} />
-                           <Tooltip formatter={(value: number) => money(value)} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} cursor={{fill: 'transparent'}} />
+                           <Tooltip formatter={(value: number) => money(value)} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} itemStyle={{ color: '#fff' }} cursor={{fill: 'transparent'}} />
                            <Bar dataKey="value" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
                         </BarChart>
                      </ResponsiveContainer>
@@ -547,7 +547,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                         <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} stroke="#94a3b8" />
                         <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `R$${val/1000}k`} stroke="#94a3b8" />
-                        <Tooltip formatter={(value: number) => money(value)} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} />
+                        <Tooltip formatter={(value: number) => money(value)} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#1e293b', color: '#fff' }} itemStyle={{ color: '#fff' }} />
                         <Legend verticalAlign="top" height={36}/>
                         <Area type="monotone" dataKey="Entrada" stroke="#10b981" fillOpacity={1} fill="url(#colorEntrada)" />
                         <Area type="monotone" dataKey="Saida" stroke="#ef4444" fillOpacity={1} fill="url(#colorSaida)" />

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition } from '../types';
+import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint } from '../types';
 import { storageService } from '../services/storageService';
-import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench } from 'lucide-react';
+import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin } from 'lucide-react';
 
 interface SettingsProps {
   currentSettings: SystemSettings;
@@ -19,7 +19,7 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSettings }) => {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'SERVICES'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'SERVICES' | 'POINTS'>('GENERAL');
   
   // General Settings State
   const [formData, setFormData] = useState<SystemSettings>(currentSettings);
@@ -62,6 +62,10 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
   const [serviceTypes, setServiceTypes] = useState<ServiceTypeDefinition[]>([]);
   const [newServiceType, setNewServiceType] = useState<string>('');
 
+  // --- POINTS STATE ---
+  const [savedPoints, setSavedPoints] = useState<LocationPoint[]>([]);
+  const [newPoint, setNewPoint] = useState<Partial<LocationPoint>>({ name: '', lat: 0, lng: 0, radius: 500 });
+
   useEffect(() => {
     setFormData({
       ...currentSettings,
@@ -69,10 +73,12 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
       logoUrl: currentSettings.logoUrl || '',
       tireModels: currentSettings.tireModels || [],
       serviceTypes: currentSettings.serviceTypes || [],
-      trailerDailyAverageKm: currentSettings.trailerDailyAverageKm || 0
+      trailerDailyAverageKm: currentSettings.trailerDailyAverageKm || 0,
+      savedPoints: currentSettings.savedPoints || []
     });
     setCatalogItems(currentSettings.tireModels || []);
     setServiceTypes(currentSettings.serviceTypes || []);
+    setSavedPoints(currentSettings.savedPoints || []);
   }, [currentSettings]);
 
   useEffect(() => {
@@ -102,7 +108,12 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
     setIsSaving(true);
     setSaveSuccess(false);
     try {
-      const finalSettings = { ...formData, tireModels: catalogItems, serviceTypes: serviceTypes };
+      const finalSettings = { 
+        ...formData, 
+        tireModels: catalogItems, 
+        serviceTypes: serviceTypes,
+        savedPoints: savedPoints
+      };
       await storageService.saveSettings(finalSettings);
       onUpdateSettings(finalSettings);
       setSaveSuccess(true);
@@ -162,6 +173,31 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
       const updatedList = serviceTypes.filter(s => s.id !== id);
       setServiceTypes(updatedList);
       setFormData({...formData, serviceTypes: updatedList});
+  };
+
+  // --- POINTS HANDLERS ---
+  const handleAddPoint = () => {
+    if (!newPoint.name || !newPoint.lat || !newPoint.lng) {
+      alert("Nome, Latitude e Longitude são obrigatórios.");
+      return;
+    }
+    const item: LocationPoint = {
+      id: Date.now().toString(),
+      name: newPoint.name,
+      lat: Number(newPoint.lat),
+      lng: Number(newPoint.lng),
+      radius: Number(newPoint.radius) || 500
+    };
+    const updatedList = [...savedPoints, item];
+    setSavedPoints(updatedList);
+    setFormData({...formData, savedPoints: updatedList});
+    setNewPoint({ name: '', lat: 0, lng: 0, radius: 500 });
+  };
+
+  const handleDeletePoint = (id: string) => {
+    const updatedList = savedPoints.filter(p => p.id !== id);
+    setSavedPoints(updatedList);
+    setFormData({...formData, savedPoints: updatedList});
   };
 
   // --- TEAM HANDLERS ---
@@ -368,6 +404,9 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
            <button onClick={() => setActiveTab('SERVICES')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SERVICES' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
              <Wrench className="h-4 w-4" /> Tipos de Serviço
            </button>
+           <button onClick={() => setActiveTab('POINTS')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'POINTS' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}>
+             <MapPin className="h-4 w-4" /> Pontos de Destino
+           </button>
            <button onClick={() => setActiveTab('TEAM')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'TEAM' ? 'bg-white shadow-sm text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}>
              <Users className="h-4 w-4" /> Equipe
            </button>
@@ -567,6 +606,74 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
                         </div>
                     )}
                 </div>
+            </div>
+         </div>
+      )}
+
+      {/* POINTS TAB */}
+      {activeTab === 'POINTS' && (
+         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex justify-between items-start mb-6">
+               <div>
+                  <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                     <MapPin className="h-5 w-5 text-emerald-600" /> Pontos de Destino Salvos
+                  </h3>
+                  <p className="text-slate-500 text-sm mt-1">Cadastre locais frequentes para agilizar o agendamento de chegada dos veículos.</p>
+               </div>
+               <button onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
+                  {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Lista
+               </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <h4 className="font-bold text-slate-700 text-sm mb-4">Adicionar Novo Ponto</h4>
+                  <div className="space-y-3">
+                     <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Nome do Local</label>
+                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: CD Jundiaí" value={newPoint.name} onChange={e => setNewPoint({...newPoint, name: e.target.value})} />
+                     </div>
+                     <div className="grid grid-cols-2 gap-2">
+                        <div>
+                           <label className="block text-xs font-bold text-slate-500 mb-1">Latitude</label>
+                           <input type="number" step="any" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="-23.1234" value={newPoint.lat} onChange={e => setNewPoint({...newPoint, lat: Number(e.target.value)})} />
+                        </div>
+                        <div>
+                           <label className="block text-xs font-bold text-slate-500 mb-1">Longitude</label>
+                           <input type="number" step="any" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="-46.1234" value={newPoint.lng} onChange={e => setNewPoint({...newPoint, lng: Number(e.target.value)})} />
+                        </div>
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Raio de Alerta (Metros)</label>
+                        <input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="500" value={newPoint.radius} onChange={e => setNewPoint({...newPoint, radius: Number(e.target.value)})} />
+                     </div>
+                     <button onClick={handleAddPoint} className="w-full py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar Ponto</button>
+                  </div>
+               </div>
+
+               <div className="lg:col-span-2 overflow-y-auto max-h-[500px]">
+                  {savedPoints.length === 0 ? (
+                     <div className="text-center p-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 h-full flex flex-col justify-center items-center">
+                        <MapPin className="h-10 w-10 opacity-30 mb-2" />
+                        <p>Nenhum ponto cadastrado.</p>
+                     </div>
+                  ) : (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {savedPoints.map((point) => (
+                           <div key={point.id} className="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm hover:border-emerald-300 transition-colors">
+                              <div>
+                                 <div className="font-bold text-slate-800">{point.name}</div>
+                                 <div className="text-[10px] text-slate-500 font-mono mt-1">
+                                    Lat: {point.lat.toFixed(4)} | Lng: {point.lng.toFixed(4)}
+                                 </div>
+                                 <div className="text-[10px] font-bold text-emerald-600 mt-1">Raio: {point.radius}m</div>
+                              </div>
+                              <button onClick={() => handleDeletePoint(point.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="h-4 w-4" /></button>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+               </div>
             </div>
          </div>
       )}

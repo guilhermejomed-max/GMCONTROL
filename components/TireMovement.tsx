@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo, useEffect, FC } from 'react';
 import { Tire, Vehicle, TireStatus, UserLevel, SystemSettings } from '../types';
-import { Truck, Search, X, CheckCircle2, Disc, ArrowDownCircle, ArrowUpCircle, ScanLine, Gauge, ArrowLeft, Container, RefreshCw, Repeat, ArrowRight, Activity, TrendingDown, Calendar, Milestone, Recycle, ChevronRight, Target, Move, ArrowRightLeft, MousePointerClick, Loader2, Package, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { Truck, Search, X, CheckCircle2, Disc, ArrowDownCircle, ArrowUpCircle, ScanLine, Gauge, ArrowLeft, Container, RefreshCw, Repeat, ArrowRight, Activity, TrendingDown, Calendar, Milestone, Recycle, ChevronRight, Target, Move, ArrowRightLeft, MousePointerClick, Loader2, Package, AlertTriangle, RefreshCcw, Plus } from 'lucide-react';
 import { Scanner } from './Scanner';
+import { TireForm } from './TireForm';
 
 interface TireMovementProps {
   tires: Tire[];
   vehicles: Vehicle[];
   onUpdateTire: (tire: Tire) => Promise<void>;
+  onAddTire: (tire: Tire) => Promise<void>;
   userLevel: UserLevel;
   settings?: SystemSettings;
 }
@@ -157,7 +159,7 @@ const MovementSchematic: FC<{
   );
 };
 
-export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateTire, userLevel, settings }) => {
+export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateTire, onAddTire, userLevel, settings }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPos, setSelectedPos] = useState<string | null>(null);
@@ -174,6 +176,7 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
   // States for Swap Modal
   const [swapInTire, setSwapInTire] = useState<Tire | null>(null);
   const [swapOutDepth, setSwapOutDepth] = useState<string>('');
+  const [isRegisteringNew, setIsRegisteringNew] = useState(false);
   const [isSwapConfirmOpen, setIsSwapConfirmOpen] = useState(false);
 
   const mountedTires = useMemo(() => {
@@ -433,6 +436,37 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
       }
   };
 
+  if (isRegisteringNew && selectedVehicle && selectedPos) {
+      return (
+          <div className="h-[calc(100vh-120px)] bg-white dark:bg-slate-900 overflow-y-auto rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md z-10">
+                  <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-green-500" />
+                      Cadastrar e Montar Pneu
+                  </h2>
+                  <button onClick={() => setIsRegisteringNew(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                      <X className="h-5 w-5 text-slate-500" />
+                  </button>
+              </div>
+              <div className="p-4">
+                  <TireForm 
+                      onAddTire={async (tire) => {
+                          await onAddTire(tire);
+                          setIsRegisteringNew(false);
+                          setStockSearch(tire.fireNumber);
+                      }}
+                      onCancel={() => setIsRegisteringNew(false)}
+                      onFinish={() => setIsRegisteringNew(false)}
+                      existingTires={tires}
+                      settings={settings}
+                      autoMountVehicleId={selectedVehicle.id}
+                      autoMountPosition={selectedPos}
+                  />
+              </div>
+          </div>
+      );
+  }
+
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col lg:flex-row bg-white dark:bg-slate-900 overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95">
       
@@ -646,16 +680,26 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
                                         <button onClick={() => setIsQuickSwapMode(false)} className="text-xs text-slate-400 font-bold hover:text-slate-600">Cancelar Troca</button>
                                     )}
                                 </div>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400"/>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Filtrar estoque..." 
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-green-500 text-slate-800 dark:text-white"
-                                        value={stockSearch}
-                                        onChange={e => setStockSearch(e.target.value)}
-                                        autoFocus
-                                    />
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400"/>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Filtrar estoque..." 
+                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-green-500 text-slate-800 dark:text-white"
+                                            value={stockSearch}
+                                            onChange={e => setStockSearch(e.target.value)}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsRegisteringNew(true)}
+                                        className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                                        title="Cadastrar e Montar Novo Pneu"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Novo
+                                    </button>
                                 </div>
                                 {!isQuickSwapMode && (
                                     <div className="grid grid-cols-2 gap-2">
