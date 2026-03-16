@@ -27,18 +27,18 @@ process.on('unhandledRejection', (reason, promise) => {
 function parseSascarDate(dateStr: any): Date {
     if (!dateStr) return new Date();
     
-    // NOVO BLOCO: Se a biblioteca SOAP já entregou como objeto Date
     if (dateStr instanceof Date) {
-        // Verifica se a data é válida
         if (isNaN(dateStr.getTime())) return new Date();
         
-        // Cria uma cópia da data para não mutar o objeto original
-        const correctedDate = new Date(dateStr.getTime());
+        // @ts-ignore
+        if (dateStr._isCorrected) return dateStr;
         
-        // SOMA 3 HORAS para compensar a leitura errada em UTC do servidor
-        correctedDate.setHours(correctedDate.getHours() + 3);
+        dateStr.setHours(dateStr.getHours() + 3);
         
-        return correctedDate;
+        // @ts-ignore
+        dateStr._isCorrected = true;
+        
+        return dateStr;
     }
 
     // Se já for um número (timestamp)
@@ -138,6 +138,7 @@ function parseSascarVehicle(raw: any): any {
             dataPosicaoIso: parseSascarDate(sv.dataPosicao || sv.dataHora).toISOString()
         };
         console.log("[Sascar Debug] Parsed Data:", JSON.stringify(result));
+        logToFile(`[Sascar Debug] Parsed Vehicle: ID=${result.idVeiculo}, Placa=${result.placa}, Data=${result.dataPosicaoIso}`);
         return result;
     }
     return null;
@@ -174,7 +175,7 @@ async function startServer() {
       fetchPromise: null as Promise<void> | null
   };
 
-  async function synchronizedSascarCall<T>(fn: () => Promise<T>): Promise<T> {
+  async function synchronizedSascarCall<T>(fn: () => Promise<T>, timeoutMs: number = 90000): Promise<T> {
     const currentLock = sascarRequestLock;
     let resolveLock: () => void;
     sascarRequestLock = new Promise((resolve) => {
@@ -185,7 +186,12 @@ async function startServer() {
       await currentLock;
       // Add a small delay between any two Sascar calls to be safe
       await new Promise(resolve => setTimeout(resolve, 50));
-      return await fn();
+      
+      // Add timeout
+      return await Promise.race([
+        fn(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Sascar API Timeout")), timeoutMs))
+      ]);
     } finally {
       // @ts-ignore
       if (resolveLock) resolveLock();
@@ -408,11 +414,13 @@ async function startServer() {
       };
 
       const performFetch = async (isBackground: boolean = false) => {
+          logToFile(`[Sascar Debug] performFetch iniciado (isBackground: ${isBackground})`);
           const fetchStartTime = Date.now();
           const currentTimeout = isBackground ? 600000 : MAX_REQUEST_TIME; // 10 minutos para background, 25s para foreground
 
           // 0. Mapeamento de Placas (Cacheado por 1 hora)
           try {
+              logToFile(`[Sascar Debug] Tentando buscar mapeamento de placas...`);
               if (sascarCache.idToPlateMap.size === 0 || (Date.now() - sascarCache.lastMapFetchTime > MAP_CACHE_TTL)) {
                   logToFile(`[Sascar] Buscando lista de veículos para mapeamento de placas...`);
                   const result = await synchronizedSascarCall(() => 
@@ -423,6 +431,7 @@ async function startServer() {
                       }, { timeout: 60000 }).then(([res]: any) => res)
                   ) as any;
                   
+                  logToFile(`[Sascar Debug] Mapeamento de placas recebido.`);
                   const veiculosEmTexto = result ? (result.return || result.retornar) : null;
                   if (veiculosEmTexto) {
                       let veiculosArray = [];
@@ -454,11 +463,14 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
+          logToFile(`[Sascar Debug] Iniciando drenagem da fila...`);
           // 1. Drenagem da fila (FIFO)
           // NO FOREGROUND: Pulamos a fila (0 iterações) para focar apenas no histórico das placas solicitadas
-          // NO BACKGROUND: Limpamos muito (50 iterações) para vencer o backlog agressivamente
-          const MAX_QUEUE_ITERATIONS = isBackground ? 50 : 0; 
+          // NO BACKGROUND: Limpamos muito (100 iterações) para vencer o backlog agressivamente
+          const MAX_QUEUE_ITERATIONS = isBackground ? 100 : 0; 
           
+          logToFile(`[Sascar Debug] isBackground: ${isBackground}, MAX_QUEUE_ITERATIONS: ${MAX_QUEUE_ITERATIONS}`);
+
           if (!isBackground) {
               logToFile(`[Sascar] Foreground request: Limpeza de fila limitada a ${MAX_QUEUE_ITERATIONS} para priorizar histórico alvo.`);
           } else {
@@ -475,11 +487,13 @@ async function startServer() {
               fetchStartTime, 
               currentTimeout
           );
+          logToFile(`[Sascar Debug] Drenagem da fila concluída.`);
           
           // Update cache
           sascarCache.idToPlateMap = idToPlateMap;
           sascarCache.latestPositions = new Map(latestPositions);
           sascarCache.lastFetchTime = Date.now();
+          logToFile(`[Sascar Debug] performFetch concluído.`);
       };
 
       if (sascarCache.lastFetchTime > 0) {
@@ -533,9 +547,12 @@ async function startServer() {
           });
           
           if (missingPlates.length > 0) {
-              // Tenta buscar o histórico para todos os ausentes, mas o timeout protege
-              const platesToFetch = missingPlates;
-              logToFile(`[Sascar] Buscando histórico para ${platesToFetch.length} veículos ausentes na fila...`);
+              // LIMITAR A BUSCA DE HISTÓRICO PARA EVITAR TIMEOUT
+              const MAX_HISTORICAL_FETCHES = 3;
+              const platesToFetch = missingPlates.slice(0, MAX_HISTORICAL_FETCHES);
+              logToFile(`[Sascar] Buscando histórico para ${platesToFetch.length} de ${missingPlates.length} veículos ausentes na fila...`);
+              
+              logToFile(`[Sascar Debug] missingPlates: ${JSON.stringify(missingPlates)}`);
               
               const now = new Date();
               const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 horas atrás
@@ -543,11 +560,13 @@ async function startServer() {
               const dataInicio = formatDateBRT(twentyFourHoursAgo);
               const dataFinal = formatDateBRT(now);
 
-              const fetchPromises = missingPlates.map(async (idStr) => {
+              const fetchPromises = platesToFetch.map(async (idStr) => {
                   const cleanP = idStr.replace(/[^A-Z0-9]/gi, '').toUpperCase();
                   const resolvedId = plateToIdMap.get(cleanP) || idStr;
                   const idVeiculo = parseInt(resolvedId, 10);
                   if (isNaN(idVeiculo)) return;
+
+                  logToFile(`[Sascar Debug] Iniciando busca de histórico para veículo ${idVeiculo}...`);
 
                   try {
                       const result = await synchronizedSascarCall(() => 
@@ -559,6 +578,8 @@ async function startServer() {
                               dataFinal: dataFinal
                           }, { timeout: 60000 }).then(([res]: any) => res)
                       ) as any;
+
+                      logToFile(`[Sascar Debug] Histórico recebido para veículo ${idVeiculo}.`);
 
                       const frotaEmTexto = result ? (result.return || result.retornar) : null;
                       if (frotaEmTexto) {
