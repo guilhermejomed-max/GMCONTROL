@@ -32,6 +32,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
   const [newOrderTitle, setNewOrderTitle] = useState('');
   const [newOrderMaintenancePlanId, setNewOrderMaintenancePlanId] = useState('');
   const [newOrderDetails, setNewOrderDetails] = useState('');
+  const [newOrderMaintenanceBaseId, setNewOrderMaintenanceBaseId] = useState('');
   
   // Edit Modal State
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
@@ -43,7 +44,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
 
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isCustomTitle, setIsCustomTitle] = useState(false);
 
   // Parts Selection State
   const [newOrderParts, setNewOrderParts] = useState<{ itemId: string; name: string; quantity: number; unitCost: number }[]>([]);
@@ -214,20 +214,46 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           return;
       }
 
-      if (!newOrderTitle || !newOrderDetails) {
-          alert("Preencha o tipo de serviço e os detalhes.");
+      if (!newOrderDetails) {
+          alert("Preencha os detalhes do serviço.");
           return;
       }
 
 
       setIsCreating(true);
       try {
+          let arrivalAlertId: string | undefined = undefined;
+          
+          // Create Arrival Alert if a base is selected
+          if (newOrderMaintenanceBaseId && settings?.savedPoints) {
+            const base = settings.savedPoints.find(p => p.id === newOrderMaintenanceBaseId);
+            if (base) {
+              const newAlert: ArrivalAlert = {
+                id: Date.now().toString(),
+                vehiclePlate: vehicle.plate,
+                targetName: base.name,
+                targetLat: base.lat,
+                targetLng: base.lng,
+                radius: base.radius || settings.alertRadius || 500,
+                services: `O.S.: ${newOrderTitle || 'Manutenção'}`,
+                status: 'PENDING',
+                createdAt: new Date().toISOString(),
+                createdBy: 'Sistema (O.S.)'
+              };
+              await storageService.addArrivalAlert(newAlert);
+              arrivalAlertId = newAlert.id;
+            }
+          }
+
           await onAddOrder({
               vehicleId: vehicle.id,
               vehiclePlate: vehicle.plate,
-              title: newOrderTitle,
+              title: newOrderTitle || (newOrderDetails.length > 40 ? newOrderDetails.substring(0, 40) + '...' : newOrderDetails) || 'Manutenção',
               details: newOrderDetails,
               maintenancePlanId: newOrderMaintenancePlanId || undefined,
+              maintenanceBaseId: newOrderMaintenanceBaseId || undefined,
+              maintenanceBaseName: settings?.savedPoints?.find(p => p.id === newOrderMaintenanceBaseId)?.name,
+              arrivalAlertId,
               parts: newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
@@ -237,8 +263,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           setNewOrderTitle('');
           setNewOrderDetails('');
           setNewOrderMaintenancePlanId('');
+          setNewOrderMaintenanceBaseId('');
           setNewOrderParts([]);
-          setIsCustomTitle(false);
       } catch (err) {
           console.error(err);
           alert("Erro ao criar Ordem de Serviço.");
@@ -488,7 +514,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                                   onClick={() => {
                                       setNewOrderTitle(`PMS: ${vehicleMaintenancePlan.name}`);
                                       setNewOrderMaintenancePlanId(vehicleMaintenancePlan.id);
-                                      setIsCustomTitle(true);
                                       setNewOrderDetails(`PMS: ${vehicleMaintenancePlan.name}\n\nObservações:\n`);
                                       
                                       // Auto-add parts from PMS if available
@@ -527,7 +552,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                                     const plan = maintenancePlans.find(p => p.id === planId);
                                     if (plan) {
                                         setNewOrderTitle(`PMS: ${plan.name}`);
-                                        setIsCustomTitle(true);
                                         setNewOrderDetails(`PMS: ${plan.name}\n\nObservações:\n`);
                                         
                                         // Auto-add parts from PMS if available
@@ -556,52 +580,24 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               ))}
                           </select>
                       </div>
-                      
 
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço (Título)</label>
-                          {settings?.serviceTypes && settings.serviceTypes.length > 0 && !isCustomTitle ? (
-                              <select 
-                                className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                                value={newOrderTitle}
-                                onChange={(e) => {
-                                    if (e.target.value === '__OTHER__') {
-                                        setNewOrderTitle('');
-                                        setIsCustomTitle(true);
-                                    } else {
-                                        setNewOrderTitle(e.target.value);
-                                    }
-                                }}
-                              >
-                                  <option value="">Selecione o Modelo...</option>
-                                  {settings.serviceTypes.map(type => (
-                                      <option key={type.id} value={type.name}>{type.name}</option>
-                                  ))}
-                                  <option value="__OTHER__">Outro (Digitar Manualmente)</option>
-                              </select>
-                          ) : (
-                              <div className="relative">
-                                  <input 
-                                      type="text" 
-                                      required 
-                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                                      placeholder="Ex: Troca de Óleo, Rodízio..."
-                                      value={newOrderTitle}
-                                      onChange={e => setNewOrderTitle(e.target.value)}
-                                      autoFocus={isCustomTitle}
-                                  />
-                                  {settings?.serviceTypes && settings.serviceTypes.length > 0 && (
-                                      <button 
-                                        type="button" 
-                                        onClick={() => setIsCustomTitle(false)} 
-                                        className="absolute right-3 top-3 text-xs text-blue-500 font-bold hover:underline"
-                                      >
-                                          Voltar à Lista
-                                      </button>
-                                  )}
-                              </div>
-                          )}
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Base de Manutenção (Alerta de Chegada)</label>
+                          <select 
+                            className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                            value={newOrderMaintenanceBaseId}
+                            onChange={(e) => setNewOrderMaintenanceBaseId(e.target.value)}
+                          >
+                              <option value="">Nenhuma base selecionada</option>
+                              {settings?.savedPoints?.map(point => (
+                                  <option key={point.id} value={point.id}>{point.name}</option>
+                              ))}
+                          </select>
+                          <p className="text-[10px] text-slate-400 mt-1 italic">
+                            O sistema avisará quando o veículo chegar nesta base.
+                          </p>
                       </div>
+                      
 
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Detalhes do Serviço</label>
@@ -619,9 +615,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
                           </label>
                           
-                          <div className="flex gap-2">
+                          <div className="grid grid-cols-1 gap-2">
                               <select 
-                                className="flex-1 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
                                 value={selectedStockItemId}
                                 onChange={e => setSelectedStockItemId(e.target.value)}
                               >
@@ -630,20 +626,22 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                                       <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
                                   ))}
                               </select>
-                              <input 
-                                type="number" 
-                                min="1"
-                                className="w-16 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
-                                value={selectedStockItemQty}
-                                onChange={e => setSelectedStockItemQty(Number(e.target.value))}
-                              />
-                              <button 
-                                type="button"
-                                onClick={handleAddPart}
-                                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                              >
-                                  <Plus className="h-4 w-4" />
-                              </button>
+                              <div className="flex gap-2">
+                                  <input 
+                                    type="number" 
+                                    min="1"
+                                    className="flex-1 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                                    value={selectedStockItemQty}
+                                    onChange={e => setSelectedStockItemQty(Number(e.target.value))}
+                                  />
+                                  <button 
+                                    type="button"
+                                    onClick={handleAddPart}
+                                    className="px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all flex items-center justify-center"
+                                  >
+                                      <Plus className="h-5 w-5" />
+                                  </button>
+                              </div>
                           </div>
 
                           {newOrderParts.length > 0 && (
@@ -710,17 +708,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                       </div>
                       
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço (Título)</label>
-                          <input 
-                              type="text" 
-                              required 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
-                              value={editOrderTitle}
-                              onChange={e => setEditOrderTitle(e.target.value)}
-                          />
-                      </div>
-
-                      <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Detalhes do Serviço</label>
                           <textarea 
                               required 
@@ -735,9 +722,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
                           </label>
                           
-                          <div className="flex gap-2">
+                          <div className="grid grid-cols-1 gap-2">
                               <select 
-                                className="flex-1 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
                                 value={editSelectedStockItemId}
                                 onChange={e => setEditSelectedStockItemId(e.target.value)}
                               >
@@ -746,20 +733,22 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                                       <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
                                   ))}
                               </select>
-                              <input 
-                                type="number" 
-                                min="1"
-                                className="w-16 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
-                                value={editSelectedStockItemQty}
-                                onChange={e => setEditSelectedStockItemQty(Number(e.target.value))}
-                              />
-                              <button 
-                                type="button"
-                                onClick={handleAddPartToEdit}
-                                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                              >
-                                  <Plus className="h-4 w-4" />
-                              </button>
+                              <div className="flex gap-2">
+                                  <input 
+                                    type="number" 
+                                    min="1"
+                                    className="flex-1 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                                    value={editSelectedStockItemQty}
+                                    onChange={e => setEditSelectedStockItemQty(Number(e.target.value))}
+                                  />
+                                  <button 
+                                    type="button"
+                                    onClick={handleAddPartToEdit}
+                                    className="px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all flex items-center justify-center"
+                                  >
+                                      <Plus className="h-5 w-5" />
+                                  </button>
+                              </div>
                           </div>
 
                           {editOrderParts.length > 0 && (

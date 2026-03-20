@@ -2,7 +2,7 @@
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
 import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
@@ -516,13 +516,16 @@ interface VehicleManagerProps {
   onAddVehicle: (v: Vehicle) => Promise<void>;
   onDeleteVehicle: (id: string) => Promise<void>;
   onUpdateVehicle: (v: Vehicle) => Promise<void>;
+  onUpdateServiceOrder?: (id: string, updates: Partial<ServiceOrder>) => Promise<void>;
+  onDeleteAlert?: (id: string) => Promise<void>;
+  onSimulateArrival?: (plate: string, baseId: string) => Promise<void>;
   userLevel: UserLevel;
   settings: SystemSettings | null;
   trackerSettings: TrackerSettings | null;
   onSyncSascar?: (showModal?: boolean) => Promise<number>;
 }
 
-export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, userLevel, settings, trackerSettings, onSyncSascar }) => {
+export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -567,6 +570,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
     }
   }, [vehicles, selectedVehicleRG]);
 
+  const pendingServiceOrders = useMemo(() => {
+    if (!selectedVehicleRG) return [];
+    return serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'PENDENTE');
+  }, [serviceOrders, selectedVehicleRG]);
+
   const handleAddAlert = async () => {
     if (!selectedVehicleRG) return;
     if (!schedulingData.targetName || !schedulingData.targetLat || !schedulingData.targetLng) {
@@ -600,8 +608,33 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
   };
 
   const handleDeleteAlert = async (id: string) => {
-    if (window.confirm("Deseja excluir este agendamento?")) {
-      await storageService.deleteArrivalAlert(id);
+    // Using direct deletion as window.confirm is not supported in iframes
+    try {
+      if (onDeleteAlert) {
+        await onDeleteAlert(id);
+      } else {
+        await storageService.deleteArrivalAlert(id);
+      }
+    } catch (error) {
+      console.error("Error deleting alert:", error);
+    }
+  };
+
+  const handleCancelServiceOrder = async (orderId: string) => {
+    if (!onUpdateServiceOrder) return;
+    try {
+      await onUpdateServiceOrder(orderId, { status: 'CANCELADO' });
+    } catch (error) {
+      console.error("Error cancelling service order:", error);
+    }
+  };
+
+  const handleSimulateArrival = async (baseId: string) => {
+    if (!selectedVehicleRG || !onSimulateArrival) return;
+    try {
+      await onSimulateArrival(selectedVehicleRG.plate, baseId);
+    } catch (error) {
+      console.error("Error simulating arrival:", error);
     }
   };
 
@@ -643,12 +676,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
   // Brand Models State
   const [isManagingBrandModels, setIsManagingBrandModels] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [isAddingBrand, setIsAddingBrand] = useState(false);
+  const [isAddingModel, setIsAddingModel] = useState(false);
   const [editingBrandModelId, setEditingBrandModelId] = useState<string | null>(null);
   const [brandModelFormData, setBrandModelFormData] = useState<Omit<VehicleBrandModel, 'id'>>({
     brand: '',
     model: '',
     type: 'CAVALO',
-    axles: 0,
+    axles: 3,
     maintenancePlanId: undefined
   });
 
@@ -660,7 +696,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       await storageService.addVehicleBrandModel({ id: Date.now().toString(), ...brandModelFormData });
     }
     setEditingBrandModelId(null);
-    setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 0, maintenancePlanId: undefined });
+    setIsAddingBrand(false);
+    setIsAddingModel(false);
+    setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 3, maintenancePlanId: undefined });
   };
 
   const handleDeleteBrandModel = async (id: string) => {
@@ -1542,7 +1580,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 onClick={() => setActiveRGTab('manutencao')}
                 className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'manutencao' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
               >
-                Manutenção
+                Manutenção & Histórico
               </button>
               <button 
                 onClick={() => setActiveRGTab('pneus')}
@@ -1760,12 +1798,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                         </div>
                     </div>
 
-                {vehicleAlerts.length > 0 && (
+                {(vehicleAlerts.length > 0 || pendingServiceOrders.length > 0) && (
                   <div>
                     <h4 className="font-bold text-slate-800 dark:text-white mb-3 text-sm flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-blue-600" /> Agendamentos Ativos
                     </h4>
                     <div className="space-y-2">
+                      {/* Arrival Alerts */}
                       {vehicleAlerts.map(alert => (
                         <div key={alert.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                           <div>
@@ -1776,11 +1815,51 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                                 {alert.services}
                               </p>
                             )}
-                            <p className="text-[10px] text-slate-500">Raio: {alert.radius}m | Status: <span className={alert.status === 'ARRIVED' ? 'text-green-600' : 'text-orange-600'}>{alert.status}</span></p>
+                            <p className="text-[10px] text-slate-500">Raio: {alert.radius}m | Status: <span className={alert.status === 'ARRIVED' ? 'text-green-600 font-black' : 'text-orange-600'}>{alert.status}</span></p>
                           </div>
-                          <button onClick={() => handleDeleteAlert(alert.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {alert.status === 'PENDING' && (
+                              <button 
+                                onClick={() => {
+                                  const base = settings?.savedPoints?.find(p => p.name === alert.targetName);
+                                  if (base) handleSimulateArrival(base.id);
+                                }}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                title="Simular Chegada (Teste)"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button onClick={() => handleDeleteAlert(alert.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Pending Service Orders */}
+                      {pendingServiceOrders.map(so => (
+                        <div key={so.id} className="flex justify-between items-center p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="px-1.5 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded uppercase">O.S. Pendente</span>
+                              <p className="font-bold text-sm text-slate-800 dark:text-white">{so.title}</p>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1 italic truncate max-w-[250px]">{so.details}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Criada em: {new Date(so.createdAt).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="p-2 text-blue-600">
+                              <Wrench className="h-4 w-4" />
+                            </div>
+                            <button 
+                              onClick={() => handleCancelServiceOrder(so.id)}
+                              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                              title="Cancelar O.S."
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2169,134 +2248,217 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       )}
       {isManagingBrandModels && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
               <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
                 <Settings className="h-6 w-6 text-blue-600" /> 
                 Gerenciar Marcas e Modelos
               </h3>
-              <button onClick={() => setIsManagingBrandModels(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    setIsAddingBrand(true);
+                    setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 3 });
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all"
+                >
+                  <Plus className="h-4 w-4" /> Nova Marca
+                </button>
+                <button onClick={() => setIsManagingBrandModels(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
+              </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Form to add/edit */}
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                <h4 className="font-bold text-slate-800 dark:text-white mb-4">
-                  {editingBrandModelId ? 'Editar Marca/Modelo' : 'Nova Marca/Modelo'}
-                </h4>
-                <form onSubmit={handleSaveBrandModel} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA</label>
-                      <input 
-                        required 
-                        type="text" 
-                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" 
-                        value={brandModelFormData.brand} 
-                        onChange={e => setBrandModelFormData({...brandModelFormData, brand: e.target.value.toUpperCase()})} 
-                        placeholder="Ex: VOLVO"
-                      />
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Brands Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Array.from(new Set(vehicleBrandModels.map(bm => bm.brand))).sort().map(brand => (
+                  <button
+                    key={brand}
+                    onClick={() => setSelectedBrand(brand)}
+                    className="group bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:shadow-md transition-all text-left relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ChevronRight className="h-4 w-4 text-blue-500" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MODELO</label>
-                      <input 
-                        required 
-                        type="text" 
-                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" 
-                        value={brandModelFormData.model} 
-                        onChange={e => setBrandModelFormData({...brandModelFormData, model: e.target.value.toUpperCase()})} 
-                        placeholder="Ex: FH 540"
-                      />
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO</label>
-                      <select 
-                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
-                        value={brandModelFormData.type} 
-                        onChange={e => setBrandModelFormData({...brandModelFormData, type: e.target.value as 'CAVALO' | 'CARRETA'})}
-                      >
-                        <option value="CAVALO">Cavalo</option>
-                        <option value="CARRETA">Carreta</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">EIXOS</label>
-                      <input 
-                        required 
-                        type="number" 
-                        min="1"
-                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
-                        value={brandModelFormData.axles} 
-                        onChange={e => setBrandModelFormData({...brandModelFormData, axles: Number(e.target.value)})} 
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    {editingBrandModelId && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setEditingBrandModelId(null);
-                          setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 3 });
-                        }} 
-                        className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                    <button 
-                      type="submit" 
-                      disabled={isSaving} 
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all flex items-center gap-2"
-                    >
-                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                      {editingBrandModelId ? 'Atualizar' : 'Adicionar'}
-                    </button>
-                  </div>
-                </form>
+                    <h3 className="font-black text-slate-800 dark:text-white text-base uppercase truncate">{brand}</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
+                      {vehicleBrandModels.filter(bm => bm.brand === brand).length} Modelos
+                    </p>
+                  </button>
+                ))}
               </div>
 
-              {/* List of existing brand models */}
+              {vehicleBrandModels.length === 0 && (
+                <div className="text-center py-20">
+                  <LayoutGrid className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhuma marca cadastrada.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Models Modal */}
+      {selectedBrand && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
               <div>
-                <h4 className="font-bold text-slate-800 dark:text-white mb-4">Marcas e Modelos Cadastrados</h4>
-                {vehicleBrandModels.length === 0 ? (
-                  <div className="text-center p-8 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                    <Truck className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhuma marca/modelo cadastrada.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {vehicleBrandModels.map(bm => (
-                      <div key={bm.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
-                        <div>
-                          <p className="font-bold text-slate-800 dark:text-white">{bm.brand} {bm.model}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{bm.type} • {bm.axles} Eixos</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => {
-                              setEditingBrandModelId(bm.id);
-                              setBrandModelFormData({ brand: bm.brand, model: bm.model, type: bm.type, axles: bm.axles });
-                            }}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                          >
-                            <PenLine className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteBrandModel(bm.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <h3 className="font-bold text-xl text-slate-800 dark:text-white uppercase flex items-center gap-2">
+                  <Truck className="h-6 w-6 text-blue-600" /> {selectedBrand}
+                </h3>
+                <p className="text-xs text-slate-500">Modelos cadastrados</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    setIsAddingModel(true);
+                    setEditingBrandModelId(null);
+                    setBrandModelFormData({ brand: selectedBrand, model: '', type: 'CAVALO', axles: 3 });
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition-all"
+                >
+                  <Plus className="h-3 w-3" /> Novo Modelo
+                </button>
+                <button onClick={() => setSelectedBrand(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
               </div>
             </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-2">
+                {vehicleBrandModels.filter(bm => bm.brand === selectedBrand).map(bm => (
+                  <div key={bm.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl group">
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-white">{bm.model}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">{bm.type} • {bm.axles} Eixos</p>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => {
+                          setIsAddingModel(true);
+                          setEditingBrandModelId(bm.id);
+                          setBrandModelFormData({ brand: bm.brand, model: bm.model, type: bm.type, axles: bm.axles, maintenancePlanId: bm.maintenancePlanId });
+                        }}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      >
+                        <PenLine className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteBrandModel(bm.id)}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal (Brand or Model) */}
+      {(isAddingBrand || isAddingModel) && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="text-xl font-black text-slate-800 dark:text-white">
+                {isAddingBrand ? 'Nova Marca' : (editingBrandModelId ? 'Editar Modelo' : 'Novo Modelo')}
+              </h3>
+              <button onClick={() => { setIsAddingBrand(false); setIsAddingModel(false); }} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveBrandModel} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">MARCA</label>
+                  <input 
+                    required 
+                    readOnly={isAddingModel}
+                    type="text" 
+                    className={`w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold ${isAddingModel ? 'opacity-60 cursor-not-allowed' : ''}`} 
+                    value={brandModelFormData.brand} 
+                    onChange={e => setBrandModelFormData({...brandModelFormData, brand: e.target.value.toUpperCase()})} 
+                    placeholder="Ex: VOLVO"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">MODELO</label>
+                  <input 
+                    required 
+                    type="text" 
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" 
+                    value={brandModelFormData.model} 
+                    onChange={e => setBrandModelFormData({...brandModelFormData, model: e.target.value.toUpperCase()})} 
+                    placeholder="Ex: FH 540"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">TIPO</label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                    value={brandModelFormData.type} 
+                    onChange={e => setBrandModelFormData({...brandModelFormData, type: e.target.value as 'CAVALO' | 'CARRETA'})}
+                  >
+                    <option value="CAVALO">Cavalo</option>
+                    <option value="CARRETA">Carreta</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">EIXOS</label>
+                  <input 
+                    required 
+                    type="number" 
+                    min="1"
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                    value={brandModelFormData.axles} 
+                    onChange={e => setBrandModelFormData({...brandModelFormData, axles: Number(e.target.value)})} 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENÇÃO (PMS)</label>
+                <select 
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                  value={brandModelFormData.maintenancePlanId || ''} 
+                  onChange={e => setBrandModelFormData({...brandModelFormData, maintenancePlanId: e.target.value})}
+                >
+                  <option value="">Nenhum plano vinculado</option>
+                  {maintenancePlans.map(plan => (
+                    <option key={`plan-${plan.id}`} value={plan.id}>{plan.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => { setIsAddingBrand(false); setIsAddingModel(false); }} 
+                  className="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSaving} 
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg transition-all flex items-center gap-2"
+                >
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {editingBrandModelId ? 'Atualizar' : 'Salvar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

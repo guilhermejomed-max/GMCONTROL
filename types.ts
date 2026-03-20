@@ -265,6 +265,9 @@ export interface ServiceOrder {
   status: 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
   totalCost?: number;
   parts?: { name: string; quantity: number; unitCost: number }[];
+  maintenanceBaseId?: string;
+  maintenanceBaseName?: string;
+  arrivalAlertId?: string;
   createdBy: string;
   createdAt: string;
   completedBy?: string;

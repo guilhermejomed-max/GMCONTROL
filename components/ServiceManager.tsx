@@ -574,28 +574,75 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
       )}
 
       {activeTab === 'STOCK' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4">
-          {filteredItems.map(item => (
-            <div key={item.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between group hover:border-orange-300 transition-colors">
-              <div>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-[10px] font-black text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full uppercase">{item.category}</span>
-                  <div className="text-right">
-                     <span className={`text-xl font-black ${item.quantity <= item.minQuantity ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{item.quantity} <span className="text-xs font-medium text-slate-400">{item.unit}</span></span>
-                     {item.quantity <= item.minQuantity && <div className="text-[9px] font-bold text-red-500 flex items-center justify-end gap-1"><AlertCircle className="h-3 w-3"/> Baixo Estoque</div>}
-                  </div>
-                </div>
-                <h4 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">{item.name}</h4>
-                <p className="text-xs text-slate-400 font-mono mt-1">{item.code}</p>
-                <div className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">Custo Médio: <strong>{money(item.averageCost)}</strong></div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between gap-2">
-                <button onClick={() => handleOpenMovement(item, 'ENTRY')} className="flex-1 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"><ArrowUpCircle className="h-3 w-3" /> Entrada</button>
-                <button onClick={() => handleOpenMovement(item, 'EXIT')} className="flex-1 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"><ArrowDownCircle className="h-3 w-3" /> Saída</button>
-                <button onClick={() => handleOpenItemModal(item)} className="p-2 text-slate-400 hover:text-blue-500 transition-colors"><PenLine className="h-4 w-4"/></button>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
+                <tr>
+                  <th className="p-4">Item / Código</th>
+                  <th className="p-4">Categoria</th>
+                  <th className="p-4 text-center">Quantidade</th>
+                  <th className="p-4 text-right">Custo Médio</th>
+                  <th className="p-4 text-right">Valor Total</th>
+                  <th className="p-4 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredItems.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="p-4">
+                      <div className="font-bold text-slate-800 dark:text-white">{item.name}</div>
+                      <div className="text-xs text-slate-400 font-mono">{item.code}</div>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-[10px] font-black text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full uppercase">{item.category}</span>
+                    </td>
+                    <td className="p-4 text-center">
+                      <div className={`font-black ${item.quantity <= item.minQuantity ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>
+                        {item.quantity} <span className="text-xs font-medium text-slate-400">{item.unit}</span>
+                      </div>
+                      {item.quantity <= item.minQuantity && (
+                        <div className="text-[9px] font-bold text-red-500 flex items-center justify-center gap-1 mt-1">
+                          <AlertCircle className="h-3 w-3"/> Baixo Estoque
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4 text-right font-medium text-slate-600 dark:text-slate-400">
+                      {money(item.averageCost)}
+                    </td>
+                    <td className="p-4 text-right font-bold text-slate-800 dark:text-white">
+                      {money(item.quantity * item.averageCost)}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleOpenMovement(item, 'ENTRY')} 
+                          className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-lg transition-colors"
+                          title="Entrada"
+                        >
+                          <ArrowUpCircle className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleOpenMovement(item, 'EXIT')} 
+                          className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors"
+                          title="Saída"
+                        >
+                          <ArrowDownCircle className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleOpenItemModal(item)} 
+                          className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
+                          title="Editar"
+                        >
+                          <PenLine className="h-4 w-4"/>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

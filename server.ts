@@ -334,6 +334,11 @@ async function startServer() {
           
           iterations++;
           try {
+              // Se for background, damos um pequeno respiro para não monopolizar o lock
+              if (isBackground) {
+                  await new Promise(resolve => setTimeout(resolve, 100));
+              }
+
               const result = await synchronizedSascarCall(async () => {
                   if (Date.now() - fetchStartTime > currentTimeout) return null;
                   return client.obterPacotePosicoesJSONAsync({
@@ -504,7 +509,7 @@ async function startServer() {
 
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
-      const MAX_REQUEST_TIME = 150000; // 150 segundos para permitir drenagem pesada
+      const MAX_REQUEST_TIME = 55000; // Reduzido para 55s para garantir resposta antes do proxy timeout
       const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
@@ -571,7 +576,7 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 100 : 500); 
+      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 50 : 80); 
           
           if (!isBackground) {
               logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar alcançar o tempo real.`);
@@ -689,9 +694,9 @@ async function startServer() {
                   // Processa em lotes paralelos maiores para velocidade
                   const BATCH_SIZE = 10;
                   for (let i = 0; i < platesToFetch.length; i += BATCH_SIZE) {
-                      // No foreground, garantimos que pelo menos o primeiro lote rode mesmo se o tempo estiver acabando
-                      if (!isBackground && i > 0 && Date.now() - startTime >= MAX_REQUEST_TIME - 5000) {
-                          logToFile(`[Sascar] Tempo esgotado para histórico. Interrompendo no lote ${i}/${platesToFetch.length}`);
+                      // No foreground, paramos mais cedo para garantir que o histórico tenha tempo de rodar
+                      if (!isBackground && i > 0 && Date.now() - startTime >= MAX_REQUEST_TIME - 10000) {
+                          logToFile(`[Sascar] Tempo esgotado para histórico no foreground. Interrompendo no lote ${i}/${platesToFetch.length}`);
                           break;
                       }
                       

@@ -258,7 +258,8 @@ export const App = () => {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         const distance = R * c; // in metres
 
-        if (distance <= alert.radius) {
+        const radius = alert.radius || 500;
+        if (distance <= radius) {
           // Vehicle arrived!
           storageService.updateArrivalAlert(alert.id, { 
             status: 'ARRIVED', 
@@ -266,6 +267,13 @@ export const App = () => {
           });
           
           addToast('success', 'Chegada de Veículo', `O veículo ${alert.vehiclePlate} chegou ao destino: ${alert.targetName}`);
+          
+          // Voice Alert (TTS)
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(`O veículo ${alert.vehiclePlate} chegou em ${alert.targetName} e está disponível para manutenção.`);
+            utterance.lang = 'pt-BR';
+            window.speechSynthesis.speak(utterance);
+          }
           
           // Also log activity
           storageService.logActivity("Chegada", `Veículo ${alert.vehiclePlate} chegou em ${alert.targetName}`, 'VEHICLES');
@@ -424,6 +432,29 @@ export const App = () => {
     }
   };
 
+  const handleSimulateArrival = async (plate: string, baseId: string) => {
+    if (!settings?.savedPoints) return;
+    const base = settings.savedPoints.find(p => p.id === baseId);
+    if (!base) return;
+
+    // Find the vehicle and update its location to the base location
+    const vehicle = vehicles.find(v => v.plate === plate);
+    if (!vehicle) return;
+
+    const updatedVehicle: Vehicle = {
+      ...vehicle,
+      lastLocation: {
+        ...vehicle.lastLocation,
+        lat: base.lat,
+        lng: base.lng,
+        address: `Simulação: ${base.name}`
+      }
+    };
+
+    await storageService.updateVehicle(updatedVehicle);
+    addToast('info', 'Simulação', `Localização do veículo ${plate} atualizada para ${base.name}`);
+  };
+
   // Auto-sync when entering location tab
   useEffect(() => {
     if (currentTab === 'location' && user && trackerSettings?.active) {
@@ -550,9 +581,13 @@ export const App = () => {
 
                     <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 md:p-2.5 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 bg-white/50 dark:bg-slate-900/50 rounded-xl transition-all shadow-sm border border-slate-200/50 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 hover:text-blue-600">
                         <Bell className="h-5 w-5" />
-                        {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length > 0 && (
+                        {(arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
+                          maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
+                          tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length) > 0 && (
                             <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-950 animate-pulse">
-                                {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length}
+                                {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
+                                 maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
+                                 tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length}
                             </span>
                         )}
                     </button>
@@ -565,7 +600,24 @@ export const App = () => {
             {currentTab === 'register' && <TireForm onAddTire={storageService.addTire} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
             {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onAddTire={storageService.addTire} userLevel={userRole} settings={settings} />}
             {currentTab === 'brand-models' && <BrandModelManager vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} />}
-            {currentTab === 'fleet' && <VehicleManager vehicles={vehicles} vehicleBrandModels={vehicleBrandModels} tires={tires} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onAddVehicle={storageService.addVehicle} onDeleteVehicle={storageService.deleteVehicle} onUpdateVehicle={storageService.updateVehicle} userLevel={userRole} settings={settings} trackerSettings={trackerSettings} onSyncSascar={syncSascar} />}
+            {currentTab === 'fleet' && <VehicleManager 
+              vehicles={vehicles} 
+              vehicleBrandModels={vehicleBrandModels} 
+              tires={tires} 
+              serviceOrders={serviceOrders}
+              maintenancePlans={maintenancePlans}
+              maintenanceSchedules={maintenanceSchedules}
+              onAddVehicle={storageService.addVehicle} 
+              onDeleteVehicle={storageService.deleteVehicle} 
+              onUpdateVehicle={storageService.updateVehicle}
+              onUpdateServiceOrder={storageService.updateServiceOrder}
+              onDeleteAlert={storageService.deleteArrivalAlert}
+              onSimulateArrival={handleSimulateArrival}
+              userLevel={userRole}
+              settings={settings}
+              trackerSettings={trackerSettings}
+              onSyncSascar={syncSascar}
+            />}
             {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onCreateServiceOrder={storageService.addServiceOrder} settings={settings} />}
             {currentTab === 'retreading' && <RetreadingHub tires={tires} retreadOrders={retreadOrders} onUpdateTire={storageService.updateTire} onNotification={addToast} settings={settings} />}
             {currentTab === 'retreader-ranking' && <RetreaderRanking tires={tires} retreadOrders={retreadOrders} />}
@@ -583,7 +635,17 @@ export const App = () => {
         </div>
       </main>
 
-      <NotificationsPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} tires={tires} vehicles={vehicles} settings={settings || {} as any} arrivalAlerts={arrivalAlerts} />
+      <NotificationsPanel 
+        isOpen={showNotifications} 
+        onClose={() => setShowNotifications(false)} 
+        tires={tires} 
+        vehicles={vehicles} 
+        settings={settings || {} as any} 
+        arrivalAlerts={arrivalAlerts} 
+        maintenanceSchedules={maintenanceSchedules}
+        maintenancePlans={maintenancePlans}
+        onDeleteAlert={storageService.deleteArrivalAlert}
+      />
       <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
 
       {syncModal.isOpen && (
