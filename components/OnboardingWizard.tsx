@@ -28,7 +28,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
         model: 'Modelo Padrão',
         type: 'CAVALO',
         axles: 2,
-        odometer: 0
+        odometer: 0,
+        totalCost: 0
       };
       await onAddVehicle(v);
       setStep(3);

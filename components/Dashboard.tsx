@@ -50,30 +50,37 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
     const mountedTires = filteredTires.filter(t => t.vehicleId);
 
     // 2. FLEET HEALTH SCORE
+    const totalMounted = mountedTires.length;
+    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
+    const warningCount = mountedTires.filter(t => t.currentTreadDepth > minDepth && t.currentTreadDepth <= (minDepth + 2)).length;
+    
+    const criticalPercentage = totalMounted > 0 ? (criticalCount / totalMounted) * 100 : 0;
+    const warningPercentage = totalMounted > 0 ? (warningCount / totalMounted) * 100 : 0;
+
     let healthScore = 100;
     let inspectionCompliance = 0;
     
-    if (mountedTires.length === 0) {
+    if (totalMounted === 0) {
         healthScore = 0; 
     } else {
-        const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
-        healthScore -= (criticalCount * 3); 
+        // Redução baseada na porcentagem de pneus críticos
+        healthScore -= (criticalPercentage * 0.8); 
 
         const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
-        inspectionCompliance = mountedTires.length > 0 ? ((mountedTires.length - uninspectedCount) / mountedTires.length) * 100 : 0;
+        inspectionCompliance = totalMounted > 0 ? ((totalMounted - uninspectedCount) / totalMounted) * 100 : 0;
         
-        if (inspectionCompliance < 80) healthScore -= 10;
+        if (inspectionCompliance < 90) healthScore -= 5;
+        if (inspectionCompliance < 70) healthScore -= 10;
         if (inspectionCompliance < 50) healthScore -= 15;
 
         healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
     }
 
     // 3. AI INSIGHT
-    let aiInsight = mountedTires.length === 0 ? "Nenhum pneu monitorado." : "Operação estável. Continue o monitoramento.";
+    let aiInsight = totalMounted === 0 ? "Nenhum pneu monitorado." : "Operação estável. Continue o monitoramento.";
     let aiMood: 'GOOD' | 'WARN' | 'BAD' = 'GOOD';
-    const criticalCount = mountedTires.filter(t => t.currentTreadDepth <= minDepth).length;
 
-    if (mountedTires.length > 0) {
+    if (totalMounted > 0) {
         if (criticalCount > 5) {
             aiInsight = `Crítico: ${criticalCount} pneus atingiram o limite. Ação imediata requerida.`;
             aiMood = 'BAD';
@@ -183,10 +190,9 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
         const current = t.currentTreadDepth || original;
         const safetyLimit = settings?.minTreadDepth || 3;
 
-        if (totalKm > 1000) {
+        if (totalKm > 0) { 
             totalGlobalKms += totalKm;
-            const wearRatio = Math.min(1, Math.max(0, (original - current) / (original - safetyLimit)));
-            consumedGlobalValue += investment * wearRatio;
+            consumedGlobalValue += investment;
         }
 
         // Acquisition
@@ -235,22 +241,27 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
             if (consumed > 0) { totalWearMm += consumed; totalKmForWear += run; }
         }
         if (t.retreadCount > 0) {
-            let retreadCosts = Number(t.totalInvestment || t.price || 0) - Number(t.price || 0);
+            const newTirePrice = Number(t.price || calculatedAvgNewPrice);
+            let retreadCosts = Number(t.totalInvestment || t.price || 0) - newTirePrice;
             if (retreadCosts <= 0) {
                 // Se não temos o custo real registrado, estimamos o custo da recapagem em 30% do valor de um pneu novo
-                retreadCosts = t.retreadCount * (calculatedAvgNewPrice * 0.3);
+                retreadCosts = t.retreadCount * (newTirePrice * 0.3);
             }
-            const hypotheticalCost = t.retreadCount * calculatedAvgNewPrice;
+            const hypotheticalCost = t.retreadCount * newTirePrice;
             totalRetreadSavings += (hypotheticalCost - retreadCosts);
         }
     });
     const burnRate = totalKmForWear > 0 ? (totalWearMm / totalKmForWear) * 10000 : 0;
 
+    const fleetHealth = totalMounted > 0 
+        ? Math.max(0, 100 - (criticalPercentage * 1.0) - (warningPercentage * 0.4))
+        : 100;
+
     return {
         greeting,
         activeVehicles: filteredVehicles.length,
         totalTires: filteredTires.length,
-        healthScore,
+        healthScore: Math.round(fleetHealth),
         aiInsight,
         aiMood,
         criticalCount,

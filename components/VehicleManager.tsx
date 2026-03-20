@@ -1,8 +1,8 @@
 
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
-import { Vehicle, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert } from '../types';
+import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
@@ -508,18 +508,21 @@ GDX2D42;1652287`;
 
 interface VehicleManagerProps {
   vehicles: Vehicle[];
+  vehicleBrandModels?: VehicleBrandModel[];
   tires: Tire[];
   serviceOrders: ServiceOrder[];
+  maintenancePlans?: MaintenancePlan[];
+  maintenanceSchedules?: MaintenanceSchedule[];
   onAddVehicle: (v: Vehicle) => Promise<void>;
   onDeleteVehicle: (id: string) => Promise<void>;
   onUpdateVehicle: (v: Vehicle) => Promise<void>;
   userLevel: UserLevel;
   settings: SystemSettings | null;
   trackerSettings: TrackerSettings | null;
-  onSyncSascar?: () => Promise<number>;
+  onSyncSascar?: (showModal?: boolean) => Promise<number>;
 }
 
-export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAddVehicle, onDeleteVehicle, onUpdateVehicle, userLevel, settings, trackerSettings, onSyncSascar }) => {
+export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, userLevel, settings, trackerSettings, onSyncSascar }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -528,6 +531,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
   const [updatingLocationId, setUpdatingLocationId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVehicleRG, setSelectedVehicleRG] = useState<Vehicle | null>(null);
+  const [activeRGTab, setActiveRGTab] = useState<'geral' | 'manutencao' | 'pneus'>('geral');
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'EMPTY' | 'MAINTENANCE'>('ALL');
   
   // Scheduling State
@@ -547,6 +551,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
       const unsub = storageService.subscribeToArrivalAlerts((alerts) => {
         setVehicleAlerts(alerts.filter(a => a.vehiclePlate === selectedVehicleRG.plate));
       });
+      setActiveRGTab('geral');
       return () => unsub();
     }
   }, [selectedVehicleRG]);
@@ -636,6 +641,34 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
+  // Brand Models State
+  const [isManagingBrandModels, setIsManagingBrandModels] = useState(false);
+  const [editingBrandModelId, setEditingBrandModelId] = useState<string | null>(null);
+  const [brandModelFormData, setBrandModelFormData] = useState<Omit<VehicleBrandModel, 'id'>>({
+    brand: '',
+    model: '',
+    type: 'CAVALO',
+    axles: 0,
+    maintenancePlanId: undefined
+  });
+
+  const handleSaveBrandModel = async (e: FormEvent) => {
+    e.preventDefault();
+    if (editingBrandModelId) {
+      await storageService.updateVehicleBrandModel({ id: editingBrandModelId, ...brandModelFormData });
+    } else {
+      await storageService.addVehicleBrandModel({ id: Date.now().toString(), ...brandModelFormData });
+    }
+    setEditingBrandModelId(null);
+    setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 0, maintenancePlanId: undefined });
+  };
+
+  const handleDeleteBrandModel = async (id: string) => {
+    if (window.confirm("Deseja excluir esta marca/modelo?")) {
+      await storageService.deleteVehicleBrandModel(id);
+    }
+  };
+
   // Undo Import State
   const [lastImportedIds, setLastImportedIds] = useState<string[]>([]);
   
@@ -643,6 +676,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
     plate: '',
     model: '',
     brand: '',
+    brandModelId: '',
     axles: 3,
     type: 'CAVALO' as 'CAVALO' | 'CARRETA',
     odometer: 0,
@@ -726,6 +760,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
       plate: '',
       model: '',
       brand: '',
+      brandModelId: '',
       axles: 3,
       type: 'CAVALO',
       odometer: 0,
@@ -750,6 +785,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
       plate: vehicle.plate,
       model: vehicle.model,
       brand: vehicle.brand || '',
+      brandModelId: vehicle.brandModelId || '',
       axles: vehicle.axles,
       type: vehicle.type,
       odometer: vehicle.odometer,
@@ -789,6 +825,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
         const newVehicle: Vehicle = {
           id: Date.now().toString(36),
           ...formData,
+          totalCost: 0,
           plate: formData.plate.toUpperCase(),
           year: formData.year ? parseInt(formData.year) : undefined
         };
@@ -798,7 +835,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
       setIsAdding(false);
       setEditingId(null);
       setFormData({ 
-        plate: '', model: '', brand: '', axles: 3, type: 'CAVALO', odometer: 0, sascarCode: '',
+        plate: '', model: '', brand: '', brandModelId: '', axles: 3, type: 'CAVALO', odometer: 0, sascarCode: '',
         vin: '', year: '', color: '', fuelType: '', fleetNumber: '',
         engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: ''
       });
@@ -1051,6 +1088,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                                 type: 'CAVALO',
                                 axles: Number(normalizedRow['EIXOS']) || 3,
                                 odometer: odometer,
+                                totalCost: 0,
                                 avgMonthlyKm: 10000
                             };
                             if (!isNaN(lat) && !isNaN(lng)) {
@@ -1091,7 +1129,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
     if (onSyncSascar) {
         setIsSyncingSascar(true);
         try {
-            await onSyncSascar();
+            await onSyncSascar(true);
         } finally {
             setIsSyncingSascar(false);
         }
@@ -1106,7 +1144,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
       console.log(`[Sascar Sync Debug] Veículos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} identificadores...`);
       
-      const CHUNK_SIZE = 40;
+      const CHUNK_SIZE = 200;
       let updatedCount = 0;
       const bestUpdates = new Map(); // Usaremos isso para filtrar o melhor ponto de cada carro
 
@@ -1377,7 +1415,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                   </div>
                   <div>
                     <h3 className="font-black text-lg text-slate-800 dark:text-white">{vehicle.plate}</h3>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">{vehicle.model}</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                      {vehicle.brandModelId 
+                        ? (() => {
+                            const bm = vehicleBrandModels.find(b => b.id === vehicle.brandModelId);
+                            return bm ? `${bm.brand} ${bm.model}` : vehicle.model;
+                          })()
+                        : vehicle.model}
+                    </p>
                   </div>
                 </div>
                 
@@ -1484,104 +1529,236 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                 <button onClick={() => setSelectedVehicleRG(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
               </div>
             </div>
-            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-                {isScheduling && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 p-4 rounded-xl space-y-4 animate-in slide-in-from-top-2">
-                    <h4 className="font-bold text-blue-800 dark:text-blue-300 text-sm flex items-center gap-2">
-                      <Bell className="h-4 w-4" /> Configurar Alerta de Chegada
-                    </h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Selecionar Ponto Salvo</label>
-                        <select 
-                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-800 dark:text-white"
-                          onChange={e => {
-                            const point = settings?.savedPoints?.find(p => p.id === e.target.value);
-                            if (point) {
-                              setSchedulingData({
-                                targetName: point.name,
-                                targetLat: point.lat,
-                                targetLng: point.lng,
-                                radius: point.radius,
-                                services: schedulingData.services
-                              });
-                            }
-                          }}
-                        >
-                          <option value="">-- Selecione um local cadastrado --</option>
-                          {settings?.savedPoints?.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </select>
-                        <p className="text-[9px] text-slate-400 mt-1 italic">Ou preencha os campos abaixo manualmente</p>
-                      </div>
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Destino</label>
-                        <input 
-                          type="text" 
-                          placeholder="Ex: Porto de Santos" 
-                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-                          value={schedulingData.targetName}
-                          onChange={e => setSchedulingData({...schedulingData, targetName: e.target.value})}
-                        />
+            {/* Tabs Navigation */}
+            <div className="flex border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6">
+              <button 
+                onClick={() => setActiveRGTab('geral')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'geral' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Informações Gerais
+              </button>
+              <button 
+                onClick={() => setActiveRGTab('manutencao')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'manutencao' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Manutenção
+              </button>
+              <button 
+                onClick={() => setActiveRGTab('pneus')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'pneus' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Pneus
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                {activeRGTab === 'geral' && (
+                  <>
+                    {isScheduling && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 p-4 rounded-xl space-y-4 animate-in slide-in-from-top-2">
+                        <h4 className="font-bold text-blue-800 dark:text-blue-300 text-sm flex items-center gap-2">
+                          <Bell className="h-4 w-4" /> Configurar Alerta de Chegada
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Selecionar Ponto Salvo</label>
+                            <select 
+                              className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-800 dark:text-white"
+                              onChange={e => {
+                                const point = settings?.savedPoints?.find(p => p.id === e.target.value);
+                                if (point) {
+                                  setSchedulingData({
+                                    targetName: point.name,
+                                    targetLat: point.lat,
+                                    targetLng: point.lng,
+                                    radius: point.radius,
+                                    services: schedulingData.services
+                                  });
+                                }
+                              }}
+                            >
+                              <option value="">-- Selecione um local cadastrado --</option>
+                              {settings?.savedPoints?.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                              ))}
+                            </select>
+                            <p className="text-[9px] text-slate-400 mt-1 italic">Ou preencha os campos abaixo manualmente</p>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Destino</label>
+                            <input 
+                              type="text" 
+                              placeholder="Ex: Porto de Santos" 
+                              className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                              value={schedulingData.targetName}
+                              onChange={e => setSchedulingData({...schedulingData, targetName: e.target.value})}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Raio de Alerta (metros)</label>
+                            <input 
+                              type="number" 
+                              placeholder="500" 
+                              className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                              value={schedulingData.radius}
+                              onChange={e => setSchedulingData({...schedulingData, radius: Number(e.target.value)})}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Latitude</label>
+                            <input 
+                              type="number" 
+                              step="any"
+                              placeholder="-23.9618" 
+                              className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                              value={schedulingData.targetLat}
+                              onChange={e => setSchedulingData({...schedulingData, targetLat: Number(e.target.value)})}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Longitude</label>
+                            <input 
+                              type="number" 
+                              step="any"
+                              placeholder="-46.3322" 
+                              className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                              value={schedulingData.targetLng}
+                              onChange={e => setSchedulingData({...schedulingData, targetLng: Number(e.target.value)})}
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Serviços a realizar</label>
+                            <textarea 
+                              placeholder="Descreva o que será feito no veículo (ex: Troca de óleo, Revisão de freios...)" 
+                              className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm min-h-[80px]"
+                              value={schedulingData.services}
+                              onChange={e => setSchedulingData({...schedulingData, services: e.target.value})}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => setIsScheduling(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
+                          <button 
+                            onClick={handleAddAlert}
+                            disabled={isSavingAlert}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2"
+                          >
+                            {isSavingAlert ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                            Salvar Agendamento
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Raio de Alerta (metros)</label>
-                        <input 
-                          type="number" 
-                          placeholder="500" 
-                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-                          value={schedulingData.radius}
-                          onChange={e => setSchedulingData({...schedulingData, radius: Number(e.target.value)})}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Latitude</label>
-                        <input 
-                          type="number" 
-                          step="any"
-                          placeholder="-23.9618" 
-                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-                          value={schedulingData.targetLat}
-                          onChange={e => setSchedulingData({...schedulingData, targetLat: Number(e.target.value)})}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Longitude</label>
-                        <input 
-                          type="number" 
-                          step="any"
-                          placeholder="-46.3322" 
-                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-                          value={schedulingData.targetLng}
-                          onChange={e => setSchedulingData({...schedulingData, targetLng: Number(e.target.value)})}
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Serviços a realizar</label>
-                        <textarea 
-                          placeholder="Descreva o que será feito no veículo (ex: Troca de óleo, Revisão de freios...)" 
-                          className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm min-h-[80px]"
-                          value={schedulingData.services}
-                          onChange={e => setSchedulingData({...schedulingData, services: e.target.value})}
-                        />
-                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Mini Map Section */}
+                        <div className="md:col-span-3 space-y-2">
+                            <div className="bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 h-48 relative group">
+                                {selectedVehicleRG.lastLocation ? (
+                                    <iframe 
+                                        width="100%" 
+                                        height="100%" 
+                                        frameBorder="0" 
+                                        scrolling="no" 
+                                        marginHeight={0} 
+                                        marginWidth={0} 
+                                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedVehicleRG.lastLocation.lng - 0.005},${selectedVehicleRG.lastLocation.lat - 0.005},${selectedVehicleRG.lastLocation.lng + 0.005},${selectedVehicleRG.lastLocation.lat + 0.005}&layer=mapnik&marker=${selectedVehicleRG.lastLocation.lat},${selectedVehicleRG.lastLocation.lng}`}
+                                        className="grayscale-[0.2] contrast-[1.1]"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                                        <MapPin className="h-8 w-8 mb-2 opacity-20" />
+                                        <p className="text-xs font-bold">Sem localização registrada</p>
+                                    </div>
+                                )}
+                                <div className="absolute bottom-2 right-2">
+                                    <button 
+                                        onClick={() => handleUpdateLocation(selectedVehicleRG)}
+                                        disabled={updatingLocationId === selectedVehicleRG.id}
+                                        className="bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-700 p-2 rounded-lg text-blue-600 hover:text-blue-700 transition-all flex items-center gap-2 text-[10px] font-bold"
+                                    >
+                                        {updatingLocationId === selectedVehicleRG.id ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                            <LocateFixed className="h-3 w-3" />
+                                        )}
+                                        Atualizar GPS
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <button 
+                                onClick={() => handleUpdateLocation(selectedVehicleRG)}
+                                disabled={updatingLocationId === selectedVehicleRG.id}
+                                className="w-full flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors text-left group"
+                            >
+                                <div className="bg-blue-600 p-2 rounded-lg text-white group-hover:scale-110 transition-transform">
+                                    <MapPin className="h-4 w-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-0.5 flex justify-between">
+                                        Localização Atual
+                                        <span className="text-slate-400 font-normal normal-case">Clique para atualizar</span>
+                                    </p>
+                                    <p className="text-sm font-bold text-slate-800 dark:text-white truncate">
+                                        {selectedVehicleRG.lastLocation?.address || 'Endereço não identificado'}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">
+                                        {selectedVehicleRG.lastLocation?.updatedAt 
+                                            ? `Última atualização: ${new Date(selectedVehicleRG.lastLocation.updatedAt).toLocaleString()}` 
+                                            : 'Sem registro de data/hora'}
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Marca / Modelo</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">
+                              {selectedVehicleRG.brandModelId 
+                                ? (() => {
+                                    const bm = vehicleBrandModels.find(b => b.id === selectedVehicleRG.brandModelId);
+                                    return bm ? `${bm.brand} ${bm.model}` : selectedVehicleRG.model;
+                                  })()
+                                : selectedVehicleRG.model}
+                            </p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Tipo</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.type}</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Eixos</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.axles}</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Ano</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.year || 'N/A'}</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Cor</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.color || 'N/A'}</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Combustível</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fuelType || 'N/A'}</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Frota #</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fleetNumber || 'N/A'}</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Chassi (VIN)</p>
+                            <p className="text-sm font-black text-slate-800 dark:text-white truncate" title={selectedVehicleRG.vin}>{selectedVehicleRG.vin || 'N/A'}</p>
+                        </div>
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => setIsScheduling(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
-                      <button 
-                        onClick={handleAddAlert}
-                        disabled={isSavingAlert}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2"
-                      >
-                        {isSavingAlert ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                        Salvar Agendamento
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {vehicleAlerts.length > 0 && (
                   <div>
@@ -1610,106 +1787,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Mini Map Section */}
-                    <div className="md:col-span-3 space-y-2">
-                        <div className="bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 h-48 relative group">
-                            {selectedVehicleRG.lastLocation ? (
-                                <iframe 
-                                    width="100%" 
-                                    height="100%" 
-                                    frameBorder="0" 
-                                    scrolling="no" 
-                                    marginHeight={0} 
-                                    marginWidth={0} 
-                                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedVehicleRG.lastLocation.lng - 0.005},${selectedVehicleRG.lastLocation.lat - 0.005},${selectedVehicleRG.lastLocation.lng + 0.005},${selectedVehicleRG.lastLocation.lat + 0.005}&layer=mapnik&marker=${selectedVehicleRG.lastLocation.lat},${selectedVehicleRG.lastLocation.lng}`}
-                                    className="grayscale-[0.2] contrast-[1.1]"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
-                                    <MapPin className="h-8 w-8 mb-2 opacity-20" />
-                                    <p className="text-xs font-bold">Sem localização registrada</p>
-                                </div>
-                            )}
-                            <div className="absolute bottom-2 right-2">
-                                <button 
-                                    onClick={() => handleUpdateLocation(selectedVehicleRG)}
-                                    disabled={updatingLocationId === selectedVehicleRG.id}
-                                    className="bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-700 p-2 rounded-lg text-blue-600 hover:text-blue-700 transition-all flex items-center gap-2 text-[10px] font-bold"
-                                >
-                                    {updatingLocationId === selectedVehicleRG.id ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                        <LocateFixed className="h-3 w-3" />
-                                    )}
-                                    Atualizar GPS
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <button 
-                            onClick={() => handleUpdateLocation(selectedVehicleRG)}
-                            disabled={updatingLocationId === selectedVehicleRG.id}
-                            className="w-full flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors text-left group"
-                        >
-                            <div className="bg-blue-600 p-2 rounded-lg text-white group-hover:scale-110 transition-transform">
-                                <MapPin className="h-4 w-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-0.5 flex justify-between">
-                                    Localização Atual
-                                    <span className="text-slate-400 font-normal normal-case">Clique para atualizar</span>
-                                </p>
-                                <p className="text-sm font-bold text-slate-800 dark:text-white truncate">
-                                    {selectedVehicleRG.lastLocation?.address || 'Endereço não identificado'}
-                                </p>
-                                <p className="text-[10px] text-slate-500 mt-0.5">
-                                    {selectedVehicleRG.lastLocation?.updatedAt 
-                                        ? `Última atualização: ${new Date(selectedVehicleRG.lastLocation.updatedAt).toLocaleString()}` 
-                                        : 'Sem registro de data/hora'}
-                                </p>
-                            </div>
-                        </button>
-                    </div>
-
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Modelo</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.model}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Tipo</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.type}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Eixos</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.axles}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Ano</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.year || 'N/A'}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Cor</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.color || 'N/A'}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Combustível</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fuelType || 'N/A'}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Frota #</p>
-                        <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fleetNumber || 'N/A'}</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Chassi (VIN)</p>
-                        <p className="text-sm font-black text-slate-800 dark:text-white truncate" title={selectedVehicleRG.vin}>{selectedVehicleRG.vin || 'N/A'}</p>
-                    </div>
-                </div>
-
                 <div>
                     <h4 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
                         <Activity className="h-4 w-4 text-blue-600" /> Pneus Montados ({tires.filter(t => t.vehicleId === selectedVehicleRG.id).length})
@@ -1732,6 +1809,236 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                         )}
                     </div>
                 </div>
+                  </>
+                )}
+
+                {activeRGTab === 'manutencao' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30">
+                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Total Gasto em Manutenção</p>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                            serviceOrders
+                              .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
+                              .reduce((acc, so) => acc + (so.totalCost || 0), 0)
+                          )}
+                        </p>
+                      </div>
+                      <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Ordens Concluídas</p>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">
+                          {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO').length}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMS)
+                        </h4>
+                        {maintenanceSchedules.filter(s => s.vehicleId === selectedVehicleRG.id && s.status === 'PENDING').length === 0 ? (
+                          <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                            Nenhuma manutenção programada para este veículo.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {maintenanceSchedules
+                              .filter(s => s.vehicleId === selectedVehicleRG.id && s.status === 'PENDING')
+                              .map(schedule => {
+                                const plan = maintenancePlans.find(p => p.id === schedule.planId);
+                                return (
+                                  <div key={schedule.id} className="p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-900/30 shadow-sm">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <p className="font-bold text-sm text-slate-800 dark:text-white">{plan?.name || 'Plano Desconhecido'}</p>
+                                        {schedule.nextDueDate && (
+                                          <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                            <Calendar className="h-3 w-3" /> Vencimento: {new Date(schedule.nextDueDate).toLocaleDateString('pt-BR')}
+                                          </p>
+                                        )}
+                                        {schedule.nextDueKm && (
+                                          <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                            <Gauge className="h-3 w-3" /> Troca com: {schedule.nextDueKm.toLocaleString()} km
+                                          </p>
+                                        )}
+                                      </div>
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-orange-100 text-orange-700">
+                                        Programado
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                          <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
+                        </h4>
+                        {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id).length === 0 ? (
+                          <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                            Nenhuma ordem de serviço registrada para este veículo.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {serviceOrders
+                              .filter(so => so.vehicleId === selectedVehicleRG.id)
+                              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                              .map(so => (
+                                <div key={so.id} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                      <p className="font-bold text-sm text-slate-800 dark:text-white">{so.title}</p>
+                                      <p className="text-[10px] text-slate-500">{new Date(so.createdAt).toLocaleDateString('pt-BR')} • OS #{so.id.slice(-5).toUpperCase()}</p>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                      so.status === 'CONCLUIDO' ? 'bg-green-100 text-green-700' :
+                                      so.status === 'EM_ANDAMENTO' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-orange-100 text-orange-700'
+                                    }`}>
+                                      {so.status === 'CONCLUIDO' ? 'Concluída' : so.status === 'EM_ANDAMENTO' ? 'Em Execução' : 'Pendente'}
+                                    </span>
+                                  </div>
+                                  <div className="space-y-3 pt-2 border-t border-slate-50 dark:border-slate-700">
+                                    {so.parts && so.parts.length > 0 && (
+                                      <div className="space-y-1">
+                                        <p className="text-[9px] font-bold text-slate-500 uppercase">Peças e Insumos:</p>
+                                        {so.parts.map((part, idx) => (
+                                          <div key={idx} className="flex justify-between text-[10px]">
+                                            <span className="text-slate-600 dark:text-slate-400">{part.quantity}x {part.name}</span>
+                                            <span className="font-bold text-slate-800 dark:text-white">
+                                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.unitCost * part.quantity)}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
+                                      <p className="font-black text-sm text-slate-800 dark:text-white">
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || 0)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeRGTab === 'pneus' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                        <p className="text-[10px] font-bold text-indigo-600 uppercase mb-1">Investimento em Pneus</p>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                            tires
+                              .filter(t => t.vehicleId === selectedVehicleRG.id)
+                              .reduce((acc, t) => acc + (t.totalInvestment || t.price || 0), 0)
+                          )}
+                        </p>
+                      </div>
+                      <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-900/30">
+                        <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Custo por KM Médio</p>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">
+                          {(() => {
+                            const vehicleTires = tires.filter(t => t.vehicleId === selectedVehicleRG.id);
+                            let totalConsumed = 0;
+                            let totalKms = 0;
+                            vehicleTires.forEach(t => {
+                              const investment = t.totalInvestment || t.price || 0;
+                              const totalKm = t.totalKms || 0;
+                              
+                              if (totalKm > 0) {
+                                  totalConsumed += investment;
+                                  totalKms += totalKm;
+                              }
+                            });
+                            return totalKms > 0 ? `R$ ${(totalConsumed / totalKms).toFixed(4)}` : 'R$ 0,0000';
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                        <Disc className="h-4 w-4 text-blue-600" /> Detalhes dos Pneus Atuais
+                      </h4>
+                      <div className="grid grid-cols-1 gap-3">
+                        {tires.filter(t => t.vehicleId === selectedVehicleRG.id).length === 0 ? (
+                          <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                            Nenhum pneu montado neste veículo.
+                          </p>
+                        ) : (
+                          tires.filter(t => t.vehicleId === selectedVehicleRG.id).map(tire => (
+                            <div key={tire.id} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center shrink-0">
+                                <Disc className="h-6 w-6 text-slate-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-black text-slate-800 dark:text-white">#{tire.fireNumber}</p>
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold">{tire.brand} {tire.model}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs font-black text-blue-600">{tire.currentTreadDepth}mm</p>
+                                    <p className="text-[9px] text-slate-400">Sulco Atual</p>
+                                  </div>
+                                </div>
+                                <div className="mt-2 grid grid-cols-4 gap-2 border-t border-slate-50 dark:border-slate-700 pt-2">
+                                  <div>
+                                    <p className="text-[8px] text-slate-400 uppercase font-bold">Posição</p>
+                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{tire.position}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[8px] text-slate-400 uppercase font-bold">KM Rodado</p>
+                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{((tire.totalKms || 0) + (tire.installOdometer ? Math.max(0, selectedVehicleRG.odometer - tire.installOdometer) : 0)).toLocaleString()} km</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[8px] text-slate-400 uppercase font-bold">Recapagens</p>
+                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{tire.retreadCount}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[8px] text-slate-400 uppercase font-bold">CPK</p>
+                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                                      R$ {((((tire.totalKms || 0) + (tire.installOdometer ? Math.max(0, selectedVehicleRG.odometer - tire.installOdometer) : 0))) > 0 ? (Number(tire.totalInvestment || tire.price || 0) / ((tire.totalKms || 0) + (tire.installOdometer ? Math.max(0, selectedVehicleRG.odometer - tire.installOdometer) : 0))) : 0).toFixed(4)}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                {tire.history && tire.history.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-700">
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Histórico Recente:</p>
+                                    <div className="space-y-1.5">
+                                      {tire.history.slice(-3).reverse().map((log, idx) => (
+                                        <div key={idx} className="flex gap-2 items-start text-[9px]">
+                                          <div className="w-1 h-1 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-slate-700 dark:text-slate-300 leading-none">{new Date(log.date).toLocaleDateString('pt-BR')} - {log.action}</p>
+                                            <p className="text-slate-500 italic truncate">{log.details}</p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -1761,14 +2068,31 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} placeholder="Ex: Scania" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MODELO</label>
-                  <input required type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} placeholder="Ex: R450" />
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA / MODELO</label>
+                  <select
+                    className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                    value={formData.brandModelId || ''}
+                    onChange={e => {
+                      const selectedId = e.target.value;
+                      const selectedBM = vehicleBrandModels.find(bm => bm.id === selectedId);
+                      setFormData({
+                        ...formData,
+                        brandModelId: selectedId,
+                        brand: selectedBM?.brand || '',
+                        model: selectedBM?.model || '',
+                        axles: selectedBM?.axles || formData.axles
+                      });
+                    }}
+                  >
+                    <option value="">Selecione uma Marca/Modelo</option>
+                    {vehicleBrandModels.map(bm => (
+                      <option key={bm.id} value={bm.id}>
+                        {bm.brand} - {bm.model} ({bm.type})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1843,6 +2167,140 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, tires, onAdd
           </div>
         </div>
       )}
+      {isManagingBrandModels && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
+              <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
+                <Settings className="h-6 w-6 text-blue-600" /> 
+                Gerenciar Marcas e Modelos
+              </h3>
+              <button onClick={() => setIsManagingBrandModels(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Form to add/edit */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h4 className="font-bold text-slate-800 dark:text-white mb-4">
+                  {editingBrandModelId ? 'Editar Marca/Modelo' : 'Nova Marca/Modelo'}
+                </h4>
+                <form onSubmit={handleSaveBrandModel} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA</label>
+                      <input 
+                        required 
+                        type="text" 
+                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" 
+                        value={brandModelFormData.brand} 
+                        onChange={e => setBrandModelFormData({...brandModelFormData, brand: e.target.value.toUpperCase()})} 
+                        placeholder="Ex: VOLVO"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MODELO</label>
+                      <input 
+                        required 
+                        type="text" 
+                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" 
+                        value={brandModelFormData.model} 
+                        onChange={e => setBrandModelFormData({...brandModelFormData, model: e.target.value.toUpperCase()})} 
+                        placeholder="Ex: FH 540"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO</label>
+                      <select 
+                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                        value={brandModelFormData.type} 
+                        onChange={e => setBrandModelFormData({...brandModelFormData, type: e.target.value as 'CAVALO' | 'CARRETA'})}
+                      >
+                        <option value="CAVALO">Cavalo</option>
+                        <option value="CARRETA">Carreta</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">EIXOS</label>
+                      <input 
+                        required 
+                        type="number" 
+                        min="1"
+                        className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                        value={brandModelFormData.axles} 
+                        onChange={e => setBrandModelFormData({...brandModelFormData, axles: Number(e.target.value)})} 
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    {editingBrandModelId && (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setEditingBrandModelId(null);
+                          setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 3 });
+                        }} 
+                        className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                    <button 
+                      type="submit" 
+                      disabled={isSaving} 
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all flex items-center gap-2"
+                    >
+                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      {editingBrandModelId ? 'Atualizar' : 'Adicionar'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* List of existing brand models */}
+              <div>
+                <h4 className="font-bold text-slate-800 dark:text-white mb-4">Marcas e Modelos Cadastrados</h4>
+                {vehicleBrandModels.length === 0 ? (
+                  <div className="text-center p-8 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                    <Truck className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhuma marca/modelo cadastrada.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {vehicleBrandModels.map(bm => (
+                      <div key={bm.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
+                        <div>
+                          <p className="font-bold text-slate-800 dark:text-white">{bm.brand} {bm.model}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{bm.type} • {bm.axles} Eixos</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => {
+                              setEditingBrandModelId(bm.id);
+                              setBrandModelFormData({ brand: bm.brand, model: bm.model, type: bm.type, axles: bm.axles });
+                            }}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                          >
+                            <PenLine className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteBrandModel(bm.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

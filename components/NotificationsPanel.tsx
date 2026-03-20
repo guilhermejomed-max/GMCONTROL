@@ -10,10 +10,16 @@ interface NotificationsPanelProps {
   vehicles: Vehicle[];
   settings: SystemSettings;
   arrivalAlerts: ArrivalAlert[];
+  onDeleteAlert?: (id: string) => Promise<void>;
+  onDeleteAllAlerts?: () => Promise<void>;
 }
 
-export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose, tires, vehicles, settings, arrivalAlerts }) => {
+export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ 
+  isOpen, onClose, tires, vehicles, settings, arrivalAlerts, onDeleteAlert, onDeleteAllAlerts 
+}) => {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Filter alerts: only show those not dismissed
   const visibleAlerts = useMemo(() => {
@@ -48,8 +54,25 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
           </div>
           <div className="flex items-center gap-2">
              {totalAlerts > 0 && (
-                 <button onClick={handleClearAll} className="p-2 hover:bg-red-50 text-red-500 rounded-full transition-colors flex items-center gap-1" title="Limpar Tudo">
-                    <Trash2 className="h-4 w-4" />
+                 <button 
+                    onClick={() => {
+                      if (!isDeletingAll) {
+                        setIsDeletingAll(true);
+                        setTimeout(() => setIsDeletingAll(false), 3000);
+                        return;
+                      }
+                      if (onDeleteAllAlerts) {
+                        onDeleteAllAlerts();
+                      } else {
+                        handleClearAll();
+                      }
+                      setIsDeletingAll(false);
+                    }} 
+                    className={`p-2 rounded-full transition-all flex items-center gap-1 ${isDeletingAll ? 'bg-orange-50 text-orange-600 scale-105' : 'hover:bg-red-50 text-red-500'}`} 
+                    title={isDeletingAll ? "Clique novamente para confirmar" : (onDeleteAllAlerts ? "Excluir Todos" : "Limpar Tudo")}
+                 >
+                   <Trash2 className="h-4 w-4" />
+                   {isDeletingAll && <span className="text-[10px] font-bold">Confirmar?</span>}
                  </button>
              )}
              <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -94,12 +117,32 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, 
                     </p>
                     <h4 className="font-bold text-slate-800 text-sm">{alert.vehiclePlate}</h4>
                   </div>
-                  <button 
-                    onClick={() => setDismissedIds(prev => new Set(prev).add(alert.id))} 
-                    className="text-slate-300 hover:text-slate-500 p-1 -mr-2 -mt-2"
-                  >
-                    <X className="h-3 w-3"/>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {onDeleteAlert && (
+                      <button 
+                        onClick={() => {
+                          if (confirmDeleteId !== alert.id) {
+                            setConfirmDeleteId(alert.id);
+                            setTimeout(() => setConfirmDeleteId(prev => prev === alert.id ? null : prev), 3000);
+                            return;
+                          }
+                          onDeleteAlert(alert.id);
+                          setConfirmDeleteId(null);
+                        }}
+                        className={`p-1 transition-all ${confirmDeleteId === alert.id ? 'text-orange-500 scale-125' : 'text-slate-300 hover:text-red-500'}`}
+                        title={confirmDeleteId === alert.id ? "Clique novamente para confirmar" : "Excluir permanentemente"}
+                      >
+                        {confirmDeleteId === alert.id ? <Trash2 className="h-4 w-4 animate-pulse"/> : <Trash2 className="h-3.5 w-3.5"/>}
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setDismissedIds(prev => new Set(prev).add(alert.id))} 
+                      className="text-slate-300 hover:text-slate-500 p-1"
+                      title="Ocultar"
+                    >
+                      <X className="h-3.5 w-3.5"/>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-2 space-y-1.5">

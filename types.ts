@@ -106,6 +106,15 @@ export interface Driver {
   notes?: string;
 }
 
+export interface VehicleBrandModel {
+  id: string;
+  brand: string;
+  model: string;
+  type: 'CAVALO' | 'CARRETA';
+  axles: number;
+  maintenancePlanId?: string;
+}
+
 export interface Vehicle {
   id: string;
   plate: string;
@@ -113,11 +122,13 @@ export interface Vehicle {
   axles: number;
   type: 'CAVALO' | 'CARRETA';
   odometer: number;
+  totalCost: number; // Added totalCost
   avgMonthlyKm?: number; // For forecast
   lastLocation?: VehicleLocation;
   currentDriverId?: string; // Added currentDriverId property
   lastAutoUpdateDate?: string; // Data da última atualização automática de KM (para carretas)
   sascarCode?: string; // Cód. Sascar para integração
+  brandModelId?: string; // Reference to VehicleBrandModel
   
   // Extended fields for "RG"
   vin?: string; // Chassi
@@ -247,12 +258,13 @@ export interface ServiceOrder {
   orderNumber: number;
   vehicleId: string;
   vehiclePlate: string;
-  tireId?: string;
-  tireFireNumber?: string;
+  maintenancePlanId?: string; // Added maintenancePlanId, removed tireId/tireFireNumber
   title: string;
   details: string;
   startTime?: string; // New field for start time
   status: 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
+  totalCost?: number;
+  parts?: { name: string; quantity: number; unitCost: number }[];
   createdBy: string;
   createdAt: string;
   completedBy?: string;
@@ -322,7 +334,29 @@ export interface TrackerSettings {
   active: boolean;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker';
+export interface MaintenancePlan {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'KM' | 'DATE';
+  intervalKm?: number;
+  intervalDays?: number;
+  isActive: boolean;
+  stockItemIds?: string[]; // Linked items from stock
+}
+
+export interface MaintenanceSchedule {
+  id: string;
+  vehicleId: string;
+  planId: string;
+  lastPerformedKm?: number;
+  lastPerformedDate?: string;
+  nextDueKm?: number;
+  nextDueDate?: string;
+  status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+}
+
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

@@ -8,9 +8,10 @@ interface ReportsHubProps {
   vehicles: Vehicle[];
   serviceOrders: ServiceOrder[];
   retreadOrders: RetreadOrder[];
+  vehicleBrandModels?: any[];
 }
 
-type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY';
+type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS';
 
 interface ColumnDef {
   id: string;
@@ -45,7 +46,15 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'depth', label: 'Sulco (mm)', accessor: (t: Tire) => Number(t.currentTreadDepth || 0).toFixed(1) },
       { id: 'kms', label: 'KM Total', accessor: (t: Tire) => (t.totalKms || 0).toLocaleString() },
       { id: 'cost', label: 'Investimento', accessor: (t: Tire) => Number(t.totalInvestment || t.price || 0), format: money },
-      { id: 'cpk', label: 'CPK Est.', accessor: (t: Tire) => (t.totalKms || 0) > 0 ? (Number(t.totalInvestment || t.price || 0) / t.totalKms).toFixed(5) : '0.00000' },
+      { id: 'cpk', label: 'CPK Est.', accessor: (t: Tire, ctx: any) => {
+        let currentRun = 0;
+        if (t.vehicleId && t.installOdometer && ctx.vehicles) {
+          const v = ctx.vehicles.find((vh: Vehicle) => vh.id === t.vehicleId);
+          if (v) currentRun = Math.max(0, v.odometer - t.installOdometer);
+        }
+        const totalKm = (t.totalKms || 0) + currentRun;
+        return totalKm > 0 ? (Number(t.totalInvestment || t.price || 0) / totalKm).toFixed(5) : '0.00000';
+      }},
       { id: 'dot', label: 'DOT', accessor: (t: Tire) => t.dot || '-' },
     ],
     VEHICLES: [
@@ -56,6 +65,14 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'tireCount', label: 'Qtd Pneus', accessor: (v: Vehicle, ctx: any) => ctx.tires?.filter((t: Tire) => t.vehicleId === v.id).length || 0 },
       { id: 'location', label: 'Última Loc.', accessor: (v: Vehicle) => v.lastLocation?.city || '-' },
       { id: 'lastUpdate', label: 'Atualização', accessor: (v: Vehicle) => formatDate(v.lastLocation?.updatedAt || '') },
+    ],
+    MAINTENANCE: [
+      { id: 'date', label: 'Data', accessor: (o: ServiceOrder) => formatDate(o.createdAt) },
+      { id: 'vehicle', label: 'Veículo', accessor: (o: ServiceOrder, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === o.vehicleId)?.plate || '-' },
+      { id: 'title', label: 'Serviço', accessor: (o: ServiceOrder) => o.title },
+      { id: 'status', label: 'Status', accessor: (o: ServiceOrder) => o.status },
+      { id: 'cost', label: 'Custo Total', accessor: (o: ServiceOrder) => o.totalCost || 0, format: money },
+      { id: 'mechanic', label: 'Mecânico', accessor: (o: ServiceOrder) => o.completedBy || '-' },
     ],
     MOVEMENTS: [
       { id: 'date', label: 'Data', accessor: (log: any) => formatDate(log.date) },
@@ -73,15 +90,23 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
     SUMMARY: [
       { id: 'metric', label: 'Métrica', accessor: (item: any) => item.metric },
       { id: 'value', label: 'Valor', accessor: (item: any) => item.value },
+    ],
+    BRAND_MODELS: [
+      { id: 'brand', label: 'Marca', accessor: (item: any) => item.brand },
+      { id: 'model', label: 'Modelo', accessor: (item: any) => item.model },
+      { id: 'type', label: 'Tipo', accessor: (item: any) => item.type },
+      { id: 'vehicleCount', label: 'Qtd Veículos', accessor: (item: any) => item.vehicleCount },
+      { id: 'totalKms', label: 'KM Total da Frota', accessor: (item: any) => item.totalKms.toLocaleString() },
+      { id: 'avgKms', label: 'KM Médio', accessor: (item: any) => item.avgKms.toLocaleString() },
     ]
 };
 
-export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [], serviceOrders = [], retreadOrders = [] }) => {
-  const [source, setSource] = useState<ReportSource>('TIRES');
+export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [], serviceOrders = [], retreadOrders = [], vehicleBrandModels = [] }) => {
+  const [source, setSource] = useState<ReportSource>('VEHICLES');
   
   // Inicializa com as colunas padrão
   const [selectedColumns, setSelectedColumns] = useState<string[]>(
-      COLUMN_DEFINITIONS['TIRES'].slice(0, 8).map(c => c.id)
+      COLUMN_DEFINITIONS['VEHICLES'].slice(0, 8).map(c => c.id)
   );
   
   const [startDate, setStartDate] = useState('');
@@ -119,6 +144,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
       rawData = [...tires];
     } else if (source === 'VEHICLES') {
       rawData = [...vehicles];
+    } else if (source === 'MAINTENANCE') {
+      rawData = [...serviceOrders];
+      rawData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else if (source === 'MOVEMENTS') {
       rawData = tires.flatMap(t => (t.history || []).map(h => ({ ...h, tireId: t.id })));
       // Ordenar por data decrescente
@@ -150,6 +178,24 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
 
       rawData = [...purchases, ...retreads, ...services];
       rawData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (source === 'BRAND_MODELS') {
+      const brandModelStats = vehicleBrandModels.map(bm => {
+        const bmVehicles = vehicles.filter(v => v.brandModelId === bm.id);
+        const vehicleCount = bmVehicles.length;
+        const totalKms = bmVehicles.reduce((acc, v) => acc + (v.odometer || 0), 0);
+        const avgKms = vehicleCount > 0 ? Math.round(totalKms / vehicleCount) : 0;
+        
+        return {
+          id: bm.id,
+          brand: bm.brand,
+          model: bm.model,
+          type: bm.type,
+          vehicleCount,
+          totalKms,
+          avgKms
+        };
+      });
+      rawData = brandModelStats.sort((a, b) => b.vehicleCount - a.vehicleCount);
     } else if (source === 'SUMMARY') {
         // Cálculo do resumo
         const filteredTires = tires.filter(t => {
@@ -240,7 +286,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
           </style>
         </head>
         <body>
-          <h1>Relatório: ${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'COSTS' ? 'Financeiro Completo' : 'Histórico de Movimentação'}</h1>
+          <h1>Relatório: ${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Manutenção' : source === 'COSTS' ? 'Financeiro Completo' : 'Histórico de Movimentação'}</h1>
           <div class="meta">Gerado em ${new Date().toLocaleString()} • ${reportData.length} registros</div>
           <table>
             <thead>
@@ -298,11 +344,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
                 onChange={(e) => handleSourceChange(e.target.value as ReportSource)}
                 className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="TIRES">Inventário de Pneus</option>
                 <option value="VEHICLES">Frota e KM</option>
-                <option value="MOVEMENTS">Histórico de Movimentação</option>
-                <option value="COSTS">Custos e Despesas</option>
-                <option value="SUMMARY">Resumo Mensal/Semanal</option>
+                <option value="BRAND_MODELS">Marcas e Modelos</option>
+                <option value="MAINTENANCE">Manutenção</option>
               </select>
             </div>
 

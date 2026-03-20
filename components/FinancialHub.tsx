@@ -63,12 +63,12 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
 
       // Savings
       if (tire.retreadCount > 0) {
-          const avgNewPrice = 2800;
-          let totalRetreadCost = Number(tire.totalInvestment || tire.price || 0) - Number(tire.price || 0);
+          const newTirePrice = Number(tire.price || 2800);
+          let totalRetreadCost = Number(tire.totalInvestment || tire.price || 0) - newTirePrice;
           if (totalRetreadCost <= 0) {
-              totalRetreadCost = tire.retreadCount * (avgNewPrice * 0.3);
+              totalRetreadCost = tire.retreadCount * (newTirePrice * 0.3);
           }
-          totalRetreadSavings += (avgNewPrice * tire.retreadCount) - totalRetreadCost;
+          totalRetreadSavings += (newTirePrice * tire.retreadCount) - totalRetreadCost;
       }
 
       // CPK Calculation
@@ -82,10 +82,9 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
       }
 
       // Populate Global Stats
-      if (tireTotalKm > 1000) {
+      if (tireTotalKm > 0) {
           totalKms += tireTotalKm;
-          const wearRatio = Math.min(1, (original - current) / (original - safetyLimit));
-          consumedValue += investment * wearRatio;
+          consumedValue += investment;
 
           // Populate Brand Stats
           const key = `${tire.brand} - ${tire.model}`;

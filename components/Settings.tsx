@@ -244,7 +244,7 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
          });
          alert("Usuário atualizado com sucesso!");
       } else {
-         await storageService.registerTeamMember(
+         const createdUsername = await storageService.registerTeamMember(
             regFirstName, 
             regLastName, 
             regPassword, 
@@ -252,7 +252,7 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
             regModules,
             regPermissions
          );
-         alert(`Usuário criado!\nLogin: ${regFirstName.toLowerCase()}.${regLastName.toLowerCase()}`);
+         alert(`Usuário criado!\nLogin: ${createdUsername}`);
       }
       resetMemberForm();
     } catch (error: any) {

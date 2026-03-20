@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Tire, TireStatus, Vehicle, UserLevel } from '../types';
+import { Tire, TireStatus, Vehicle, UserLevel, ServiceOrder, MaintenancePlan, MaintenanceSchedule } from '../types';
 import { 
   Search, Filter, Plus, Trash2, PenLine, FileText, 
   AlertTriangle, CheckCircle2, X, Archive, History, 
@@ -12,6 +12,9 @@ import {
 interface InventoryListProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  serviceOrders?: ServiceOrder[];
+  maintenancePlans?: MaintenancePlan[];
+  maintenanceSchedules?: MaintenanceSchedule[];
   onDelete: (id: string) => Promise<void>;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onRegister?: () => void;
@@ -28,7 +31,14 @@ const getHealthColor = (depth: number) => {
 };
 
 // --- MODAL DE DETALHES DO PNEU (CICLO DE VIDA) ---
-const TireDetailModal: React.FC<{ tire: Tire; vehicles: Vehicle[]; onClose: () => void }> = ({ tire, vehicles, onClose }) => {
+const TireDetailModal: React.FC<{ 
+  tire: Tire; 
+  vehicles: Vehicle[]; 
+  serviceOrders?: ServiceOrder[];
+  maintenancePlans?: MaintenancePlan[];
+  maintenanceSchedules?: MaintenanceSchedule[];
+  onClose: () => void 
+}> = ({ tire, vehicles, serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose }) => {
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
     
     // Cálculo de CPK Individual
@@ -143,58 +153,168 @@ const TireDetailModal: React.FC<{ tire: Tire; vehicles: Vehicle[]; onClose: () =
                         </div>
 
                         {/* COLUNA DA DIREITA: Timeline de Ciclo de Vida */}
-                        <div className="p-6 lg:col-span-2">
-                            <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <History className="h-4 w-4 text-purple-600"/> Linha do Tempo (Ciclo de Vida)
-                            </h3>
-                            
-                            <div className="relative pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-8">
-                                {timelineEvents.map((log, idx) => {
-                                    let icon = <CheckCircle2 className="h-4 w-4 text-slate-400" />;
-                                    let colorClass = "bg-slate-100 border-slate-200 text-slate-500";
-                                    
-                                    if (log.action === 'CADASTRADO') {
-                                        icon = <Plus className="h-4 w-4 text-white" />;
-                                        colorClass = "bg-blue-500 border-blue-600 text-white shadow-blue-200";
-                                    } else if (log.action === 'MONTADO') {
-                                        icon = <Truck className="h-4 w-4 text-white" />;
-                                        colorClass = "bg-emerald-500 border-emerald-600 text-white shadow-emerald-200";
-                                    } else if (log.action === 'DESMONTADO') {
-                                        icon = <Archive className="h-4 w-4 text-white" />;
-                                        colorClass = "bg-amber-500 border-amber-600 text-white shadow-amber-200";
-                                    } else if (log.action === 'RETORNO_RECAPAGEM') {
-                                        icon = <RefreshCw className="h-4 w-4 text-white" />;
-                                        colorClass = "bg-purple-500 border-purple-600 text-white shadow-purple-200";
-                                    } else if (log.action === 'ENVIADO_RECAPAGEM') {
-                                        icon = <Layers className="h-4 w-4 text-white" />;
-                                        colorClass = "bg-indigo-500 border-indigo-600 text-white";
-                                    } else if (log.action === 'DESCARTE') {
-                                        icon = <Trash2 className="h-4 w-4 text-white" />;
-                                        colorClass = "bg-red-500 border-red-600 text-white";
-                                    }
+                        <div className="p-6 lg:col-span-2 space-y-8">
+                            <div>
+                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <History className="h-4 w-4 text-purple-600"/> Linha do Tempo (Ciclo de Vida)
+                                </h3>
+                                
+                                <div className="relative pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-8">
+                                    {timelineEvents.map((log, idx) => {
+                                        let icon = <CheckCircle2 className="h-4 w-4 text-slate-400" />;
+                                        let colorClass = "bg-slate-100 border-slate-200 text-slate-500";
+                                        
+                                        if (log.action === 'CADASTRADO') {
+                                            icon = <Plus className="h-4 w-4 text-white" />;
+                                            colorClass = "bg-blue-500 border-blue-600 text-white shadow-blue-200";
+                                        } else if (log.action === 'MONTADO') {
+                                            icon = <Truck className="h-4 w-4 text-white" />;
+                                            colorClass = "bg-emerald-500 border-emerald-600 text-white shadow-emerald-200";
+                                        } else if (log.action === 'DESMONTADO') {
+                                            icon = <Archive className="h-4 w-4 text-white" />;
+                                            colorClass = "bg-amber-500 border-amber-600 text-white shadow-amber-200";
+                                        } else if (log.action === 'RETORNO_RECAPAGEM') {
+                                            icon = <RefreshCw className="h-4 w-4 text-white" />;
+                                            colorClass = "bg-purple-500 border-purple-600 text-white shadow-purple-200";
+                                        } else if (log.action === 'ENVIADO_RECAPAGEM') {
+                                            icon = <Layers className="h-4 w-4 text-white" />;
+                                            colorClass = "bg-indigo-500 border-indigo-600 text-white";
+                                        } else if (log.action === 'DESCARTE') {
+                                            icon = <Trash2 className="h-4 w-4 text-white" />;
+                                            colorClass = "bg-red-500 border-red-600 text-white";
+                                        }
 
-                                    return (
-                                        <div key={idx} className="relative pl-8">
-                                            <div className={`absolute -left-[25px] top-0 w-8 h-8 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center shadow-sm z-10 ${colorClass}`}>
-                                                {icon}
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-xs font-black uppercase tracking-wide text-slate-700 dark:text-slate-200">
-                                                        {log.action.replace(/_/g, ' ')}
-                                                    </span>
-                                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded">
-                                                        {new Date(log.date).toLocaleDateString()}
-                                                    </span>
+                                        return (
+                                            <div key={idx} className="relative pl-8">
+                                                <div className={`absolute -left-[25px] top-0 w-8 h-8 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center shadow-sm z-10 ${colorClass}`}>
+                                                    {icon}
                                                 </div>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                                                    {log.details}
-                                                </p>
+                                                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="text-xs font-black uppercase tracking-wide text-slate-700 dark:text-slate-200">
+                                                            {log.action.replace(/_/g, ' ')}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded">
+                                                            {new Date(log.date).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                                        {log.details}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
+
+                            {vehicle && (
+                                <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
+                                    <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+                                        <Truck className="h-4 w-4 text-blue-600"/> Manutenção do Veículo ({vehicle.plate})
+                                    </h3>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Próximos Serviços (PMS) */}
+                                        <div className="space-y-3">
+                                            <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                                                <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMS)
+                                            </h4>
+                                            {maintenanceSchedules.filter(s => s.vehicleId === vehicle.id && s.status === 'PENDING').length === 0 ? (
+                                                <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                                                    Nenhuma manutenção programada para este veículo.
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {maintenanceSchedules
+                                                        .filter(s => s.vehicleId === vehicle.id && s.status === 'PENDING')
+                                                        .map(schedule => {
+                                                            const plan = maintenancePlans.find(p => p.id === schedule.planId);
+                                                            return (
+                                                                <div key={schedule.id} className="p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-900/30 shadow-sm">
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div>
+                                                                            <p className="font-bold text-sm text-slate-800 dark:text-white">{plan?.name || 'Plano Desconhecido'}</p>
+                                                                            {schedule.nextDueDate && (
+                                                                                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                                                                    <Calendar className="h-3 w-3" /> Vencimento: {new Date(schedule.nextDueDate).toLocaleDateString('pt-BR')}
+                                                                                </p>
+                                                                            )}
+                                                                            {schedule.nextDueKm && (
+                                                                                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                                                                    <Gauge className="h-3 w-3" /> Troca com: {schedule.nextDueKm.toLocaleString()} km
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-orange-100 text-orange-700">
+                                                                            Programado
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Serviços Realizados */}
+                                        <div className="space-y-3">
+                                            <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                                                <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
+                                            </h4>
+                                            {serviceOrders.filter(so => so.vehicleId === vehicle.id).length === 0 ? (
+                                                <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                                                    Nenhuma ordem de serviço registrada para este veículo.
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {serviceOrders
+                                                        .filter(so => so.vehicleId === vehicle.id)
+                                                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                                        .map(so => (
+                                                            <div key={so.id} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <div>
+                                                                        <p className="font-bold text-sm text-slate-800 dark:text-white">{so.title}</p>
+                                                                        <p className="text-[10px] text-slate-500">{new Date(so.createdAt).toLocaleDateString('pt-BR')} • OS #{so.id.slice(-5).toUpperCase()}</p>
+                                                                    </div>
+                                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                                                        so.status === 'CONCLUIDO' ? 'bg-green-100 text-green-700' :
+                                                                        so.status === 'EM_ANDAMENTO' ? 'bg-blue-100 text-blue-700' :
+                                                                        'bg-orange-100 text-orange-700'
+                                                                    }`}>
+                                                                        {so.status === 'CONCLUIDO' ? 'Concluída' : so.status === 'EM_ANDAMENTO' ? 'Em Execução' : 'Pendente'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="space-y-3 pt-2 border-t border-slate-50 dark:border-slate-700">
+                                                                    {so.parts && so.parts.length > 0 && (
+                                                                        <div className="space-y-1">
+                                                                            <p className="text-[9px] font-bold text-slate-500 uppercase">Peças e Insumos:</p>
+                                                                            {so.parts.map((part, idx) => (
+                                                                                <div key={idx} className="flex justify-between text-[10px]">
+                                                                                    <span className="text-slate-600 dark:text-slate-400">{part.quantity}x {part.name}</span>
+                                                                                    <span className="font-bold text-slate-800 dark:text-white">
+                                                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.unitCost * part.quantity)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
+                                                                        <p className="font-black text-sm text-slate-800 dark:text-white">
+                                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || 0)}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -303,6 +423,9 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
 export const InventoryList: React.FC<InventoryListProps> = ({ 
   tires, 
   vehicles, 
+  serviceOrders = [],
+  maintenancePlans = [],
+  maintenanceSchedules = [],
   onDelete, 
   onUpdateTire, 
   onRegister, 
@@ -477,6 +600,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           <TireDetailModal 
               tire={selectedTire} 
               vehicles={vehicles} 
+              serviceOrders={serviceOrders}
+              maintenancePlans={maintenancePlans}
+              maintenanceSchedules={maintenanceSchedules}
               onClose={() => setSelectedTire(null)} 
           />
       )}

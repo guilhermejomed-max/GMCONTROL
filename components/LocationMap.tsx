@@ -12,7 +12,7 @@ interface LocationMapProps {
   vehicles: Vehicle[];
   tires: Tire[];
   settings?: SystemSettings;
-  onSync: () => Promise<number>;
+  onSync: (showModal?: boolean) => Promise<number>;
 }
 
 type FilterStatus = 'ALL' | 'OK' | 'WARNING' | 'CRITICAL';
@@ -22,7 +22,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
   const [isSyncing, setIsSyncing] = useState(false);
   const handleSync = async () => {
     setIsSyncing(true);
-    await onSync();
+    await onSync(true);
     setIsSyncing(false);
   };
   const mapContainerRef = useRef<HTMLDivElement>(null);

@@ -1,11 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell } from 'lucide-react';
+import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem } from '../types';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2 } from 'lucide-react';
+import { storageService } from '../services/storageService';
+import { MaintenancePlanManager } from './MaintenancePlanManager';
 
 interface ServiceOrderHubProps {
   serviceOrders: ServiceOrder[];
+  maintenancePlans?: MaintenancePlan[];
+  maintenanceSchedules?: MaintenanceSchedule[];
   vehicles?: Vehicle[]; // Need vehicles to validate plate
+  vehicleBrandModels?: VehicleBrandModel[];
   tires?: Tire[]; // Needed for tire selection
+  stockItems?: StockItem[]; // Needed for maintenance plan items
   onUpdateOrder: (orderId: string, updates: Partial<ServiceOrder>) => Promise<void>;
   onAddOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
   settings?: SystemSettings;
@@ -13,28 +19,130 @@ interface ServiceOrderHubProps {
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
+type TabView = 'ORDERS' | 'PMS';
 
-export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, vehicles = [], tires = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [] }) => {
+export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, maintenancePlans = [], maintenanceSchedules = [], vehicles = [], vehicleBrandModels = [], tires = [], stockItems = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [] }) => {
+  const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Create Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newOrderPlate, setNewOrderPlate] = useState('');
+  const [newOrderVehicleId, setNewOrderVehicleId] = useState('');
   const [newOrderTitle, setNewOrderTitle] = useState('');
+  const [newOrderMaintenancePlanId, setNewOrderMaintenancePlanId] = useState('');
   const [newOrderDetails, setNewOrderDetails] = useState('');
-  const [newOrderTireId, setNewOrderTireId] = useState('');
   
+  // Edit Modal State
+  const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
+  const [editOrderTitle, setEditOrderTitle] = useState('');
+  const [editOrderDetails, setEditOrderDetails] = useState('');
+  const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
+  const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
+  const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
+
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isCustomTitle, setIsCustomTitle] = useState(false);
 
+  // Parts Selection State
+  const [newOrderParts, setNewOrderParts] = useState<{ itemId: string; name: string; quantity: number; unitCost: number }[]>([]);
+  const [selectedStockItemId, setSelectedStockItemId] = useState('');
+  const [selectedStockItemQty, setSelectedStockItemQty] = useState(1);
+
+  const handleUpdatePartQty = (itemId: string, newQty: number) => {
+      if (newQty < 1) return;
+      setNewOrderParts(newOrderParts.map(p => 
+          p.itemId === itemId ? { ...p, quantity: newQty } : p
+      ));
+  };
+
+  const handleEditUpdatePartQty = (index: number, newQty: number) => {
+      if (newQty < 1) return;
+      const updatedParts = [...editOrderParts];
+      updatedParts[index].quantity = newQty;
+      setEditOrderParts(updatedParts);
+  };
+
+  const handleAddPartToEdit = () => {
+      if (!editSelectedStockItemId) return;
+      const item = stockItems.find(i => i.id === editSelectedStockItemId);
+      if (!item) return;
+
+      const existingIndex = editOrderParts.findIndex(p => p.name === item.name);
+      if (existingIndex >= 0) {
+          const updatedParts = [...editOrderParts];
+          updatedParts[existingIndex].quantity += editSelectedStockItemQty;
+          setEditOrderParts(updatedParts);
+      } else {
+          setEditOrderParts([...editOrderParts, {
+              name: item.name,
+              quantity: editSelectedStockItemQty,
+              unitCost: item.averageCost
+          }]);
+      }
+      setEditSelectedStockItemId('');
+      setEditSelectedStockItemQty(1);
+  };
+
+  const handleRemovePartFromEdit = (index: number) => {
+      setEditOrderParts(editOrderParts.filter((_, i) => i !== index));
+  };
+
+  const handleAddPart = () => {
+      if (!selectedStockItemId) return;
+      const item = stockItems.find(i => i.id === selectedStockItemId);
+      if (!item) return;
+
+      const existing = newOrderParts.find(p => p.itemId === selectedStockItemId);
+      if (existing) {
+          setNewOrderParts(newOrderParts.map(p => 
+              p.itemId === selectedStockItemId ? { ...p, quantity: p.quantity + selectedStockItemQty } : p
+          ));
+      } else {
+          setNewOrderParts([...newOrderParts, {
+              itemId: item.id,
+              name: item.name,
+              quantity: selectedStockItemQty,
+              unitCost: item.averageCost
+          }]);
+      }
+      setSelectedStockItemId('');
+      setSelectedStockItemQty(1);
+  };
+
+  const handleRemovePart = (itemId: string) => {
+      setNewOrderParts(newOrderParts.filter(p => p.itemId !== itemId));
+  };
+
+  const maintenanceAlerts = useMemo(() => {
+    return maintenanceSchedules.filter(s => {
+      const vehicle = vehicles.find(v => v.id === s.vehicleId);
+      if (!vehicle || !s.nextDueKm) return false;
+      return vehicle.odometer >= s.nextDueKm;
+    });
+  }, [maintenanceSchedules, vehicles]);
+
   const pendingAlertsForVehicle = useMemo(() => {
-      if (!newOrderPlate) return [];
+      if (!newOrderVehicleId) return [];
+      const vehicle = vehicles.find(v => v.id === newOrderVehicleId);
+      if (!vehicle) return [];
       return arrivalAlerts.filter(a => 
           a.status === 'PENDING' && 
-          a.vehiclePlate.toUpperCase().replace(/[^A-Z0-9]/g, '') === newOrderPlate.toUpperCase().replace(/[^A-Z0-9]/g, '')
+          a.vehiclePlate.toUpperCase().replace(/[^A-Z0-9]/g, '') === vehicle.plate.toUpperCase().replace(/[^A-Z0-9]/g, '')
       );
-  }, [arrivalAlerts, newOrderPlate]);
+  }, [arrivalAlerts, newOrderVehicleId, vehicles]);
+
+  const vehicleMaintenancePlan = useMemo(() => {
+    if (!newOrderVehicleId) return null;
+    const vehicle = vehicles.find(v => v.id === newOrderVehicleId);
+    if (!vehicle || !vehicle.brandModelId) return null;
+    
+    const brandModel = vehicleBrandModels.find(bm => bm.id === vehicle.brandModelId);
+    if (!brandModel || !brandModel.maintenancePlanId) return null;
+
+    return maintenancePlans.find(p => p.id === brandModel.maintenancePlanId) || null;
+  }, [newOrderVehicleId, vehicles, vehicleBrandModels, maintenancePlans]);
 
   const filteredOrders = useMemo(() => {
     return serviceOrders
@@ -52,13 +160,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
 
   // Derived state for available tires based on selected plate
   const availableTiresForSelection = useMemo(() => {
-      const selectedVehicle = vehicles.find(v => v.plate.toUpperCase().replace(/[^A-Z0-9]/g, '') === newOrderPlate.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+      const selectedVehicle = vehicles.find(v => v.id === newOrderVehicleId);
       
       const mountedTires = selectedVehicle ? tires.filter(t => t.vehicleId === selectedVehicle.id) : [];
       const retreadingTires = tires.filter(t => t.status === TireStatus.RETREADING);
       
       return { mountedTires, retreadingTires };
-  }, [tires, newOrderPlate, vehicles]);
+  }, [tires, newOrderVehicleId, vehicles]);
   
   const handleStatusChange = async (order: ServiceOrder, newStatus: ServiceOrder['status']) => {
       const updates: Partial<ServiceOrder> = { status: newStatus };
@@ -73,6 +181,25 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           updates.completedAt = new Date().toISOString();
           // In a real app, you'd get the current user's name
           updates.completedBy = "Usuário"; 
+
+          // Update Maintenance Schedule if applicable
+          const vehicle = vehicles.find(v => v.plate === order.vehiclePlate);
+          if (vehicle) {
+              const schedule = maintenanceSchedules.find(s => s.vehicleId === vehicle.id);
+              if (schedule) {
+                  const plan = maintenancePlans.find(p => p.id === schedule.planId);
+                  if (plan && plan.intervalKm) {
+                      const newLastPerformedKm = vehicle.odometer;
+                      const newNextDueKm = newLastPerformedKm + plan.intervalKm;
+                      await storageService.updateMaintenanceSchedule(schedule.id, {
+                          lastPerformedKm: newLastPerformedKm,
+                          lastPerformedDate: new Date().toISOString(),
+                          nextDueKm: newNextDueKm,
+                          status: 'PENDING'
+                      });
+                  }
+              }
+          }
       }
       await onUpdateOrder(order.id, updates);
   };
@@ -81,9 +208,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
       e.preventDefault();
       if (!onAddOrder) return;
 
-      const vehicle = vehicles.find(v => v.plate.toUpperCase().replace(/[^A-Z0-9]/g, '') === newOrderPlate.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+      const vehicle = vehicles.find(v => v.id === newOrderVehicleId);
       if (!vehicle) {
-          alert("Veículo não encontrado! Verifique a placa.");
+          alert("Por favor, selecione um veículo.");
           return;
       }
 
@@ -92,12 +219,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           return;
       }
 
-      // Get tire info if selected
-      let selectedTireFireNumber = undefined;
-      if (newOrderTireId) {
-          const t = tires.find(x => x.id === newOrderTireId);
-          if (t) selectedTireFireNumber = t.fireNumber;
-      }
 
       setIsCreating(true);
       try {
@@ -106,22 +227,50 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
               vehiclePlate: vehicle.plate,
               title: newOrderTitle,
               details: newOrderDetails,
-              tireId: newOrderTireId || undefined,
-              tireFireNumber: selectedTireFireNumber,
+              maintenancePlanId: newOrderMaintenancePlanId || undefined,
+              parts: newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
           });
           setIsCreateModalOpen(false);
-          setNewOrderPlate('');
+          setNewOrderVehicleId('');
           setNewOrderTitle('');
           setNewOrderDetails('');
-          setNewOrderTireId('');
+          setNewOrderMaintenancePlanId('');
+          setNewOrderParts([]);
           setIsCustomTitle(false);
       } catch (err) {
           console.error(err);
           alert("Erro ao criar Ordem de Serviço.");
       } finally {
           setIsCreating(false);
+      }
+  };
+
+  const handleOpenEditModal = (order: ServiceOrder) => {
+      setEditingOrder(order);
+      setEditOrderTitle(order.title);
+      setEditOrderDetails(order.details);
+      setEditOrderParts(order.parts || []);
+  };
+
+  const handleUpdateOrderDetails = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editingOrder) return;
+
+      setIsUpdating(true);
+      try {
+          await onUpdateOrder(editingOrder.id, {
+              title: editOrderTitle,
+              details: editOrderDetails,
+              parts: editOrderParts.length > 0 ? editOrderParts : undefined
+          });
+          setEditingOrder(null);
+      } catch (err) {
+          console.error(err);
+          alert("Erro ao atualizar Ordem de Serviço.");
+      } finally {
+          setIsUpdating(false);
       }
   };
   
@@ -152,21 +301,59 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
-              <Wrench className="h-7 w-7 text-orange-600" /> Ordens de Serviço
+              <Wrench className="h-7 w-7 text-orange-600" /> Oficina
            </h2>
-           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gerencie as tarefas pendentes da oficina.</p>
+           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gerencie as tarefas e planos de manutenção.</p>
         </div>
-        {onAddOrder && (
-            <button 
-                onClick={() => setIsCreateModalOpen(true)}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all text-sm"
-            >
-                <Plus className="h-4 w-4" /> Abrir O.S.
-            </button>
-        )}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <button 
+            onClick={() => setActiveTab('ORDERS')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'ORDERS' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+          >
+            <Wrench className="h-4 w-4" /> Ordens de Serviço
+          </button>
+          <button 
+            onClick={() => setActiveTab('PMS')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'PMS' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+          >
+            <ClipboardList className="h-4 w-4" /> Plano de Manutenção (PMS)
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4">
+      {maintenanceAlerts.length > 0 && (
+        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800">
+            <h4 className="text-sm font-bold text-red-800 dark:text-red-300 mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4"/> Manutenção Vencida
+            </h4>
+            <ul className="space-y-1">
+                {maintenanceAlerts.map(s => {
+                    const vehicle = vehicles.find(v => v.id === s.vehicleId);
+                    return (
+                        <li key={s.id} className="text-xs text-red-700 dark:text-red-400">
+                            Veículo <span className="font-bold">{vehicle?.plate}</span> atingiu o limite de KM (Vencido em: {s.nextDueKm} km).
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+      )}
+
+      {activeTab === 'PMS' ? (
+        <MaintenancePlanManager plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
+      ) : (
+        <>
+          <div className="flex justify-end">
+            {onAddOrder && (
+                <button 
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all text-sm"
+                >
+                    <Plus className="h-4 w-4" /> Abrir O.S.
+                </button>
+            )}
+          </div>
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4">
          <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <input 
@@ -197,7 +384,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                    <h3 className="font-bold text-lg text-slate-800 dark:text-white">{order.title}</h3>
                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
                       <span className="flex items-center gap-1"><Truck className="h-3 w-3"/> {order.vehiclePlate}</span>
-                      {order.tireFireNumber && <span className="flex items-center gap-1"><Disc className="h-3 w-3"/> {order.tireFireNumber}</span>}
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> Aberto em: {new Date(order.createdAt).toLocaleString()}</span>
                       
                       {order.startTime && (
@@ -218,9 +404,20 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                       )}
                    </div>
                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 border-l-2 border-slate-200 dark:border-slate-700 pl-3">{order.details}</p>
+                   
+                   {order.parts && order.parts.length > 0 && (
+                       <div className="mt-3 flex flex-wrap gap-2">
+                           {order.parts.map((part, idx) => (
+                               <span key={idx} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                                   <Package className="h-3 w-3 text-blue-500" /> {part.name} ({part.quantity})
+                               </span>
+                           ))}
+                       </div>
+                   )}
                 </div>
                 {order.status !== 'CONCLUIDO' && (
                   <div className="flex md:flex-col gap-2 shrink-0 self-start md:self-center">
+                    <button onClick={() => handleOpenEditModal(order)} className="w-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 rounded-lg transition-colors flex items-center gap-1"><Wrench className="h-3 w-3"/> Editar</button>
                     {order.status === 'PENDENTE' && <button onClick={() => handleStatusChange(order, 'EM_ANDAMENTO')} className="w-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 p-2 rounded-lg transition-colors flex items-center gap-1"><Loader className="h-3 w-3"/> Iniciar Serviço</button>}
                     {order.status === 'EM_ANDAMENTO' && <button onClick={() => handleStatusChange(order, 'CONCLUIDO')} className="w-full text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 p-2 rounded-lg transition-colors flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/> Finalizar</button>}
                   </div>
@@ -249,18 +446,18 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                   </div>
                   <form onSubmit={handleCreateOrder} className="p-6 space-y-4">
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Placa do Veículo</label>
-                          <input 
-                              type="text" 
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo (Obrigatório)</label>
+                          <select 
                               required 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-black uppercase"
-                              placeholder="ABC-1234"
-                              value={newOrderPlate}
-                              onChange={e => {
-                                  setNewOrderPlate(e.target.value.toUpperCase());
-                                  setNewOrderTireId(''); // Reset tire selection on plate change
-                              }}
-                          />
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                              value={newOrderVehicleId}
+                              onChange={e => setNewOrderVehicleId(e.target.value)}
+                          >
+                              <option value="">Selecione um veículo...</option>
+                              {vehicles.map(v => (
+                                  <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
+                              ))}
+                          </select>
                       </div>
                       
                       {pendingAlertsForVehicle.length > 0 && (
@@ -277,34 +474,89 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               </ul>
                           </div>
                       )}
-                      
-                      {/* TIRE SELECTION (OPTIONAL) */}
+
+                      {vehicleMaintenancePlan && (
+                          <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                              <h4 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
+                                  <ClipboardList className="h-4 w-4"/> Plano Sugerido (PMS)
+                              </h4>
+                              <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-3">
+                                  Este veículo possui o plano <strong>{vehicleMaintenancePlan.name}</strong> vinculado ao seu modelo.
+                              </p>
+                              <button 
+                                  type="button"
+                                  onClick={() => {
+                                      setNewOrderTitle(`PMS: ${vehicleMaintenancePlan.name}`);
+                                      setNewOrderMaintenancePlanId(vehicleMaintenancePlan.id);
+                                      setIsCustomTitle(true);
+                                      setNewOrderDetails(`PMS: ${vehicleMaintenancePlan.name}\n\nObservações:\n`);
+                                      
+                                      // Auto-add parts from PMS if available
+                                      if (vehicleMaintenancePlan.stockItemIds && vehicleMaintenancePlan.stockItemIds.length > 0) {
+                                          const pmsParts = vehicleMaintenancePlan.stockItemIds.map(id => {
+                                              const item = stockItems.find(i => i.id === id);
+                                              if (item) {
+                                                  return {
+                                                      itemId: item.id,
+                                                      name: item.name,
+                                                      quantity: 1,
+                                                      unitCost: item.averageCost
+                                                  };
+                                              }
+                                              return null;
+                                          }).filter(p => p !== null) as any[];
+                                          setNewOrderParts(pmsParts);
+                                      }
+                                  }}
+                                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                              >
+                                  <CheckSquare className="h-4 w-4" /> Aplicar Plano Sugerido
+                              </button>
+                          </div>
+                      )}
+
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pneu Vinculado (Opcional)</label>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vincular PMS (Opcional)</label>
                           <select 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold text-sm"
-                              value={newOrderTireId}
-                              onChange={(e) => setNewOrderTireId(e.target.value)}
+                            className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                            value={newOrderMaintenancePlanId}
+                            onChange={(e) => {
+                                const planId = e.target.value;
+                                setNewOrderMaintenancePlanId(planId);
+                                if (planId) {
+                                    const plan = maintenancePlans.find(p => p.id === planId);
+                                    if (plan) {
+                                        setNewOrderTitle(`PMS: ${plan.name}`);
+                                        setIsCustomTitle(true);
+                                        setNewOrderDetails(`PMS: ${plan.name}\n\nObservações:\n`);
+                                        
+                                        // Auto-add parts from PMS if available
+                                        if (plan.stockItemIds && plan.stockItemIds.length > 0) {
+                                            const pmsParts = plan.stockItemIds.map(id => {
+                                                const item = stockItems.find(i => i.id === id);
+                                                if (item) {
+                                                    return {
+                                                        itemId: item.id,
+                                                        name: item.name,
+                                                        quantity: 1,
+                                                        unitCost: item.averageCost
+                                                    };
+                                                }
+                                                return null;
+                                            }).filter(p => p !== null) as any[];
+                                            setNewOrderParts(pmsParts);
+                                        }
+                                    }
+                                }
+                            }}
                           >
-                              <option value="">Nenhum Pneu Selecionado</option>
-                              
-                              {availableTiresForSelection.mountedTires.length > 0 && (
-                                  <optgroup label="Montados no Veículo">
-                                      {availableTiresForSelection.mountedTires.map(t => (
-                                          <option key={t.id} value={t.id}>{t.fireNumber} - Pos: {t.position}</option>
-                                      ))}
-                                  </optgroup>
-                              )}
-                              
-                              {availableTiresForSelection.retreadingTires.length > 0 && (
-                                  <optgroup label="Em Recapagem">
-                                      {availableTiresForSelection.retreadingTires.map(t => (
-                                          <option key={t.id} value={t.id}>{t.fireNumber} - {t.brand} (Em Recapagem)</option>
-                                      ))}
-                                  </optgroup>
-                              )}
+                              <option value="">Nenhum PMS selecionado</option>
+                              {maintenancePlans.map(plan => (
+                                  <option key={plan.id} value={plan.id}>{plan.name}</option>
+                              ))}
                           </select>
                       </div>
+                      
 
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço (Título)</label>
@@ -362,6 +614,72 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                           />
                       </div>
 
+                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-2">
+                              <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
+                          </label>
+                          
+                          <div className="flex gap-2">
+                              <select 
+                                className="flex-1 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                                value={selectedStockItemId}
+                                onChange={e => setSelectedStockItemId(e.target.value)}
+                              >
+                                  <option value="">Selecionar Peça...</option>
+                                  {stockItems.map(item => (
+                                      <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
+                                  ))}
+                              </select>
+                              <input 
+                                type="number" 
+                                min="1"
+                                className="w-16 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                                value={selectedStockItemQty}
+                                onChange={e => setSelectedStockItemQty(Number(e.target.value))}
+                              />
+                              <button 
+                                type="button"
+                                onClick={handleAddPart}
+                                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                              >
+                                  <Plus className="h-4 w-4" />
+                              </button>
+                          </div>
+
+                          {newOrderParts.length > 0 && (
+                              <div className="space-y-2 mt-3">
+                                  {newOrderParts.map(part => (
+                                      <div key={part.itemId} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
+                                          <div className="flex flex-col flex-1">
+                                              <span className="font-bold text-slate-800 dark:text-white">{part.name}</span>
+                                              <span className="text-[10px] text-slate-500">Unit: R$ {part.unitCost.toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                              <input 
+                                                type="number" 
+                                                min="1"
+                                                className="w-12 p-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-white text-center"
+                                                value={part.quantity}
+                                                onChange={e => handleUpdatePartQty(part.itemId, Number(e.target.value))}
+                                              />
+                                              <button 
+                                                type="button"
+                                                onClick={() => handleRemovePart(part.itemId)}
+                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                              >
+                                                  <Trash2 className="h-4 w-4" />
+                                              </button>
+                                          </div>
+                                      </div>
+                                  ))}
+                                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-bold text-slate-800 dark:text-white">
+                                      <span>Total em Peças:</span>
+                                      <span>R$ {newOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+
                       <div className="pt-2 flex gap-3">
                           <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancelar</button>
                           <button type="submit" disabled={isCreating} className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50">
@@ -371,6 +689,124 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                   </form>
               </div>
           </div>
+      )}
+
+      {/* EDIT ORDER MODAL */}
+      {editingOrder && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+                  <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+                      <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                          <Wrench className="h-5 w-5 text-blue-600"/> Editar O.S. #{String(editingOrder.orderNumber).padStart(4, '0')}
+                      </h3>
+                      <button onClick={() => setEditingOrder(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
+                  </div>
+                  <form onSubmit={handleUpdateOrderDetails} className="p-6 space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo</label>
+                          <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 font-bold text-sm">
+                              {editingOrder.vehiclePlate}
+                          </div>
+                      </div>
+                      
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço (Título)</label>
+                          <input 
+                              type="text" 
+                              required 
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                              value={editOrderTitle}
+                              onChange={e => setEditOrderTitle(e.target.value)}
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Detalhes do Serviço</label>
+                          <textarea 
+                              required 
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm"
+                              value={editOrderDetails}
+                              onChange={e => setEditOrderDetails(e.target.value)}
+                          />
+                      </div>
+
+                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-2">
+                              <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
+                          </label>
+                          
+                          <div className="flex gap-2">
+                              <select 
+                                className="flex-1 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                                value={editSelectedStockItemId}
+                                onChange={e => setEditSelectedStockItemId(e.target.value)}
+                              >
+                                  <option value="">Selecionar Peça...</option>
+                                  {stockItems.map(item => (
+                                      <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
+                                  ))}
+                              </select>
+                              <input 
+                                type="number" 
+                                min="1"
+                                className="w-16 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                                value={editSelectedStockItemQty}
+                                onChange={e => setEditSelectedStockItemQty(Number(e.target.value))}
+                              />
+                              <button 
+                                type="button"
+                                onClick={handleAddPartToEdit}
+                                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                              >
+                                  <Plus className="h-4 w-4" />
+                              </button>
+                          </div>
+
+                          {editOrderParts.length > 0 && (
+                              <div className="space-y-2 mt-3">
+                                  {editOrderParts.map((part, index) => (
+                                      <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
+                                          <div className="flex flex-col flex-1">
+                                              <span className="font-bold text-slate-800 dark:text-white">{part.name}</span>
+                                              <span className="text-[10px] text-slate-500">Unit: R$ {part.unitCost.toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                              <input 
+                                                type="number" 
+                                                min="1"
+                                                className="w-12 p-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-white text-center"
+                                                value={part.quantity}
+                                                onChange={e => handleEditUpdatePartQty(index, Number(e.target.value))}
+                                              />
+                                              <button 
+                                                type="button"
+                                                onClick={() => handleRemovePartFromEdit(index)}
+                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                              >
+                                                  <Trash2 className="h-4 w-4" />
+                                              </button>
+                                          </div>
+                                      </div>
+                                  ))}
+                                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-bold text-slate-800 dark:text-white">
+                                      <span>Total em Peças:</span>
+                                      <span>R$ {editOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+
+                      <div className="pt-2 flex gap-3">
+                          <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancelar</button>
+                          <button type="submit" disabled={isUpdating} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50">
+                              {isUpdating ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Salvar Alterações
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+      </>
       )}
     </div>
   );

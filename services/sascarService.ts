@@ -2,7 +2,7 @@ import { TrackerSettings } from '../types';
 
 export const sascarService = {
   getVehicles: async (plates?: string[], trackerSettings?: TrackerSettings, retries = 2) => {
-    const fetchWithTimeout = async (url: string, options: any, timeout = 120000) => {
+    const fetchWithTimeout = async (url: string, options: any, timeout = 180000) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
@@ -59,7 +59,7 @@ export const sascarService = {
 
         if (isLastRetry) {
           console.error('Erro na integração Sascar (Final):', error);
-          if (isTimeout) throw new Error('A requisição à Sascar demorou muito tempo (Timeout de 120s excedido).');
+          if (isTimeout) throw new Error('A requisição à Sascar demorou muito tempo (Timeout excedido).');
           if (isNetworkError) throw new Error('Erro de conexão com o servidor. Verifique se o servidor está online.');
           throw error;
         }

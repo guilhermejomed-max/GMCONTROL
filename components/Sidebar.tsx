@@ -49,13 +49,14 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
     { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['TIRES'] },
-    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['TIRES'] },
     
     // --- MÓDULO VEÍCULOS ---
+    { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
-    { id: 'service-orders', label: 'Ordens de Serviço', icon: Wrench, modules: ['VEHICLES'] },
+    { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
+    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
 
     // --- MÓDULO OFICINA/PEÇAS ---

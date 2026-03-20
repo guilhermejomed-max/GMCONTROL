@@ -1,7 +1,7 @@
 
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint } from '../types';
 
 const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
@@ -46,6 +46,7 @@ const LocalDB = {
     
     notify: (collection: string, data: any) => {
         const key = `gm_local_${collection}`;
+        console.log(`[LocalDB] Notifying ${localListeners[key]?.length || 0} listeners for ${collection}`);
         if (localListeners[key]) {
             localListeners[key].forEach(cb => cb(data));
         }
@@ -73,8 +74,25 @@ const LocalDB = {
     
     delete: (collection: string, id: string) => {
         const key = `gm_local_${collection}`;
-        const current = JSON.parse(localStorage.getItem(key) || '[]');
-        const updated = current.filter((i: any) => i.id !== id);
+        const raw = localStorage.getItem(key);
+        if (!raw) {
+            console.warn(`[LocalDB] No data found for ${key} during delete.`);
+            return;
+        }
+        const current = JSON.parse(raw);
+        console.log(`[LocalDB] Deleting from ${collection} with ID:`, id, "Current count:", current.length);
+        
+        const updated = current.filter((i: any) => {
+            if (!i || !i.id) return true;
+            // Loose equality and string conversion for maximum compatibility
+            return String(i.id) != String(id);
+        });
+        
+        console.log(`[LocalDB] Items after filter: ${updated.length}`);
+        if (current.length === updated.length) {
+            console.warn(`[LocalDB] ID ${id} not found in ${collection}. IDs present:`, current.map((i: any) => i?.id));
+        }
+        
         LocalDB.set(collection, updated);
     },
 
@@ -325,8 +343,9 @@ export const storageService = {
   },
 
   registerTeamMember: async (firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[]) => {
-    const username = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
-    const email = `${username}${INTERNAL_DOMAIN}`;
+    const baseUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
+    let username = baseUsername;
+    let email = `${username}${INTERNAL_DOMAIN}`;
     const name = `${firstName} ${lastName}`;
     const now = new Date().toISOString();
     
@@ -334,20 +353,51 @@ export const storageService = {
         const id = 'mock-' + Date.now();
         const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
         LocalDB.add('users', member);
-        return;
+        return username;
     }
 
-    try {
-        const userCred = await auth.createUserWithEmailAndPassword(email, pass);
-        if (userCred.user) {
-            const member: TeamMember = { id: userCred.user.uid, name, username, email, role, allowedModules: modules, permissions, createdAt: now };
-            await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
-            logActivity("Criou Usuário", `Cadastrou ${name}`, 'TIRES');
+    let userCred = null;
+    let attempt = 0;
+    
+    while (!userCred && attempt < 5) {
+        try {
+            console.log("Attempting to register user:", email);
+            userCred = await auth.createUserWithEmailAndPassword(email, pass);
+            console.log("User created:", userCred.user?.uid);
+        } catch (e: any) {
+            console.error("Firebase Register Failed, details:", e);
+            
+            const isEmailInUse = e.code === 'auth/email-already-in-use' || (e.message && e.message.includes('auth/email-already-in-use'));
+            
+            if (isEmailInUse) {
+                attempt++;
+                username = `${baseUsername}${attempt}`;
+                email = `${username}${INTERNAL_DOMAIN}`;
+                console.log(`Email in use, trying new email: ${email}`);
+            } else {
+                if (db) {
+                    // If Firebase is available but registration failed for another reason, throw error
+                    throw new Error("Falha ao registrar usuário no Firebase: " + (e as Error).message);
+                }
+                break; // Break to fallback to LocalDB
+            }
         }
-    } catch (e) {
+    }
+
+    if (userCred && userCred.user) {
+        const member: TeamMember = { id: userCred.user.uid, name, username, email, role, allowedModules: modules, permissions, createdAt: now };
+        await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
+        logActivity("Criou Usuário", `Cadastrou ${name} (${username})`, 'TIRES');
+        console.log("User member saved to Firestore");
+        return username;
+    } else if (!db) {
         const id = 'local-' + Date.now();
         const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
         LocalDB.add('users', member);
+        console.log("User saved to LocalDB fallback");
+        return username;
+    } else {
+        throw new Error("Não foi possível criar o usuário após várias tentativas. O nome de usuário pode estar muito comum.");
     }
   },
 
@@ -440,6 +490,33 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.delete('vehicles', id); logActivity("Excluiu Veículo", `ID: ${id}`, 'TIRES'); return; }
     await db.collection("vehicles").doc(id).delete();
     logActivity("Excluiu Veículo", `ID: ${id}`, 'TIRES');
+  },
+
+  subscribeToVehicleBrandModels: (callback: (models: VehicleBrandModel[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe('vehicleBrandModels', callback);
+    return db.collection("vehicleBrandModels").onSnapshot((snapshot) => {
+      const models: VehicleBrandModel[] = [];
+      snapshot.forEach((doc) => models.push(doc.data() as VehicleBrandModel));
+      callback(models);
+    }, (error) => console.error("Error subscribing to vehicleBrandModels:", error));
+  },
+
+  addVehicleBrandModel: async (model: VehicleBrandModel) => {
+    if (mockUser || !db) { LocalDB.add('vehicleBrandModels', model); logActivity("Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model));
+    logActivity("Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
+  },
+
+  updateVehicleBrandModel: async (model: VehicleBrandModel) => {
+    if (mockUser || !db) { LocalDB.update('vehicleBrandModels', model.id, model); logActivity("Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model), { merge: true });
+    logActivity("Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
+  },
+
+  deleteVehicleBrandModel: async (id: string) => {
+    if (mockUser || !db) { LocalDB.delete('vehicleBrandModels', id); logActivity("Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(id).delete();
+    logActivity("Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
   },
 
   updateVehicleBatch: async (updates: any[]) => {
@@ -587,6 +664,54 @@ export const storageService = {
   updateServiceOrder: async (orderId: string, updates: Partial<ServiceOrder>) => {
     if (mockUser || !db) { LocalDB.update('service_orders', orderId, updates); return; }
     await db.collection("service_orders").doc(orderId).update(sanitize(updates));
+  },
+
+  subscribeToMaintenancePlans: (callback: (plans: import('../types').MaintenancePlan[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe('maintenance_plans', callback);
+    return db.collection("maintenance_plans").onSnapshot(snapshot => {
+      const plans: import('../types').MaintenancePlan[] = [];
+      snapshot.forEach(doc => plans.push(doc.data() as import('../types').MaintenancePlan));
+      callback(plans);
+    }, () => callback([]));
+  },
+
+  addMaintenancePlan: async (plan: import('../types').MaintenancePlan) => {
+    if (mockUser || !db) { LocalDB.add('maintenance_plans', plan); return; }
+    await db.collection("maintenance_plans").doc(plan.id).set(sanitize(plan));
+  },
+
+  updateMaintenancePlan: async (planId: string, updates: Partial<import('../types').MaintenancePlan>) => {
+    if (mockUser || !db) { LocalDB.update('maintenance_plans', planId, updates); return; }
+    await db.collection("maintenance_plans").doc(planId).update(sanitize(updates));
+  },
+
+  deleteMaintenancePlan: async (planId: string) => {
+    if (mockUser || !db) { LocalDB.delete('maintenance_plans', planId); return; }
+    await db.collection("maintenance_plans").doc(planId).delete();
+  },
+
+  subscribeToMaintenanceSchedules: (callback: (schedules: import('../types').MaintenanceSchedule[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe('maintenance_schedules', callback);
+    return db.collection("maintenance_schedules").onSnapshot(snapshot => {
+      const schedules: import('../types').MaintenanceSchedule[] = [];
+      snapshot.forEach(doc => schedules.push(doc.data() as import('../types').MaintenanceSchedule));
+      callback(schedules);
+    }, () => callback([]));
+  },
+
+  addMaintenanceSchedule: async (schedule: import('../types').MaintenanceSchedule) => {
+    if (mockUser || !db) { LocalDB.add('maintenance_schedules', schedule); return; }
+    await db.collection("maintenance_schedules").doc(schedule.id).set(sanitize(schedule));
+  },
+
+  updateMaintenanceSchedule: async (scheduleId: string, updates: Partial<import('../types').MaintenanceSchedule>) => {
+    if (mockUser || !db) { LocalDB.update('maintenance_schedules', scheduleId, updates); return; }
+    await db.collection("maintenance_schedules").doc(scheduleId).update(sanitize(updates));
+  },
+
+  deleteMaintenanceSchedule: async (scheduleId: string) => {
+    if (mockUser || !db) { LocalDB.delete('maintenance_schedules', scheduleId); return; }
+    await db.collection("maintenance_schedules").doc(scheduleId).delete();
   },
 
   subscribeToRetreadOrders: (callback: (orders: RetreadOrder[]) => void) => {
@@ -739,13 +864,32 @@ export const storageService = {
   },
 
   updateArrivalAlert: async (id: string, updates: Partial<ArrivalAlert>) => {
-    if (mockUser || !db) { LocalDB.update('arrival_alerts', id, updates); return; }
-    await db.collection("arrival_alerts").doc(id).update(sanitize(updates));
+    try {
+      if (mockUser || !db) { LocalDB.update('arrival_alerts', id, updates); return; }
+      await db.collection("arrival_alerts").doc(id).update(sanitize(updates));
+    } catch (error) {
+      console.error('[storageService] Error updating arrival alert:', error);
+      throw error;
+    }
   },
 
   deleteArrivalAlert: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('arrival_alerts', id); return; }
-    await db.collection("arrival_alerts").doc(id).delete();
+    console.log('[StorageService] deleteArrivalAlert called for ID:', id);
+    console.log('[StorageService] Current state - mockUser:', !!mockUser, 'db:', !!db);
+    
+    if (mockUser || !db) { 
+      console.log('[StorageService] Redirecting to LocalDB.delete');
+      LocalDB.delete('arrival_alerts', id); 
+      return; 
+    }
+    try {
+      console.log('[StorageService] Attempting Firestore delete for doc:', id);
+      await db.collection("arrival_alerts").doc(id).delete();
+      console.log('[StorageService] Firestore delete successful');
+    } catch (error) {
+      console.error('[StorageService] Firestore delete failed:', error);
+      throw error;
+    }
   },
 
   subscribeToTireLoans: (callback: (loans: TireLoan[]) => void) => {

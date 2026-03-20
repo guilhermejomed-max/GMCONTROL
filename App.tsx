@@ -12,7 +12,9 @@ import { DemandForecast } from './components/DemandForecast';
 import { FinancialHub } from './components/FinancialHub';
 import { EsgPanel } from './components/EsgPanel';
 import { RetreaderRanking } from './components/RetreaderRanking';
+import ScrapHub from './components/ScrapHub';
 import { VehicleManager } from './components/VehicleManager';
+import { BrandModelManager } from './components/BrandModelManager';
 import { LocationMap } from './components/LocationMap';
 import { ServiceOrderHub } from './components/ServiceOrderHub';
 import { ServiceManager } from './components/ServiceManager';
@@ -25,8 +27,8 @@ import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
-import { TabView, Tire, Vehicle, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert } from './types';
-import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle } from 'lucide-react';
+import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert } from './types';
+import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X } from 'lucide-react';
 
 const LoginScreen = () => {
   const [username, setUsername] = useState('');
@@ -161,11 +163,15 @@ export const App = () => {
   
   const [tires, setTires] = useState<Tire[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicleBrandModels, setVehicleBrandModels] = useState<VehicleBrandModel[]>([]);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [maintenancePlans, setMaintenancePlans] = useState<import('./types').MaintenancePlan[]>([]);
+  const [maintenanceSchedules, setMaintenanceSchedules] = useState<import('./types').MaintenanceSchedule[]>([]);
   const [retreadOrders, setRetreadOrders] = useState<RetreadOrder[]>([]);
   const [settings, setSettings] = useState<SystemSettings | undefined>(undefined);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [arrivalAlerts, setArrivalAlerts] = useState<ArrivalAlert[]>([]);
+  const [stockItems, setStockItems] = useState<import('./types').StockItem[]>([]);
   
   const [userRole, setUserRole] = useState<UserLevel>('SENIOR'); 
   const [activeModule, setActiveModule] = useState<ModuleType>('TIRES');
@@ -173,6 +179,7 @@ export const App = () => {
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [syncModal, setSyncModal] = useState<{ isOpen: boolean, updatedPlates: string[] }>({ isOpen: false, updatedPlates: [] });
 
   useEffect(() => {
     const unsubAuth = storageService.subscribeToAuth((u) => {
@@ -192,22 +199,30 @@ export const App = () => {
 
     const unsubTires = storageService.subscribeToTires(setTires);
     const unsubVehicles = storageService.subscribeToVehicles(setVehicles);
+    const unsubVehicleBrandModels = storageService.subscribeToVehicleBrandModels(setVehicleBrandModels);
     const unsubServiceOrders = storageService.subscribeToServiceOrders(setServiceOrders);
+    const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(setMaintenancePlans);
+    const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(setMaintenanceSchedules);
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(setRetreadOrders);
     const unsubSettings = storageService.subscribeToSettings(setSettings);
     const unsubDrivers = storageService.subscribeToDrivers(setDrivers);
     const unsubTracker = storageService.subscribeToTrackerSettings(setTrackerSettings);
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(setArrivalAlerts);
+    const unsubStockItems = storageService.subscribeToStock(setStockItems);
     
     return () => {
         unsubTires();
         unsubVehicles();
+        unsubVehicleBrandModels();
         unsubServiceOrders();
+        unsubMaintenancePlans();
+        unsubMaintenanceSchedules();
         unsubRetreadOrders();
         unsubSettings();
         unsubDrivers();
         unsubTracker();
         unsubArrivalAlerts();
+        unsubStockItems();
     };
   }, [user]);
 
@@ -261,120 +276,153 @@ export const App = () => {
 
   // SASCAR SYNC FUNCTION
   const isSyncingRef = useRef(false);
-  const syncSascar = async () => {
-      if (isSyncingRef.current) return 0;
+  const syncSascar = async (showModal: boolean = false) => {
+    if (isSyncingRef.current) {
+      if (showModal) addToast('info', 'Sincronização em andamento', 'Aguarde a conclusão da sincronização atual.');
+      return 0;
+    }
+    
+    const currentVehicles = vehicles;
+    if (currentVehicles.length === 0) {
+      if (showModal) addToast('warning', 'Sem Veículos', 'Não há veículos cadastrados para sincronizar.');
+      return 0;
+    }
+
+    if (!trackerSettings?.active) {
+      if (showModal) addToast('warning', 'Integração Desativada', 'A integração com a Sascar está desativada nas configurações.');
+      return 0;
+    }
+
+    isSyncingRef.current = true;
+    let totalUpdated = 0;
+    
+    if (showModal) addToast('info', 'Sincronizando', 'Buscando dados na Sascar...');
+
+    try {
+      // 1. Otimização de Dados: Deduplicação de placas/IDs para evitar chamadas redundantes
+      const plates = Array.from(new Set(
+        currentVehicles
+          .map(v => String(v.sascarCode || v.plate || ""))
+          .filter(p => p && p.length > 0)
+      ));
       
-      const currentVehicles = vehicles;
-      if (currentVehicles.length === 0) return 0;
-
-      isSyncingRef.current = true;
-      let totalUpdated = 0;
-      try {
-        // Passar os IDs (sascarCode) ou placas para buscar apenas os veículos cadastrados
-        const plates = currentVehicles.map(v => String(v.sascarCode || v.plate || "")).filter(p => p && p.length > 0);
-        
-        console.log(`[Sascar Manual-Sync] Iniciando sincronização para ${plates.length} veículos usando Cód.Sascar ou Placa...`);
-        
-        const CHUNK_SIZE = 40;
-        const updatesBatch: any[] = [];
-        const processedIds = new Set<string>();
-
-        // Garantir que chamamos pelo menos uma vez se houver veículos, mesmo sem sascarCode (para pegar a fila)
-        const chunksToProcess = plates.length > 0 ? plates : [[] as string[]];
-
-        for (let i = 0; i < (plates.length > 0 ? plates.length : 1); i += CHUNK_SIZE) {
-            const chunk = plates.length > 0 ? plates.slice(i, i + CHUNK_SIZE) : [];
-            
-            // Otimização: Se já temos dados atualizados para todos nesse chunk (vindos de um flush anterior), podemos pular
-            if (chunk.length > 0) {
-                const missingInChunk = chunk.filter(p => {
-                    const cleanP = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-                    const id = parseInt(p.replace(/\D/g, ""), 10);
-                    return !processedIds.has(cleanP) && (!isNaN(id) ? !processedIds.has(id.toString()) : true);
-                });
-                
-                if (i > 0 && missingInChunk.length === 0) {
-                    console.log(`[Sascar Manual-Sync] Lote ${i / CHUNK_SIZE + 1} já possui dados de um flush anterior.`);
-                    continue;
-                }
-            }
-
-            console.log(`[Sascar Manual-Sync] Sincronizando lote ${plates.length > 0 ? (i / CHUNK_SIZE + 1) : 1}...`);
-            
-            try {
-                const result = await sascarService.getVehicles(chunk.length > 0 ? chunk : undefined, trackerSettings || undefined);
-                const rawList = result.data?.return || result.data?.retornar || result.data || [];
-                
-                rawList.forEach((item: any) => {
-                    let sv = item;
-                    if (typeof item === 'string') {
-                        try { sv = JSON.parse(item); if (typeof sv === 'string') sv = JSON.parse(sv); } catch (e) { return; }
-                    }
-
-                    const sascarId = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
-                    const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
-                    
-                    if (isNaN(sascarId) && !sascarPlate) return;
-                    if (!isNaN(sascarId) && processedIds.has(sascarId.toString())) return;
-                    if (sascarPlate && processedIds.has(sascarPlate)) return;
-
-                    const localVehicle = currentVehicles.find(v => {
-                        // Match por ID
-                        const idApp = parseInt(String(v.sascarCode || "").replace(/\D/g, ""), 10);
-                        if (!isNaN(idApp) && !isNaN(sascarId) && idApp === sascarId) return true;
-                        
-                        // Match por Placa
-                        const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
-                        if (plateApp && sascarPlate && plateApp === sascarPlate) return true;
-                        
-                        return false;
-                    });
-
-                    if (localVehicle) {
-                        if (!isNaN(sascarId)) processedIds.add(sascarId.toString());
-                        if (sascarPlate) processedIds.add(sascarPlate);
-                        
-                        const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
-                        const finalOdo = Math.round(Number(rawOdo));
-                        const lat = Number(sv.latitude || sv.lat || 0);
-                        const lng = Number(sv.longitude || sv.lng || 0);
-
-                        updatesBatch.push({
-                            id: localVehicle.id,
-                            odometer: finalOdo,
-                            lastLocation: {
-                                ...localVehicle.lastLocation,
-                                lat: lat,
-                                lng: lng,
-                                address: sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS',
-                                city: sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida',
-                                state: sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || '',
-                                updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || new Date().toISOString()
-                            },
-                            lastAutoUpdateDate: new Date().toISOString()
-                        });
-                    }
-                });
-            } catch (error) {
-                console.error(`[Sascar Manual-Sync] Erro ao sincronizar lote:`, error);
-            }
+      console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} veículos...`);
+      storageService.logActivity("Sincronização Sascar", `Iniciada para ${plates.length} veículos`, 'VEHICLES');
+      
+      const CHUNK_SIZE = 200;
+      const chunks: string[][] = [];
+      
+      if (plates.length === 0) {
+        chunks.push([]); // Chamada vazia para buscar a fila/buffer geral
+      } else {
+        for (let i = 0; i < plates.length; i += CHUNK_SIZE) {
+          chunks.push(plates.slice(i, i + CHUNK_SIZE));
         }
-
-        if (updatesBatch.length > 0) {
-            await storageService.updateVehicleBatch(updatesBatch);
-            totalUpdated = updatesBatch.length;
-            console.log(`[Sascar Manual-Sync] ${updatesBatch.length} veículos atualizados com sucesso.`);
-        } else {
-            console.log("[Sascar Manual-Sync] Nenhum veículo local correspondente encontrado nos dados da Sascar.");
-        }
-        return totalUpdated;
-      } catch (error) {
-        console.error("[Sascar Manual-Sync] Erro:", error);
-        return 0;
-      } finally {
-        isSyncingRef.current = false;
       }
-    };
+
+      // 2. Processamento Sequencial: Evita que lotes posteriores expirem o timeout enquanto esperam o primeiro lote (que limpa a fila)
+      const results = [];
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const chunkId = i + 1;
+        const totalChunks = chunks.length;
+        
+        try {
+          console.log(`[Sascar Sync] Solicitando lote ${chunkId}/${totalChunks}...`);
+          const result = await sascarService.getVehicles(
+            chunk.length > 0 ? chunk : undefined, 
+            trackerSettings || undefined
+          );
+          
+          console.log(`[Sascar Sync] Lote ${chunkId}/${totalChunks} recebido.`);
+          results.push(result.data?.return || result.data?.retornar || result.data || []);
+        } catch (error: any) {
+          console.error(`[Sascar Sync] Falha no lote ${chunkId}/${totalChunks}:`, error.message);
+          // Continuamos para o próximo lote mesmo se um falhar
+        }
+      }
+
+      // 4. Consolidação: Processar todos os itens recebidos e remover duplicatas
+      const allRawItems = results.flat();
+      const updatesBatch: any[] = [];
+      const processedIds = new Set<string>();
+      const updatedPlatesList: string[] = [];
+
+      allRawItems.forEach((item: any) => {
+        let sv = item;
+        if (typeof item === 'string') {
+          try { 
+            sv = JSON.parse(item); 
+            if (typeof sv === 'string') sv = JSON.parse(sv); 
+          } catch (e) { return; }
+        }
+
+        const sascarId = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
+        const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        
+        if (isNaN(sascarId) && !sascarPlate) return;
+        
+        const uniqueKey = !isNaN(sascarId) ? `id_${sascarId}` : `plate_${sascarPlate}`;
+        if (processedIds.has(uniqueKey)) return;
+        processedIds.add(uniqueKey);
+
+        const localVehicle = currentVehicles.find(v => {
+          const idApp = parseInt(String(v.sascarCode || "").replace(/\D/g, ""), 10);
+          if (!isNaN(idApp) && !isNaN(sascarId) && idApp === sascarId) return true;
+          
+          const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          if (plateApp && sascarPlate && plateApp === sascarPlate) return true;
+          
+          return false;
+        });
+
+        if (localVehicle) {
+          const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
+          const finalOdo = Math.round(Number(rawOdo));
+          const lat = Number(sv.latitude || sv.lat || 0);
+          const lng = Number(sv.longitude || sv.lng || 0);
+
+          updatesBatch.push({
+            id: localVehicle.id,
+            odometer: finalOdo,
+            lastLocation: {
+              ...localVehicle.lastLocation,
+              lat: lat,
+              lng: lng,
+              address: sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS',
+              city: sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida',
+              state: sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || '',
+              updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || new Date().toISOString()
+            },
+            lastAutoUpdateDate: new Date().toISOString()
+          });
+          updatedPlatesList.push(localVehicle.plate);
+        }
+      });
+
+      if (updatesBatch.length > 0) {
+        await storageService.updateVehicleBatch(updatesBatch);
+        totalUpdated = updatesBatch.length;
+        console.log(`[Sascar Sync] Sincronização finalizada: ${totalUpdated} veículos atualizados.`);
+        if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
+      } else {
+        console.log("[Sascar Sync] Nenhum dado novo para atualizar.");
+        if (showModal) addToast('info', 'Sincronização', 'Nenhum dado novo encontrado para os veículos cadastrados.');
+      }
+      
+      if (showModal) {
+        setSyncModal({ isOpen: true, updatedPlates: updatedPlatesList });
+      }
+      
+      return totalUpdated;
+    } catch (error: any) {
+      console.error("[Sascar Sync] Erro crítico:", error);
+      addToast('error', 'Erro na Sincronização', error.message || 'Falha ao comunicar com a Sascar.');
+      return 0;
+    } finally {
+      isSyncingRef.current = false;
+    }
+  };
 
   // Auto-sync when entering location tab
   useEffect(() => {
@@ -433,8 +481,9 @@ export const App = () => {
       case 'financial': return 'Financeiro';
       case 'esg-panel': return 'Painel ESG';
       case 'fleet': return 'Frota de Veículos';
+      case 'brand-models': return 'Marcas e Modelos';
       case 'location': return 'Rastreamento';
-      case 'service-orders': return 'Ordens de Serviço';
+      case 'service-orders': return 'Oficina';
       case 'service': return 'Almoxarifado';
       case 'settings': return 'Configurações';
       case 'drivers': return 'Motoristas';
@@ -511,11 +560,12 @@ export const App = () => {
             </header>
 
             {currentTab === 'dashboard' && <Dashboard tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} onNavigate={setCurrentTab} settings={settings} />}
-            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} onDelete={storageService.deleteTire} onUpdateTire={storageService.updateTire} onRegister={() => setCurrentTab('register')} userLevel={userRole} />}
-            {currentTab === 'scrap' && <InventoryList tires={tires} vehicles={vehicles} onDelete={storageService.deleteTire} onUpdateTire={storageService.updateTire} userLevel={userRole} viewMode="scrap" />}
+            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={storageService.deleteTire} onUpdateTire={storageService.updateTire} onRegister={() => setCurrentTab('register')} userLevel={userRole} />}
+            {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} userLevel={userRole} />}
             {currentTab === 'register' && <TireForm onAddTire={storageService.addTire} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
             {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onAddTire={storageService.addTire} userLevel={userRole} settings={settings} />}
-            {currentTab === 'fleet' && <VehicleManager vehicles={vehicles} tires={tires} serviceOrders={serviceOrders} onAddVehicle={storageService.addVehicle} onDeleteVehicle={storageService.deleteVehicle} onUpdateVehicle={storageService.updateVehicle} userLevel={userRole} settings={settings} trackerSettings={trackerSettings} onSyncSascar={syncSascar} />}
+            {currentTab === 'brand-models' && <BrandModelManager vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} />}
+            {currentTab === 'fleet' && <VehicleManager vehicles={vehicles} vehicleBrandModels={vehicleBrandModels} tires={tires} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onAddVehicle={storageService.addVehicle} onDeleteVehicle={storageService.deleteVehicle} onUpdateVehicle={storageService.updateVehicle} userLevel={userRole} settings={settings} trackerSettings={trackerSettings} onSyncSascar={syncSascar} />}
             {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onCreateServiceOrder={storageService.addServiceOrder} settings={settings} />}
             {currentTab === 'retreading' && <RetreadingHub tires={tires} retreadOrders={retreadOrders} onUpdateTire={storageService.updateTire} onNotification={addToast} settings={settings} />}
             {currentTab === 'retreader-ranking' && <RetreaderRanking tires={tires} retreadOrders={retreadOrders} />}
@@ -524,9 +574,9 @@ export const App = () => {
             {currentTab === 'financial' && <FinancialHub tires={tires} vehicles={vehicles} retreadOrders={retreadOrders} />}
             {currentTab === 'esg-panel' && <EsgPanel tires={tires} retreadOrders={retreadOrders} />}
             {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} onSync={syncSascar} />}
-            {currentTab === 'service-orders' && <ServiceOrderHub serviceOrders={serviceOrders} vehicles={vehicles} tires={tires} onUpdateOrder={storageService.updateServiceOrder} onAddOrder={handleAddServiceOrder} settings={settings} arrivalAlerts={arrivalAlerts} />}
+            {currentTab === 'service-orders' && <ServiceOrderHub serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} vehicles={vehicles} vehicleBrandModels={vehicleBrandModels} tires={tires} stockItems={stockItems} onUpdateOrder={storageService.updateServiceOrder} onAddOrder={handleAddServiceOrder} settings={settings} arrivalAlerts={arrivalAlerts} />}
             {currentTab === 'service' && <ServiceManager userLevel={userRole} />}
-            {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} />}
+            {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} vehicleBrandModels={vehicleBrandModels} />}
             {currentTab === 'settings' && <Settings currentSettings={settings || {} as any} onUpdateSettings={storageService.saveSettings} />}
             {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={storageService.addDriver} onUpdateDriver={storageService.updateDriver} onDeleteDriver={storageService.deleteDriver} onUpdateVehicle={storageService.updateVehicle} />}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent />}
@@ -535,6 +585,50 @@ export const App = () => {
 
       <NotificationsPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} tires={tires} vehicles={vehicles} settings={settings || {} as any} arrivalAlerts={arrivalAlerts} />
       <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+
+      {syncModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800">Sincronização Concluída</h3>
+              <button onClick={() => setSyncModal({ isOpen: false, updatedPlates: [] })} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              {syncModal.updatedPlates.length > 0 ? (
+                <>
+                  <p className="text-sm text-slate-600 mb-4">
+                    Foram atualizados {syncModal.updatedPlates.length} veículos com sucesso:
+                  </p>
+                  <div className="max-h-60 overflow-y-auto bg-slate-50 rounded-lg p-4 border border-slate-100">
+                    <ul className="space-y-2">
+                      {syncModal.updatedPlates.map((plate, idx) => (
+                        <li key={idx} className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          {plate}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-slate-600 text-center py-4">
+                  Nenhum veículo precisou ser atualizado no momento.
+                </p>
+              )}
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setSyncModal({ isOpen: false, updatedPlates: [] })}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
