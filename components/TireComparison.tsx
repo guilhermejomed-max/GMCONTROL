@@ -158,6 +158,101 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
       return issues;
   }, [tireAnalysis]);
 
+  // --- AUDITORIA AUTOMÁTICA DE DESVIO DE PERFORMANCE (DEEP ANALYTICS) ---
+  const deepAnalyticsAnomalies = useMemo(() => {
+      const anomalies: { 
+          title: string; 
+          description: string; 
+          cause: string; 
+          action: string;
+          severity: 'high' | 'medium';
+      }[] = [];
+
+      const axles: Record<string, typeof tireAnalysis> = {};
+      
+      tireAnalysis.forEach(item => {
+          const pos = item.tire.position || '';
+          const match = pos.match(/^(\d+)([A-Z]+)$/);
+          if (match) {
+              const axleNum = match[1];
+              if (!axles[axleNum]) axles[axleNum] = [];
+              axles[axleNum].push(item);
+          }
+      });
+
+      Object.entries(axles).forEach(([axleNum, items]) => {
+          // Filtra pneus com desgaste mensurável para análise confiável
+          const validItems = items.filter(i => (i.tire.originalTreadDepth! - i.currentDepth) > 1.5);
+          
+          if (validItems.length >= 2) {
+              for (let i = 0; i < validItems.length; i++) {
+                  for (let j = i + 1; j < validItems.length; j++) {
+                      const t1 = validItems[i];
+                      const t2 = validItems[j];
+                      
+                      // Usa a taxa de desgaste (mm/km) se ambos tiverem rodagem, senão usa o desgaste absoluto
+                      let wear1 = 0;
+                      let wear2 = 0;
+                      
+                      if (t1.totalKmRun > 2000 && t2.totalKmRun > 2000) {
+                          wear1 = (t1.tire.originalTreadDepth! - t1.currentDepth) / t1.totalKmRun;
+                          wear2 = (t2.tire.originalTreadDepth! - t2.currentDepth) / t2.totalKmRun;
+                      } else {
+                          // Se não tem km confiável, compara apenas a profundidade atual assumindo que foram instalados juntos
+                          wear1 = t1.tire.originalTreadDepth! - t1.currentDepth;
+                          wear2 = t2.tire.originalTreadDepth! - t2.currentDepth;
+                      }
+                      
+                      if (wear1 > 0 && wear2 > 0) {
+                          const diffRatio = Math.max(wear1, wear2) / Math.min(wear1, wear2);
+                          
+                          if (diffRatio > 1.18) { // > 18% de diferença
+                              const faster = wear1 > wear2 ? t1 : t2;
+                              const slower = wear1 > wear2 ? t2 : t1;
+                              const percentDiff = Math.round((diffRatio - 1) * 100);
+                              
+                              const pos1 = faster.tire.position!;
+                              const pos2 = slower.tire.position!;
+                              
+                              let cause = "";
+                              let action = "";
+                              
+                              if ((pos1.includes('E') && pos2.includes('D')) || (pos1.includes('D') && pos2.includes('E'))) {
+                                  if (axleNum === "1") {
+                                      cause = "Desalinhamento severo (convergência/divergência) ou folga no terminal de direção.";
+                                      action = "Agendar alinhamento de direção e balanceamento imediato.";
+                                  } else {
+                                      cause = "Arraste por folga no pino rei, embuchamento do tensor desgastado ou excesso de frenagem em curva.";
+                                      action = "Inspecionar suspensão, embuchamento e revisar telemetria de frenagem.";
+                                  }
+                              } else if ((pos1.includes('I') && pos2.includes('E')) || (pos1.includes('E') && pos2.includes('I'))) {
+                                  cause = "Diferença de pressão entre os geminados (pneu mais vazio arrasta) ou problema de cambagem no eixo.";
+                                  action = "Calibrar imediatamente e verificar válvulas. Se persistir, revisar cambagem do eixo.";
+                              } else {
+                                  cause = "Desgaste irregular acentuado.";
+                                  action = "Inspecionar conjunto mecânico.";
+                              }
+
+                              anomalies.push({
+                                  title: `Alerta de Má Condução ou Erro de Montagem`,
+                                  description: `Veículo ${vehicle.plate}: O pneu da posição ${pos1} está desgastando ${percentDiff}% mais rápido que o par (posição ${pos2}).`,
+                                  cause: cause,
+                                  action: action,
+                                  severity: percentDiff > 25 ? 'high' : 'medium'
+                              });
+                          }
+                      }
+                  }
+              }
+          }
+      });
+
+      // Remove duplicatas baseadas na descrição
+      const uniqueAnomalies = anomalies.filter((v, i, a) => a.findIndex(t => (t.description === v.description)) === i);
+      
+      return uniqueAnomalies.sort((a, b) => b.severity.localeCompare(a.severity)).slice(0, 1); // Mostra apenas a pior anomalia
+  }, [tireAnalysis, vehicle.plate]);
+
   // --- KPIs GERAIS ---
   const fleetScore = useMemo(() => {
       if (tireAnalysis.length === 0) return 0;
@@ -580,6 +675,34 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
             </div>
         </div>
 
+        {/* DEEP ANALYTICS ANOMALIES */}
+        {deepAnalyticsAnomalies.length > 0 && (
+            <div className="px-6 py-2 shrink-0">
+                {deepAnalyticsAnomalies.map((anomaly, idx) => (
+                    <div key={idx} className={`relative p-5 rounded-2xl border overflow-hidden shadow-sm flex items-start gap-4 ${anomaly.severity === 'high' ? 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800/50' : 'bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border-amber-200 dark:border-amber-800/50'}`}>
+                        <div className={`p-3 rounded-xl shrink-0 ${anomaly.severity === 'high' ? 'bg-red-100 dark:bg-red-800/50 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-800/50 text-amber-600 dark:text-amber-400'}`}>
+                            <Activity className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-full ${anomaly.severity === 'high' ? 'text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-100 dark:bg-red-900/50' : 'text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800 bg-amber-100 dark:bg-amber-900/50'}`}>
+                                    Auditoria Automática (Deep Analytics)
+                                </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-1">{anomaly.title}</h4>
+                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-2">
+                                <strong>{anomaly.description}</strong>
+                            </p>
+                            <div className="bg-white/60 dark:bg-black/20 p-3 rounded-lg border border-black/5 dark:border-white/5">
+                                <p className="text-xs text-slate-700 dark:text-slate-300 mb-1"><span className="font-bold">Causa provável:</span> {anomaly.cause}</p>
+                                <p className="text-xs text-slate-700 dark:text-slate-300"><span className="font-bold">Ação recomendada:</span> {anomaly.action}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+
         {/* BRAND BATTLE CARD (ON-SCREEN) */}
         {brandAnalysis.winner && brandAnalysis.all.length > 1 && (
             <div className="px-6 py-2 shrink-0">
@@ -617,6 +740,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                         </div>
                     </div>
                 </div>
+
             </div>
         )}
 

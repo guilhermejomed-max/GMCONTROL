@@ -243,6 +243,11 @@ export const App = () => {
     activeAlerts.forEach(alert => {
       const vehicle = vehicles.find(v => v.plate === alert.vehiclePlate);
       if (vehicle && vehicle.lastLocation) {
+        // Check if there is a minimum odometer requirement for this alert
+        if (alert.minOdometer && vehicle.odometer < alert.minOdometer) {
+          return; // Skip if vehicle hasn't reached the required mileage
+        }
+
         const { lat, lng } = vehicle.lastLocation;
         
         // Calculate distance (Haversine formula)
@@ -599,7 +604,7 @@ export const App = () => {
             {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} userLevel={userRole} />}
             {currentTab === 'register' && <TireForm onAddTire={storageService.addTire} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
             {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onAddTire={storageService.addTire} userLevel={userRole} settings={settings} />}
-            {currentTab === 'brand-models' && <BrandModelManager vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} />}
+            {currentTab === 'brand-models' && <BrandModelManager vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} />}
             {currentTab === 'fleet' && <VehicleManager 
               vehicles={vehicles} 
               vehicleBrandModels={vehicleBrandModels} 

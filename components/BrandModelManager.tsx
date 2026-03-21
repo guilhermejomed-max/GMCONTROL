@@ -1,17 +1,27 @@
 import React, { useState, FC, useMemo } from 'react';
-import { VehicleBrandModel, MaintenancePlan } from '../types';
+import { VehicleBrandModel, MaintenancePlan, Vehicle, ServiceOrder, Tire } from '../types';
 import { storageService } from '../services/storageService';
-import { Save, Trash2, PenLine, Truck, Loader2, Plus, X, Car, ClipboardList, ChevronRight, LayoutGrid } from 'lucide-react';
+import { Save, Trash2, PenLine, Truck, Loader2, Plus, X, Car, ClipboardList, ChevronRight, LayoutGrid, BarChart3 } from 'lucide-react';
 
 interface BrandModelManagerProps {
   vehicleBrandModels: VehicleBrandModel[];
   maintenancePlans?: MaintenancePlan[];
+  vehicles?: Vehicle[];
+  serviceOrders?: ServiceOrder[];
+  tires?: Tire[];
 }
 
-export const BrandModelManager: FC<BrandModelManagerProps> = ({ vehicleBrandModels, maintenancePlans = [] }) => {
+export const BrandModelManager: FC<BrandModelManagerProps> = ({ 
+  vehicleBrandModels, 
+  maintenancePlans = [],
+  vehicles = [],
+  serviceOrders = [],
+  tires = []
+}) => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
   const [isAddingModel, setIsAddingModel] = useState(false);
+  const [isComparing, setIsComparing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   
@@ -88,6 +98,33 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({ vehicleBrandMode
     }
   };
 
+  const comparisonData = useMemo(() => {
+    return vehicleBrandModels.map(bm => {
+      const bmVehicles = vehicles.filter(v => v.brandModelId === bm.id);
+      const vehicleIds = bmVehicles.map(v => v.id);
+      
+      const bmServiceOrders = serviceOrders.filter(so => vehicleIds.includes(so.vehicleId));
+      const totalMaintenanceCost = bmServiceOrders.reduce((sum, so) => sum + (so.totalCost || 0), 0);
+      const totalMaintenances = bmServiceOrders.length;
+      
+      const bmTires = tires.filter(t => t.vehicleId && vehicleIds.includes(t.vehicleId));
+      const prematureWearTires = bmTires.filter(t => 
+        t.status === 'Danificado/Descarte' || 
+        (t.visualDamages && t.visualDamages.length > 0)
+      ).length;
+
+      return {
+        ...bm,
+        vehicleCount: bmVehicles.length,
+        totalMaintenances,
+        totalMaintenanceCost,
+        avgCostPerVehicle: bmVehicles.length > 0 ? totalMaintenanceCost / bmVehicles.length : 0,
+        prematureWearTires,
+        totalTires: bmTires.length
+      };
+    }).sort((a, b) => b.vehicleCount - a.vehicleCount);
+  }, [vehicleBrandModels, vehicles, serviceOrders, tires]);
+
   const selectedBrandData = brands.find(b => b.name === selectedBrand);
 
   return (
@@ -100,12 +137,20 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({ vehicleBrandMode
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie as marcas e modelos de veículos da sua frota.</p>
         </div>
-        <button 
-          onClick={handleOpenAddBrand} 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
-        >
-          <Plus className="h-5 w-5" /> Nova Marca
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsComparing(true)} 
+            className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all"
+          >
+            <BarChart3 className="h-5 w-5 text-indigo-500" /> Comparativo
+          </button>
+          <button 
+            onClick={handleOpenAddBrand} 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+          >
+            <Plus className="h-5 w-5" /> Nova Marca
+          </button>
+        </div>
       </div>
 
       {/* Brands Grid */}
@@ -311,6 +356,80 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({ vehicleBrandMode
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Comparison Modal */}
+      {isComparing && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-[95%] max-w-5xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950 shrink-0">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase flex items-center gap-3">
+                  <BarChart3 className="h-6 w-6 text-indigo-500" /> Comparativo de Marcas e Modelos
+                </h3>
+                <p className="text-sm text-slate-500 font-medium">Análise de rentabilidade, manutenções e desgastes prematuros</p>
+              </div>
+              <button onClick={() => setIsComparing(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                <X className="h-6 w-6 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left whitespace-nowrap">
+                  <thead>
+                    <tr className="text-xs font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                      <th className="pb-3 px-2">Marca / Modelo</th>
+                      <th className="pb-3 px-2 text-center">Veículos</th>
+                      <th className="pb-3 px-2 text-center">Manutenções</th>
+                      <th className="pb-3 px-2 text-right">Custo Total</th>
+                      <th className="pb-3 px-2 text-right">Custo Médio/Veículo</th>
+                      <th className="pb-3 px-2 text-center">Desgaste Prematuro (Pneus)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                    {comparisonData.map(data => (
+                      <tr key={data.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-4 px-2">
+                          <div className="font-bold text-slate-800 dark:text-white uppercase">{data.brand}</div>
+                          <div className="text-xs text-slate-500 font-medium">{data.model}</div>
+                        </td>
+                        <td className="py-4 px-2 text-center font-bold text-slate-600 dark:text-slate-400">
+                          {data.vehicleCount}
+                        </td>
+                        <td className="py-4 px-2 text-center font-bold text-slate-600 dark:text-slate-400">
+                          {data.totalMaintenances}
+                        </td>
+                        <td className="py-4 px-2 text-right font-bold text-red-600 dark:text-red-400">
+                          R$ {data.totalMaintenanceCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-4 px-2 text-right font-bold text-orange-600 dark:text-orange-400">
+                          R$ {data.avgCostPerVehicle.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-4 px-2 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                            data.prematureWearTires > 0 
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          }`}>
+                            {data.prematureWearTires} {data.prematureWearTires === 1 ? 'pneu' : 'pneus'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {comparisonData.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-500 font-medium">
+                          Nenhum dado disponível para comparação.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}

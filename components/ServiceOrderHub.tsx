@@ -184,19 +184,51 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
 
           // Update Maintenance Schedule if applicable
           const vehicle = vehicles.find(v => v.plate === order.vehiclePlate);
-          if (vehicle) {
-              const schedule = maintenanceSchedules.find(s => s.vehicleId === vehicle.id);
-              if (schedule) {
-                  const plan = maintenancePlans.find(p => p.id === schedule.planId);
-                  if (plan && plan.intervalKm) {
-                      const newLastPerformedKm = vehicle.odometer;
-                      const newNextDueKm = newLastPerformedKm + plan.intervalKm;
+          if (vehicle && order.maintenancePlanId) {
+              const plan = maintenancePlans.find(p => p.id === order.maintenancePlanId);
+              if (plan && plan.intervalKm) {
+                  const newLastPerformedKm = vehicle.odometer;
+                  const newNextDueKm = newLastPerformedKm + plan.intervalKm;
+                  
+                  const schedule = maintenanceSchedules.find(s => s.vehicleId === vehicle.id && s.planId === plan.id);
+                  if (schedule) {
                       await storageService.updateMaintenanceSchedule(schedule.id, {
                           lastPerformedKm: newLastPerformedKm,
                           lastPerformedDate: new Date().toISOString(),
                           nextDueKm: newNextDueKm,
                           status: 'PENDING'
                       });
+                  } else {
+                      await storageService.addMaintenanceSchedule({
+                          id: Date.now().toString(),
+                          vehicleId: vehicle.id,
+                          planId: plan.id,
+                          lastPerformedKm: newLastPerformedKm,
+                          lastPerformedDate: new Date().toISOString(),
+                          nextDueKm: newNextDueKm,
+                          status: 'PENDING'
+                      });
+                  }
+
+                  // Schedule next service alert if base is known
+                  if (order.maintenanceBaseId && settings?.savedPoints) {
+                      const base = settings.savedPoints.find(p => p.id === order.maintenanceBaseId);
+                      if (base) {
+                          const newAlert: ArrivalAlert = {
+                              id: Date.now().toString() + Math.random().toString(36).substring(7),
+                              vehiclePlate: vehicle.plate,
+                              targetName: base.name,
+                              targetLat: base.lat,
+                              targetLng: base.lng,
+                              radius: base.radius || settings.alertRadius || 500,
+                              services: `Próxima PMS: ${plan.name}`,
+                              status: 'PENDING',
+                              createdAt: new Date().toISOString(),
+                              createdBy: 'Sistema (PMS)',
+                              minOdometer: newNextDueKm
+                          };
+                          await storageService.addArrivalAlert(newAlert);
+                      }
                   }
               }
           }

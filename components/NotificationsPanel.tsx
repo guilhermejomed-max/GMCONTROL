@@ -198,6 +198,13 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                     <span>Criado em: {new Date(alert.createdAt).toLocaleString('pt-BR')}</span>
                   </div>
                   
+                  {alert.minOdometer && alert.status === 'PENDING' && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-orange-500 font-bold">
+                      <Gauge className="h-3 w-3" />
+                      <span>Avisar apenas após: {alert.minOdometer.toLocaleString()} km</span>
+                    </div>
+                  )}
+
                   {alert.status === 'ARRIVED' && alert.actualArrivalDate && (
                     <div className="flex items-center gap-1.5 text-[10px] text-green-600 font-bold">
                       <CheckCircle2 className="h-3 w-3" />

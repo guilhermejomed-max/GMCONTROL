@@ -166,6 +166,7 @@ export interface ArrivalAlert {
   createdBy: string;
   actualArrivalDate?: string;
   services?: string;
+  minOdometer?: number; // Added for PMS scheduling
 }
 
 export interface TireModelDefinition {

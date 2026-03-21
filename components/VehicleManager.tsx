@@ -4,6 +4,7 @@ import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSet
 import { storageService } from '../services/storageService';
 import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
+import { DigitalTwin } from './DigitalTwin';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
 DAJ5H64;2215706
@@ -1815,6 +1816,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                                 {alert.services}
                               </p>
                             )}
+                            {alert.minOdometer && (
+                              <p className="text-xs text-orange-500 font-bold mt-0.5">
+                                <Gauge className="h-3 w-3 inline mr-1" />
+                                Avisar após: {alert.minOdometer.toLocaleString()} km
+                              </p>
+                            )}
                             <p className="text-[10px] text-slate-500">Raio: {alert.radius}m | Status: <span className={alert.status === 'ARRIVED' ? 'text-green-600 font-black' : 'text-orange-600'}>{alert.status}</span></p>
                           </div>
                           <div className="flex items-center gap-1">
@@ -1870,23 +1877,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                     <h4 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
                         <Activity className="h-4 w-4 text-blue-600" /> Pneus Montados ({tires.filter(t => t.vehicleId === selectedVehicleRG.id).length})
                     </h4>
-                    <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl max-h-60 overflow-y-auto border border-slate-100 dark:border-slate-700">
-                        {tires.filter(t => t.vehicleId === selectedVehicleRG.id).length === 0 ? (
-                            <p className="text-xs text-slate-400 text-center py-4 italic">Nenhum pneu montado</p>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {tires.filter(t => t.vehicleId === selectedVehicleRG.id).map(tire => (
-                                    <div key={tire.id} className="flex justify-between items-center p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-                                        <div>
-                                            <p className="font-bold text-xs text-slate-800 dark:text-white">{tire.fireNumber}</p>
-                                            <p className="text-[9px] text-slate-500">{tire.brand} {tire.model} - Pos: {tire.position}</p>
-                                        </div>
-                                        <p className="text-xs font-bold text-blue-600">{tire.currentTreadDepth} mm</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <DigitalTwin 
+                      vehicle={selectedVehicleRG} 
+                      mountedTires={tires.filter(t => t.vehicleId === selectedVehicleRG.id)} 
+                      settings={settings} 
+                    />
                 </div>
                   </>
                 )}
