@@ -456,7 +456,7 @@ async function startServer() {
           // Para o flush manual, usamos mapas temporários
           const tempPositions = new Map();
           const tempMap = new Map();
-          const stats = await drainSascarQueue(user, pass, client, tempPositions, tempMap, 100, start, 10 * 60 * 1000, false);
+          const stats = await drainSascarQueue(user, pass, client, tempPositions, tempMap, 20, start, 20 * 1000, false);
           res.json({ status: "success", ...stats, time_ms: Date.now() - start });
       } catch (error: any) {
           logToFile(`[Sascar] Erro no Flush endpoint: ${error.message}`);
@@ -576,7 +576,7 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 50 : 80); 
+      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 10 : 20); 
           
           if (!isBackground) {
               logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar alcançar o tempo real.`);
