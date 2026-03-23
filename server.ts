@@ -10,10 +10,14 @@ import axios from "axios";
 
 dotenv.config();
 
-const logFile = path.join(process.cwd(), 'server-debug.log');
+const logFile = process.env.VERCEL ? '/tmp/server-debug.log' : path.join(process.cwd(), 'server-debug.log');
 function logToFile(msg: string) {
   const time = new Date().toISOString();
-  fs.appendFileSync(logFile, `[${time}] ${msg}\n`);
+  try {
+    fs.appendFileSync(logFile, `[${time}] ${msg}\n`);
+  } catch (e) {
+    // Ignore file write errors in serverless environments
+  }
   console.log(msg);
 }
 
@@ -509,7 +513,7 @@ async function startServer() {
 
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
-      const MAX_REQUEST_TIME = 55000; // Reduzido para 55s para garantir resposta antes do proxy timeout
+      const MAX_REQUEST_TIME = process.env.VERCEL ? 8000 : 55000; // Reduzido para 8s na Vercel para evitar timeout
       const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
@@ -576,7 +580,9 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 10 : 20); 
+      const MAX_QUEUE_ITERATIONS = process.env.VERCEL 
+          ? (isBackground ? 5 : 2) 
+          : (isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 10 : 20)); 
           
           if (!isBackground) {
               logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar alcançar o tempo real.`);
@@ -695,7 +701,8 @@ async function startServer() {
                   const BATCH_SIZE = 10;
                   for (let i = 0; i < platesToFetch.length; i += BATCH_SIZE) {
                       // No foreground, paramos mais cedo para garantir que o histórico tenha tempo de rodar
-                      if (!isBackground && i > 0 && Date.now() - startTime >= MAX_REQUEST_TIME - 10000) {
+                      const bufferTime = process.env.VERCEL ? 2000 : 10000;
+                      if (!isBackground && i > 0 && Date.now() - startTime >= MAX_REQUEST_TIME - bufferTime) {
                           logToFile(`[Sascar] Tempo esgotado para histórico no foreground. Interrompendo no lote ${i}/${platesToFetch.length}`);
                           break;
                       }
@@ -898,20 +905,29 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    // Serve static files in production
+  } else if (!process.env.VERCEL) {
+    // Serve static files in production (only if not on Vercel, as Vercel handles static files automatically)
     app.use(express.static("dist"));
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
 }
 
-startServer();
+const appPromise = startServer();
+
+export default async function handler(req: any, res: any) {
+  const app = await appPromise;
+  return app(req, res);
+}

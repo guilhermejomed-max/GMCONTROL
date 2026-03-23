@@ -1183,7 +1183,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       console.log(`[Sascar Sync Debug] Veículos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} identificadores...`);
       
-      const CHUNK_SIZE = 200;
+      const CHUNK_SIZE = 50;
       let updatedCount = 0;
       const bestUpdates = new Map(); // Usaremos isso para filtrar o melhor ponto de cada carro
 

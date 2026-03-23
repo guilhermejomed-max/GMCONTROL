@@ -322,7 +322,7 @@ export const App = () => {
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} veículos...`);
       storageService.logActivity("Sincronização Sascar", `Iniciada para ${plates.length} veículos`, 'VEHICLES');
       
-      const CHUNK_SIZE = 200;
+      const CHUNK_SIZE = 20;
       const chunks: string[][] = [];
       
       if (plates.length === 0) {
