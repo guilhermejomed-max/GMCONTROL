@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/**/*": {
-      "includeFiles": "sascar-wsdl.xml"
+      "includeFiles": "api/sascar-wsdl.xml"
     }
   }
 }

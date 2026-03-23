@@ -167,7 +167,7 @@ async function startServer() {
   const SASCAR_USER = process.env.SASCAR_USER || "JOMEDELOGTORREOPENTECH";
   const SASCAR_PASS = process.env.SASCAR_PASS || "sascar";
   const SASCAR_WSDL_URL = 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService?wsdl';
-  const SASCAR_WSDL_LOCAL = path.join(process.cwd(), 'sascar-wsdl.xml');
+  const SASCAR_WSDL_LOCAL = path.join(process.cwd(), 'api', 'sascar-wsdl.xml');
   const SASCAR_WSDL = SASCAR_WSDL_LOCAL; // Prefer local WSDL to avoid fetch errors
 
   const soapClients = new Map<string, any>();
