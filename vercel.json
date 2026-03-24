@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server.ts"
+      "destination": "/api/index"
     },
     {
       "source": "/(.*)",
@@ -10,7 +10,7 @@
     }
   ],
   "functions": {
-    "server.ts": {
+    "api/**/*": {
       "includeFiles": "api/sascar-wsdl.xml"
     }
   }
