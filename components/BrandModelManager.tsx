@@ -4,6 +4,7 @@ import { storageService } from '../services/storageService';
 import { Save, Trash2, PenLine, Truck, Loader2, Plus, X, Car, ClipboardList, ChevronRight, LayoutGrid, BarChart3 } from 'lucide-react';
 
 interface BrandModelManagerProps {
+  orgId: string;
   vehicleBrandModels: VehicleBrandModel[];
   maintenancePlans?: MaintenancePlan[];
   vehicles?: Vehicle[];
@@ -12,6 +13,7 @@ interface BrandModelManagerProps {
 }
 
 export const BrandModelManager: FC<BrandModelManagerProps> = ({ 
+  orgId,
   vehicleBrandModels, 
   maintenancePlans = [],
   vehicles = [],
@@ -76,12 +78,12 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
     setIsSaving(true);
     try {
       if (editingModelId) {
-        await storageService.updateVehicleBrandModel({
+        await storageService.updateVehicleBrandModel(orgId, {
           id: editingModelId,
           ...formData
         } as VehicleBrandModel);
       } else {
-        await storageService.addVehicleBrandModel({
+        await storageService.addVehicleBrandModel(orgId, {
           id: Date.now().toString(36),
           ...formData
         } as VehicleBrandModel);
@@ -100,7 +102,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este modelo?")) {
       try {
-        await storageService.deleteVehicleBrandModel(id);
+        await storageService.deleteVehicleBrandModel(orgId, id);
       } catch (error) {
         console.error("Error deleting brand model:", error);
         alert("Erro ao excluir.");

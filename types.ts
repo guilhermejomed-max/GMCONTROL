@@ -244,6 +244,7 @@ export interface TeamMember {
   permissions?: string[];
   createdAt: string;
   lastLogin?: string; // Novo campo
+  organizacao_id?: string; // ID da organização (Multi-tenant)
 }
 
 export interface StockItem {

@@ -4,13 +4,14 @@ import { ClipboardList, Plus, Search, Calendar, Truck, Save, X, Trash2 } from 'l
 import { storageService } from '../services/storageService';
 
 interface Props {
+  orgId: string;
   plans: MaintenancePlan[];
   schedules: MaintenanceSchedule[];
   vehicles: Vehicle[];
   stockItems: StockItem[];
 }
 
-export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehicles, stockItems }) => {
+export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedules, vehicles, stockItems }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanType, setNewPlanType] = useState<'KM' | 'DATE'>('KM');
@@ -31,7 +32,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
     e.preventDefault();
     if (!newPlanName || !newPlanInterval) return;
 
-    await storageService.addMaintenancePlan({
+    await storageService.addMaintenancePlan(orgId, {
       id: Date.now().toString(),
       name: newPlanName,
       description: newPlanDescription,
@@ -56,7 +57,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
 
   const confirmDeletePlan = async () => {
     if (isDeleteConfirmOpen) {
-      await storageService.deleteMaintenancePlan(isDeleteConfirmOpen);
+      await storageService.deleteMaintenancePlan(orgId, isDeleteConfirmOpen);
       setIsDeleteConfirmOpen(null);
     }
   };
@@ -65,7 +66,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
     e.preventDefault();
     if (!selectedPlanForSchedule || !scheduleVehicleId) return;
 
-    await storageService.addMaintenanceSchedule({
+    await storageService.addMaintenanceSchedule(orgId, {
       id: Date.now().toString(),
       planId: selectedPlanForSchedule.id,
       vehicleId: scheduleVehicleId,

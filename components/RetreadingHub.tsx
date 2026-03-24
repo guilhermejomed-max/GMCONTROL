@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tire, TireStatus, RetreadOrder, TreadPattern, RetreadOrderItem, ToastType, SystemSettings } from '../types';
 import { storageService } from '../services/storageService';
-import { Recycle, Search, Send, CheckCircle2, X, Truck, DollarSign, Calendar, Clock, Filter, Users, Trash2, Plus, Disc, PenLine, Inbox, PackageCheck, ListTodo, AlertCircle, LayoutGrid, PlusCircle, ArrowRight, Wallet, History, AlertTriangle, ChevronRight, TrendingDown, Paperclip, FileText, Wrench, Factory, CheckSquare, Printer } from 'lucide-react';
+import { Recycle, Search, Send, CheckCircle2, X, Truck, DollarSign, Calendar, Clock, Filter, Users, Trash2, Plus, Disc, PenLine, Inbox, PackageCheck, ListTodo, AlertCircle, LayoutGrid, PlusCircle, ArrowRight, Wallet, History, AlertTriangle, ChevronRight, TrendingDown, Paperclip, FileText, Wrench, Factory, CheckSquare, Printer, BarChart3, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, Info } from 'lucide-react';
+import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 interface RetreadingHubProps {
   tires: Tire[];
@@ -66,12 +67,18 @@ const OrderTimeline: React.FC<{ order: RetreadOrder }> = ({ order }) => {
     );
 };
 
+const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
 export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrders, onUpdateTire, onNotification, settings }) => {
   const [activeTab, setActiveTab] = useState<'SEND' | 'TRACK' | 'PARTNERS'>('TRACK');
+  const [showDashboard, setShowDashboard] = useState(false);
   const [selectedTireIds, setSelectedTireIds] = useState<Set<string>>(new Set());
   
   // Search state for Send Tab
   const [sendSearchTerm, setSendSearchTerm] = useState('');
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'ENVIADO' | 'EM_PRODUCAO' | 'CONCLUIDO'>('ALL');
+  const [sortBy, setSortBy] = useState<'DATE_DESC' | 'DATE_ASC' | 'ORDER_NUM'>('DATE_DESC');
 
   // Staging State (Cesta de Envio)
   const [stagedItems, setStagedItems] = useState<RetreadOrderItem[]>([]);
@@ -164,9 +171,85 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
 
   const filteredOrders = useMemo(() => {
     return retreadOrders
-      .filter(o => filterRetreader === 'ALL' || o.retreaderName === filterRetreader)
-      .sort((a, b) => new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime());
-  }, [retreadOrders, filterRetreader]);
+      .filter(o => {
+        const matchesPartner = filterRetreader === 'ALL' || o.retreaderName === filterRetreader;
+        const matchesStatus = filterStatus === 'ALL' || o.status === filterStatus;
+        const matchesSearch = orderSearchTerm === '' || 
+          o.orderNumber.toString().includes(orderSearchTerm) ||
+          o.retreaderName.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+          o.tireDetails.some(t => t.fireNumber.toLowerCase().includes(orderSearchTerm.toLowerCase()));
+        return matchesPartner && matchesStatus && matchesSearch;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'DATE_DESC') return new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime();
+        if (sortBy === 'DATE_ASC') return new Date(a.sentDate).getTime() - new Date(b.sentDate).getTime();
+        if (sortBy === 'ORDER_NUM') return b.orderNumber - a.orderNumber;
+        return 0;
+      });
+  }, [retreadOrders, filterRetreader, filterStatus, orderSearchTerm, sortBy]);
+
+  const dashboardData = useMemo(() => {
+    // 1. Volume by Partner
+    const partnerVolume: Record<string, number> = {};
+    retreadOrders.forEach(o => {
+      partnerVolume[o.retreaderName] = (partnerVolume[o.retreaderName] || 0) + o.tireIds.length;
+    });
+    const partnerChartData = Object.entries(partnerVolume).map(([name, value]) => ({ name, value }));
+
+    // 2. Status Distribution
+    const statusCounts: Record<string, number> = { 'ENVIADO': 0, 'CONCLUIDO': 0 };
+    retreadOrders.forEach(o => {
+      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+    });
+    const statusChartData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+
+    // 3. Savings over time (last 6 months)
+    const monthlySavings: Record<string, number> = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      monthlySavings[key] = 0;
+    }
+
+    retreadOrders.filter(o => o.status === 'CONCLUIDO' && o.returnedDate).forEach(o => {
+      const d = new Date(o.returnedDate!);
+      const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      if (monthlySavings[key] !== undefined) {
+        // Calculate savings for this order
+        let orderSavings = 0;
+        o.tireIds.forEach(id => {
+          const tire = tires.find(t => t.id === id);
+          const tirePrice = tire?.price || 2500;
+          const retreadCost = (o.totalCost || 0) / (o.tireIds.length || 1);
+          orderSavings += (tirePrice - retreadCost);
+        });
+        monthlySavings[key] += orderSavings;
+      }
+    });
+    const savingsChartData = Object.entries(monthlySavings).map(([name, value]) => ({ name, value }));
+
+    return { partnerChartData, statusChartData, savingsChartData };
+  }, [retreadOrders, tires]);
+
+  const partnerPerformance = useMemo(() => {
+    const perf: Record<string, { totalDays: number, count: number }> = {};
+    retreadOrders.filter(o => o.status === 'CONCLUIDO' && o.returnedDate).forEach(o => {
+      const sent = new Date(o.sentDate).getTime();
+      const returned = new Date(o.returnedDate!).getTime();
+      const days = (returned - sent) / (1000 * 60 * 60 * 24);
+      
+      if (!perf[o.retreaderName]) perf[o.retreaderName] = { totalDays: 0, count: 0 };
+      perf[o.retreaderName].totalDays += days;
+      perf[o.retreaderName].count += 1;
+    });
+
+    return Object.entries(perf).map(([name, data]) => ({
+      name,
+      avgDays: Math.round(data.totalDays / data.count),
+      totalOrders: data.count
+    })).sort((a, b) => a.avgDays - b.avgDays);
+  }, [retreadOrders]);
 
   const toggleSelection = (id: string) => {
     setSelectedTireIds(prev => {
@@ -595,9 +678,34 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
       </div>
 
       {activeTab === 'PARTNERS' && (
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-right duration-300">
-            {/* PARTNER MANAGEMENT */}
-            <div className="space-y-6">
+         <div className="space-y-8 animate-in slide-in-from-right duration-300">
+            {/* PARTNER PERFORMANCE RANKING */}
+            {partnerPerformance.length > 0 && (
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <h3 className="font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                  <TrendingDown className="h-5 w-5 text-purple-500" /> Performance dos Parceiros (Tempo Médio de Retorno)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {partnerPerformance.map((p, idx) => (
+                    <div key={p.name} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center font-black text-purple-600 shadow-sm">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-800 dark:text-white text-sm truncate w-32">{p.name}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                          <span className="text-purple-600">{p.avgDays} dias</span> médios
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               {/* PARTNER MANAGEMENT */}
+               <div className="space-y-6">
                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Truck className="h-5 w-5 text-emerald-500"/> Novo Parceiro (Recapadora/Oficina)</h3>
                   <div className="flex gap-2">
@@ -718,12 +826,13 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                </div>
             </div>
          </div>
-      )}
+      </div>
+   )}
 
       {activeTab === 'TRACK' && (
          <>
             {/* KPI OVERVIEW */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                     <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:scale-110 transition-transform"><Clock className="h-16 w-16"/></div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Aguardando Retorno</p>
@@ -739,9 +848,81 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Ordens</p>
                     <h3 className="text-3xl font-black text-slate-800 dark:text-white">{retreadOrders.length}</h3>
                 </div>
+                <button 
+                  onClick={() => setShowDashboard(!showDashboard)}
+                  className={`p-5 rounded-3xl border shadow-sm relative overflow-hidden group transition-all text-left ${showDashboard ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white'}`}
+                >
+                    <div className={`absolute right-0 top-0 p-4 opacity-20 group-hover:scale-110 transition-transform ${showDashboard ? 'text-white' : 'text-purple-500'}`}><BarChart3 className="h-16 w-16"/></div>
+                    <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${showDashboard ? 'text-purple-100' : 'text-slate-400'}`}>Dashboard Analítico</p>
+                    <h3 className="text-xl font-black flex items-center gap-2">
+                      {showDashboard ? 'Ocultar Gráficos' : 'Ver Estatísticas'}
+                      <ChevronRight className={`h-5 w-5 transition-transform ${showDashboard ? 'rotate-90' : ''}`} />
+                    </h3>
+                </button>
             </div>
 
+            {showDashboard && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 animate-in zoom-in-95 duration-300">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <h4 className="font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                    <TrendingDown className="h-5 w-5 text-green-500" /> Economia Mensal (R$)
+                  </h4>
+                  <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dashboardData.savingsChartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} tickFormatter={(val) => `R$ ${val/1000}k`} />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                          formatter={(value: number) => [money(value), 'Economia']}
+                        />
+                        <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <h4 className="font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                    <PieChartIcon className="h-5 w-5 text-purple-500" /> Volume por Recapadora
+                  </h4>
+                  <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={dashboardData.partnerChartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {dashboardData.partnerChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 mb-6 items-center">
+               <div className="flex-[2] w-full relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                  <input 
+                    type="text" 
+                    value={orderSearchTerm}
+                    onChange={(e) => setOrderSearchTerm(e.target.value)}
+                    placeholder="Buscar por Nº Ordem, Recapadora ou Nº Fogo..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 dark:text-white"
+                  />
+               </div>
                <div className="flex-1 w-full relative">
                   <Filter className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <select 
@@ -751,6 +932,31 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                   >
                     <option value="ALL">Todos os Parceiros</option>
                     {retreaderNamesForFilter.map(name => <option key={name} value={name}>{name}</option>)}
+                  </select>
+               </div>
+               <div className="flex-1 w-full relative">
+                  <LayoutGrid className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                  <select 
+                    value={filterStatus} 
+                    onChange={(e) => setFilterStatus(e.target.value as any)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 dark:text-white appearance-none cursor-pointer"
+                  >
+                    <option value="ALL">Todos os Status</option>
+                    <option value="ENVIADO">Enviado</option>
+                    <option value="EM_PRODUCAO">Em Produção</option>
+                    <option value="CONCLUIDO">Concluído</option>
+                  </select>
+               </div>
+               <div className="flex-1 w-full relative">
+                  <ArrowUpRight className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                  <select 
+                    value={sortBy} 
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 dark:text-white appearance-none cursor-pointer"
+                  >
+                    <option value="DATE_DESC">Mais Recentes</option>
+                    <option value="DATE_ASC">Mais Antigos</option>
+                    <option value="ORDER_NUM">Nº da Ordem</option>
                   </select>
                </div>
             </div>
@@ -864,9 +1070,17 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
               {/* Left Column: Selection */}
               <div className="lg:col-span-2 flex flex-col h-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                   <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row justify-between items-center gap-4">
-                      <div>
-                          <h3 className="font-bold text-slate-700 dark:text-white flex items-center gap-2"><ListTodo className="h-5 w-5 text-blue-500"/> Estoque de Carcaças</h3>
-                          <p className="text-xs text-slate-400">Pneus "Usados" disponíveis para serviço externo</p>
+                      <div className="flex items-center gap-4">
+                          <div>
+                              <h3 className="font-bold text-slate-700 dark:text-white flex items-center gap-2"><ListTodo className="h-5 w-5 text-blue-500"/> Estoque de Carcaças</h3>
+                              <p className="text-xs text-slate-400">Pneus "Usados" disponíveis para serviço externo</p>
+                          </div>
+                          {selectedTireIds.size > 0 && (
+                            <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 animate-in zoom-in-95">
+                              <span className="text-xs font-black text-blue-600 dark:text-blue-400">{selectedTireIds.size} selecionados</span>
+                              <button onClick={() => setSelectedTireIds(new Set())} className="p-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-lg text-blue-600"><X className="h-3 w-3"/></button>
+                            </div>
+                          )}
                       </div>
                       
                       {/* SEARCH AVAILABLE TIRES */}
@@ -882,35 +1096,60 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                       </div>
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50">
-                      {eligibleTires.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                              <AlertCircle className="h-10 w-10 mb-2 opacity-30"/>
-                              <p className="font-medium">Nenhum pneu disponível com o filtro atual.</p>
-                          </div>
-                      ) : (
-                          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                              {eligibleTires.map(t => (
-                                  <div 
-                                      key={t.id} 
-                                      onClick={() => toggleSelection(t.id)}
-                                      className={`p-4 rounded-2xl border cursor-pointer transition-all relative group shadow-sm flex flex-col justify-between ${selectedTireIds.has(t.id) ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 ring-2 ring-blue-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}
-                                  >
-                                      {selectedTireIds.has(t.id) && <div className="absolute top-3 right-3 text-blue-600 bg-white rounded-full"><CheckCircle2 className="h-5 w-5 fill-current"/></div>}
-                                      <div>
-                                          <div className="font-black text-lg text-slate-800 dark:text-white">{t.fireNumber}</div>
-                                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">{t.brand}</div>
-                                          <div className="text-[10px] text-slate-400 uppercase">{t.model}</div>
+                      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50">
+                          {eligibleTires.length === 0 ? (
+                              <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                  <AlertCircle className="h-10 w-10 mb-2 opacity-30"/>
+                                  <p className="font-medium">Nenhum pneu disponível com o filtro atual.</p>
+                              </div>
+                          ) : (
+                              <div className="space-y-4">
+                                  <div className="flex justify-between items-center px-2">
+                                      <div className="flex items-center gap-4">
+                                          <button 
+                                              onClick={() => {
+                                                  const allIds = eligibleTires.map(t => t.id);
+                                                  const newSelection = new Set(selectedTireIds);
+                                                  allIds.forEach(id => newSelection.add(id));
+                                                  setSelectedTireIds(newSelection);
+                                              }}
+                                              className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                                          >
+                                              Selecionar Todos ({eligibleTires.length})
+                                          </button>
+                                          <button 
+                                              onClick={() => setSelectedTireIds(new Set())}
+                                              className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:underline"
+                                          >
+                                              Desmarcar Tudo
+                                          </button>
                                       </div>
-                                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-end">
-                                          <div className="text-[10px] font-bold text-slate-400">DOT {t.dot}</div>
-                                          <div className="text-xs font-black text-slate-600 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{t.currentTreadDepth}mm</div>
-                                      </div>
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{eligibleTires.length} pneus em estoque</span>
                                   </div>
-                              ))}
-                          </div>
-                      )}
-                  </div>
+
+                                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                                      {eligibleTires.map(t => (
+                                          <div 
+                                              key={t.id} 
+                                              onClick={() => toggleSelection(t.id)}
+                                              className={`p-4 rounded-2xl border cursor-pointer transition-all relative group shadow-sm flex flex-col justify-between ${selectedTireIds.has(t.id) ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 ring-2 ring-blue-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}
+                                          >
+                                              {selectedTireIds.has(t.id) && <div className="absolute top-3 right-3 text-blue-600 bg-white rounded-full"><CheckCircle2 className="h-5 w-5 fill-current"/></div>}
+                                              <div>
+                                                  <div className="font-black text-lg text-slate-800 dark:text-white">{t.fireNumber}</div>
+                                                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">{t.brand}</div>
+                                                  <div className="text-[10px] text-slate-400 uppercase">{t.model}</div>
+                                              </div>
+                                              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-end">
+                                                  <div className="text-[10px] font-bold text-slate-400">DOT {t.dot}</div>
+                                                  <div className="text-xs font-black text-slate-600 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{t.currentTreadDepth}mm</div>
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          )}
+                      </div>
               </div>
 
               {/* Right Column: Config & Submit */}
@@ -920,6 +1159,34 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
                   </div>
                   
                   <div className="p-5 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
+                      {/* CESTA SUMMARY (NEW) */}
+                      {stagedItems.length > 0 && (
+                        <div className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm mb-4">
+                          <div className="flex justify-between items-center mb-3">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Itens na Cesta ({stagedItems.length})</h4>
+                            <button onClick={() => setStagedItems([])} className="text-[10px] font-bold text-red-500 hover:underline">Limpar Tudo</button>
+                          </div>
+                          <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                            {stagedItems.map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 group">
+                                <div className="flex items-center gap-3">
+                                  <span className="font-black text-slate-800 dark:text-white text-sm">{item.fireNumber}</span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase truncate w-24">{item.pattern}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs font-black text-emerald-600">{money(item.cost || 0)}</span>
+                                  <button onClick={() => handleRemoveFromStage(idx)} className="p-1 text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><X className="h-3 w-3"/></button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-500">Total Estimado:</span>
+                            <span className="text-lg font-black text-emerald-600">{money(stagedItems.reduce((acc, i) => acc + (i.cost || 0), 0))}</span>
+                          </div>
+                        </div>
+                      )}
+
                       {/* STEP 1: PARTNER */}
                       <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">1. Selecionar Parceiro</label>

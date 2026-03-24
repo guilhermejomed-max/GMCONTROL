@@ -508,6 +508,7 @@ CQU4B36;1782356
 GDX2D42;1652287`;
 
 interface VehicleManagerProps {
+  orgId: string;
   vehicles: Vehicle[];
   vehicleBrandModels?: VehicleBrandModel[];
   tires: Tire[];
@@ -526,7 +527,7 @@ interface VehicleManagerProps {
   onSyncSascar?: (showModal?: boolean) => Promise<number>;
 }
 
-export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
+export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -552,13 +553,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
   useEffect(() => {
     if (selectedVehicleRG) {
-      const unsub = storageService.subscribeToArrivalAlerts((alerts) => {
+      const unsub = storageService.subscribeToArrivalAlerts(orgId, (alerts) => {
         setVehicleAlerts(alerts.filter(a => a.vehiclePlate === selectedVehicleRG.plate));
       });
       setActiveRGTab('geral');
       return () => unsub();
     }
-  }, [selectedVehicleRG]);
+  }, [selectedVehicleRG, orgId]);
 
   useEffect(() => {
     if (selectedVehicleRG) {
@@ -597,7 +598,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
         createdAt: new Date().toISOString(),
         createdBy: 'Usuário' // Ideally from auth
       };
-      await storageService.addArrivalAlert(newAlert);
+      await storageService.addArrivalAlert(orgId, newAlert);
       setIsScheduling(false);
       setSchedulingData({ targetName: '', targetLat: 0, targetLng: 0, radius: 500, services: '' });
     } catch (error) {
@@ -614,7 +615,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       if (onDeleteAlert) {
         await onDeleteAlert(id);
       } else {
-        await storageService.deleteArrivalAlert(id);
+        await storageService.deleteArrivalAlert(orgId, id);
       }
     } catch (error) {
       console.error("Error deleting alert:", error);
@@ -692,9 +693,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
   const handleSaveBrandModel = async (e: FormEvent) => {
     e.preventDefault();
     if (editingBrandModelId) {
-      await storageService.updateVehicleBrandModel({ id: editingBrandModelId, ...brandModelFormData });
+      await storageService.updateVehicleBrandModel(orgId, { id: editingBrandModelId, ...brandModelFormData });
     } else {
-      await storageService.addVehicleBrandModel({ id: Date.now().toString(), ...brandModelFormData });
+      await storageService.addVehicleBrandModel(orgId, { id: Date.now().toString(), ...brandModelFormData });
     }
     setEditingBrandModelId(null);
     setIsAddingBrand(false);
@@ -704,7 +705,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
   const handleDeleteBrandModel = async (id: string) => {
     if (window.confirm("Deseja excluir esta marca/modelo?")) {
-      await storageService.deleteVehicleBrandModel(id);
+      await storageService.deleteVehicleBrandModel(orgId, id);
     }
   };
 
@@ -1207,10 +1208,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                     }
                 }
 
-                if (updatesBatch.length > 0) await storageService.updateVehicleBatch(updatesBatch);
+                if (updatesBatch.length > 0) await storageService.updateVehicleBatch(orgId, updatesBatch);
                 
                 if (createsBatch.length > 0) {
-                    await storageService.importDataBatch([], createsBatch);
+                    await storageService.importDataBatch(orgId, [], createsBatch);
                     setLastImportedIds(createsBatch.map(v => v.id)); // Armazena IDs para desfazer
                 }
 
@@ -1352,7 +1353,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
       if (updatesBatch.length > 0) {
           console.log(`[Sascar Sync] Aplicando ${updatesBatch.length} atualizações no banco...`);
-          await storageService.updateVehicleBatch(updatesBatch);
+          await storageService.updateVehicleBatch(orgId, updatesBatch);
           console.log(`[Sascar Sync] ${updatesBatch.length} veículos atualizados com sucesso.`);
           alert(`Sucesso! ${updatesBatch.length} veículos do GM CONTROL foram atualizados.`);
       } else {
@@ -2246,7 +2247,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PLACA</label>
-                  <input required type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value.toUpperCase()})} />
+                  <input required type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" value={formData.plate || ''} onChange={e => setFormData({...formData, plate: e.target.value.toUpperCase()})} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO</label>
@@ -2292,65 +2293,65 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">EIXOS</label>
-                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.axles} onChange={e => setFormData({...formData, axles: Number(e.target.value)})} />
+                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.axles ?? 3} onChange={e => setFormData({...formData, axles: Number(e.target.value)})} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HODÔMETRO</label>
-                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.odometer} onChange={e => setFormData({...formData, odometer: Number(e.target.value)})} />
+                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.odometer ?? 0} onChange={e => setFormData({...formData, odometer: Number(e.target.value)})} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ANO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})} placeholder="Ex: 2022" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.year || ''} onChange={e => setFormData({...formData, year: e.target.value})} placeholder="Ex: 2022" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COR</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="Ex: Branco" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.color || ''} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="Ex: Branco" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FROTA #</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fleetNumber} onChange={e => setFormData({...formData, fleetNumber: e.target.value})} placeholder="Ex: 1020" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fleetNumber || ''} onChange={e => setFormData({...formData, fleetNumber: e.target.value})} placeholder="Ex: 1020" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RENAVAM</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.renavam} onChange={e => setFormData({...formData, renavam: e.target.value})} placeholder="Renavam" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.renavam || ''} onChange={e => setFormData({...formData, renavam: e.target.value})} placeholder="Renavam" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CHASSI (VIN)</label>
-                <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
+                <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin || ''} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MOTOR</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.engine} onChange={e => setFormData({...formData, engine: e.target.value})} placeholder="Ex: D13" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.engine || ''} onChange={e => setFormData({...formData, engine: e.target.value})} placeholder="Ex: D13" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÂMBIO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.transmission} onChange={e => setFormData({...formData, transmission: e.target.value})} placeholder="Ex: I-Shift" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.transmission || ''} onChange={e => setFormData({...formData, transmission: e.target.value})} placeholder="Ex: I-Shift" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COMBUSTÍVEL</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fuelType} onChange={e => setFormData({...formData, fuelType: e.target.value})} placeholder="Ex: Diesel" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fuelType || ''} onChange={e => setFormData({...formData, fuelType: e.target.value})} placeholder="Ex: Diesel" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÓD. SASCAR (Opcional)</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.sascarCode} onChange={e => setFormData({...formData, sascarCode: e.target.value})} placeholder="ID Sascar" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.sascarCode || ''} onChange={e => setFormData({...formData, sascarCode: e.target.value})} placeholder="ID Sascar" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA PNEU PADRÃO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresBrand} onChange={e => setFormData({...formData, tiresBrand: e.target.value})} placeholder="Ex: Michelin" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresBrand || ''} onChange={e => setFormData({...formData, tiresBrand: e.target.value})} placeholder="Ex: Michelin" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MEDIDA PNEU PADRÃO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresSize} onChange={e => setFormData({...formData, tiresSize: e.target.value})} placeholder="Ex: 295/80 R22.5" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresSize || ''} onChange={e => setFormData({...formData, tiresSize: e.target.value})} placeholder="Ex: 295/80 R22.5" />
                 </div>
               </div>
 
@@ -2361,21 +2362,21 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM DE REVISÃO (INTERVALO)</label>
-                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.revisionIntervalKm} onChange={e => setFormData({...formData, revisionIntervalKm: Number(e.target.value)})} />
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.revisionIntervalKm ?? 10000} onChange={e => setFormData({...formData, revisionIntervalKm: Number(e.target.value)})} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">QTD LITROS ÓLEO</label>
-                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.oilLiters} onChange={e => setFormData({...formData, oilLiters: Number(e.target.value)})} />
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.oilLiters ?? 0} onChange={e => setFormData({...formData, oilLiters: Number(e.target.value)})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM ÚLTIMA PREVENTIVA</label>
-                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveKm} onChange={e => setFormData({...formData, lastPreventiveKm: Number(e.target.value)})} />
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveKm ?? 0} onChange={e => setFormData({...formData, lastPreventiveKm: Number(e.target.value)})} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">DATA ÚLTIMA PREVENTIVA</label>
-                    <input type="date" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveDate} onChange={e => setFormData({...formData, lastPreventiveDate: e.target.value})} />
+                    <input type="date" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveDate || ''} onChange={e => setFormData({...formData, lastPreventiveDate: e.target.value})} />
                   </div>
                 </div>
               </div>

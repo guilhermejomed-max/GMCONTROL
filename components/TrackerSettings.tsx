@@ -5,10 +5,11 @@ import { TrackerSettings } from '../types';
 import { storageService } from '../services/storageService';
 
 interface TrackerSettingsProps {
+  orgId: string;
   onSave?: () => void;
 }
 
-const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ onSave }) => {
+const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSave }) => {
   const [settings, setSettings] = useState<TrackerSettings>({
     apiUrl: 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService',
     user: 'JOMEDELOGTORREOPENTECH',
@@ -20,19 +21,19 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ onSave }) =>
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   useEffect(() => {
-    const unsubscribe = storageService.subscribeToTrackerSettings((data) => {
+    const unsubscribe = storageService.subscribeToTrackerSettings(orgId, (data) => {
       setSettings(data);
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [orgId]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
     try {
-      await storageService.saveTrackerSettings(settings);
+      await storageService.saveTrackerSettings(orgId, settings);
       setMessage({ type: 'success', text: 'Configurações do rastreador salvas com sucesso!' });
       if (onSave) onSave();
     } catch (error) {

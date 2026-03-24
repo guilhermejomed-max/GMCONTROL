@@ -7,10 +7,11 @@ import { Scanner } from './Scanner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 
 interface ServiceManagerProps {
+  orgId: string;
   userLevel: UserLevel;
 }
 
-export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
+export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) => {
   const [items, setItems] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'STOCK' | 'MOVEMENTS' | 'AUDIT'>('DASHBOARD');
@@ -28,8 +29,8 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
   const [auditFilter, setAuditFilter] = useState('');
 
   useEffect(() => {
-    const unsubStock = storageService.subscribeToStock(setItems);
-    const unsubMovements = storageService.subscribeToStockMovements(setMovements);
+    const unsubStock = storageService.subscribeToStock(orgId, setItems);
+    const unsubMovements = storageService.subscribeToStockMovements(orgId, setMovements);
     return () => {
       unsubStock();
       unsubMovements();
@@ -99,10 +100,10 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
     e.preventDefault();
     try {
       if (editingItem) {
-        await storageService.updateStockItem({ ...editingItem, ...itemFormData } as StockItem);
+        await storageService.updateStockItem(orgId, { ...editingItem, ...itemFormData } as StockItem);
       } else {
         const newItem: StockItem = { id: Date.now().toString(), updatedAt: new Date().toISOString(), ...itemFormData as any };
-        await storageService.addStockItem(newItem);
+        await storageService.addStockItem(orgId, newItem);
       }
       setIsItemModalOpen(false);
     } catch (err) {
@@ -133,7 +134,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
         user: movementFormData.user,
         notes: movementFormData.notes
       };
-      await storageService.registerStockMovement(movement);
+      await storageService.registerStockMovement(orgId, movement);
       setIsMovementModalOpen(false);
     } catch (err) {
       alert("Erro ao registrar movimentação.");
@@ -431,7 +432,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ userLevel }) => {
                       notes: `Ajuste de Inventário. Físico: ${physicalQty} / Sist: ${systemQty}`
                   };
 
-                  updates.push(storageService.registerStockMovement(movement));
+                  updates.push(storageService.registerStockMovement(orgId, movement));
                   adjustmentCount++;
               }
           }
