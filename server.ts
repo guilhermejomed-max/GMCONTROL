@@ -10,7 +10,7 @@ import axios from "axios";
 
 dotenv.config();
 
-const logFile = process.env.VERCEL ? '/tmp/server-debug.log' : path.join(process.cwd(), 'server-debug.log');
+const logFile = path.join(process.cwd(), 'server-debug.log');
 function logToFile(msg: string) {
   const time = new Date().toISOString();
   try {
@@ -171,7 +171,6 @@ async function startServer() {
   const SASCAR_WSDL = SASCAR_WSDL_LOCAL; // Prefer local WSDL to avoid fetch errors
 
   const soapClients = new Map<string, any>();
-  let sascarRequestLock = Promise.resolve();
 
   // Cache for Sascar API results to optimize chunked requests from frontend
   let sascarCache = {
@@ -183,21 +182,22 @@ async function startServer() {
       reachedRealTimeOnce: false // Flag para saber se já limpamos o backlog alguma vez
   };
 
-  async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
-    const currentLock = sascarRequestLock;
-    let resolveLock: () => void;
-    sascarRequestLock = new Promise((resolve) => {
-      resolveLock = resolve;
-    });
+  const MAX_CONCURRENT_SASCAR_CALLS = 5;
+  let activeSascarCalls = 0;
+  const sascarCallQueue: (() => void)[] = [];
 
+  async function concurrentSascarCall<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+    if (activeSascarCalls >= MAX_CONCURRENT_SASCAR_CALLS) {
+      await new Promise<void>((resolve) => sascarCallQueue.push(resolve));
+    }
+
+    activeSascarCalls++;
     try {
-      await currentLock;
-      // Add a small delay between any two Sascar calls to be safe
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
       let attempt = 0;
       while (true) {
         try {
+          // Add a small delay between any two Sascar calls to be safe
+          await new Promise(resolve => setTimeout(resolve, 50));
           return await fn();
         } catch (error: any) {
           attempt++;
@@ -205,9 +205,13 @@ async function startServer() {
                                  error.code === 'ETIMEDOUT' || 
                                  error.message?.includes('socket disconnected') ||
                                  error.message?.includes('socket hang up') ||
-                                 error.message?.includes('Client network socket disconnected');
+                                 error.message?.includes('Client network socket disconnected') ||
+                                 error.message?.includes('ECONNRESET') ||
+                                 error.message?.includes('ETIMEDOUT') ||
+                                 error.message?.includes('TimeoutError');
+          
           if (isNetworkError && attempt <= retries) {
-            logToFile(`[Sascar] Network error (${error.message}), retrying attempt ${attempt}...`);
+            logToFile(`[Sascar] Network error (${error.message}), retrying attempt ${attempt}/${retries}...`);
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // exponential backoff
           } else {
             throw error;
@@ -215,33 +219,18 @@ async function startServer() {
         }
       }
     } finally {
-      // @ts-ignore
-      if (resolveLock) resolveLock();
-    }
-  }
-
-  // Concurrency limiter for historical fetches
-  const MAX_CONCURRENT_SASCAR_CALLS = 3;
-  let activeSascarCalls = 0;
-  const sascarQueue: (() => void)[] = [];
-
-  async function concurrentSascarCall<T>(fn: () => Promise<T>): Promise<T> {
-    if (activeSascarCalls >= MAX_CONCURRENT_SASCAR_CALLS) {
-      await new Promise<void>(resolve => sascarQueue.push(resolve));
-    }
-    
-    activeSascarCalls++;
-    try {
-      return await fn();
-    } finally {
       activeSascarCalls--;
-      if (sascarQueue.length > 0) {
-        const next = sascarQueue.shift();
+      if (sascarCallQueue.length > 0) {
+        const next = sascarCallQueue.shift();
         if (next) next();
       }
     }
   }
 
+  // Alias para manter compatibilidade com código existente
+  const synchronizedSascarCall = concurrentSascarCall;
+
+  // Concurrency limiter for historical fetches
   async function getSoapClient(wsdl: string, retries = 2) {
     // If it's the default URL or the service endpoint without ?wsdl, use the local file instead
     const targetWsdl = (wsdl === SASCAR_WSDL_URL || wsdl === 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService') 
@@ -513,7 +502,7 @@ async function startServer() {
 
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
-      const MAX_REQUEST_TIME = process.env.VERCEL ? 8000 : 55000; // Reduzido para 8s na Vercel para evitar timeout
+      const MAX_REQUEST_TIME = 110000; // Aumentado para 110s para dar margem ao frontend (180s)
       const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
@@ -580,9 +569,7 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = process.env.VERCEL 
-          ? (isBackground ? 5 : 2) 
-          : (isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 10 : 20)); 
+      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 5 : 10); 
           
           if (!isBackground) {
               logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar alcançar o tempo real.`);
@@ -905,22 +892,20 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else if (!process.env.VERCEL) {
-    // Serve static files in production (only if not on Vercel, as Vercel handles static files automatically)
+  } else {
+    // Serve static files in production
     app.use(express.static("dist"));
   }
 
-  if (!process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 
   return app;
 }

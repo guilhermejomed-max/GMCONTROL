@@ -8,9 +8,10 @@ interface MaintenanceAgendaProps {
   vehicles: Vehicle[];
   settings?: SystemSettings;
   onNavigate: (tab: TabView) => void;
+  onOpenServiceOrder?: (vehicleId: string) => void;
 }
 
-export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles, settings, onNavigate }) => {
+export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles, settings, onNavigate, onOpenServiceOrder }) => {
   const minDepth = settings?.minTreadDepth || 3;
   const warnDepth = settings?.warningTreadDepth || 5;
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -191,7 +192,11 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
                   }
 
                   return (
-                    <div key={idx} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-100 dark:border-red-900/50 shadow-sm flex flex-col gap-3 group cursor-pointer hover:border-red-300 dark:hover:border-red-800 transition-colors">
+                    <div 
+                      key={idx} 
+                      onClick={() => onOpenServiceOrder?.(group.vehicle?.id || '')}
+                      className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-red-100 dark:border-red-900/50 shadow-sm flex flex-col gap-3 group cursor-pointer hover:border-red-300 dark:hover:border-red-800 transition-colors"
+                    >
                       
                       {/* Vehicle Header */}
                       <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">

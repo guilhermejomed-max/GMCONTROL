@@ -2,7 +2,7 @@ import { TrackerSettings } from '../types';
 
 export const sascarService = {
   getVehicles: async (plates?: string[], trackerSettings?: TrackerSettings, retries = 2) => {
-    const fetchWithTimeout = async (url: string, options: any, timeout = 180000) => {
+    const fetchWithTimeout = async (url: string, options: any, timeout = 120000) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
@@ -18,7 +18,7 @@ export const sascarService = {
       } catch (error: any) {
         clearTimeout(timeoutId);
         if (error.name === 'AbortError') {
-          const timeoutError = new Error('Timeout');
+          const timeoutError = new Error('Timeout da requisição (120s)');
           timeoutError.name = 'TimeoutError';
           throw timeoutError;
         }
@@ -26,7 +26,8 @@ export const sascarService = {
       }
     };
 
-    for (let i = 0; i <= 1; i++) { // Reduzido para 1 retry (total 2 tentativas)
+    const maxRetries = 2;
+    for (let i = 0; i <= maxRetries; i++) {
       try {
         const response = await fetchWithTimeout(`/api/sascar/vehicles`, {
           method: 'POST',
@@ -53,19 +54,20 @@ export const sascarService = {
         }
         return data;
       } catch (error: any) {
-        const isLastRetry = i === 1;
-        const isTimeout = error.name === 'TimeoutError' || error.message === 'Timeout';
-        const isNetworkError = error.message === 'Failed to fetch' || error.name === 'TypeError';
+        const isLastRetry = i === maxRetries;
+        const isTimeout = error.name === 'TimeoutError' || error.message?.includes('Timeout');
+        const isNetworkError = error.message === 'Failed to fetch' || error.name === 'TypeError' || error.message?.includes('NetworkError');
 
         if (isLastRetry) {
           console.error('Erro na integração Sascar (Final):', error);
           if (isTimeout) throw new Error('A requisição à Sascar demorou muito tempo (Timeout excedido).');
-          if (isNetworkError) throw new Error('Erro de conexão com o servidor. Verifique se o servidor está online.');
+          if (isNetworkError) throw new Error('Erro de conexão com o servidor. Verifique se o servidor está online ou se há um problema de rede.');
           throw error;
         }
         
-        console.warn(`Tentativa ${i + 1} falhou (${error.message}), tentando novamente em 3s...`);
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        const delay = 2000 * (i + 1);
+        console.warn(`Tentativa ${i + 1}/${maxRetries + 1} falhou (${error.message}), tentando novamente em ${delay/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }

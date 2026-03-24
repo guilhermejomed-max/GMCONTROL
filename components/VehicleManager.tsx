@@ -729,7 +729,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
     transmission: '',
     renavam: '',
     tiresBrand: '',
-    tiresSize: ''
+    tiresSize: '',
+    revisionIntervalKm: 10000,
+    oilLiters: 0,
+    lastPreventiveKm: 0,
+    lastPreventiveDate: ''
   });
 
   // Função para analisar o estado do veículo
@@ -746,11 +750,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       const criticalTires = mountedTires.filter(t => t.currentTreadDepth <= minDepth);
       const hasLowTread = criticalTires.length > 0;
 
-      // 3. Passou do KM (Manutenção ou Vida Útil do Pneu)
-      // Verifica intervalo de manutenção (padrão 10k)
-      const maintenanceInterval = settings?.maintenanceIntervalKm || 10000;
-      const kmSinceLastService = vehicle.odometer % maintenanceInterval;
-      const isMaintenanceDue = kmSinceLastService >= (maintenanceInterval - 500) || kmSinceLastService < 500; // Perto do vencimento ou recém vencido
+      // 3. Manutenção Preventiva
+      const brandModel = vehicleBrandModels.find(bm => bm.id === vehicle.brandModelId);
+      const maintenanceInterval = vehicle.revisionIntervalKm || brandModel?.oilChangeInterval || settings?.maintenanceIntervalKm || 10000;
+      
+      const lastServiceKm = vehicle.lastPreventiveKm || 0;
+      const kmSinceLastService = vehicle.odometer - lastServiceKm;
+      
+      const isMaintenanceOverdue = kmSinceLastService >= maintenanceInterval;
+      const isMaintenanceNear = kmSinceLastService >= (maintenanceInterval - 5000) && !isMaintenanceOverdue;
       
       // Verifica se algum pneu passou da vida útil estimada (padrão 80k se não houver catálogo)
       const hasExpiredTires = mountedTires.some(t => {
@@ -764,7 +772,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
           return totalRun >= limit;
       });
 
-      const isHighKm = isMaintenanceDue || hasExpiredTires;
+      const isHighKm = isMaintenanceOverdue || isMaintenanceNear || hasExpiredTires;
 
       return {
           isMissingTires,
@@ -772,7 +780,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
           hasLowTread,
           lowTreadCount: criticalTires.length,
           isHighKm,
-          mountedCount: mountedTires.length
+          isMaintenanceOverdue,
+          isMaintenanceNear,
+          hasExpiredTires,
+          mountedCount: mountedTires.length,
+          kmToNextMaintenance: Math.max(0, maintenanceInterval - kmSinceLastService)
       };
   };
 
@@ -787,11 +799,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
       if (filterType === 'CRITICAL') return status.hasLowTread;
       if (filterType === 'EMPTY') return status.isMissingTires;
-      if (filterType === 'MAINTENANCE') return status.isHighKm;
+      if (filterType === 'MAINTENANCE') return status.isMaintenanceOverdue || status.isMaintenanceNear;
 
       return true;
     });
-  }, [vehicles, searchTerm, tires, settings, filterType]);
+  }, [vehicles, searchTerm, tires, settings, filterType, vehicleBrandModels]);
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -813,7 +825,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       transmission: '',
       renavam: '',
       tiresBrand: '',
-      tiresSize: ''
+      tiresSize: '',
+      revisionIntervalKm: 10000,
+      oilLiters: 0,
+      lastPreventiveKm: 0,
+      lastPreventiveDate: ''
     });
     setIsAdding(true);
   };
@@ -838,7 +854,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       transmission: vehicle.transmission || '',
       renavam: vehicle.renavam || '',
       tiresBrand: vehicle.tiresBrand || '',
-      tiresSize: vehicle.tiresSize || ''
+      tiresSize: vehicle.tiresSize || '',
+      revisionIntervalKm: vehicle.revisionIntervalKm || 10000,
+      oilLiters: vehicle.oilLiters || 0,
+      lastPreventiveKm: vehicle.lastPreventiveKm || 0,
+      lastPreventiveDate: vehicle.lastPreventiveDate || ''
     });
     setIsAdding(true);
   };
@@ -847,15 +867,22 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
     e.preventDefault();
     setIsSaving(true);
     try {
+      const vehicleData: any = {
+        ...formData,
+        plate: formData.plate.toUpperCase(),
+        year: formData.year ? parseInt(formData.year) : undefined,
+        revisionIntervalKm: Number(formData.revisionIntervalKm),
+        oilLiters: Number(formData.oilLiters),
+        lastPreventiveKm: Number(formData.lastPreventiveKm)
+      };
+
       if (editingId) {
         // Update existing vehicle
         const existingVehicle = vehicles.find(v => v.id === editingId);
         if (existingVehicle) {
           const updatedVehicle: Vehicle = {
             ...existingVehicle,
-            ...formData,
-            plate: formData.plate.toUpperCase(),
-            year: formData.year ? parseInt(formData.year) : undefined
+            ...vehicleData
           };
           await onUpdateVehicle(updatedVehicle);
         }
@@ -863,10 +890,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
         // Create new vehicle
         const newVehicle: Vehicle = {
           id: Date.now().toString(36),
-          ...formData,
-          totalCost: 0,
-          plate: formData.plate.toUpperCase(),
-          year: formData.year ? parseInt(formData.year) : undefined
+          ...vehicleData,
+          totalCost: 0
         };
         await onAddVehicle(newVehicle);
       }
@@ -876,7 +901,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       setFormData({ 
         plate: '', model: '', brand: '', brandModelId: '', axles: 3, type: 'CAVALO', odometer: 0, sascarCode: '',
         vin: '', year: '', color: '', fuelType: '', fleetNumber: '',
-        engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: ''
+        engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: '',
+        revisionIntervalKm: 10000, oilLiters: 0, lastPreventiveKm: 0, lastPreventiveDate: ''
       });
     } catch (error) {
       alert("Erro ao salvar veículo.");
@@ -1115,15 +1141,55 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                                 hasChanges = true;
                                 kmUpdatedCount++;
                             }
+
+                            // Se o veículo não tem intervalo de revisão, tenta pegar do modelo
+                            if (!vehicle.revisionIntervalKm) {
+                                const brandModelName = normalizedRow['MODELO'] || normalizedRow['MARCAMODELO'];
+                                if (brandModelName) {
+                                    const bm = vehicleBrandModels.find(m => 
+                                        brandModelName.toString().toUpperCase().includes(m.model.toUpperCase()) ||
+                                        m.model.toUpperCase().includes(brandModelName.toString().toUpperCase())
+                                    );
+                                    if (bm?.oilChangeInterval) {
+                                        updates.revisionIntervalKm = bm.oilChangeInterval;
+                                        hasChanges = true;
+                                    }
+                                    if (bm?.oilLiters) {
+                                        updates.oilLiters = bm.oilLiters;
+                                        hasChanges = true;
+                                    }
+                                }
+                            }
+
                             if (hasChanges) {
                                 updatesBatch.push(updates);
                                 updatedCount++;
                             }
                         } else {
+                            const brandModelName = normalizedRow['MODELO'] || normalizedRow['MARCAMODELO'];
+                            let brandModelId = '';
+                            let revisionIntervalKm = 10000;
+                            let oilLiters = 0;
+
+                            if (brandModelName) {
+                                const bm = vehicleBrandModels.find(m => 
+                                    brandModelName.toString().toUpperCase().includes(m.model.toUpperCase()) ||
+                                    m.model.toUpperCase().includes(brandModelName.toString().toUpperCase())
+                                );
+                                if (bm) {
+                                    brandModelId = bm.id;
+                                    revisionIntervalKm = bm.oilChangeInterval || 10000;
+                                    oilLiters = bm.oilLiters || 0;
+                                }
+                            }
+
                             const newVehicle: Vehicle = {
                                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
                                 plate: plate.toString().toUpperCase().trim(),
-                                model: normalizedRow['MODELO'] || 'Modelo Importado',
+                                model: brandModelName || 'Modelo Importado',
+                                brandModelId,
+                                revisionIntervalKm,
+                                oilLiters,
                                 type: 'CAVALO',
                                 axles: Number(normalizedRow['EIXOS']) || 3,
                                 odometer: odometer,
@@ -1325,6 +1391,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
         </div>
         <div className="flex gap-2 w-full md:w-auto">
             <button 
+              onClick={() => setIsManagingBrandModels(true)} 
+              className="flex-1 md:flex-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-sm hover:border-slate-400 transition-all"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden md:inline">Marcas e Modelos</span>
+              <span className="md:hidden">Modelos</span>
+            </button>
+            <button 
               onClick={handleSyncSascar} 
               disabled={isSyncingSascar}
               className={`flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${isSyncingSascar ? 'opacity-50 pointer-events-none' : ''}`}
@@ -1400,6 +1474,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 <button onClick={() => setFilterType('ALL')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${filterType === 'ALL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>Todos</button>
                 <button onClick={() => setFilterType('EMPTY')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'EMPTY' ? 'bg-orange-600 text-white border-orange-600' : 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900'}`}><Ban className="h-3 w-3"/> Sem Pneus</button>
                 <button onClick={() => setFilterType('CRITICAL')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'CRITICAL' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900'}`}><AlertOctagon className="h-3 w-3"/> Críticos</button>
+                <button onClick={() => setFilterType('MAINTENANCE')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'MAINTENANCE' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900'}`}><Wrench className="h-3 w-3"/> Manutenção</button>
             </div>
           )}
       </div>
@@ -1438,7 +1513,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 className={`bg-white dark:bg-slate-900 p-5 rounded-2xl border shadow-sm group transition-all relative overflow-hidden cursor-pointer 
                     ${isSelectionMode 
                         ? (isSelected ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100') 
-                        : (status.hasLowTread || status.isHighKm || status.isMissingTires ? 'border-red-200 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800')
+                        : (status.hasLowTread || status.isMaintenanceOverdue || status.isMissingTires || status.hasExpiredTires
+                            ? 'border-red-200 dark:border-red-900/50' 
+                            : status.isMaintenanceNear 
+                                ? 'border-yellow-300 dark:border-yellow-900/50 bg-yellow-50/10'
+                                : 'border-slate-200 dark:border-slate-800')
                     }`}
             >
               {isSelectionMode && (
@@ -1503,12 +1582,22 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                           <AlertOctagon className="h-3 w-3"/> {status.lowTreadCount} pneus baixos
                       </span>
                   )}
-                  {status.isHighKm && (
-                      <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded flex items-center gap-1 border border-blue-200">
-                          <AlertTriangle className="h-3 w-3"/> KM Excedido
+                  {status.isMaintenanceOverdue && (
+                      <span className="text-[10px] font-bold bg-red-600 text-white px-2 py-1 rounded flex items-center gap-1 border border-red-700">
+                          <AlertTriangle className="h-3 w-3"/> Manutenção Vencida
                       </span>
                   )}
-                  {!status.isMissingTires && !status.hasLowTread && !status.isHighKm && (
+                  {status.isMaintenanceNear && (
+                      <span className="text-[10px] font-bold bg-yellow-400 text-yellow-900 px-2 py-1 rounded flex items-center gap-1 border border-yellow-500">
+                          <AlertTriangle className="h-3 w-3"/> Manutenção Próxima
+                      </span>
+                  )}
+                  {status.hasExpiredTires && (
+                      <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-1 rounded flex items-center gap-1 border border-purple-200">
+                          <History className="h-3 w-3"/> Pneus Vencidos
+                      </span>
+                  )}
+                  {!status.isMissingTires && !status.hasLowTread && !status.isMaintenanceOverdue && !status.isMaintenanceNear && !status.hasExpiredTires && (
                       <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-1 rounded flex items-center gap-1 border border-green-200">
                           OK
                       </span>
@@ -1888,7 +1977,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
                 {activeRGTab === 'manutencao' && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30">
                         <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Total Gasto em Manutenção</p>
                         <p className="text-2xl font-black text-slate-800 dark:text-white">
@@ -1905,6 +1994,31 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                           {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO').length}
                         </p>
                       </div>
+                      {(() => {
+                        const status = getVehicleStatus(selectedVehicleRG);
+                        const boxColor = status.isMaintenanceOverdue 
+                          ? 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-900/30' 
+                          : status.isMaintenanceNear 
+                            ? 'bg-yellow-50 border-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-900/30'
+                            : 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/30';
+                        const textColor = status.isMaintenanceOverdue 
+                          ? 'text-red-600' 
+                          : status.isMaintenanceNear 
+                            ? 'text-yellow-600'
+                            : 'text-blue-600';
+                        
+                        return (
+                          <div className={`p-4 rounded-2xl border ${boxColor}`}>
+                            <p className={`text-[10px] font-bold uppercase mb-1 ${textColor}`}>Próxima Preventiva</p>
+                            <p className="text-2xl font-black text-slate-800 dark:text-white">
+                              {status.kmToNextMaintenance.toLocaleString()} km
+                            </p>
+                            <p className="text-[10px] text-slate-500 mt-1 italic">
+                              {status.isMaintenanceOverdue ? 'Manutenção Vencida!' : 'Restantes para a troca'}
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2156,7 +2270,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                         brandModelId: selectedId,
                         brand: selectedBM?.brand || '',
                         model: selectedBM?.model || '',
-                        axles: selectedBM?.axles || formData.axles
+                        axles: selectedBM?.axles || formData.axles,
+                        revisionIntervalKm: (selectedBM?.oilChangeInterval && selectedBM.oilChangeInterval > 0) 
+                          ? selectedBM.oilChangeInterval 
+                          : formData.revisionIntervalKm,
+                        oilLiters: (selectedBM?.oilLiters && selectedBM.oilLiters > 0)
+                          ? selectedBM.oilLiters
+                          : formData.oilLiters
                       });
                     }}
                   >
@@ -2231,6 +2351,32 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MEDIDA PNEU PADRÃO</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresSize} onChange={e => setFormData({...formData, tiresSize: e.target.value})} placeholder="Ex: 295/80 R22.5" />
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 space-y-4">
+                <h4 className="text-xs font-black text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                  <Wrench className="h-4 w-4" /> Parâmetros de Manutenção
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM DE REVISÃO (INTERVALO)</label>
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.revisionIntervalKm} onChange={e => setFormData({...formData, revisionIntervalKm: Number(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">QTD LITROS ÓLEO</label>
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.oilLiters} onChange={e => setFormData({...formData, oilLiters: Number(e.target.value)})} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM ÚLTIMA PREVENTIVA</label>
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveKm} onChange={e => setFormData({...formData, lastPreventiveKm: Number(e.target.value)})} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">DATA ÚLTIMA PREVENTIVA</label>
+                    <input type="date" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveDate} onChange={e => setFormData({...formData, lastPreventiveDate: e.target.value})} />
+                  </div>
                 </div>
               </div>
               <div className="pt-4 flex gap-3">

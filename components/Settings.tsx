@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint } from '../types';
 import { storageService } from '../services/storageService';
-import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin } from 'lucide-react';
+import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 interface SettingsProps {
   currentSettings: SystemSettings;
@@ -19,7 +20,7 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSettings }) => {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'SERVICES' | 'POINTS'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL'>('GENERAL');
   
   // General Settings State
   const [formData, setFormData] = useState<SystemSettings>(currentSettings);
@@ -62,6 +63,15 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
   const [serviceTypes, setServiceTypes] = useState<ServiceTypeDefinition[]>([]);
   const [newServiceType, setNewServiceType] = useState<string>('');
 
+  // --- PROCEDURES STATE ---
+  const [standardProcedures, setStandardProcedures] = useState<any[]>([]);
+  const [newProcedure, setNewProcedure] = useState<any>({
+    name: '',
+    category: 'OIL',
+    description: '',
+    estimatedCost: 0
+  });
+
   // --- POINTS STATE ---
   const [savedPoints, setSavedPoints] = useState<LocationPoint[]>([]);
   const [newPoint, setNewPoint] = useState<Partial<LocationPoint>>({ name: '', lat: 0, lng: 0, radius: 500 });
@@ -73,11 +83,13 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
       logoUrl: currentSettings.logoUrl || '',
       tireModels: currentSettings.tireModels || [],
       serviceTypes: currentSettings.serviceTypes || [],
+      standardProcedures: currentSettings.standardProcedures || [],
       trailerDailyAverageKm: currentSettings.trailerDailyAverageKm || 0,
       savedPoints: currentSettings.savedPoints || []
     });
     setCatalogItems(currentSettings.tireModels || []);
     setServiceTypes(currentSettings.serviceTypes || []);
+    setStandardProcedures(currentSettings.standardProcedures || []);
     setSavedPoints(currentSettings.savedPoints || []);
   }, [currentSettings]);
 
@@ -112,6 +124,7 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
         ...formData, 
         tireModels: catalogItems, 
         serviceTypes: serviceTypes,
+        standardProcedures: standardProcedures,
         savedPoints: savedPoints
       };
       await storageService.saveSettings(finalSettings);
@@ -173,6 +186,25 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
       const updatedList = serviceTypes.filter(s => s.id !== id);
       setServiceTypes(updatedList);
       setFormData({...formData, serviceTypes: updatedList});
+  };
+
+  // --- PROCEDURES HANDLERS ---
+  const handleAddProcedure = () => {
+    if (!newProcedure.name.trim()) return;
+    const procedure = {
+      ...newProcedure,
+      id: Date.now().toString()
+    };
+    const updatedList = [...standardProcedures, procedure];
+    setStandardProcedures(updatedList);
+    setFormData({...formData, standardProcedures: updatedList});
+    setNewProcedure({ name: '', category: 'OIL', description: '', estimatedCost: 0 });
+  };
+
+  const handleDeleteProcedure = (id: string) => {
+    const updatedList = standardProcedures.filter(p => p.id !== id);
+    setStandardProcedures(updatedList);
+    setFormData({...formData, standardProcedures: updatedList});
   };
 
   // --- POINTS HANDLERS ---
@@ -313,6 +345,86 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
      setLoadingLogs(false);
   };
 
+  const downloadManual = (moduleName: string) => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(22);
+    doc.text(`Manual do Sistema - ${moduleName}`, 20, 20);
+    
+    doc.setFontSize(14);
+    doc.text('Passo a Passo:', 20, 40);
+    
+    doc.setFontSize(12);
+    let y = 50;
+    
+    const content: Record<string, string[]> = {
+      'Gestão de Pneus': [
+        '1. Acesse o módulo de Pneus no menu lateral.',
+        '2. Para cadastrar um novo pneu, clique em "Novo Pneu".',
+        '3. Preencha os dados técnicos (Marca, Modelo, Dimensão, DOT).',
+        '4. Salve o cadastro.',
+        '5. Para movimentar, vá na aba "Movimentação" e selecione o pneu e o veículo.',
+        '6. Registre inspeções periodicamente na aba "Inspeções".'
+      ],
+      'Gestão de Frota': [
+        '1. Acesse o módulo de Veículos.',
+        '2. Clique em "Novo Veículo" para adicionar um caminhão ou carreta.',
+        '3. Informe a placa, modelo, ano e odômetro inicial.',
+        '4. Você pode visualizar a localização no "Mapa de Frota".',
+        '5. Mantenha o odômetro atualizado para previsões precisas.'
+      ],
+      'Manutenção e Serviços': [
+        '1. Acesse o módulo de Ordens de Serviço.',
+        '2. Clique em "Nova O.S." para registrar uma manutenção.',
+        '3. Selecione o veículo, tipo de serviço e peças utilizadas.',
+        '4. Acompanhe o status (Aberta, Em Andamento, Concluída).',
+        '5. Configure planos preventivos na aba "Planos de Manutenção".'
+      ],
+      'Gestão de Motoristas': [
+        '1. Acesse o módulo de Motoristas.',
+        '2. Clique em "Novo Motorista".',
+        '3. Preencha os dados pessoais e informações da CNH.',
+        '4. Vincule o motorista a um veículo padrão, se necessário.',
+        '5. Acompanhe o vencimento da CNH e exames.'
+      ],
+      'Relatórios e Análises': [
+        '1. Acesse o módulo de Relatórios ou Dashboard.',
+        '2. No Dashboard, visualize os KPIs principais (CPK, Custos).',
+        '3. Em Relatórios, escolha o tipo de relatório desejado.',
+        '4. Aplique os filtros de data, veículo ou filial.',
+        '5. Exporte os dados para Excel ou PDF conforme necessário.'
+      ],
+      'Configurações e Equipe': [
+        '1. Acesse o módulo de Configurações (ícone de engrenagem).',
+        '2. Na aba "Parâmetros", defina limites de sulco e alertas.',
+        '3. Na aba "Equipe", cadastre novos usuários e defina permissões.',
+        '4. Na aba "Catálogo", padronize as marcas e modelos de pneus.',
+        '5. Salve as alterações para aplicar em todo o sistema.'
+      ]
+    };
+
+    const steps = content[moduleName] || ['Conteúdo em desenvolvimento...'];
+    
+    steps.forEach(step => {
+      doc.text(step, 20, y);
+      y += 10;
+    });
+
+    doc.save(`Manual_${moduleName.replace(/ /g, '_')}.pdf`);
+  };
+
+  const ManualCard = ({ title, description }: { title: string, description: string }) => (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col h-full hover:border-sky-300 transition-colors">
+      <div className="flex-1">
+        <h4 className="font-bold text-slate-800 mb-2">{title}</h4>
+        <p className="text-sm text-slate-500 mb-4">{description}</p>
+      </div>
+      <button onClick={() => downloadManual(title)} className="w-full py-2 bg-white border border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200 text-slate-700 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2">
+        <Download className="h-4 w-4" /> Baixar PDF
+      </button>
+    </div>
+  );
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       
@@ -401,8 +513,8 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
            <button onClick={() => setActiveTab('CATALOG')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'CATALOG' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-500 hover:text-slate-700'}`}>
              <BookOpen className="h-4 w-4" /> Catálogo de Pneus
            </button>
-           <button onClick={() => setActiveTab('SERVICES')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SERVICES' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <Wrench className="h-4 w-4" /> Tipos de Serviço
+           <button onClick={() => setActiveTab('OFICINA')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'OFICINA' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
+             <Wrench className="h-4 w-4" /> Oficina
            </button>
            <button onClick={() => setActiveTab('POINTS')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'POINTS' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}>
              <MapPin className="h-4 w-4" /> Pontos de Destino
@@ -410,8 +522,32 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
            <button onClick={() => setActiveTab('TEAM')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'TEAM' ? 'bg-white shadow-sm text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}>
              <Users className="h-4 w-4" /> Equipe
            </button>
+           <button onClick={() => setActiveTab('MANUAL')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'MANUAL' ? 'bg-white shadow-sm text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}>
+             <FileText className="h-4 w-4" /> Manual
+           </button>
         </div>
       </div>
+
+      {/* MANUAL TAB */}
+      {activeTab === 'MANUAL' && (
+         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="mb-6">
+               <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-sky-600" /> Manuais do Sistema
+               </h3>
+               <p className="text-slate-500 text-sm mt-1">Baixe o manual passo a passo para cada módulo do sistema.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               <ManualCard title="Gestão de Pneus" description="Aprenda a cadastrar, movimentar e inspecionar pneus." />
+               <ManualCard title="Gestão de Frota" description="Como gerenciar veículos, marcas e modelos." />
+               <ManualCard title="Manutenção e Serviços" description="Guia sobre ordens de serviço e planos de manutenção." />
+               <ManualCard title="Gestão de Motoristas" description="Passo a passo para cadastrar e gerenciar motoristas." />
+               <ManualCard title="Relatórios e Análises" description="Como extrair e interpretar os dados do sistema." />
+               <ManualCard title="Configurações e Equipe" description="Aprenda a configurar o sistema e gerenciar acessos." />
+            </div>
+         </div>
+      )}
 
       {activeTab === 'GENERAL' && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
@@ -558,54 +694,119 @@ export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSet
          </div>
       )}
 
-      {/* SERVICES TAB */}
-      {activeTab === 'SERVICES' && (
+      {/* OFICINA TAB */}
+      {activeTab === 'OFICINA' && (
          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-start mb-6">
                <div>
                   <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                     <Wrench className="h-5 w-5 text-indigo-600" /> Tipos de Serviço
+                     <Wrench className="h-5 w-5 text-indigo-600" /> Configurações da Oficina
                   </h3>
-                  <p className="text-slate-500 text-sm mt-1">Padronize os títulos das Ordens de Serviço (ex: Troca de Óleo, Rodízio).</p>
+                  <p className="text-slate-500 text-sm mt-1">Gerencie tipos de serviço e procedimentos padrões.</p>
                </div>
                <button onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
-                  {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Lista
+                  {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Configurações
                </button>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
-                <div className="w-full md:w-1/3 space-y-4">
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Novo Tipo de Serviço</label>
-                        <div className="flex gap-2">
-                            <input 
-                                type="text" 
-                                className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
-                                placeholder="Ex: Manutenção Freios" 
-                                value={newServiceType} 
-                                onChange={e => setNewServiceType(e.target.value)} 
-                                onKeyDown={e => e.key === 'Enter' && handleAddServiceType()}
-                            />
-                            <button onClick={handleAddServiceType} className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded transition-colors"><Plus className="h-5 w-5"/></button>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2">Adicione modelos para facilitar a abertura de O.S.</p>
-                    </div>
-                </div>
-
-                <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-[400px] overflow-y-auto">
-                    {serviceTypes.length === 0 ? (
-                        <div className="text-center text-slate-400 py-10 italic">Nenhum tipo de serviço cadastrado.</div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {serviceTypes.map(st => (
-                                <div key={st.id} className="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
-                                    <span className="font-bold text-slate-700">{st.name}</span>
-                                    <button onClick={() => handleDeleteServiceType(st.id)} className="text-slate-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition-colors"><Trash2 className="h-4 w-4"/></button>
+            <div className="space-y-8">
+                {/* Tipos de Serviço */}
+                <section>
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <List className="h-4 w-4" /> Tipos de Serviço (Títulos)
+                    </h4>
+                    <div className="flex flex-col md:flex-row gap-6">
+                        <div className="w-full md:w-1/3">
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Novo Tipo</label>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
+                                        placeholder="Ex: Troca de Óleo" 
+                                        value={newServiceType} 
+                                        onChange={e => setNewServiceType(e.target.value)} 
+                                    />
+                                    <button onClick={handleAddServiceType} className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded transition-colors"><Plus className="h-5 w-5"/></button>
                                 </div>
-                            ))}
+                            </div>
                         </div>
-                    )}
-                </div>
+                        <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-[200px] overflow-y-auto">
+                            {serviceTypes.length === 0 ? (
+                                <div className="text-center text-slate-400 py-4 italic text-sm">Nenhum tipo cadastrado.</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    {serviceTypes.map(st => (
+                                        <div key={st.id} className="bg-white p-2 px-3 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
+                                            <span className="text-sm font-bold text-slate-700">{st.name}</span>
+                                            <button onClick={() => handleDeleteServiceType(st.id)} className="text-slate-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"><Trash2 className="h-3.5 w-3.5"/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Procedimentos Padrões */}
+                <section>
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4" /> Procedimentos Padrões (Checklists)
+                    </h4>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">NOME DO PROCEDIMENTO</label>
+                                <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: Revisão 10k" value={newProcedure.name} onChange={e => setNewProcedure({...newProcedure, name: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">CATEGORIA</label>
+                                <select className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newProcedure.category} onChange={e => setNewProcedure({...newProcedure, category: e.target.value})}>
+                                    <option value="OIL">Troca de Óleo</option>
+                                    <option value="ELECTRICAL">Elétrica</option>
+                                    <option value="MECHANICAL">Mecânica</option>
+                                    <option value="OTHER">Outros</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">DESCRIÇÃO / PASSOS</label>
+                                <textarea className="w-full p-2 border border-slate-300 rounded text-black bg-white h-20" placeholder="Descreva os passos..." value={newProcedure.description} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
+                            </div>
+                            <button onClick={handleAddProcedure} className="w-full py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                                <Plus className="h-4 w-4" /> Adicionar Procedimento
+                            </button>
+                        </div>
+
+                        <div className="lg:col-span-2 bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-[400px] overflow-y-auto">
+                            {standardProcedures.length === 0 ? (
+                                <div className="text-center text-slate-400 py-10 italic">Nenhum procedimento cadastrado.</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {standardProcedures.map(p => (
+                                        <div key={p.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300 transition-all group">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                                        p.category === 'OIL' ? 'bg-orange-100 text-orange-700' :
+                                                        p.category === 'ELECTRICAL' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                        {p.category}
+                                                    </span>
+                                                    <h5 className="font-bold text-slate-800 mt-1">{p.name}</h5>
+                                                </div>
+                                                <button onClick={() => handleDeleteProcedure(p.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-slate-500 line-clamp-2">{p.description}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
             </div>
          </div>
       )}

@@ -16,12 +16,15 @@ interface ServiceOrderHubProps {
   onAddOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
   settings?: SystemSettings;
   arrivalAlerts?: ArrivalAlert[];
+  initialVehicleId?: string;
+  initialModalOpen?: boolean;
+  onCloseInitialModal?: () => void;
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
 type TabView = 'ORDERS' | 'PMS';
 
-export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, maintenancePlans = [], maintenanceSchedules = [], vehicles = [], vehicleBrandModels = [], tires = [], stockItems = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [] }) => {
+export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, maintenancePlans = [], maintenanceSchedules = [], vehicles = [], vehicleBrandModels = [], tires = [], stockItems = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [], initialVehicleId, initialModalOpen, onCloseInitialModal }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,15 +32,29 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
   // Create Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newOrderVehicleId, setNewOrderVehicleId] = useState('');
+
+  React.useEffect(() => {
+    if (initialModalOpen) {
+      setIsCreateModalOpen(true);
+      if (initialVehicleId) {
+        setNewOrderVehicleId(initialVehicleId);
+      }
+      onCloseInitialModal?.();
+    }
+  }, [initialModalOpen, initialVehicleId, onCloseInitialModal]);
   const [newOrderTitle, setNewOrderTitle] = useState('');
   const [newOrderMaintenancePlanId, setNewOrderMaintenancePlanId] = useState('');
   const [newOrderDetails, setNewOrderDetails] = useState('');
   const [newOrderMaintenanceBaseId, setNewOrderMaintenanceBaseId] = useState('');
+  const [newOrderDate, setNewOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newOrderOdometer, setNewOrderOdometer] = useState<number | ''>('');
+  const [isPreventiveMaintenance, setIsPreventiveMaintenance] = useState(false);
   
   // Edit Modal State
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [editOrderTitle, setEditOrderTitle] = useState('');
   const [editOrderDetails, setEditOrderDetails] = useState('');
+  const [editOrderDate, setEditOrderDate] = useState('');
   const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
@@ -282,10 +299,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
               vehiclePlate: vehicle.plate,
               title: newOrderTitle || (newOrderDetails.length > 40 ? newOrderDetails.substring(0, 40) + '...' : newOrderDetails) || 'Manutenção',
               details: newOrderDetails,
+              date: newOrderDate,
               maintenancePlanId: newOrderMaintenancePlanId || undefined,
               maintenanceBaseId: newOrderMaintenanceBaseId || undefined,
               maintenanceBaseName: settings?.savedPoints?.find(p => p.id === newOrderMaintenanceBaseId)?.name,
               arrivalAlertId,
+              isPreventiveMaintenance,
+              odometer: newOrderOdometer !== '' ? newOrderOdometer : undefined,
               parts: newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
@@ -294,8 +314,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           setNewOrderVehicleId('');
           setNewOrderTitle('');
           setNewOrderDetails('');
+          setNewOrderDate(new Date().toISOString().split('T')[0]);
           setNewOrderMaintenancePlanId('');
           setNewOrderMaintenanceBaseId('');
+          setNewOrderOdometer('');
+          setIsPreventiveMaintenance(false);
           setNewOrderParts([]);
       } catch (err) {
           console.error(err);
@@ -309,6 +332,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
       setEditingOrder(order);
       setEditOrderTitle(order.title);
       setEditOrderDetails(order.details);
+      setEditOrderDate(order.date || '');
       setEditOrderParts(order.parts || []);
   };
 
@@ -321,6 +345,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           await onUpdateOrder(editingOrder.id, {
               title: editOrderTitle,
               details: editOrderDetails,
+              date: editOrderDate,
               parts: editOrderParts.length > 0 ? editOrderParts : undefined
           });
           setEditingOrder(null);
@@ -442,8 +467,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                    <h3 className="font-bold text-lg text-slate-800 dark:text-white">{order.title}</h3>
                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
                       <span className="flex items-center gap-1"><Truck className="h-3 w-3"/> {order.vehiclePlate}</span>
-                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> Aberto em: {new Date(order.createdAt).toLocaleString()}</span>
+                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> {order.date ? `Data: ${new Date(order.date + 'T12:00:00').toLocaleDateString()}` : `Aberto em: ${new Date(order.createdAt).toLocaleString()}`}</span>
                       
+                      {order.odometer && (
+                          <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded font-bold border border-slate-200 dark:border-slate-700">
+                              <Timer className="h-3 w-3"/> KM: {order.odometer.toLocaleString()}
+                          </span>
+                      )}
+
                       {order.startTime && (
                           <span className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 px-2 py-0.5 rounded font-bold">
                               <Clock className="h-3 w-3"/> Início Serviço: {new Date(order.startTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -509,13 +540,43 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               required 
                               className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
                               value={newOrderVehicleId}
-                              onChange={e => setNewOrderVehicleId(e.target.value)}
+                              onChange={e => {
+                                  const vid = e.target.value;
+                                  setNewOrderVehicleId(vid);
+                                  const v = vehicles.find(veh => veh.id === vid);
+                                  if (v) {
+                                      setNewOrderOdometer(v.odometer);
+                                  }
+                              }}
                           >
                               <option value="">Selecione um veículo...</option>
                               {vehicles.map(v => (
                                   <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
                               ))}
                           </select>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data da O.S.</label>
+                          <input 
+                              type="date"
+                              required 
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                              value={newOrderDate}
+                              onChange={e => setNewOrderDate(e.target.value)}
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Hodômetro Atual (KM)</label>
+                          <input 
+                              type="number"
+                              required 
+                              placeholder="KM do veículo no momento"
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                              value={newOrderOdometer}
+                              onChange={e => setNewOrderOdometer(Number(e.target.value))}
+                          />
                       </div>
                       
                       {pendingAlertsForVehicle.length > 0 && (
@@ -630,6 +691,21 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                           </p>
                       </div>
                       
+                      <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                          <input 
+                              type="checkbox" 
+                              id="isPreventive"
+                              checked={isPreventiveMaintenance}
+                              onChange={(e) => setIsPreventiveMaintenance(e.target.checked)}
+                              className="mt-1 h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="isPreventive" className="text-sm font-bold text-blue-800 dark:text-blue-300 cursor-pointer">
+                              Esta é uma manutenção preventiva (Óleo e Filtros)
+                              <span className="block text-[10px] font-normal text-blue-600 dark:text-blue-400 mt-0.5">
+                                  Ao criar esta O.S., o KM atual do veículo será registrado como a última troca, calculando automaticamente a próxima revisão.
+                              </span>
+                          </label>
+                      </div>
 
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Detalhes do Serviço</label>
@@ -746,6 +822,17 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm"
                               value={editOrderDetails}
                               onChange={e => setEditOrderDetails(e.target.value)}
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data da O.S.</label>
+                          <input 
+                              type="date"
+                              required 
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                              value={editOrderDate}
+                              onChange={e => setEditOrderDate(e.target.value)}
                           />
                       </div>
 

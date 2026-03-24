@@ -21,12 +21,13 @@ interface DashboardProps {
   vehicles: Vehicle[];
   serviceOrders?: ServiceOrder[];
   onNavigate: (tab: TabView) => void;
+  onOpenServiceOrder?: (vehicleId: string) => void;
   settings?: SystemSettings;
 }
 
 type OperationFilter = 'ALL' | 'CAVALO' | 'CARRETA';
 
-export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders = [], onNavigate, settings }) => {
+export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders = [], onNavigate, onOpenServiceOrder, settings }) => {
   const [period, setPeriod] = useState<'30D' | 'YTD'>('YTD');
   const [opFilter, setOpFilter] = useState<OperationFilter>('ALL');
   
@@ -598,7 +599,7 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden flex flex-col">
-              <MaintenanceAgenda tires={tires} vehicles={vehicles} settings={settings} onNavigate={onNavigate} />
+              <MaintenanceAgenda tires={tires} vehicles={vehicles} settings={settings} onNavigate={onNavigate} onOpenServiceOrder={onOpenServiceOrder} />
           </div>
       </div>
 

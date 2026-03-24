@@ -113,6 +113,8 @@ export interface VehicleBrandModel {
   type: 'CAVALO' | 'CARRETA';
   axles: number;
   maintenancePlanId?: string;
+  oilChangeInterval?: number;
+  oilLiters?: number;
 }
 
 export interface Vehicle {
@@ -144,6 +146,12 @@ export interface Vehicle {
   renavam?: string;
   tiresBrand?: string;
   tiresSize?: string;
+
+  // --- Maintenance Fields ---
+  revisionIntervalKm?: number; // KM de Revisão
+  oilLiters?: number; // Qtd Litros Óleo
+  lastPreventiveKm?: number; // KM da última preventiva
+  lastPreventiveDate?: string; // Data da última preventiva
 }
 
 export interface LocationPoint {
@@ -199,6 +207,15 @@ export interface TreadPattern {
   fixedCost: number; // Valor fixo da reforma para esta banda
 }
 
+export interface StandardProcedure {
+  id: string;
+  name: string;
+  category: 'OIL' | 'ELECTRICAL' | 'MECHANICAL' | 'OTHER';
+  description?: string;
+  estimatedCost?: number;
+  parts?: { name: string; quantity: number }[];
+}
+
 export interface SystemSettings {
   minTreadDepth: number;
   warningTreadDepth: number;
@@ -209,6 +226,7 @@ export interface SystemSettings {
   logoUrl?: string;
   tireModels?: TireModelDefinition[];
   serviceTypes?: ServiceTypeDefinition[]; // Novo campo para modelos de serviço
+  standardProcedures?: StandardProcedure[]; // Novos procedimentos padrões
   defaultMonthlyKm: number; // For forecast
   trailerDailyAverageKm?: number; // Média diária fixa para rodagem de carretas
   rotationIntervalKm?: number; // Novo: Intervalo para rodízio
@@ -269,10 +287,13 @@ export interface ServiceOrder {
   maintenanceBaseId?: string;
   maintenanceBaseName?: string;
   arrivalAlertId?: string;
+  isPreventiveMaintenance?: boolean;
+  date?: string; // Data da O.S. (pode ser diferente de createdAt)
   createdBy: string;
   createdAt: string;
   completedBy?: string;
   completedAt?: string;
+  odometer?: number;
 }
 
 export interface RetreadOrderItem {

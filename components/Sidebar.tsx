@@ -56,6 +56,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
     { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
+    { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
     { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
 

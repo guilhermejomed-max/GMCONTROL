@@ -17,6 +17,7 @@ import { VehicleManager } from './components/VehicleManager';
 import { BrandModelManager } from './components/BrandModelManager';
 import { LocationMap } from './components/LocationMap';
 import { ServiceOrderHub } from './components/ServiceOrderHub';
+import { MaintenanceDashboard } from './components/MaintenanceDashboard';
 import { ServiceManager } from './components/ServiceManager';
 import { Settings } from './components/Settings';
 import { DriversHub } from './components/DriversHub';
@@ -180,6 +181,8 @@ export const App = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [syncModal, setSyncModal] = useState<{ isOpen: boolean, updatedPlates: string[] }>({ isOpen: false, updatedPlates: [] });
+  const [preselectedVehicleId, setPreselectedVehicleId] = useState<string | null>(null);
+  const [shouldOpenOSModal, setShouldOpenOSModal] = useState(false);
 
   useEffect(() => {
     const unsubAuth = storageService.subscribeToAuth((u) => {
@@ -271,21 +274,112 @@ export const App = () => {
             actualArrivalDate: new Date().toISOString() 
           });
           
-          addToast('success', 'Chegada de Veículo', `O veículo ${alert.vehiclePlate} chegou ao destino: ${alert.targetName}`);
+          // Check for maintenance status of the arriving vehicle
+          const currentKm = vehicle.odometer || 0;
+          const lastPreventiveKm = vehicle.lastPreventiveKm || 0;
+          const revisionInterval = vehicle.revisionIntervalKm || 10000;
+          const nextPreventiveKm = lastPreventiveKm + revisionInterval;
+          const kmRemaining = nextPreventiveKm - currentKm;
+          
+          let maintenanceAlert = "";
+          if (kmRemaining <= 0) {
+            maintenanceAlert = `O veículo ${vehicle.plate} chegou e está com MANUTENÇÃO VENCIDA há ${Math.abs(kmRemaining)} km!`;
+          } else if (kmRemaining <= 1000) {
+            maintenanceAlert = `O veículo ${vehicle.plate} chegou e está PRÓXIMO da manutenção (faltam ${kmRemaining} km).`;
+          } else {
+            maintenanceAlert = `O veículo ${vehicle.plate} chegou ao destino: ${alert.targetName}`;
+          }
+
+          addToast(kmRemaining <= 0 ? 'error' : (kmRemaining <= 1000 ? 'warning' : 'success'), 
+                   'Chegada de Veículo', maintenanceAlert);
           
           // Voice Alert (TTS)
           if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(`O veículo ${alert.vehiclePlate} chegou em ${alert.targetName} e está disponível para manutenção.`);
+            const utterance = new SpeechSynthesisUtterance(maintenanceAlert);
             utterance.lang = 'pt-BR';
             window.speechSynthesis.speak(utterance);
           }
           
+          // Also check if there are other vehicles overdue
+          const otherOverdue = vehicles.filter(v => {
+            if (v.id === vehicle.id) return false;
+            const next = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
+            return (v.odometer || 0) >= next;
+          });
+
+          if (otherOverdue.length > 0) {
+            setTimeout(() => {
+              addToast('info', 'Resumo de Manutenção', `Existem outros ${otherOverdue.length} veículos com manutenção vencida na frota.`);
+            }, 2000);
+          }
+          
           // Also log activity
-          storageService.logActivity("Chegada", `Veículo ${alert.vehiclePlate} chegou em ${alert.targetName}`, 'VEHICLES');
+          storageService.logActivity("Chegada", maintenanceAlert, 'VEHICLES');
         }
       }
     });
   }, [vehicles, arrivalAlerts]);
+
+  // OVERDUE MAINTENANCE + NEARBY BASE ALERT
+  const alertedOverdueRef = useRef<Record<string, string>>({}); // vehicleId -> lastAlertedBaseId
+  useEffect(() => {
+    if (vehicles.length === 0 || !settings?.savedPoints || settings.savedPoints.length === 0) return;
+
+    const overdueCavalo = vehicles.filter(v => {
+      if (v.type !== 'CAVALO') return false;
+      const nextDue = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
+      return (v.odometer || 0) >= nextDue;
+    });
+
+    if (overdueCavalo.length === 0) return;
+
+    overdueCavalo.forEach(vehicle => {
+      if (!vehicle.lastLocation) return;
+      const { lat, lng } = vehicle.lastLocation;
+
+      settings.savedPoints?.forEach(point => {
+        // Calculate distance (Haversine formula)
+        const R = 6371e3; // metres
+        const φ1 = lat * Math.PI/180;
+        const φ2 = point.lat * Math.PI/180;
+        const Δφ = (point.lat - lat) * Math.PI/180;
+        const Δλ = (point.lng - lng) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distance = R * c; // in metres
+
+        const radius = point.radius || 500;
+        if (distance <= radius) {
+          // Check if we already alerted for this vehicle at this base
+          if (alertedOverdueRef.current[vehicle.id] === point.id) return;
+          
+          alertedOverdueRef.current[vehicle.id] = point.id;
+          
+          const kmOverdue = (vehicle.odometer || 0) - ((vehicle.lastPreventiveKm || 0) + (vehicle.revisionIntervalKm || 10000));
+          const alertMsg = `ALERTA CRÍTICO: O veículo ${vehicle.plate} está com MANUTENÇÃO VENCIDA há ${kmOverdue.toLocaleString()} km e acaba de chegar em ${point.name}!`;
+          
+          addToast('error', 'Manutenção Vencida na Base', alertMsg);
+          
+          // Voice Alert (TTS)
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(alertMsg);
+            utterance.lang = 'pt-BR';
+            window.speechSynthesis.speak(utterance);
+          }
+          
+          storageService.logActivity("Alerta Manutenção", alertMsg, 'VEHICLES');
+        } else {
+          // If vehicle is no longer at this base, clear the ref so it can alert again if it returns
+          if (alertedOverdueRef.current[vehicle.id] === point.id) {
+            delete alertedOverdueRef.current[vehicle.id];
+          }
+        }
+      });
+    });
+  }, [vehicles, settings?.savedPoints]);
 
   // SASCAR SYNC FUNCTION
   const isSyncingRef = useRef(false);
@@ -468,7 +562,7 @@ export const App = () => {
   }, [currentTab, !!user, trackerSettings?.active]);
 
   const addToast = (type: any, title: string, message: string) => {
-    const id = Date.now().toString();
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     setToasts(prev => [...prev, { id, type, title, message }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
   };
@@ -500,6 +594,34 @@ export const App = () => {
 
       await storageService.addServiceOrder(newOrder);
       addToast('success', 'Ordem Criada', `O.S. #${newOrder.orderNumber} aberta com sucesso.`);
+
+      const vehicle = vehicles.find(v => v.id === newOrder.vehicleId);
+      if (vehicle) {
+          const updates: Partial<Vehicle> = {};
+          
+          // Update vehicle odometer if the OS odometer is higher
+          if (newOrder.odometer && newOrder.odometer > (vehicle.odometer || 0)) {
+              updates.odometer = newOrder.odometer;
+          }
+
+          if (newOrder.isPreventiveMaintenance) {
+              const formattedDate = newOrder.date 
+                  ? newOrder.date.split('-').reverse().join('/') 
+                  : new Date().toLocaleDateString('pt-BR');
+
+              updates.lastPreventiveKm = newOrder.odometer || vehicle.odometer || 0;
+              updates.lastPreventiveDate = formattedDate;
+              
+              addToast('info', 'Manutenção Preventiva', `KM de troca de óleo atualizado para ${updates.lastPreventiveKm} km.`);
+          }
+
+          if (Object.keys(updates).length > 0) {
+              await storageService.updateVehicle({
+                  ...vehicle,
+                  ...updates
+              });
+          }
+      }
   };
 
   const getPageTitle = (tab: TabView) => {
@@ -517,6 +639,7 @@ export const App = () => {
       case 'financial': return 'Financeiro';
       case 'esg-panel': return 'Painel ESG';
       case 'fleet': return 'Frota de Veículos';
+      case 'maintenance': return 'Gestão de Preventivas';
       case 'brand-models': return 'Marcas e Modelos';
       case 'location': return 'Rastreamento';
       case 'service-orders': return 'Oficina';
@@ -599,7 +722,20 @@ export const App = () => {
                 </div>
             </header>
 
-            {currentTab === 'dashboard' && <Dashboard tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} onNavigate={setCurrentTab} settings={settings} />}
+            {currentTab === 'dashboard' && (
+              <Dashboard 
+                tires={tires} 
+                vehicles={vehicles} 
+                serviceOrders={serviceOrders} 
+                onNavigate={setCurrentTab} 
+                settings={settings} 
+                onOpenServiceOrder={(vehicleId) => {
+                  setPreselectedVehicleId(vehicleId);
+                  setShouldOpenOSModal(true);
+                  setCurrentTab('service-orders');
+                }}
+              />
+            )}
             {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={storageService.deleteTire} onUpdateTire={storageService.updateTire} onRegister={() => setCurrentTab('register')} userLevel={userRole} />}
             {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} userLevel={userRole} />}
             {currentTab === 'register' && <TireForm onAddTire={storageService.addTire} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
@@ -630,8 +766,38 @@ export const App = () => {
             {currentTab === 'demand-forecast' && <DemandForecast tires={tires} vehicles={vehicles} settings={settings} />}
             {currentTab === 'financial' && <FinancialHub tires={tires} vehicles={vehicles} retreadOrders={retreadOrders} />}
             {currentTab === 'esg-panel' && <EsgPanel tires={tires} retreadOrders={retreadOrders} />}
+            {currentTab === 'maintenance' && (
+              <MaintenanceDashboard 
+                vehicles={vehicles} 
+                maintenanceSchedules={maintenanceSchedules} 
+                maintenancePlans={maintenancePlans} 
+                vehicleBrandModels={vehicleBrandModels}
+                onOpenServiceOrder={(vehicleId) => {
+                  setPreselectedVehicleId(vehicleId);
+                  setShouldOpenOSModal(true);
+                  setCurrentTab('service-orders');
+                }}
+              />
+            )}
             {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} onSync={syncSascar} />}
-            {currentTab === 'service-orders' && <ServiceOrderHub serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} vehicles={vehicles} vehicleBrandModels={vehicleBrandModels} tires={tires} stockItems={stockItems} onUpdateOrder={storageService.updateServiceOrder} onAddOrder={handleAddServiceOrder} settings={settings} arrivalAlerts={arrivalAlerts} />}
+            {currentTab === 'service-orders' && (
+              <ServiceOrderHub 
+                serviceOrders={serviceOrders} 
+                maintenancePlans={maintenancePlans} 
+                maintenanceSchedules={maintenanceSchedules} 
+                vehicles={vehicles} 
+                vehicleBrandModels={vehicleBrandModels} 
+                tires={tires} 
+                stockItems={stockItems} 
+                onUpdateOrder={storageService.updateServiceOrder} 
+                onAddOrder={handleAddServiceOrder} 
+                settings={settings} 
+                arrivalAlerts={arrivalAlerts} 
+                initialVehicleId={preselectedVehicleId || undefined}
+                initialModalOpen={shouldOpenOSModal}
+                onCloseInitialModal={() => setShouldOpenOSModal(false)}
+              />
+            )}
             {currentTab === 'service' && <ServiceManager userLevel={userRole} />}
             {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} vehicleBrandModels={vehicleBrandModels} />}
             {currentTab === 'settings' && <Settings currentSettings={settings || {} as any} onUpdateSettings={storageService.saveSettings} />}

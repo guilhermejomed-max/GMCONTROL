@@ -30,7 +30,9 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
     model: '',
     type: 'CAVALO',
     axles: 3,
-    maintenancePlanId: ''
+    maintenancePlanId: '',
+    oilChangeInterval: 0,
+    oilLiters: 0
   });
 
   // Group models by brand
@@ -44,19 +46,27 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
 
   const handleOpenAddBrand = () => {
     setIsAddingBrand(true);
-    setFormData({ brand: '', model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '' });
+    setFormData({ brand: '', model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0 });
   };
 
   const handleOpenAddModel = (brand: string) => {
     setIsAddingModel(true);
     setEditingModelId(null);
-    setFormData({ brand, model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '' });
+    setFormData({ brand, model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0 });
   };
 
   const handleOpenEditModel = (bm: VehicleBrandModel) => {
     setIsAddingModel(true);
     setEditingModelId(bm.id);
-    setFormData({ brand: bm.brand, model: bm.model, type: bm.type, axles: bm.axles, maintenancePlanId: bm.maintenancePlanId || '' });
+    setFormData({ 
+      brand: bm.brand, 
+      model: bm.model, 
+      type: bm.type, 
+      axles: bm.axles, 
+      maintenancePlanId: bm.maintenancePlanId || '',
+      oilChangeInterval: bm.oilChangeInterval || 0,
+      oilLiters: bm.oilLiters || 0
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -212,6 +222,8 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                     <th className="pb-3 px-2">Modelo</th>
                     <th className="pb-3 px-2">Tipo</th>
                     <th className="pb-3 px-2">Eixos</th>
+                    <th className="pb-3 px-2">Troca de Óleo</th>
+                    <th className="pb-3 px-2">Litragem</th>
                     <th className="pb-3 px-2">Plano PMS</th>
                     <th className="pb-3 px-2 text-right">Ações</th>
                   </tr>
@@ -230,6 +242,12 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                         </span>
                       </td>
                       <td className="py-4 px-2 font-bold text-slate-600 dark:text-slate-400">{bm.axles}</td>
+                      <td className="py-4 px-2 font-bold text-slate-600 dark:text-slate-400">
+                        {bm.oilChangeInterval ? `${bm.oilChangeInterval.toLocaleString('pt-BR')} km` : '-'}
+                      </td>
+                      <td className="py-4 px-2 font-bold text-slate-600 dark:text-slate-400">
+                        {bm.oilLiters ? `${bm.oilLiters} L` : '-'}
+                      </td>
                       <td className="py-4 px-2">
                         {bm.maintenancePlanId ? (
                           <div className="flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400">
@@ -322,6 +340,32 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                     onChange={e => setFormData({...formData, axles: Number(e.target.value)})} 
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">INTERVALO TROCA DE ÓLEO (KM)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  step="1000"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                  value={formData.oilChangeInterval || ''} 
+                  onChange={e => setFormData({...formData, oilChangeInterval: Number(e.target.value)})} 
+                  placeholder="Ex: 50000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">LITRAGEM DE ÓLEO (L)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  step="0.1"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                  value={formData.oilLiters || ''} 
+                  onChange={e => setFormData({...formData, oilLiters: Number(e.target.value)})} 
+                  placeholder="Ex: 35"
+                />
               </div>
 
               <div>
