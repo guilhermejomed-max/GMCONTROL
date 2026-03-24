@@ -555,11 +555,13 @@ export const App = () => {
   };
 
   // Auto-sync when entering location tab
+  /*
   useEffect(() => {
     if (currentTab === 'location' && user && trackerSettings?.active) {
       syncSascar();
     }
   }, [currentTab, !!user, trackerSettings?.active]);
+  */
 
   const addToast = (type: any, title: string, message: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;

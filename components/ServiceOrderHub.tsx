@@ -66,6 +66,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
   const [newOrderParts, setNewOrderParts] = useState<{ itemId: string; name: string; quantity: number; unitCost: number }[]>([]);
   const [selectedStockItemId, setSelectedStockItemId] = useState('');
   const [selectedStockItemQty, setSelectedStockItemQty] = useState(1);
+  const [vehicleSearch, setVehicleSearch] = useState('');
 
   const handleUpdatePartQty = (itemId: string, newQty: number) => {
       if (newQty < 1) return;
@@ -307,6 +308,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
               isPreventiveMaintenance,
               odometer: newOrderOdometer !== '' ? newOrderOdometer : undefined,
               parts: newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
+              totalCost: newOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0),
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
           });
@@ -346,7 +348,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
               title: editOrderTitle,
               details: editOrderDetails,
               date: editOrderDate,
-              parts: editOrderParts.length > 0 ? editOrderParts : undefined
+              parts: editOrderParts.length > 0 ? editOrderParts : undefined,
+              totalCost: editOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0)
           });
           setEditingOrder(null);
       } catch (err) {
@@ -535,6 +538,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                   </div>
                   <form onSubmit={handleCreateOrder} className="p-6 space-y-4">
                       <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pesquisar Placa</label>
+                          <input 
+                              type="text" 
+                              placeholder="Digite a placa para filtrar..."
+                              className="w-full p-3 mb-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                              value={vehicleSearch}
+                              onChange={e => setVehicleSearch(e.target.value)}
+                          />
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo (Obrigatório)</label>
                           <select 
                               required 
@@ -550,7 +561,10 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               }}
                           >
                               <option value="">Selecione um veículo...</option>
-                              {vehicles.map(v => (
+                              {vehicles
+                                  .filter(v => v.plate.toLowerCase().includes(vehicleSearch.toLowerCase()))
+                                  .sort((a, b) => a.plate.localeCompare(b.plate))
+                                  .map(v => (
                                   <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
                               ))}
                           </select>

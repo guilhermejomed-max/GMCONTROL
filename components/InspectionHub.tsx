@@ -483,7 +483,10 @@ export const InspectionHub: FC<InspectionHubProps> = ({ tires, vehicles, onUpdat
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vehicles.filter(v => v.plate.toUpperCase().includes(searchTerm.toUpperCase())).map(v => (
+          {vehicles
+            .filter(v => v.plate.toUpperCase().includes(searchTerm.toUpperCase()))
+            .sort((a, b) => a.plate.localeCompare(b.plate))
+            .map(v => (
             <div key={v.id} onClick={() => setSelectedVehicle(v)} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-500 hover:shadow-2xl hover:translate-y-[-4px] transition-all group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><Truck className="h-20 w-20" /></div>
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors mb-1">{v.plate}</h3>

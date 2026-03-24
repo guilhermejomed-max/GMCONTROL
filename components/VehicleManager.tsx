@@ -802,7 +802,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       if (filterType === 'MAINTENANCE') return status.isMaintenanceOverdue || status.isMaintenanceNear;
 
       return true;
-    });
+    }).sort((a, b) => a.plate.localeCompare(b.plate));
   }, [vehicles, searchTerm, tires, settings, filterType, vehicleBrandModels]);
 
   const handleOpenAdd = () => {
@@ -1984,7 +1984,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                             serviceOrders
                               .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
-                              .reduce((acc, so) => acc + (so.totalCost || 0), 0)
+                              .reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0)), 0)
                           )}
                         </p>
                       </div>
@@ -2108,7 +2108,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                                     <div className="flex items-center justify-between">
                                       <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
                                       <p className="font-black text-sm text-slate-800 dark:text-white">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || 0)}
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0))}
                                       </p>
                                     </div>
                                   </div>

@@ -71,7 +71,7 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'vehicle', label: 'Veículo', accessor: (o: ServiceOrder, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === o.vehicleId)?.plate || '-' },
       { id: 'title', label: 'Serviço', accessor: (o: ServiceOrder) => o.title },
       { id: 'status', label: 'Status', accessor: (o: ServiceOrder) => o.status },
-      { id: 'cost', label: 'Custo Total', accessor: (o: ServiceOrder) => o.totalCost || 0, format: money },
+      { id: 'cost', label: 'Custo Total', accessor: (o: ServiceOrder) => o.totalCost || (o.parts ? o.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0), format: money },
       { id: 'mechanic', label: 'Mecânico', accessor: (o: ServiceOrder) => o.completedBy || '-' },
     ],
     MOVEMENTS: [
@@ -164,7 +164,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
         date: o.returnedDate || o.sentDate,
         type: 'RECAPAGEM',
         ref: o.retreaderName,
-        value: o.totalCost || 0,
+        value: o.totalCost || (o.items ? o.items.reduce((sum, i) => sum + (i.cost || 0), 0) : 0),
         desc: `Ordem #${o.orderNumber}`
       }));
 
@@ -172,7 +172,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
         date: o.completedAt || o.createdAt,
         type: 'MANUTENÇÃO',
         ref: o.vehiclePlate,
-        value: 0, 
+        value: o.totalCost || (o.parts ? o.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0), 
         desc: o.title
       }));
 
