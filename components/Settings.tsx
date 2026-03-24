@@ -6,7 +6,6 @@ import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Ch
 import { jsPDF } from 'jspdf';
 
 interface SettingsProps {
-  orgId: string;
   currentSettings: SystemSettings;
   onUpdateSettings: (s: SystemSettings) => void;
 }
@@ -20,7 +19,7 @@ const AVAILABLE_PERMISSIONS = [
   { id: 'manage_team', label: 'Gerenciar Equipe' },
 ];
 
-export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings }) => {
+export const Settings: React.FC<SettingsProps> = ({ currentSettings, onUpdateSettings }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL'>('GENERAL');
   
   // General Settings State
@@ -95,7 +94,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   }, [currentSettings]);
 
   useEffect(() => {
-    const unsub = storageService.subscribeToTeam(orgId, (members) => {
+    const unsub = storageService.subscribeToTeam((members) => {
       setTeamMembers(members);
     });
     return () => unsub();
@@ -128,7 +127,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
         standardProcedures: standardProcedures,
         savedPoints: savedPoints
       };
-      await storageService.saveSettings(orgId, finalSettings);
+      await storageService.saveSettings(finalSettings);
       onUpdateSettings(finalSettings);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -269,7 +268,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setIsSubmittingMember(true);
     try {
       if (editingMemberId) {
-         await storageService.updateTeamMember(orgId, editingMemberId, {
+         await storageService.updateTeamMember(editingMemberId, {
             name: `${regFirstName} ${regLastName}`,
             role: regRole,
             allowedModules: regModules,
@@ -278,7 +277,6 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
          alert("Usuário atualizado com sucesso!");
       } else {
          const createdUsername = await storageService.registerTeamMember(
-            orgId,
             regFirstName, 
             regLastName, 
             regPassword, 
@@ -299,7 +297,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
 
   const handleDeleteMember = async (id: string) => {
     if (confirm("Tem certeza que deseja remover este usuário? O acesso será revogado imediatamente.")) {
-      await storageService.deleteTeamMember(orgId, id);
+      await storageService.deleteTeamMember(id);
     }
   };
 
@@ -331,7 +329,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
      setViewingGlobalLogs(false);
      setLogsModalOpen(true);
      setLoadingLogs(true);
-     const logs = await storageService.getLogsByUser(orgId, member.id, 150); 
+     const logs = await storageService.getLogsByUser(member.id, 150); 
      setCurrentLogs(logs);
      setLoadingLogs(false);
   };
@@ -342,7 +340,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
      setViewingGlobalLogs(true);
      setLogsModalOpen(true);
      setLoadingLogs(true);
-     const logs = await storageService.getGlobalLogs(orgId, 200); 
+     const logs = await storageService.getGlobalLogs(200); 
      setCurrentLogs(logs);
      setLoadingLogs(false);
   };
@@ -573,10 +571,10 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Limite Crítico de Sulco Global (mm)</label><input type="number" step="0.1" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.minTreadDepth ?? 3} onChange={e => setFormData({...formData, minTreadDepth: Number(e.target.value)})} /></div>
-                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Alerta de Troca Global (mm)</label><input type="number" step="0.1" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.warningTreadDepth ?? 5} onChange={e => setFormData({...formData, warningTreadDepth: Number(e.target.value)})} /></div>
-                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Pressão Padrão (PSI)</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.standardPressure ?? 110} onChange={e => setFormData({...formData, standardPressure: Number(e.target.value)})} /></div>
-                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Raio de Alerta Proximidade (m)</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.alertRadius ?? 500} onChange={e => setFormData({...formData, alertRadius: Number(e.target.value)})} /></div>
+                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Limite Crítico de Sulco Global (mm)</label><input type="number" step="0.1" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.minTreadDepth} onChange={e => setFormData({...formData, minTreadDepth: Number(e.target.value)})} /></div>
+                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Alerta de Troca Global (mm)</label><input type="number" step="0.1" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.warningTreadDepth} onChange={e => setFormData({...formData, warningTreadDepth: Number(e.target.value)})} /></div>
+                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Pressão Padrão (PSI)</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.standardPressure} onChange={e => setFormData({...formData, standardPressure: Number(e.target.value)})} /></div>
+                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Raio de Alerta Proximidade (m)</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.alertRadius} onChange={e => setFormData({...formData, alertRadius: Number(e.target.value)})} /></div>
               </div>
 
               <div className="mt-6 pt-6 border-t border-slate-100">
@@ -588,7 +586,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                             type="number" 
                             className="w-full bg-white border border-slate-200 rounded-lg p-3 text-slate-900 font-bold focus:ring-2 focus:ring-orange-500 outline-none" 
                             placeholder="0 (Desativado)"
-                            value={formData.trailerDailyAverageKm ?? 0} 
+                            value={formData.trailerDailyAverageKm || 0} 
                             onChange={e => setFormData({...formData, trailerDailyAverageKm: Number(e.target.value)})} 
                         />
                         <p className="text-[10px] text-slate-500 mt-1">Se definido (&gt;0), o sistema somará este valor ao hodômetro das carretas automaticamente todos os dias ao abrir o app.</p>
@@ -597,7 +595,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
               </div>
 
               <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
-                  <button type="button" onClick={async () => { if(confirm("Tem certeza? Isso apagará todos os dados (pneus, serviços, estoques, logs, etc.), mantendo apenas os veículos cadastrados (com hodômetro zerado). Esta ação é irreversível.")) { await storageService.resetData(orgId); alert("Dados resetados com sucesso! A página será recarregada."); window.location.reload(); } }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-sm flex items-center gap-2 text-sm">
+                  <button type="button" onClick={async () => { if(confirm("Tem certeza? Isso apagará todos os dados (pneus, serviços, estoques, logs, etc.), mantendo apenas os veículos cadastrados (com hodômetro zerado). Esta ação é irreversível.")) { await storageService.resetData(); alert("Dados resetados com sucesso! A página será recarregada."); window.location.reload(); } }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-sm flex items-center gap-2 text-sm">
                      <Trash2 className="h-4 w-4" /> Resetar Dados
                   </button>
                  <button type="submit" disabled={isSaving} className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
@@ -629,20 +627,20 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   <div className="space-y-3">
                      <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Marca</label>
-                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: Michelin" value={newModel.brand || ''} onChange={e => setNewModel({...newModel, brand: e.target.value})} />
+                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: Michelin" value={newModel.brand} onChange={e => setNewModel({...newModel, brand: e.target.value})} />
                      </div>
                      <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Modelo</label>
-                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: X Multi Z" value={newModel.model || ''} onChange={e => setNewModel({...newModel, model: e.target.value})} />
+                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: X Multi Z" value={newModel.model} onChange={e => setNewModel({...newModel, model: e.target.value})} />
                      </div>
                      <div className="grid grid-cols-3 gap-2">
-                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Largura</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.width ?? 0} onChange={e => setNewModel({...newModel, width: Number(e.target.value)})} /></div>
-                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Perfil</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.profile ?? 0} onChange={e => setNewModel({...newModel, profile: Number(e.target.value)})} /></div>
-                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Aro</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.rim ?? 0} onChange={e => setNewModel({...newModel, rim: Number(e.target.value)})} /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Largura</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.width} onChange={e => setNewModel({...newModel, width: Number(e.target.value)})} /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Perfil</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.profile} onChange={e => setNewModel({...newModel, profile: Number(e.target.value)})} /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Aro</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.rim} onChange={e => setNewModel({...newModel, rim: Number(e.target.value)})} /></div>
                      </div>
                      <div className="grid grid-cols-2 gap-2">
-                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Sulco Orig.</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.originalDepth ?? 0} onChange={e => setNewModel({...newModel, originalDepth: Number(e.target.value)})} /></div>
-                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">PSI Padrão</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.standardPressure ?? 0} onChange={e => setNewModel({...newModel, standardPressure: Number(e.target.value)})} /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Sulco Orig.</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.originalDepth} onChange={e => setNewModel({...newModel, originalDepth: Number(e.target.value)})} /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">PSI Padrão</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.standardPressure} onChange={e => setNewModel({...newModel, standardPressure: Number(e.target.value)})} /></div>
                      </div>
                      
                      <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mt-2">
@@ -650,11 +648,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <div className="grid grid-cols-2 gap-2">
                            <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-1">Vida Útil (KM)</label>
-                              <input type="number" className="w-full p-2 border border-orange-200 rounded text-black bg-white focus:ring-1 focus:ring-orange-500" placeholder="80000" value={newModel.estimatedLifespanKm ?? 0} onChange={e => setNewModel({...newModel, estimatedLifespanKm: Number(e.target.value)})} />
+                              <input type="number" className="w-full p-2 border border-orange-200 rounded text-black bg-white focus:ring-1 focus:ring-orange-500" placeholder="80000" value={newModel.estimatedLifespanKm} onChange={e => setNewModel({...newModel, estimatedLifespanKm: Number(e.target.value)})} />
                            </div>
                            <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-1">Limite Sulco</label>
-                              <input type="number" step="0.1" className="w-full p-2 border border-orange-200 rounded text-black bg-white focus:ring-1 focus:ring-orange-500" placeholder="3.0" value={newModel.limitDepth ?? 0} onChange={e => setNewModel({...newModel, limitDepth: Number(e.target.value)})} />
+                              <input type="number" step="0.1" className="w-full p-2 border border-orange-200 rounded text-black bg-white focus:ring-1 focus:ring-orange-500" placeholder="3.0" value={newModel.limitDepth} onChange={e => setNewModel({...newModel, limitDepth: Number(e.target.value)})} />
                            </div>
                         </div>
                      </div>
@@ -726,7 +724,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                         type="text" 
                                         className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
                                         placeholder="Ex: Troca de Óleo" 
-                                        value={newServiceType || ''} 
+                                        value={newServiceType} 
                                         onChange={e => setNewServiceType(e.target.value)} 
                                     />
                                     <button onClick={handleAddServiceType} className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded transition-colors"><Plus className="h-5 w-5"/></button>
@@ -759,11 +757,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">NOME DO PROCEDIMENTO</label>
-                                <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: Revisão 10k" value={newProcedure.name || ''} onChange={e => setNewProcedure({...newProcedure, name: e.target.value})} />
+                                <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: Revisão 10k" value={newProcedure.name} onChange={e => setNewProcedure({...newProcedure, name: e.target.value})} />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">CATEGORIA</label>
-                                <select className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newProcedure.category || 'OIL'} onChange={e => setNewProcedure({...newProcedure, category: e.target.value})}>
+                                <select className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newProcedure.category} onChange={e => setNewProcedure({...newProcedure, category: e.target.value})}>
                                     <option value="OIL">Troca de Óleo</option>
                                     <option value="ELECTRICAL">Elétrica</option>
                                     <option value="MECHANICAL">Mecânica</option>
@@ -772,7 +770,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">DESCRIÇÃO / PASSOS</label>
-                                <textarea className="w-full p-2 border border-slate-300 rounded text-black bg-white h-20" placeholder="Descreva os passos..." value={newProcedure.description || ''} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
+                                <textarea className="w-full p-2 border border-slate-300 rounded text-black bg-white h-20" placeholder="Descreva os passos..." value={newProcedure.description} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
                             </div>
                             <button onClick={handleAddProcedure} className="w-full py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
                                 <Plus className="h-4 w-4" /> Adicionar Procedimento
@@ -834,21 +832,21 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   <div className="space-y-3">
                      <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Nome do Local</label>
-                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: CD Jundiaí" value={newPoint.name || ''} onChange={e => setNewPoint({...newPoint, name: e.target.value})} />
+                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: CD Jundiaí" value={newPoint.name} onChange={e => setNewPoint({...newPoint, name: e.target.value})} />
                      </div>
                      <div className="grid grid-cols-2 gap-2">
                         <div>
                            <label className="block text-xs font-bold text-slate-500 mb-1">Latitude</label>
-                           <input type="number" step="any" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="-23.1234" value={newPoint.lat ?? 0} onChange={e => setNewPoint({...newPoint, lat: Number(e.target.value)})} />
+                           <input type="number" step="any" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="-23.1234" value={newPoint.lat} onChange={e => setNewPoint({...newPoint, lat: Number(e.target.value)})} />
                         </div>
                         <div>
                            <label className="block text-xs font-bold text-slate-500 mb-1">Longitude</label>
-                           <input type="number" step="any" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="-46.1234" value={newPoint.lng ?? 0} onChange={e => setNewPoint({...newPoint, lng: Number(e.target.value)})} />
+                           <input type="number" step="any" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="-46.1234" value={newPoint.lng} onChange={e => setNewPoint({...newPoint, lng: Number(e.target.value)})} />
                         </div>
                      </div>
                      <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Raio de Alerta (Metros)</label>
-                        <input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="500" value={newPoint.radius ?? 500} onChange={e => setNewPoint({...newPoint, radius: Number(e.target.value)})} />
+                        <input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="500" value={newPoint.radius} onChange={e => setNewPoint({...newPoint, radius: Number(e.target.value)})} />
                      </div>
                      <button onClick={handleAddPoint} className="w-full py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar Ponto</button>
                   </div>
@@ -901,11 +899,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   <div className="flex justify-between items-center mb-4"><h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">{editingMemberId ? <PenLine className="h-4 w-4"/> : <Plus className="h-4 w-4" />} {editingMemberId ? 'Editar Usuário' : 'Novo Usuário'}</h4><button onClick={resetMemberForm} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5"/></button></div>
                   <form onSubmit={handleMemberSubmit} className="space-y-6">
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Nome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regFirstName || ''} onChange={e => setRegFirstName(e.target.value)} /></div>
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Sobrenome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regLastName || ''} onChange={e => setRegLastName(e.target.value)} /></div>
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Senha {editingMemberId && '(Deixe em branco para manter)'}</label><div className="relative"><Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input type="text" placeholder="******" minLength={6} className="w-full pl-9 p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regPassword || ''} onChange={e => setRegPassword(e.target.value)} /></div></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Nome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} /></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Sobrenome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regLastName} onChange={e => setRegLastName(e.target.value)} /></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Senha {editingMemberId && '(Deixe em branco para manter)'}</label><div className="relative"><Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input type="text" placeholder="******" minLength={6} className="w-full pl-9 p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regPassword} onChange={e => setRegPassword(e.target.value)} /></div></div>
                      </div>
-                     <div><label className="block text-xs font-bold text-slate-500 mb-1">Nível de Acesso Hierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option></select></div>
+                     <div><label className="block text-xs font-bold text-slate-500 mb-1">Nível de Acesso Hierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regRole} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option></select></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200">
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulos Permitidos</label><div className="space-y-2"><label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('TIRES')} onChange={() => toggleModule('TIRES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Gestão de Pneus</span></label><label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('MECHANICAL')} onChange={() => toggleModule('MECHANICAL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Almoxarifado & Peças</span></label><label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('VEHICLES')} onChange={() => toggleModule('VEHICLES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Gestão de Veículos</span></label></div></div>
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Lock className="h-3 w-3"/> Permissões Específicas</label><div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">{AVAILABLE_PERMISSIONS.map(perm => (<label key={perm.id} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded"><input type="checkbox" checked={regPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} className="w-4 h-4 text-purple-600 rounded" /><span className="text-xs text-slate-700">{perm.label}</span></label>))}</div></div>

@@ -246,17 +246,17 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
               <div className="grid grid-cols-1 gap-4">
                  <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Marca</label>
-                    <input required type="text" name="brand" value={formData.brand || ''} onChange={handleChange} className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white uppercase" placeholder="EX: MICHELIN" />
+                    <input required type="text" name="brand" value={formData.brand} onChange={handleChange} className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white uppercase" placeholder="EX: MICHELIN" />
                  </div>
                  <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Modelo</label>
-                    <input required type="text" name="model" value={formData.model || ''} onChange={handleChange} className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white uppercase" placeholder="EX: X MULTI Z" />
+                    <input required type="text" name="model" value={formData.model} onChange={handleChange} className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white uppercase" placeholder="EX: X MULTI Z" />
                  </div>
               </div>
 
               <div>
                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">DOT (Semana/Ano)</label>
-                 <input type="text" name="dot" value={formData.dot || ''} onChange={handleChange} maxLength={4} className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white text-center tracking-[0.5em]" placeholder="0000" />
+                 <input type="text" name="dot" value={formData.dot} onChange={handleChange} maxLength={4} className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white text-center tracking-[0.5em]" placeholder="0000" />
               </div>
            </div>
         </div>
@@ -272,9 +272,9 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
            
            <div className="space-y-6 relative z-10">
                <div className="grid grid-cols-3 gap-4">
-                  <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Largura</label><input type="number" name="width" value={formData.width ?? 295} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white text-center" /></div>
-                  <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Perfil</label><input type="number" name="profile" value={formData.profile ?? 80} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white text-center" /></div>
-                  <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Aro</label><input type="number" name="rim" value={formData.rim ?? 22.5} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white text-center" /></div>
+                  <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Largura</label><input type="number" name="width" value={formData.width} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white text-center" /></div>
+                  <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Perfil</label><input type="number" name="profile" value={formData.profile} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white text-center" /></div>
+                  <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Aro</label><input type="number" name="rim" value={formData.rim} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white text-center" /></div>
                </div>
 
                <div>
@@ -300,11 +300,11 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                   <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Sulco Original (mm)</label>
-                      <input type="number" step="0.1" name="originalTreadDepth" value={formData.originalTreadDepth ?? 18.0} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-black text-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
+                      <input type="number" step="0.1" name="originalTreadDepth" value={formData.originalTreadDepth} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-black text-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
                   </div>
                   <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Pressão Alvo (PSI)</label>
-                      <input type="number" name="targetPressure" value={formData.targetPressure ?? 110} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-black text-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
+                      <input type="number" name="targetPressure" value={formData.targetPressure} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-black text-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
                   </div>
                </div>
            </div>
@@ -337,11 +337,11 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                            <div className="grid grid-cols-2 gap-4">
                                <div>
                                    <label className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-1">KM 1ª Vida</label>
-                                   <input type="number" name="totalKms" value={formData.totalKms ?? 0} onChange={handleChange} className="w-full p-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-center outline-none" />
+                                   <input type="number" name="totalKms" value={formData.totalKms} onChange={handleChange} className="w-full p-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-center outline-none" />
                                </div>
                                <div>
                                    <label className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-1">Sulco Atual</label>
-                                   <input type="number" step="0.1" name="currentTreadDepth" value={formData.currentTreadDepth ?? 18.0} onChange={handleChange} className="w-full p-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-center outline-none" />
+                                   <input type="number" step="0.1" name="currentTreadDepth" value={formData.currentTreadDepth} onChange={handleChange} className="w-full p-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-center outline-none" />
                                </div>
                            </div>
                        </div>
@@ -351,7 +351,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Data Compra</label>
                       <div className="relative">
                          <Calendar className="absolute left-4 top-4 h-5 w-5 text-slate-400" />
-                         <input type="date" name="purchaseDate" value={formData.purchaseDate || ''} onChange={handleChange} className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-emerald-500 text-slate-800 dark:text-white" />
+                         <input type="date" name="purchaseDate" value={formData.purchaseDate} onChange={handleChange} className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-emerald-500 text-slate-800 dark:text-white" />
                       </div>
                    </div>
 
@@ -359,7 +359,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Valor Unitário</label>
                       <div className="relative">
                          <CircleDollarSign className="absolute left-4 top-4 h-6 w-6 text-emerald-600" />
-                         <input type="number" step="0.01" name="price" value={formData.price ?? 0} onChange={handleChange} className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border-2 border-emerald-100 dark:border-emerald-900 rounded-2xl text-2xl font-black outline-none focus:border-emerald-500 text-emerald-700 dark:text-emerald-400 placeholder-emerald-200" placeholder="0.00" />
+                         <input type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border-2 border-emerald-100 dark:border-emerald-900 rounded-2xl text-2xl font-black outline-none focus:border-emerald-500 text-emerald-700 dark:text-emerald-400 placeholder-emerald-200" placeholder="0.00" />
                       </div>
                    </div>
                </div>

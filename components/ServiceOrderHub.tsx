@@ -5,7 +5,6 @@ import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 
 interface ServiceOrderHubProps {
-  orgId: string;
   serviceOrders: ServiceOrder[];
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
@@ -25,7 +24,7 @@ interface ServiceOrderHubProps {
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
 type TabView = 'ORDERS' | 'PMS';
 
-export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ orgId, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], vehicles = [], vehicleBrandModels = [], tires = [], stockItems = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [], initialVehicleId, initialModalOpen, onCloseInitialModal }) => {
+export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, maintenancePlans = [], maintenanceSchedules = [], vehicles = [], vehicleBrandModels = [], tires = [], stockItems = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [], initialVehicleId, initialModalOpen, onCloseInitialModal }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
   const [searchTerm, setSearchTerm] = useState('');
@@ -211,14 +210,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ orgId, service
                   
                   const schedule = maintenanceSchedules.find(s => s.vehicleId === vehicle.id && s.planId === plan.id);
                   if (schedule) {
-                      await storageService.updateMaintenanceSchedule(orgId, schedule.id, {
+                      await storageService.updateMaintenanceSchedule(schedule.id, {
                           lastPerformedKm: newLastPerformedKm,
                           lastPerformedDate: new Date().toISOString(),
                           nextDueKm: newNextDueKm,
                           status: 'PENDING'
                       });
                   } else {
-                      await storageService.addMaintenanceSchedule(orgId, {
+                      await storageService.addMaintenanceSchedule({
                           id: Date.now().toString(),
                           vehicleId: vehicle.id,
                           planId: plan.id,
@@ -246,7 +245,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ orgId, service
                               createdBy: 'Sistema (PMS)',
                               minOdometer: newNextDueKm
                           };
-                          await storageService.addArrivalAlert(orgId, newAlert);
+                          await storageService.addArrivalAlert(newAlert);
                       }
                   }
               }
@@ -291,7 +290,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ orgId, service
                 createdAt: new Date().toISOString(),
                 createdBy: 'Sistema (O.S.)'
               };
-              await storageService.addArrivalAlert(orgId, newAlert);
+              await storageService.addArrivalAlert(newAlert);
               arrivalAlertId = newAlert.id;
             }
           }
@@ -427,7 +426,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ orgId, service
       )}
 
       {activeTab === 'PMS' ? (
-        <MaintenancePlanManager orgId={orgId} plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
+        <MaintenancePlanManager plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
       ) : (
         <>
           <div className="flex justify-end">

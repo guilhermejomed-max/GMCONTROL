@@ -6,10 +6,6 @@ import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem
 const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
-const getOrgCollection = (orgId: string, collection: string) => {
-  return db.collection("organizacoes").doc(orgId).collection(collection);
-};
-
 const DEFAULT_SETTINGS: SystemSettings = {
   minTreadDepth: 3,
   warningTreadDepth: 5,
@@ -111,7 +107,7 @@ const getCurrentUser = () => {
   return (auth && auth.currentUser) || (mockUser ? { uid: mockUser.uid, displayName: mockUser.displayName, email: mockUser.email } : null);
 };
 
-export const logActivity = async (orgId: string, action: string, details: string, module: ModuleType = 'TIRES') => {
+export const logActivity = async (action: string, details: string, module: ModuleType = 'TIRES') => {
   const user = getCurrentUser();
   if (!user) return;
 
@@ -130,7 +126,7 @@ export const logActivity = async (orgId: string, action: string, details: string
     if (mockUser || !db) {
         LocalDB.add('system_logs', logEntry);
     } else {
-        await getOrgCollection(orgId, "logs").add(sanitize(logEntry));
+        await db.collection("system_logs").add(sanitize(logEntry));
     }
   } catch (e) {
     console.error("Failed to log activity:", e);
@@ -240,8 +236,7 @@ export const storageService = {
             allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
             permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
             createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            organizacao_id: uid
+            lastLogin: new Date().toISOString()
         };
         LocalDB.add('users', member);
         mockUser = { uid, displayName: name, email: email, isAnonymous: false };
@@ -264,8 +259,7 @@ export const storageService = {
                     allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
                     permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
                     createdAt: new Date().toISOString(),
-                    lastLogin: new Date().toISOString(),
-                    organizacao_id: userCred.user.uid
+                    lastLogin: new Date().toISOString()
                 };
                 await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
                 return;
@@ -286,8 +280,7 @@ export const storageService = {
         allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
         permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
         createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        organizacao_id: uid
+        lastLogin: new Date().toISOString()
     };
     LocalDB.add('users', member);
     mockUser = { uid, displayName: name, email: email, isAnonymous: false };
@@ -349,7 +342,7 @@ export const storageService = {
     }
   },
 
-  registerTeamMember: async (orgId: string, firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[]) => {
+  registerTeamMember: async (firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[]) => {
     const baseUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
     let username = baseUsername;
     let email = `${username}${INTERNAL_DOMAIN}`;
@@ -358,7 +351,7 @@ export const storageService = {
     
     if (mockUser || !auth || !db) {
         const id = 'mock-' + Date.now();
-        const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined, organizacao_id: orgId };
+        const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
         LocalDB.add('users', member);
         return username;
     }
@@ -392,14 +385,14 @@ export const storageService = {
     }
 
     if (userCred && userCred.user) {
-        const member: TeamMember = { id: userCred.user.uid, name, username, email, role, allowedModules: modules, permissions, createdAt: now, organizacao_id: orgId };
+        const member: TeamMember = { id: userCred.user.uid, name, username, email, role, allowedModules: modules, permissions, createdAt: now };
         await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
-        logActivity(orgId, "Criou Usuário", `Cadastrou ${name} (${username})`, 'TIRES');
+        logActivity("Criou Usuário", `Cadastrou ${name} (${username})`, 'TIRES');
         console.log("User member saved to Firestore");
         return username;
     } else if (!db) {
         const id = 'local-' + Date.now();
-        const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined, organizacao_id: orgId };
+        const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
         LocalDB.add('users', member);
         console.log("User saved to LocalDB fallback");
         return username;
@@ -408,49 +401,49 @@ export const storageService = {
     }
   },
 
-  updateTeamMember: async (orgId: string, id: string, data: Partial<TeamMember>) => {
+  updateTeamMember: async (id: string, data: Partial<TeamMember>) => {
     if (mockUser || id.startsWith('mock-') || id.startsWith('local-') || !db) { LocalDB.update('users', id, data); return; }
     await db.collection("users").doc(id).update(sanitize(data));
   },
 
-  subscribeToTeam: (orgId: string, callback: (members: TeamMember[]) => void) => {
+  subscribeToTeam: (callback: (members: TeamMember[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('users', callback);
-    return db.collection("users").where("organizacao_id", "==", orgId).onSnapshot((snapshot) => {
+    return db.collection("users").onSnapshot((snapshot) => {
       const members: TeamMember[] = [];
       snapshot.forEach((doc) => members.push(doc.data() as TeamMember));
       callback(members);
     }, () => callback([]));
   },
 
-  deleteTeamMember: async (orgId: string, id: string) => {
+  deleteTeamMember: async (id: string) => {
     if (mockUser || id.startsWith('mock-') || id.startsWith('local-') || !db) { LocalDB.delete('users', id); return; }
     await db.collection("users").doc(id).delete();
   },
 
-  subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void) => {
+  subscribeToTires: (callback: (tires: Tire[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('tires', callback);
-    return getOrgCollection(orgId, 'tires').onSnapshot((snapshot) => {
+    return db.collection("tires").onSnapshot((snapshot) => {
       const tires: Tire[] = [];
       snapshot.forEach((doc) => tires.push(doc.data() as Tire));
       callback(tires);
     }, (error) => console.error("Error subscribing to tires:", error));
   },
 
-  addTire: async (orgId: string, tire: Tire) => {
-    if (mockUser || !db) { LocalDB.add('tires', tire); logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'tires').doc(tire.id).set(sanitize(tire));
-    logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES');
+  addTire: async (tire: Tire) => {
+    if (mockUser || !db) { LocalDB.add('tires', tire); logActivity("Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES'); return; }
+    await db.collection("tires").doc(tire.id).set(sanitize(tire));
+    logActivity("Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES');
   },
 
-  updateTire: async (orgId: string, tire: Tire) => {
+  updateTire: async (tire: Tire) => {
     const lastHistory = tire.history && tire.history.length > 0 ? tire.history[tire.history.length - 1] : null;
     const details = lastHistory ? lastHistory.details : 'Dados atualizados';
-    if (mockUser || !db) { LocalDB.update('tires', tire.id, tire); logActivity(orgId, "Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'tires').doc(tire.id).set(sanitize(tire), { merge: true });
-    logActivity(orgId, "Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES');
+    if (mockUser || !db) { LocalDB.update('tires', tire.id, tire); logActivity("Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES'); return; }
+    await db.collection("tires").doc(tire.id).set(sanitize(tire), { merge: true });
+    logActivity("Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES');
   },
 
-  updateTireBatch: async (orgId: string, updates: Partial<Tire>[]) => {
+  updateTireBatch: async (updates: Partial<Tire>[]) => {
     if (mockUser || !db) {
         updates.forEach(u => { if(u.id) LocalDB.update('tires', u.id, u); });
         return;
@@ -458,75 +451,75 @@ export const storageService = {
     const batch = db.batch();
     updates.forEach(update => {
       if(update.id) {
-        const ref = getOrgCollection(orgId, 'tires').doc(update.id);
+        const ref = db.collection("tires").doc(update.id);
         batch.update(ref, sanitize(update));
       }
     });
     await batch.commit();
   },
 
-  deleteTire: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete('tires', id); logActivity(orgId, "Excluiu Pneu", `ID: ${id}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'tires').doc(id).delete();
-    logActivity(orgId, "Excluiu Pneu", `ID: ${id}`, 'TIRES');
+  deleteTire: async (id: string) => {
+    if (mockUser || !db) { LocalDB.delete('tires', id); logActivity("Excluiu Pneu", `ID: ${id}`, 'TIRES'); return; }
+    await db.collection("tires").doc(id).delete();
+    logActivity("Excluiu Pneu", `ID: ${id}`, 'TIRES');
   },
 
-  subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void) => {
+  subscribeToVehicles: (callback: (vehicles: Vehicle[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('vehicles', callback);
-    return getOrgCollection(orgId, 'vehicles').onSnapshot((snapshot) => {
+    return db.collection("vehicles").onSnapshot((snapshot) => {
       const vehicles: Vehicle[] = [];
       snapshot.forEach((doc) => vehicles.push(doc.data() as Vehicle));
       callback(vehicles);
     }, (error) => console.error("Error subscribing to vehicles:", error));
   },
 
-  addVehicle: async (orgId: string, vehicle: Vehicle) => {
-    if (mockUser || !db) { LocalDB.add('vehicles', vehicle); logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'vehicles').doc(vehicle.id).set(sanitize(vehicle));
-    logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
+  addVehicle: async (vehicle: Vehicle) => {
+    if (mockUser || !db) { LocalDB.add('vehicles', vehicle); logActivity("Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
+    await db.collection("vehicles").doc(vehicle.id).set(sanitize(vehicle));
+    logActivity("Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
 
-  updateVehicle: async (orgId: string, vehicle: Vehicle) => {
+  updateVehicle: async (vehicle: Vehicle) => {
     const updates = { ...vehicle, lastAutoUpdateDate: new Date().toISOString() };
-    if (mockUser || !db) { LocalDB.update('vehicles', vehicle.id, updates); logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'vehicles').doc(vehicle.id).set(sanitize(updates), { merge: true });
-    logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
+    if (mockUser || !db) { LocalDB.update('vehicles', vehicle.id, updates); logActivity("Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
+    await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
+    logActivity("Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
 
-  deleteVehicle: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete('vehicles', id); logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'vehicles').doc(id).delete();
-    logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES');
+  deleteVehicle: async (id: string) => {
+    if (mockUser || !db) { LocalDB.delete('vehicles', id); logActivity("Excluiu Veículo", `ID: ${id}`, 'TIRES'); return; }
+    await db.collection("vehicles").doc(id).delete();
+    logActivity("Excluiu Veículo", `ID: ${id}`, 'TIRES');
   },
 
-  subscribeToVehicleBrandModels: (orgId: string, callback: (models: VehicleBrandModel[]) => void) => {
+  subscribeToVehicleBrandModels: (callback: (models: VehicleBrandModel[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('vehicleBrandModels', callback);
-    return getOrgCollection(orgId, 'vehicleBrandModels').onSnapshot((snapshot) => {
+    return db.collection("vehicleBrandModels").onSnapshot((snapshot) => {
       const models: VehicleBrandModel[] = [];
       snapshot.forEach((doc) => models.push(doc.data() as VehicleBrandModel));
       callback(models);
     }, (error) => console.error("Error subscribing to vehicleBrandModels:", error));
   },
 
-  addVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
-    if (mockUser || !db) { LocalDB.add('vehicleBrandModels', model); logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'vehicleBrandModels').doc(model.id).set(sanitize(model));
-    logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
+  addVehicleBrandModel: async (model: VehicleBrandModel) => {
+    if (mockUser || !db) { LocalDB.add('vehicleBrandModels', model); logActivity("Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model));
+    logActivity("Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
   },
 
-  updateVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
-    if (mockUser || !db) { LocalDB.update('vehicleBrandModels', model.id, model); logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'vehicleBrandModels').doc(model.id).set(sanitize(model), { merge: true });
-    logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
+  updateVehicleBrandModel: async (model: VehicleBrandModel) => {
+    if (mockUser || !db) { LocalDB.update('vehicleBrandModels', model.id, model); logActivity("Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model), { merge: true });
+    logActivity("Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
   },
 
-  deleteVehicleBrandModel: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete('vehicleBrandModels', id); logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES'); return; }
-    await getOrgCollection(orgId, 'vehicleBrandModels').doc(id).delete();
-    logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
+  deleteVehicleBrandModel: async (id: string) => {
+    if (mockUser || !db) { LocalDB.delete('vehicleBrandModels', id); logActivity("Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(id).delete();
+    logActivity("Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
   },
 
-  updateVehicleBatch: async (orgId: string, updates: any[]) => {
+  updateVehicleBatch: async (updates: any[]) => {
     if (mockUser || !db) {
         updates.forEach(u => { if(u.id) LocalDB.update('vehicles', u.id, u); });
         return;
@@ -534,14 +527,14 @@ export const storageService = {
     const batch = db.batch();
     updates.forEach(update => {
       if(update.id) {
-        const ref = getOrgCollection(orgId, 'vehicles').doc(update.id);
+        const ref = db.collection("vehicles").doc(update.id);
         batch.update(ref, sanitize(update));
       }
     });
     await batch.commit();
   },
 
-  checkDailyTrailerIncrement: async (orgId: string, vehicles: Vehicle[], settings: SystemSettings) => {
+  checkDailyTrailerIncrement: async (vehicles: Vehicle[], settings: SystemSettings) => {
       if (!settings.trailerDailyAverageKm || settings.trailerDailyAverageKm <= 0) return;
       
       const today = new Date();
@@ -575,7 +568,7 @@ export const storageService = {
       });
 
       if (updates.length > 0) {
-          await storageService.updateVehicleBatch(orgId, updates);
+          await storageService.updateVehicleBatch(updates);
       }
   },
 
@@ -590,7 +583,7 @@ export const storageService = {
     URL.revokeObjectURL(url);
   },
 
-  importDataBatch: async (orgId: string, tires: Tire[], vehicles: Vehicle[]) => {
+  importDataBatch: async (tires: Tire[], vehicles: Vehicle[]) => {
     if (mockUser || !db) {
         tires.forEach(t => LocalDB.add('tires', t));
         vehicles.forEach(v => LocalDB.add('vehicles', v));
@@ -598,182 +591,182 @@ export const storageService = {
     }
     const batch = db.batch();
     tires.forEach(t => {
-        const ref = getOrgCollection(orgId, "tires").doc(t.id);
+        const ref = db.collection("tires").doc(t.id);
         batch.set(ref, sanitize(t));
     });
     vehicles.forEach(v => {
-        const ref = getOrgCollection(orgId, "vehicles").doc(v.id);
+        const ref = db.collection("vehicles").doc(v.id);
         batch.set(ref, sanitize(v));
     });
     await batch.commit();
-    logActivity(orgId, "Importação", `Importou ${tires.length} pneus e ${vehicles.length} veículos`, 'TIRES');
+    logActivity("Importação", `Importou ${tires.length} pneus e ${vehicles.length} veículos`, 'TIRES');
   },
 
-  subscribeToRetreaders: (orgId: string, callback: (partners: {id: string, name: string}[]) => void) => {
+  subscribeToRetreaders: (callback: (partners: {id: string, name: string}[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('retreaders', callback, []);
-    return getOrgCollection(orgId, 'retreaders').orderBy("name").onSnapshot((snapshot) => {
+    return db.collection("retreaders").orderBy("name").onSnapshot((snapshot) => {
         const partners: {id: string, name: string}[] = [];
         snapshot.forEach(doc => partners.push({ id: doc.id, ...doc.data() } as any));
         callback(partners);
     }, () => callback([]));
   },
 
-  addRetreader: async (orgId: string, name: string) => {
+  addRetreader: async (name: string) => {
       const id = Date.now().toString();
       if (mockUser || !db) { LocalDB.add('retreaders', { id, name }); return; }
-      await getOrgCollection(orgId, 'retreaders').doc(id).set({ name });
+      await db.collection("retreaders").doc(id).set({ name });
   },
 
-  deleteRetreader: async (orgId: string, id: string) => {
+  deleteRetreader: async (id: string) => {
       if (mockUser || !db) { LocalDB.delete('retreaders', id); return; }
-      await getOrgCollection(orgId, 'retreaders').doc(id).delete();
+      await db.collection("retreaders").doc(id).delete();
   },
 
-  subscribeToTreadPatterns: (orgId: string, callback: (patterns: TreadPattern[]) => void) => {
+  subscribeToTreadPatterns: (callback: (patterns: TreadPattern[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('tread_patterns', callback, []);
-    return getOrgCollection(orgId, 'tread_patterns').orderBy("name").onSnapshot((snapshot) => {
+    return db.collection("tread_patterns").orderBy("name").onSnapshot((snapshot) => {
         const patterns: TreadPattern[] = [];
         snapshot.forEach(doc => patterns.push({ id: doc.id, ...doc.data() } as TreadPattern));
         callback(patterns);
     }, () => callback([]));
   },
 
-  addTreadPattern: async (orgId: string, pattern: Omit<TreadPattern, 'id'>) => {
+  addTreadPattern: async (pattern: Omit<TreadPattern, 'id'>) => {
       const id = Date.now().toString();
       if (mockUser || !db) { LocalDB.add('tread_patterns', { id, ...pattern }); return; }
-      await getOrgCollection(orgId, 'tread_patterns').doc(id).set(sanitize(pattern));
+      await db.collection("tread_patterns").doc(id).set(sanitize(pattern));
   },
 
-  updateTreadPattern: async (orgId: string, id: string, updates: Partial<TreadPattern>) => {
+  updateTreadPattern: async (id: string, updates: Partial<TreadPattern>) => {
       if (mockUser || !db) { LocalDB.update('tread_patterns', id, updates); return; }
-      await getOrgCollection(orgId, 'tread_patterns').doc(id).update(sanitize(updates));
+      await db.collection("tread_patterns").doc(id).update(sanitize(updates));
   },
 
-  deleteTreadPattern: async (orgId: string, id: string) => {
+  deleteTreadPattern: async (id: string) => {
       if (mockUser || !db) { LocalDB.delete('tread_patterns', id); return; }
-      await getOrgCollection(orgId, 'tread_patterns').doc(id).delete();
+      await db.collection("tread_patterns").doc(id).delete();
   },
 
-  subscribeToServiceOrders: (orgId: string, callback: (orders: ServiceOrder[]) => void) => {
+  subscribeToServiceOrders: (callback: (orders: ServiceOrder[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('service_orders', (data) => callback(data.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
-    return getOrgCollection(orgId, 'service_orders').orderBy("createdAt", "desc").onSnapshot(snapshot => {
+    return db.collection("service_orders").orderBy("createdAt", "desc").onSnapshot(snapshot => {
       const orders: ServiceOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as ServiceOrder));
       callback(orders);
     }, () => callback([]));
   },
 
-  addServiceOrder: async (orgId: string, order: ServiceOrder) => {
+  addServiceOrder: async (order: ServiceOrder) => {
     if (mockUser || !db) { LocalDB.add('service_orders', order); return; }
-    await getOrgCollection(orgId, 'service_orders').doc(order.id).set(sanitize(order));
+    await db.collection("service_orders").doc(order.id).set(sanitize(order));
   },
 
-  updateServiceOrder: async (orgId: string, orderId: string, updates: Partial<ServiceOrder>) => {
+  updateServiceOrder: async (orderId: string, updates: Partial<ServiceOrder>) => {
     if (mockUser || !db) { LocalDB.update('service_orders', orderId, updates); return; }
-    await getOrgCollection(orgId, 'service_orders').doc(orderId).update(sanitize(updates));
+    await db.collection("service_orders").doc(orderId).update(sanitize(updates));
   },
 
-  subscribeToMaintenancePlans: (orgId: string, callback: (plans: import('../types').MaintenancePlan[]) => void) => {
+  subscribeToMaintenancePlans: (callback: (plans: import('../types').MaintenancePlan[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('maintenance_plans', callback);
-    return getOrgCollection(orgId, 'maintenance_plans').onSnapshot(snapshot => {
+    return db.collection("maintenance_plans").onSnapshot(snapshot => {
       const plans: import('../types').MaintenancePlan[] = [];
       snapshot.forEach(doc => plans.push(doc.data() as import('../types').MaintenancePlan));
       callback(plans);
     }, () => callback([]));
   },
 
-  addMaintenancePlan: async (orgId: string, plan: import('../types').MaintenancePlan) => {
+  addMaintenancePlan: async (plan: import('../types').MaintenancePlan) => {
     if (mockUser || !db) { LocalDB.add('maintenance_plans', plan); return; }
-    await getOrgCollection(orgId, 'maintenance_plans').doc(plan.id).set(sanitize(plan));
+    await db.collection("maintenance_plans").doc(plan.id).set(sanitize(plan));
   },
 
-  updateMaintenancePlan: async (orgId: string, planId: string, updates: Partial<import('../types').MaintenancePlan>) => {
+  updateMaintenancePlan: async (planId: string, updates: Partial<import('../types').MaintenancePlan>) => {
     if (mockUser || !db) { LocalDB.update('maintenance_plans', planId, updates); return; }
-    await getOrgCollection(orgId, 'maintenance_plans').doc(planId).update(sanitize(updates));
+    await db.collection("maintenance_plans").doc(planId).update(sanitize(updates));
   },
 
-  deleteMaintenancePlan: async (orgId: string, planId: string) => {
+  deleteMaintenancePlan: async (planId: string) => {
     if (mockUser || !db) { LocalDB.delete('maintenance_plans', planId); return; }
-    await getOrgCollection(orgId, 'maintenance_plans').doc(planId).delete();
+    await db.collection("maintenance_plans").doc(planId).delete();
   },
 
-  subscribeToMaintenanceSchedules: (orgId: string, callback: (schedules: import('../types').MaintenanceSchedule[]) => void) => {
+  subscribeToMaintenanceSchedules: (callback: (schedules: import('../types').MaintenanceSchedule[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('maintenance_schedules', callback);
-    return getOrgCollection(orgId, 'maintenance_schedules').onSnapshot(snapshot => {
+    return db.collection("maintenance_schedules").onSnapshot(snapshot => {
       const schedules: import('../types').MaintenanceSchedule[] = [];
       snapshot.forEach(doc => schedules.push(doc.data() as import('../types').MaintenanceSchedule));
       callback(schedules);
     }, () => callback([]));
   },
 
-  addMaintenanceSchedule: async (orgId: string, schedule: import('../types').MaintenanceSchedule) => {
+  addMaintenanceSchedule: async (schedule: import('../types').MaintenanceSchedule) => {
     if (mockUser || !db) { LocalDB.add('maintenance_schedules', schedule); return; }
-    await getOrgCollection(orgId, 'maintenance_schedules').doc(schedule.id).set(sanitize(schedule));
+    await db.collection("maintenance_schedules").doc(schedule.id).set(sanitize(schedule));
   },
 
-  updateMaintenanceSchedule: async (orgId: string, scheduleId: string, updates: Partial<import('../types').MaintenanceSchedule>) => {
+  updateMaintenanceSchedule: async (scheduleId: string, updates: Partial<import('../types').MaintenanceSchedule>) => {
     if (mockUser || !db) { LocalDB.update('maintenance_schedules', scheduleId, updates); return; }
-    await getOrgCollection(orgId, 'maintenance_schedules').doc(scheduleId).update(sanitize(updates));
+    await db.collection("maintenance_schedules").doc(scheduleId).update(sanitize(updates));
   },
 
-  deleteMaintenanceSchedule: async (orgId: string, scheduleId: string) => {
+  deleteMaintenanceSchedule: async (scheduleId: string) => {
     if (mockUser || !db) { LocalDB.delete('maintenance_schedules', scheduleId); return; }
-    await getOrgCollection(orgId, 'maintenance_schedules').doc(scheduleId).delete();
+    await db.collection("maintenance_schedules").doc(scheduleId).delete();
   },
 
-  subscribeToRetreadOrders: (orgId: string, callback: (orders: RetreadOrder[]) => void) => {
+  subscribeToRetreadOrders: (callback: (orders: RetreadOrder[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('retread_orders', (data) => callback(data.sort((a:any,b:any) => new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime())));
-    return getOrgCollection(orgId, 'retread_orders').orderBy("sentDate", "desc").onSnapshot(snapshot => {
+    return db.collection("retread_orders").orderBy("sentDate", "desc").onSnapshot(snapshot => {
       const orders: RetreadOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as RetreadOrder));
       callback(orders);
     }, () => callback([]));
   },
 
-  addRetreadOrder: async (orgId: string, order: RetreadOrder) => {
+  addRetreadOrder: async (order: RetreadOrder) => {
     if (mockUser || !db) { LocalDB.add('retread_orders', order); return; }
-    await getOrgCollection(orgId, 'retread_orders').doc(order.id).set(sanitize(order));
+    await db.collection("retread_orders").doc(order.id).set(sanitize(order));
   },
 
-  updateRetreadOrder: async (orgId: string, orderId: string, updates: Partial<RetreadOrder>) => {
+  updateRetreadOrder: async (orderId: string, updates: Partial<RetreadOrder>) => {
     if (mockUser || !db) { LocalDB.update('retread_orders', orderId, updates); return; }
-    await getOrgCollection(orgId, 'retread_orders').doc(orderId).update(sanitize(updates));
+    await db.collection("retread_orders").doc(orderId).update(sanitize(updates));
   },
 
-  subscribeToStock: (orgId: string, callback: (items: StockItem[]) => void) => {
+  subscribeToStock: (callback: (items: StockItem[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('stock_items', callback);
-    return getOrgCollection(orgId, 'stock_items').orderBy('name').onSnapshot((snapshot) => {
+    return db.collection("stock_items").orderBy('name').onSnapshot((snapshot) => {
       const items: StockItem[] = [];
       snapshot.forEach((doc) => items.push(doc.data() as StockItem));
       callback(items);
     }, () => {});
   },
 
-  subscribeToStockMovements: (orgId: string, callback: (movements: StockMovement[]) => void) => {
+  subscribeToStockMovements: (callback: (movements: StockMovement[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('stock_movements', (data) => callback(data.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())));
-    return getOrgCollection(orgId, "stock_movements").orderBy('date', 'desc').limit(100).onSnapshot((snapshot) => {
+    return db.collection("stock_movements").orderBy('date', 'desc').limit(100).onSnapshot((snapshot) => {
       const movements: StockMovement[] = [];
       snapshot.forEach((doc) => movements.push(doc.data() as StockMovement));
       callback(movements);
     }, () => {});
   },
 
-  addStockItem: async (orgId: string, item: StockItem) => {
+  addStockItem: async (item: StockItem) => {
     if (mockUser || !db) { LocalDB.add('stock_items', item); return; }
-    await getOrgCollection(orgId, "stock_items").doc(item.id).set(sanitize(item));
+    await db.collection("stock_items").doc(item.id).set(sanitize(item));
   },
 
-  updateStockItem: async (orgId: string, item: StockItem) => {
+  updateStockItem: async (item: StockItem) => {
     if (mockUser || !db) { LocalDB.update('stock_items', item.id, item); return; }
-    await getOrgCollection(orgId, "stock_items").doc(item.id).update(sanitize(item));
+    await db.collection("stock_items").doc(item.id).update(sanitize(item));
   },
 
-  deleteStockItem: async (orgId: string, id: string) => {
+  deleteStockItem: async (id: string) => {
     if (mockUser || !db) { LocalDB.delete('stock_items', id); return; }
-    await getOrgCollection(orgId, "stock_items").doc(id).delete();
+    await db.collection("stock_items").doc(id).delete();
   },
 
-  registerStockMovement: async (orgId: string, movement: StockMovement) => {
+  registerStockMovement: async (movement: StockMovement) => {
     if (mockUser || !db) {
         LocalDB.add('stock_movements', movement);
         const items = LocalDB.get('stock_items') as StockItem[];
@@ -785,8 +778,8 @@ export const storageService = {
         return;
     }
     
-    await getOrgCollection(orgId, "stock_movements").add(sanitize(movement));
-    const itemRef = getOrgCollection(orgId, "stock_items").doc(movement.itemId);
+    await db.collection("stock_movements").add(sanitize(movement));
+    const itemRef = db.collection("stock_items").doc(movement.itemId);
     const itemDoc = await itemRef.get();
     if (itemDoc.exists) {
         const item = itemDoc.data() as StockItem;
@@ -795,47 +788,47 @@ export const storageService = {
     }
   },
 
-  subscribeToDrivers: (orgId: string, callback: (drivers: Driver[]) => void) => {
+  subscribeToDrivers: (callback: (drivers: Driver[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('drivers', callback, []);
-    return getOrgCollection(orgId, "drivers").orderBy("name").onSnapshot((snapshot) => {
+    return db.collection("drivers").orderBy("name").onSnapshot((snapshot) => {
       const drivers: Driver[] = [];
       snapshot.forEach((doc) => drivers.push(doc.data() as Driver));
       callback(drivers);
     }, () => callback([]));
   },
 
-  addDriver: async (orgId: string, driver: Driver) => {
-    if (mockUser || !db) { LocalDB.add('drivers', driver); logActivity(orgId, "Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES'); return; }
-    await getOrgCollection(orgId, "drivers").doc(driver.id).set(sanitize(driver));
-    logActivity(orgId, "Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES');
+  addDriver: async (driver: Driver) => {
+    if (mockUser || !db) { LocalDB.add('drivers', driver); logActivity("Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES'); return; }
+    await db.collection("drivers").doc(driver.id).set(sanitize(driver));
+    logActivity("Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES');
   },
 
-  updateDriver: async (orgId: string, driver: Driver) => {
-    if (mockUser || !db) { LocalDB.update('drivers', driver.id, driver); logActivity(orgId, "Editou Motorista", `Atualizou ${driver.name}`, 'VEHICLES'); return; }
-    await getOrgCollection(orgId, "drivers").doc(driver.id).set(sanitize(driver), { merge: true });
-    logActivity(orgId, "Editou Motorista", `Atualizou ${driver.name}`, 'VEHICLES');
+  updateDriver: async (driver: Driver) => {
+    if (mockUser || !db) { LocalDB.update('drivers', driver.id, driver); logActivity("Editou Motorista", `Atualizou ${driver.name}`, 'VEHICLES'); return; }
+    await db.collection("drivers").doc(driver.id).set(sanitize(driver), { merge: true });
+    logActivity("Editou Motorista", `Atualizou ${driver.name}`, 'VEHICLES');
   },
 
-  deleteDriver: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete('drivers', id); logActivity(orgId, "Excluiu Motorista", `ID: ${id}`, 'VEHICLES'); return; }
-    await getOrgCollection(orgId, "drivers").doc(id).delete();
-    logActivity(orgId, "Excluiu Motorista", `ID: ${id}`, 'VEHICLES');
+  deleteDriver: async (id: string) => {
+    if (mockUser || !db) { LocalDB.delete('drivers', id); logActivity("Excluiu Motorista", `ID: ${id}`, 'VEHICLES'); return; }
+    await db.collection("drivers").doc(id).delete();
+    logActivity("Excluiu Motorista", `ID: ${id}`, 'VEHICLES');
   },
 
-  subscribeToSettings: (orgId: string, callback: (settings: SystemSettings) => void) => {
+  subscribeToSettings: (callback: (settings: SystemSettings) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('settings', callback, DEFAULT_SETTINGS);
-    return getOrgCollection(orgId, "settings").doc("global").onSnapshot((doc) => {
+    return db.collection("settings").doc("global").onSnapshot((doc) => {
       if (doc.exists) callback({ ...DEFAULT_SETTINGS, ...doc.data() } as SystemSettings);
       else callback(DEFAULT_SETTINGS);
     }, () => callback(DEFAULT_SETTINGS));
   },
 
-  saveSettings: async (orgId: string, settings: SystemSettings) => {
+  saveSettings: async (settings: SystemSettings) => {
     if (mockUser || !db) { LocalDB.set('settings', settings); return; }
-    await getOrgCollection(orgId, "settings").doc("global").set(sanitize(settings));
+    await db.collection("settings").doc("global").set(sanitize(settings));
   },
 
-  subscribeToTrackerSettings: (orgId: string, callback: (settings: TrackerSettings) => void) => {
+  subscribeToTrackerSettings: (callback: (settings: TrackerSettings) => void) => {
     const DEFAULT_TRACKER: TrackerSettings = { 
       apiUrl: 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService', 
       user: 'JOMEDELOGTORREOPENTECH', 
@@ -843,44 +836,44 @@ export const storageService = {
       active: true 
     };
     if (mockUser || !db) return LocalDB.subscribe('tracker_settings', callback, DEFAULT_TRACKER);
-    return getOrgCollection(orgId, "settings").doc("tracker").onSnapshot((doc) => {
+    return db.collection("settings").doc("tracker").onSnapshot((doc) => {
       if (doc.exists) callback({ ...DEFAULT_TRACKER, ...doc.data() } as TrackerSettings);
       else callback(DEFAULT_TRACKER);
     }, () => callback(DEFAULT_TRACKER));
   },
 
-  saveTrackerSettings: async (orgId: string, settings: TrackerSettings) => {
+  saveTrackerSettings: async (settings: TrackerSettings) => {
     if (mockUser || !db) { LocalDB.set('tracker_settings', settings); return; }
-    await getOrgCollection(orgId, "settings").doc("tracker").set(sanitize(settings));
+    await db.collection("settings").doc("tracker").set(sanitize(settings));
   },
 
   logActivity,
 
-  subscribeToArrivalAlerts: (orgId: string, callback: (alerts: ArrivalAlert[]) => void) => {
+  subscribeToArrivalAlerts: (callback: (alerts: ArrivalAlert[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('arrival_alerts', callback, []);
-    return getOrgCollection(orgId, "arrival_alerts").onSnapshot((snapshot) => {
+    return db.collection("arrival_alerts").onSnapshot((snapshot) => {
       const alerts: ArrivalAlert[] = [];
       snapshot.forEach((doc) => alerts.push({ ...doc.data(), id: doc.id } as ArrivalAlert));
       callback(alerts);
     }, () => callback([]));
   },
 
-  addArrivalAlert: async (orgId: string, alert: ArrivalAlert) => {
+  addArrivalAlert: async (alert: ArrivalAlert) => {
     if (mockUser || !db) { LocalDB.add('arrival_alerts', alert); return; }
-    await getOrgCollection(orgId, "arrival_alerts").doc(alert.id).set(sanitize(alert));
+    await db.collection("arrival_alerts").doc(alert.id).set(sanitize(alert));
   },
 
-  updateArrivalAlert: async (orgId: string, id: string, updates: Partial<ArrivalAlert>) => {
+  updateArrivalAlert: async (id: string, updates: Partial<ArrivalAlert>) => {
     try {
       if (mockUser || !db) { LocalDB.update('arrival_alerts', id, updates); return; }
-      await getOrgCollection(orgId, "arrival_alerts").doc(id).update(sanitize(updates));
+      await db.collection("arrival_alerts").doc(id).update(sanitize(updates));
     } catch (error) {
       console.error('[storageService] Error updating arrival alert:', error);
       throw error;
     }
   },
 
-  deleteArrivalAlert: async (orgId: string, id: string) => {
+  deleteArrivalAlert: async (id: string) => {
     console.log('[StorageService] deleteArrivalAlert called for ID:', id);
     console.log('[StorageService] Current state - mockUser:', !!mockUser, 'db:', !!db);
     
@@ -891,7 +884,7 @@ export const storageService = {
     }
     try {
       console.log('[StorageService] Attempting Firestore delete for doc:', id);
-      await getOrgCollection(orgId, "arrival_alerts").doc(id).delete();
+      await db.collection("arrival_alerts").doc(id).delete();
       console.log('[StorageService] Firestore delete successful');
     } catch (error) {
       console.error('[StorageService] Firestore delete failed:', error);
@@ -899,46 +892,46 @@ export const storageService = {
     }
   },
 
-  subscribeToTireLoans: (orgId: string, callback: (loans: TireLoan[]) => void) => {
+  subscribeToTireLoans: (callback: (loans: TireLoan[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('tire_loans', callback, []);
-    return getOrgCollection(orgId, "tire_loans").onSnapshot((snapshot) => {
+    return db.collection("tire_loans").onSnapshot((snapshot) => {
       callback(snapshot.docs.map(doc => doc.data() as TireLoan));
     }, () => callback([]));
   },
 
-  addTireLoan: async (orgId: string, loan: TireLoan) => {
+  addTireLoan: async (loan: TireLoan) => {
     if (mockUser || !db) { LocalDB.add('tire_loans', loan); return; }
-    await getOrgCollection(orgId, "tire_loans").doc(loan.id).set(sanitize(loan));
+    await db.collection("tire_loans").doc(loan.id).set(sanitize(loan));
   },
 
-  updateTireLoan: async (orgId: string, id: string, updates: Partial<TireLoan>) => {
+  updateTireLoan: async (id: string, updates: Partial<TireLoan>) => {
     if (mockUser || !db) { LocalDB.update('tire_loans', id, updates); return; }
-    await getOrgCollection(orgId, "tire_loans").doc(id).update(sanitize(updates));
+    await db.collection("tire_loans").doc(id).update(sanitize(updates));
   },
 
-  getLogsByUser: async (orgId: string, userId: string, limit = 300): Promise<SystemLog[]> => {
+  getLogsByUser: async (userId: string, limit = 300): Promise<SystemLog[]> => {
      if (mockUser || userId.startsWith('mock-') || !db) {
          const logs = LocalDB.get('system_logs') as SystemLog[];
          return logs.filter(l => l.userId === userId).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
      }
      try {
-       const snapshot = await getOrgCollection(orgId, "logs").where("userId", "==", userId).orderBy("timestamp", "desc").limit(limit).get();
+       const snapshot = await db.collection("system_logs").where("userId", "==", userId).orderBy("timestamp", "desc").limit(limit).get();
        return snapshot.docs.map(doc => doc.data() as SystemLog);
      } catch (e) { return []; }
   },
 
-  getGlobalLogs: async (orgId: string, limit = 300): Promise<SystemLog[]> => {
+  getGlobalLogs: async (limit = 300): Promise<SystemLog[]> => {
     if (mockUser || !db) {
         const logs = LocalDB.get('system_logs') as SystemLog[];
         return logs.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
     }
     try {
-      const snapshot = await getOrgCollection(orgId, "logs").orderBy("timestamp", "desc").limit(limit).get();
+      const snapshot = await db.collection("system_logs").orderBy("timestamp", "desc").limit(limit).get();
       return snapshot.docs.map(doc => doc.data() as SystemLog);
     } catch (e) { return []; }
   },
 
-  resetData: async (orgId: string) => {
+  resetData: async () => {
     console.log("Iniciando resetData...");
     
     // 1. Handle LocalDB (which uses localStorage)
@@ -967,14 +960,14 @@ export const storageService = {
     if (db && !mockUser) {
         console.log("Resetando Firebase...");
         const collectionsToClear = [
-            'tires', 'logs', 'retreaders', 'tread_patterns', 
+            'tires', 'system_logs', 'retreaders', 'tread_patterns', 
             'service_orders', 'retread_orders', 'stock_items', 
             'stock_movements', 'drivers'
         ];
 
         for (const col of collectionsToClear) {
             console.log("Limpando coleção:", col);
-            const snapshot = await getOrgCollection(orgId, col).get();
+            const snapshot = await db.collection(col).get();
             const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
             await batch.commit();
@@ -982,7 +975,7 @@ export const storageService = {
 
         // Update vehicles in Firebase
         console.log("Resetando hodômetro dos veículos no Firebase...");
-        const vehicleSnapshot = await getOrgCollection(orgId, 'vehicles').get();
+        const vehicleSnapshot = await db.collection('vehicles').get();
         const batch = db.batch();
         vehicleSnapshot.docs.forEach(doc => {
             batch.update(doc.ref, { odometer: 0 });
