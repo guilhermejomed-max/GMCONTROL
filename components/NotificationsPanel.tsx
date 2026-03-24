@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Tire, SystemSettings, Vehicle, ArrivalAlert, MaintenanceSchedule, MaintenancePlan } from '../types';
 import { X, MapPin, CheckCircle2, Clock, Trash2, Bell, Wrench, CalendarClock, AlertTriangle, Gauge, Disc } from 'lucide-react';
+import { isVehicleInBase } from '../src/utils/vehicleUtils';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
@@ -25,18 +26,30 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
 
   // Overdue Maintenance
   const overdueMaintenance = useMemo(() => {
-    return maintenanceSchedules.filter(s => s.status === 'OVERDUE');
-  }, [maintenanceSchedules]);
+    return maintenanceSchedules.filter(s => {
+      if (s.status !== 'OVERDUE') return false;
+      const vehicle = vehicles.find(v => v.id === s.vehicleId);
+      return vehicle ? isVehicleInBase(vehicle, settings) : false;
+    });
+  }, [maintenanceSchedules, vehicles, settings]);
 
   // Low Tread Depth Tires
   const criticalTires = useMemo(() => {
-    return tires.filter(t => t.currentTreadDepth <= (settings.minTreadDepth || 3));
-  }, [tires, settings.minTreadDepth]);
+    return tires.filter(t => {
+      if (t.currentTreadDepth > (settings.minTreadDepth || 3)) return false;
+      const vehicle = vehicles.find(v => v.id === t.vehicleId);
+      return vehicle ? isVehicleInBase(vehicle, settings) : true; // Se estiver no estoque (sem veículo), mostramos? O usuário disse "veículos que estiverem na base". Se o pneu está no estoque, tecnicamente está na base.
+    });
+  }, [tires, vehicles, settings]);
 
-  // Filter alerts: only show those not dismissed
+  // Filter alerts: only show those not dismissed AND in base
   const visibleAlerts = useMemo(() => {
-    return arrivalAlerts.filter(alert => !dismissedIds.has(alert.id));
-  }, [arrivalAlerts, dismissedIds]);
+    return arrivalAlerts.filter(alert => {
+      if (dismissedIds.has(alert.id)) return false;
+      const vehicle = vehicles.find(v => v.plate === alert.vehiclePlate);
+      return vehicle ? isVehicleInBase(vehicle, settings) : false;
+    });
+  }, [arrivalAlerts, dismissedIds, vehicles, settings]);
 
   const handleClearAll = () => {
     const newDismissed = new Set(dismissedIds);
