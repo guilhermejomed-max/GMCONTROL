@@ -640,8 +640,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
             <thead>
               <tr>
                 <th style="width: 15%">Data</th>
-                <th style="width: 35%">Serviço / Descrição</th>
-                <th style="width: 35%">Peças / Itens</th>
+                <th style="width: 10%">KM</th>
+                <th style="width: 30%">Serviço / Descrição</th>
+                <th style="width: 30%">Peças / Itens</th>
                 <th style="width: 15%">Valor</th>
               </tr>
             </thead>
@@ -649,6 +650,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
               ${vehicleOrders.map(so => `
                 <tr>
                   <td>${so.date ? new Date(so.date).toLocaleDateString('pt-BR') : new Date(so.createdAt).toLocaleDateString('pt-BR')}</td>
+                  <td>${so.odometer?.toLocaleString() || '-'}</td>
                   <td>
                     <strong>${so.title}</strong>
                     <div style="font-size: 11px; color: #666; margin-top: 4px;">${so.details || ''}</div>

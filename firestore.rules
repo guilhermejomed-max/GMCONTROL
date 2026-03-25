@@ -12,7 +12,7 @@ service cloud.firestore {
          request.auth.token.email == "guilherme.jomed@gmail.com");
     }
 
-    match /vehicle_brand_models/{modelId} {
+    match /vehicleBrandModels/{modelId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
     }

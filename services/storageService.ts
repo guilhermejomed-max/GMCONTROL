@@ -506,22 +506,22 @@ export const storageService = {
         
         for (const m of defaults) {
           if (mockUser || !db) {
-            LocalDB.add(`vehicle_brand_models`, m);
+            LocalDB.add(`vehicleBrandModels`, m);
           } else {
-            await db.collection("vehicle_brand_models").doc(m.id).set(sanitize(m));
+            await db.collection("vehicleBrandModels").doc(m.id).set(sanitize(m));
           }
         }
       }
     };
 
     if (mockUser || !db) {
-      return LocalDB.subscribe(`vehicle_brand_models`, (data) => {
+      return LocalDB.subscribe(`vehicleBrandModels`, (data) => {
         seedIfEmpty(data);
         callback(data);
       });
     }
     
-    return db.collection("vehicle_brand_models").onSnapshot((snapshot) => {
+    return db.collection("vehicleBrandModels").onSnapshot((snapshot) => {
       const models: VehicleBrandModel[] = [];
       snapshot.forEach((doc) => models.push(doc.data() as VehicleBrandModel));
       seedIfEmpty(models);
@@ -530,20 +530,20 @@ export const storageService = {
   },
 
   addVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
-    if (mockUser || !db) { LocalDB.add(`vehicle_brand_models`, model); logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
-    await db.collection("vehicle_brand_models").doc(model.id).set(sanitize(model));
+    if (mockUser || !db) { LocalDB.add(`vehicleBrandModels`, model); logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model));
     logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
   },
 
   updateVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
-    if (mockUser || !db) { LocalDB.update(`vehicle_brand_models`, model.id, model); logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
-    await db.collection("vehicle_brand_models").doc(model.id).set(sanitize(model), { merge: true });
+    if (mockUser || !db) { LocalDB.update(`vehicleBrandModels`, model.id, model); logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model), { merge: true });
     logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
   },
 
   deleteVehicleBrandModel: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete(`vehicle_brand_models`, id); logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES'); return; }
-    await db.collection("vehicle_brand_models").doc(id).delete();
+    if (mockUser || !db) { LocalDB.delete(`vehicleBrandModels`, id); logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES'); return; }
+    await db.collection("vehicleBrandModels").doc(id).delete();
     logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
   },
 

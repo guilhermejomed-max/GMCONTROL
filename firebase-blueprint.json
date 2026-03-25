@@ -1,6 +1,6 @@
 {
   "entities": {
-    "vehicle_brand_models": {
+    "vehicleBrandModels": {
       "title": "Vehicle Brand and Model",
       "description": "Definition of vehicle brands and their specific models with technical specs.",
       "type": "object",
@@ -30,8 +30,8 @@
     }
   },
   "firestore": {
-    "vehicle_brand_models": {
-      "schema": "vehicle_brand_models",
+    "vehicleBrandModels": {
+      "schema": "vehicleBrandModels",
       "description": "Collection of vehicle brands and models."
     },
     "vehicles": {
