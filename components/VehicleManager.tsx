@@ -2,7 +2,7 @@
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
 import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid, Printer } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 
@@ -576,6 +576,115 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
     if (!selectedVehicleRG) return [];
     return serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'PENDENTE');
   }, [serviceOrders, selectedVehicleRG]);
+
+  const handlePrintMaintenanceReport = () => {
+    if (!selectedVehicleRG) return;
+
+    const vehicleOrders = serviceOrders
+      .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const totalSpent = vehicleOrders.reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0)), 0);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <html>
+        <head>
+          <title>Relatório de Manutenção - ${selectedVehicleRG.plate}</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #333; }
+            .header { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .vehicle-info { margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .info-box { background: #f9f9f9; padding: 10px; border-radius: 8px; }
+            .info-label { font-size: 12px; color: #666; font-weight: bold; text-transform: uppercase; }
+            .info-value { font-size: 16px; font-weight: bold; }
+            .summary { margin-bottom: 30px; background: #eef2ff; padding: 15px; border-radius: 8px; border: 1px solid #c7d2fe; }
+            .summary-label { font-size: 14px; font-weight: bold; color: #4338ca; }
+            .summary-value { font-size: 24px; font-weight: 900; color: #1e1b4b; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { text-align: left; background: #f3f4f6; padding: 10px; border-bottom: 2px solid #e5e7eb; font-size: 12px; text-transform: uppercase; }
+            td { padding: 10px; border-bottom: 1px solid #f3f4f6; font-size: 13px; vertical-align: top; }
+            .parts-list { font-size: 11px; color: #666; margin-top: 5px; }
+            .footer { margin-top: 40px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+            @media print {
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Relatório Geral de Manutenção</h1>
+            <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+          </div>
+
+          <div class="vehicle-info">
+            <div class="info-box">
+              <div class="info-label">Veículo / Placa</div>
+              <div class="info-value">${selectedVehicleRG.brand || ''} ${selectedVehicleRG.model} - ${selectedVehicleRG.plate}</div>
+            </div>
+            <div class="info-box">
+              <div class="info-label">KM Atual</div>
+              <div class="info-value">${selectedVehicleRG.odometer?.toLocaleString() || '0'} km</div>
+            </div>
+          </div>
+
+          <div class="summary">
+            <div class="summary-label">INVESTIMENTO TOTAL EM MANUTENÇÃO</div>
+            <div class="summary-value">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSpent)}</div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%">Data</th>
+                <th style="width: 35%">Serviço / Descrição</th>
+                <th style="width: 35%">Peças / Itens</th>
+                <th style="width: 15%">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${vehicleOrders.map(so => `
+                <tr>
+                  <td>${so.date ? new Date(so.date).toLocaleDateString('pt-BR') : new Date(so.createdAt).toLocaleDateString('pt-BR')}</td>
+                  <td>
+                    <strong>${so.title}</strong>
+                    <div style="font-size: 11px; color: #666; margin-top: 4px;">${so.details || ''}</div>
+                  </td>
+                  <td>
+                    ${so.parts && so.parts.length > 0 ? `
+                      <div class="parts-list">
+                        ${so.parts.map(p => `• ${p.quantity}x ${p.name} (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.unitCost)})`).join('<br>')}
+                      </div>
+                    ` : 'Nenhum item registrado'}
+                  </td>
+                  <td style="font-weight: bold">
+                    ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0))}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            GM Control Pro - Sistema de Gestão de Frotas
+          </div>
+
+          <script>
+            window.onload = () => {
+              window.print();
+              // window.close(); // Optional: close after printing
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
 
   const handleAddAlert = async () => {
     if (!selectedVehicleRG) return;
@@ -2065,9 +2174,19 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                       </div>
 
                       <div className="space-y-3">
-                        <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                          <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
-                        </h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                            <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
+                          </h4>
+                          {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO').length > 0 && (
+                            <button 
+                              onClick={handlePrintMaintenanceReport}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all border border-blue-100 dark:border-blue-800"
+                            >
+                              <Printer className="h-3.5 w-3.5" /> Imprimir Relatório
+                            </button>
+                          )}
+                        </div>
                         {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id).length === 0 ? (
                           <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
                             Nenhuma ordem de serviço registrada para este veículo.

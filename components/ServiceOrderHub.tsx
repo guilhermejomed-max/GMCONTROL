@@ -5,6 +5,7 @@ import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 
 interface ServiceOrderHubProps {
+  orgId: string;
   serviceOrders: ServiceOrder[];
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
@@ -30,6 +31,7 @@ type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
 type TabView = 'ORDERS' | 'PMS' | 'COLLABORATORS';
 
 export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ 
+  orgId,
   serviceOrders, 
   maintenancePlans = [], 
   maintenanceSchedules = [], 
@@ -283,14 +285,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                   
                   const schedule = maintenanceSchedules.find(s => s.vehicleId === vehicle.id && s.planId === plan.id);
                   if (schedule) {
-                      await storageService.updateMaintenanceSchedule(schedule.id, {
+                      await storageService.updateMaintenanceSchedule(orgId, schedule.id, {
                           lastPerformedKm: newLastPerformedKm,
                           lastPerformedDate: new Date().toISOString(),
                           nextDueKm: newNextDueKm,
                           status: 'PENDING'
                       });
                   } else {
-                      await storageService.addMaintenanceSchedule({
+                      await storageService.addMaintenanceSchedule(orgId, {
                           id: Date.now().toString(),
                           vehicleId: vehicle.id,
                           planId: plan.id,
@@ -318,7 +320,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               createdBy: 'Sistema (PMS)',
                               minOdometer: newNextDueKm
                           };
-                          await storageService.addArrivalAlert(newAlert);
+                          await storageService.addArrivalAlert(orgId, newAlert);
                       }
                   }
               }
@@ -363,7 +365,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                 createdAt: new Date().toISOString(),
                 createdBy: 'Sistema (O.S.)'
               };
-              await storageService.addArrivalAlert(newAlert);
+              await storageService.addArrivalAlert(orgId, newAlert);
               arrivalAlertId = newAlert.id;
             }
           }
@@ -521,7 +523,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       )}
 
       {activeTab === 'PMS' ? (
-        <MaintenancePlanManager plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
+        <MaintenancePlanManager orgId={orgId} plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
       ) : activeTab === 'COLLABORATORS' ? (
         <CollaboratorManager 
           collaborators={collaborators} 

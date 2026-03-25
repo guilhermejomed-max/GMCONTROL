@@ -244,6 +244,7 @@ export interface TeamMember {
   permissions?: string[];
   createdAt: string;
   lastLogin?: string; // Novo campo
+  password?: string; // Para persistência local mock
 }
 
 export interface StockItem {

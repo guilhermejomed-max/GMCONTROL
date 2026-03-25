@@ -156,6 +156,7 @@ const LoginScreen = () => {
 export const App = () => {
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const orgId = user?.uid || 'default';
 
   // App State
   const [currentTab, setCurrentTab] = useState<TabView>('dashboard');
@@ -206,19 +207,19 @@ export const App = () => {
   useEffect(() => {
     if (!user) return; // Only subscribe to data if logged in
 
-    const unsubTires = storageService.subscribeToTires(setTires);
-    const unsubVehicles = storageService.subscribeToVehicles(setVehicles);
-    const unsubVehicleBrandModels = storageService.subscribeToVehicleBrandModels(setVehicleBrandModels);
-    const unsubServiceOrders = storageService.subscribeToServiceOrders(setServiceOrders);
-    const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(setMaintenancePlans);
-    const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(setMaintenanceSchedules);
-    const unsubRetreadOrders = storageService.subscribeToRetreadOrders(setRetreadOrders);
-    const unsubSettings = storageService.subscribeToSettings(setSettings);
-    const unsubDrivers = storageService.subscribeToDrivers(setDrivers);
-    const unsubCollaborators = storageService.subscribeToCollaborators(setCollaborators);
-    const unsubTracker = storageService.subscribeToTrackerSettings(setTrackerSettings);
-    const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(setArrivalAlerts);
-    const unsubStockItems = storageService.subscribeToStock(setStockItems);
+    const unsubTires = storageService.subscribeToTires(orgId, setTires);
+    const unsubVehicles = storageService.subscribeToVehicles(orgId, setVehicles);
+    const unsubVehicleBrandModels = storageService.subscribeToVehicleBrandModels(orgId, setVehicleBrandModels);
+    const unsubServiceOrders = storageService.subscribeToServiceOrders(orgId, setServiceOrders);
+    const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
+    const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(orgId, setMaintenanceSchedules);
+    const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
+    const unsubSettings = storageService.subscribeToSettings(orgId, setSettings);
+    const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
+    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
+    const unsubTracker = storageService.subscribeToTrackerSettings(orgId, setTrackerSettings);
+    const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
+    const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
     
     return () => {
         unsubTires();
@@ -240,9 +241,9 @@ export const App = () => {
   // AUTOMATED UPDATES CHECK (Run once when data is available)
   useEffect(() => {
       if (vehicles.length > 0 && settings) {
-          storageService.checkDailyTrailerIncrement(vehicles, settings);
+          storageService.checkDailyTrailerIncrement(orgId, vehicles, settings);
       }
-  }, [vehicles.length, settings]);
+  }, [vehicles.length, settings, orgId]);
 
   // ARRIVAL ALERTS CHECK
   useEffect(() => {
@@ -277,7 +278,7 @@ export const App = () => {
         const radius = alert.radius || 500;
         if (distance <= radius) {
           // Vehicle arrived!
-          storageService.updateArrivalAlert(alert.id, { 
+          storageService.updateArrivalAlert(orgId, alert.id, { 
             status: 'ARRIVED', 
             actualArrivalDate: new Date().toISOString() 
           });
@@ -322,7 +323,7 @@ export const App = () => {
           }
           
           // Also log activity
-          storageService.logActivity("Chegada", maintenanceAlert, 'VEHICLES');
+          storageService.logActivity(orgId, "Chegada", maintenanceAlert, 'VEHICLES');
         }
       }
     });
@@ -378,7 +379,7 @@ export const App = () => {
             window.speechSynthesis.speak(utterance);
           }
           
-          storageService.logActivity("Alerta Manutenção", alertMsg, 'VEHICLES');
+          storageService.logActivity(orgId, "Alerta Manutenção", alertMsg, 'VEHICLES');
         } else {
           // If vehicle is no longer at this base, clear the ref so it can alert again if it returns
           if (alertedOverdueRef.current[vehicle.id] === point.id) {
@@ -422,7 +423,7 @@ export const App = () => {
       ));
       
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} veículos...`);
-      storageService.logActivity("Sincronização Sascar", `Iniciada para ${plates.length} veículos`, 'VEHICLES');
+      storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${plates.length} veículos`, 'VEHICLES');
       
       const CHUNK_SIZE = 20;
       const chunks: string[][] = [];
@@ -516,7 +517,7 @@ export const App = () => {
       });
 
       if (updatesBatch.length > 0) {
-        await storageService.updateVehicleBatch(updatesBatch);
+        await storageService.updateVehicleBatch(orgId, updatesBatch);
         totalUpdated = updatesBatch.length;
         console.log(`[Sascar Sync] Sincronização finalizada: ${totalUpdated} veículos atualizados.`);
         if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
@@ -558,7 +559,7 @@ export const App = () => {
       }
     };
 
-    await storageService.updateVehicle(updatedVehicle);
+    await storageService.updateVehicle(orgId, updatedVehicle);
     addToast('info', 'Simulação', `Localização do veículo ${plate} atualizada para ${base.name}`);
   };
 
@@ -600,7 +601,7 @@ export const App = () => {
           createdBy: user?.displayName || user?.email || 'Usuário do Sistema'
       };
 
-      await storageService.addServiceOrder(newOrder);
+      await storageService.addServiceOrder(orgId, newOrder);
       addToast('success', 'Ordem Criada', `O.S. #${newOrder.orderNumber} aberta com sucesso.`);
 
       const vehicle = vehicles.find(v => v.id === newOrder.vehicleId);
@@ -624,7 +625,7 @@ export const App = () => {
           }
 
           if (Object.keys(updates).length > 0) {
-              await storageService.updateVehicle({
+              await storageService.updateVehicle(orgId, {
                   ...vehicle,
                   ...updates
               });
@@ -748,31 +749,32 @@ export const App = () => {
                 }}
               />
             )}
-            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={storageService.deleteTire} onUpdateTire={storageService.updateTire} onRegister={() => setCurrentTab('register')} userLevel={userRole} />}
-            {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} userLevel={userRole} />}
-            {currentTab === 'register' && <TireForm onAddTire={storageService.addTire} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
-            {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onAddTire={storageService.addTire} userLevel={userRole} settings={settings} />}
-            {currentTab === 'brand-models' && <BrandModelManager vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} />}
+            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onRegister={() => setCurrentTab('register')} userLevel={userRole} />}
+            {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
+            {currentTab === 'register' && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
+            {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} />}
+            {currentTab === 'brand-models' && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} />}
             {currentTab === 'fleet' && <VehicleManager 
+              orgId={orgId}
               vehicles={vehicles} 
               vehicleBrandModels={vehicleBrandModels} 
               tires={tires} 
               serviceOrders={serviceOrders}
               maintenancePlans={maintenancePlans}
               maintenanceSchedules={maintenanceSchedules}
-              onAddVehicle={storageService.addVehicle} 
-              onDeleteVehicle={storageService.deleteVehicle} 
-              onUpdateVehicle={storageService.updateVehicle}
-              onUpdateServiceOrder={storageService.updateServiceOrder}
-              onDeleteAlert={storageService.deleteArrivalAlert}
+              onAddVehicle={(v) => storageService.addVehicle(orgId, v)} 
+              onDeleteVehicle={(id) => storageService.deleteVehicle(orgId, id)} 
+              onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)}
+              onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
+              onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
               onSimulateArrival={handleSimulateArrival}
               userLevel={userRole}
               settings={settings}
               trackerSettings={trackerSettings}
               onSyncSascar={syncSascar}
             />}
-            {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} onUpdateTire={storageService.updateTire} onCreateServiceOrder={storageService.addServiceOrder} settings={settings} />}
-            {currentTab === 'retreading' && <RetreadingHub tires={tires} retreadOrders={retreadOrders} onUpdateTire={storageService.updateTire} onNotification={addToast} settings={settings} />}
+            {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} />}
+            {currentTab === 'retreading' && <RetreadingHub orgId={orgId} tires={tires} retreadOrders={retreadOrders} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onNotification={addToast} settings={settings} />}
             {currentTab === 'retreader-ranking' && <RetreaderRanking tires={tires} retreadOrders={retreadOrders} />}
             {currentTab === 'strategic-analysis' && <StrategicAnalysis tires={tires} vehicles={vehicles} settings={settings} />}
             {currentTab === 'demand-forecast' && <DemandForecast tires={tires} vehicles={vehicles} settings={settings} />}
@@ -794,6 +796,7 @@ export const App = () => {
             {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} onSync={syncSascar} />}
             {currentTab === 'service-orders' && (
               <ServiceOrderHub 
+                orgId={orgId}
                 serviceOrders={serviceOrders} 
                 maintenancePlans={maintenancePlans} 
                 maintenanceSchedules={maintenanceSchedules} 
@@ -801,8 +804,8 @@ export const App = () => {
                 vehicleBrandModels={vehicleBrandModels} 
                 tires={tires} 
                 stockItems={stockItems} 
-                onUpdateOrder={storageService.updateServiceOrder} 
-                onUpdateOrderBatch={storageService.updateServiceOrderBatch}
+                onUpdateOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} 
+                onUpdateOrderBatch={(updates) => storageService.updateServiceOrderBatch(orgId, updates)}
                 onAddOrder={handleAddServiceOrder} 
                 settings={settings} 
                 arrivalAlerts={arrivalAlerts} 
@@ -810,16 +813,16 @@ export const App = () => {
                 initialModalOpen={shouldOpenOSModal}
                 onCloseInitialModal={() => setShouldOpenOSModal(false)}
                 collaborators={collaborators}
-                onAddCollaborator={storageService.addCollaborator}
-                onUpdateCollaborator={storageService.updateCollaborator}
-                onDeleteCollaborator={storageService.deleteCollaborator}
+                onAddCollaborator={(c) => storageService.addCollaborator(orgId, c)}
+                onUpdateCollaborator={(id, updates) => storageService.updateCollaborator(orgId, id, updates)}
+                onDeleteCollaborator={(id) => storageService.deleteCollaborator(orgId, id)}
               />
             )}
-            {currentTab === 'service' && <ServiceManager userLevel={userRole} />}
+            {currentTab === 'service' && <ServiceManager orgId={orgId} userLevel={userRole} />}
             {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} vehicleBrandModels={vehicleBrandModels} onFullScreenToggle={setIsReportsFullScreen} />}
-            {currentTab === 'settings' && <Settings currentSettings={settings || {} as any} onUpdateSettings={storageService.saveSettings} />}
-            {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={storageService.addDriver} onUpdateDriver={(driver) => storageService.updateDriver(driver.id, driver)} onDeleteDriver={storageService.deleteDriver} onUpdateVehicle={storageService.updateVehicle} />}
-            {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent />}
+            {currentTab === 'settings' && <Settings orgId={orgId} currentSettings={settings || {} as any} onUpdateSettings={(s) => storageService.saveSettings(orgId, s)} />}
+            {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={(d) => storageService.addDriver(orgId, d)} onUpdateDriver={(driver) => storageService.updateDriver(orgId, driver.id, driver)} onDeleteDriver={(id) => storageService.deleteDriver(orgId, id)} onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} />}
+            {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
         </div>
       </main>
 
@@ -832,7 +835,7 @@ export const App = () => {
         arrivalAlerts={arrivalAlerts} 
         maintenanceSchedules={maintenanceSchedules}
         maintenancePlans={maintenancePlans}
-        onDeleteAlert={storageService.deleteArrivalAlert}
+        onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
       />
       <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
 

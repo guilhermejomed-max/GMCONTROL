@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "vehicle_brand_models": {
+      "title": "Vehicle Brand and Model",
+      "description": "Definition of vehicle brands and their specific models with technical specs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "type": { "type": "string", "enum": ["CAVALO", "CARRETA"] },
+        "axles": { "type": "integer" },
+        "maintenancePlanId": { "type": "string" },
+        "oilChangeInterval": { "type": "integer" },
+        "oilLiters": { "type": "integer" }
+      },
+      "required": ["id", "brand", "model", "type", "axles"]
+    },
+    "vehicles": {
+      "title": "Vehicle",
+      "description": "A vehicle in the fleet.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "plate": { "type": "string" },
+        "type": { "type": "string" },
+        "brandModelId": { "type": "string" },
+        "odometer": { "type": "integer" }
+      }
+    }
+  },
+  "firestore": {
+    "vehicle_brand_models": {
+      "schema": "vehicle_brand_models",
+      "description": "Collection of vehicle brands and models."
+    },
+    "vehicles": {
+      "schema": "vehicles",
+      "description": "Collection of vehicles."
+    }
+  }
+}

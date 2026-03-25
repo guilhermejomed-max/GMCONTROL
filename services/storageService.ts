@@ -107,7 +107,7 @@ const getCurrentUser = () => {
   return (auth && auth.currentUser) || (mockUser ? { uid: mockUser.uid, displayName: mockUser.displayName, email: mockUser.email } : null);
 };
 
-export const logActivity = async (action: string, details: string, module: ModuleType = 'TIRES') => {
+export const logActivity = async (orgId: string, action: string, details: string, module: ModuleType = 'TIRES') => {
   const user = getCurrentUser();
   if (!user) return;
 
@@ -124,9 +124,9 @@ export const logActivity = async (action: string, details: string, module: Modul
     };
     
     if (mockUser || !db) {
-        LocalDB.add('system_logs', logEntry);
+        LocalDB.add(`logs`, logEntry);
     } else {
-        await db.collection("system_logs").add(sanitize(logEntry));
+        await db.collection("system_logs").doc(logEntry.id).set(sanitize(logEntry));
     }
   } catch (e) {
     console.error("Failed to log activity:", e);
@@ -342,7 +342,7 @@ export const storageService = {
     }
   },
 
-  registerTeamMember: async (firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[]) => {
+  registerTeamMember: async (orgId: string, firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[]) => {
     const baseUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
     let username = baseUsername;
     let email = `${username}${INTERNAL_DOMAIN}`;
@@ -352,7 +352,7 @@ export const storageService = {
     if (mockUser || !auth || !db) {
         const id = 'mock-' + Date.now();
         const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
-        LocalDB.add('users', member);
+        LocalDB.add(`users`, member);
         return username;
     }
 
@@ -387,13 +387,13 @@ export const storageService = {
     if (userCred && userCred.user) {
         const member: TeamMember = { id: userCred.user.uid, name, username, email, role, allowedModules: modules, permissions, createdAt: now };
         await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
-        logActivity("Criou Usuário", `Cadastrou ${name} (${username})`, 'TIRES');
+        logActivity(orgId, "Criou Usuário", `Cadastrou ${name} (${username})`, 'TIRES');
         console.log("User member saved to Firestore");
         return username;
     } else if (!db) {
         const id = 'local-' + Date.now();
         const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
-        LocalDB.add('users', member);
+        LocalDB.add(`users`, member);
         console.log("User saved to LocalDB fallback");
         return username;
     } else {
@@ -401,13 +401,13 @@ export const storageService = {
     }
   },
 
-  updateTeamMember: async (id: string, data: Partial<TeamMember>) => {
-    if (mockUser || id.startsWith('mock-') || id.startsWith('local-') || !db) { LocalDB.update('users', id, data); return; }
+  updateTeamMember: async (orgId: string, id: string, data: Partial<TeamMember>) => {
+    if (mockUser || id.startsWith('mock-') || id.startsWith('local-') || !db) { LocalDB.update(`users`, id, data); return; }
     await db.collection("users").doc(id).update(sanitize(data));
   },
 
-  subscribeToTeam: (callback: (members: TeamMember[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('users', callback);
+  subscribeToTeam: (orgId: string, callback: (members: TeamMember[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`users`, callback);
     return db.collection("users").onSnapshot((snapshot) => {
       const members: TeamMember[] = [];
       snapshot.forEach((doc) => members.push(doc.data() as TeamMember));
@@ -415,13 +415,13 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  deleteTeamMember: async (id: string) => {
-    if (mockUser || id.startsWith('mock-') || id.startsWith('local-') || !db) { LocalDB.delete('users', id); return; }
+  deleteTeamMember: async (orgId: string, id: string) => {
+    if (mockUser || id.startsWith('mock-') || id.startsWith('local-') || !db) { LocalDB.delete(`users`, id); return; }
     await db.collection("users").doc(id).delete();
   },
 
-  subscribeToTires: (callback: (tires: Tire[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('tires', callback);
+  subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`tires`, callback);
     return db.collection("tires").onSnapshot((snapshot) => {
       const tires: Tire[] = [];
       snapshot.forEach((doc) => tires.push(doc.data() as Tire));
@@ -429,23 +429,23 @@ export const storageService = {
     }, (error) => console.error("Error subscribing to tires:", error));
   },
 
-  addTire: async (tire: Tire) => {
-    if (mockUser || !db) { LocalDB.add('tires', tire); logActivity("Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES'); return; }
+  addTire: async (orgId: string, tire: Tire) => {
+    if (mockUser || !db) { LocalDB.add(`tires`, tire); logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES'); return; }
     await db.collection("tires").doc(tire.id).set(sanitize(tire));
-    logActivity("Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES');
+    logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES');
   },
 
-  updateTire: async (tire: Tire) => {
+  updateTire: async (orgId: string, tire: Tire) => {
     const lastHistory = tire.history && tire.history.length > 0 ? tire.history[tire.history.length - 1] : null;
     const details = lastHistory ? lastHistory.details : 'Dados atualizados';
-    if (mockUser || !db) { LocalDB.update('tires', tire.id, tire); logActivity("Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.update(`tires`, tire.id, tire); logActivity(orgId, "Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES'); return; }
     await db.collection("tires").doc(tire.id).set(sanitize(tire), { merge: true });
-    logActivity("Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES');
+    logActivity(orgId, "Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES');
   },
 
-  updateTireBatch: async (updates: Partial<Tire>[]) => {
+  updateTireBatch: async (orgId: string, updates: Partial<Tire>[]) => {
     if (mockUser || !db) {
-        updates.forEach(u => { if(u.id) LocalDB.update('tires', u.id, u); });
+        updates.forEach(u => { if(u.id) LocalDB.update(`tires`, u.id, u); });
         return;
     }
     const batch = db.batch();
@@ -458,14 +458,14 @@ export const storageService = {
     await batch.commit();
   },
 
-  deleteTire: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('tires', id); logActivity("Excluiu Pneu", `ID: ${id}`, 'TIRES'); return; }
+  deleteTire: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`tires`, id); logActivity(orgId, "Excluiu Pneu", `ID: ${id}`, 'TIRES'); return; }
     await db.collection("tires").doc(id).delete();
-    logActivity("Excluiu Pneu", `ID: ${id}`, 'TIRES');
+    logActivity(orgId, "Excluiu Pneu", `ID: ${id}`, 'TIRES');
   },
 
-  subscribeToVehicles: (callback: (vehicles: Vehicle[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('vehicles', callback);
+  subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`vehicles`, callback);
     return db.collection("vehicles").onSnapshot((snapshot) => {
       const vehicles: Vehicle[] = [];
       snapshot.forEach((doc) => vehicles.push(doc.data() as Vehicle));
@@ -473,55 +473,83 @@ export const storageService = {
     }, (error) => console.error("Error subscribing to vehicles:", error));
   },
 
-  addVehicle: async (vehicle: Vehicle) => {
-    if (mockUser || !db) { LocalDB.add('vehicles', vehicle); logActivity("Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
+  addVehicle: async (orgId: string, vehicle: Vehicle) => {
+    if (mockUser || !db) { LocalDB.add(`vehicles`, vehicle); logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     await db.collection("vehicles").doc(vehicle.id).set(sanitize(vehicle));
-    logActivity("Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
+    logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
 
-  updateVehicle: async (vehicle: Vehicle) => {
+  updateVehicle: async (orgId: string, vehicle: Vehicle) => {
     const updates = { ...vehicle, lastAutoUpdateDate: new Date().toISOString() };
-    if (mockUser || !db) { LocalDB.update('vehicles', vehicle.id, updates); logActivity("Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
-    logActivity("Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
+    logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
 
-  deleteVehicle: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('vehicles', id); logActivity("Excluiu Veículo", `ID: ${id}`, 'TIRES'); return; }
+  deleteVehicle: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`vehicles`, id); logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES'); return; }
     await db.collection("vehicles").doc(id).delete();
-    logActivity("Excluiu Veículo", `ID: ${id}`, 'TIRES');
+    logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES');
   },
 
-  subscribeToVehicleBrandModels: (callback: (models: VehicleBrandModel[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('vehicleBrandModels', callback);
-    return db.collection("vehicleBrandModels").onSnapshot((snapshot) => {
+  subscribeToVehicleBrandModels: (orgId: string, callback: (models: VehicleBrandModel[]) => void) => {
+    const seedIfEmpty = async (models: VehicleBrandModel[]) => {
+      if (models.length === 0) {
+        console.log("Seeding default brand models...");
+        const defaults: VehicleBrandModel[] = [
+          { id: 'v1', brand: 'VOLVO', model: 'FH 540', type: 'CAVALO', axles: 3, oilChangeInterval: 50000, oilLiters: 35 },
+          { id: 's1', brand: 'SCANIA', model: 'R 450', type: 'CAVALO', axles: 3, oilChangeInterval: 40000, oilLiters: 32 },
+          { id: 'm1', brand: 'MERCEDES-BENZ', model: 'ACTROS 2651', type: 'CAVALO', axles: 3, oilChangeInterval: 45000, oilLiters: 34 },
+          { id: 'r1', brand: 'RANDON', model: 'GRANEIRA', type: 'CARRETA', axles: 3 },
+          { id: 'l1', brand: 'LIBRELATO', model: 'BASCULANTE', type: 'CARRETA', axles: 3 }
+        ];
+        
+        for (const m of defaults) {
+          if (mockUser || !db) {
+            LocalDB.add(`vehicle_brand_models`, m);
+          } else {
+            await db.collection("vehicle_brand_models").doc(m.id).set(sanitize(m));
+          }
+        }
+      }
+    };
+
+    if (mockUser || !db) {
+      return LocalDB.subscribe(`vehicle_brand_models`, (data) => {
+        seedIfEmpty(data);
+        callback(data);
+      });
+    }
+    
+    return db.collection("vehicle_brand_models").onSnapshot((snapshot) => {
       const models: VehicleBrandModel[] = [];
       snapshot.forEach((doc) => models.push(doc.data() as VehicleBrandModel));
+      seedIfEmpty(models);
       callback(models);
     }, (error) => console.error("Error subscribing to vehicleBrandModels:", error));
   },
 
-  addVehicleBrandModel: async (model: VehicleBrandModel) => {
-    if (mockUser || !db) { LocalDB.add('vehicleBrandModels', model); logActivity("Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
-    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model));
-    logActivity("Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
+  addVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
+    if (mockUser || !db) { LocalDB.add(`vehicle_brand_models`, model); logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicle_brand_models").doc(model.id).set(sanitize(model));
+    logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
   },
 
-  updateVehicleBrandModel: async (model: VehicleBrandModel) => {
-    if (mockUser || !db) { LocalDB.update('vehicleBrandModels', model.id, model); logActivity("Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
-    await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model), { merge: true });
-    logActivity("Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
+  updateVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
+    if (mockUser || !db) { LocalDB.update(`vehicle_brand_models`, model.id, model); logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+    await db.collection("vehicle_brand_models").doc(model.id).set(sanitize(model), { merge: true });
+    logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
   },
 
-  deleteVehicleBrandModel: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('vehicleBrandModels', id); logActivity("Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES'); return; }
-    await db.collection("vehicleBrandModels").doc(id).delete();
-    logActivity("Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
+  deleteVehicleBrandModel: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`vehicle_brand_models`, id); logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES'); return; }
+    await db.collection("vehicle_brand_models").doc(id).delete();
+    logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
   },
 
-  updateVehicleBatch: async (updates: any[]) => {
+  updateVehicleBatch: async (orgId: string, updates: any[]) => {
     if (mockUser || !db) {
-        updates.forEach(u => { if(u.id) LocalDB.update('vehicles', u.id, u); });
+        updates.forEach(u => { if(u.id) LocalDB.update(`vehicles`, u.id, u); });
         return;
     }
     const batch = db.batch();
@@ -534,7 +562,7 @@ export const storageService = {
     await batch.commit();
   },
 
-  checkDailyTrailerIncrement: async (vehicles: Vehicle[], settings: SystemSettings) => {
+  checkDailyTrailerIncrement: async (orgId: string, vehicles: Vehicle[], settings: SystemSettings) => {
       if (!settings.trailerDailyAverageKm || settings.trailerDailyAverageKm <= 0) return;
       
       const today = new Date();
@@ -568,7 +596,7 @@ export const storageService = {
       });
 
       if (updates.length > 0) {
-          await storageService.updateVehicleBatch(updates);
+          await storageService.updateVehicleBatch(orgId, updates);
       }
   },
 
@@ -583,10 +611,10 @@ export const storageService = {
     URL.revokeObjectURL(url);
   },
 
-  importDataBatch: async (tires: Tire[], vehicles: Vehicle[]) => {
+  importDataBatch: async (orgId: string, tires: Tire[], vehicles: Vehicle[]) => {
     if (mockUser || !db) {
-        tires.forEach(t => LocalDB.add('tires', t));
-        vehicles.forEach(v => LocalDB.add('vehicles', v));
+        tires.forEach(t => LocalDB.add(`tires`, t));
+        vehicles.forEach(v => LocalDB.add(`vehicles`, v));
         return;
     }
     const batch = db.batch();
@@ -599,11 +627,11 @@ export const storageService = {
         batch.set(ref, sanitize(v));
     });
     await batch.commit();
-    logActivity("Importação", `Importou ${tires.length} pneus e ${vehicles.length} veículos`, 'TIRES');
+    logActivity(orgId, "Importação", `Importou ${tires.length} pneus e ${vehicles.length} veículos`, 'TIRES');
   },
 
-  subscribeToRetreaders: (callback: (partners: {id: string, name: string}[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('retreaders', callback, []);
+  subscribeToRetreaders: (orgId: string, callback: (partners: {id: string, name: string}[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`retreaders`, callback, []);
     return db.collection("retreaders").orderBy("name").onSnapshot((snapshot) => {
         const partners: {id: string, name: string}[] = [];
         snapshot.forEach(doc => partners.push({ id: doc.id, ...doc.data() } as any));
@@ -611,19 +639,19 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addRetreader: async (name: string) => {
+  addRetreader: async (orgId: string, name: string) => {
       const id = Date.now().toString();
-      if (mockUser || !db) { LocalDB.add('retreaders', { id, name }); return; }
+      if (mockUser || !db) { LocalDB.add(`retreaders`, { id, name }); return; }
       await db.collection("retreaders").doc(id).set({ name });
   },
 
-  deleteRetreader: async (id: string) => {
-      if (mockUser || !db) { LocalDB.delete('retreaders', id); return; }
+  deleteRetreader: async (orgId: string, id: string) => {
+      if (mockUser || !db) { LocalDB.delete(`retreaders`, id); return; }
       await db.collection("retreaders").doc(id).delete();
   },
 
-  subscribeToTreadPatterns: (callback: (patterns: TreadPattern[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('tread_patterns', callback, []);
+  subscribeToTreadPatterns: (orgId: string, callback: (patterns: TreadPattern[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`tread_patterns`, callback, []);
     return db.collection("tread_patterns").orderBy("name").onSnapshot((snapshot) => {
         const patterns: TreadPattern[] = [];
         snapshot.forEach(doc => patterns.push({ id: doc.id, ...doc.data() } as TreadPattern));
@@ -631,24 +659,24 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addTreadPattern: async (pattern: Omit<TreadPattern, 'id'>) => {
+  addTreadPattern: async (orgId: string, pattern: Omit<TreadPattern, 'id'>) => {
       const id = Date.now().toString();
-      if (mockUser || !db) { LocalDB.add('tread_patterns', { id, ...pattern }); return; }
+      if (mockUser || !db) { LocalDB.add(`tread_patterns`, { id, ...pattern }); return; }
       await db.collection("tread_patterns").doc(id).set(sanitize(pattern));
   },
 
-  updateTreadPattern: async (id: string, updates: Partial<TreadPattern>) => {
-      if (mockUser || !db) { LocalDB.update('tread_patterns', id, updates); return; }
+  updateTreadPattern: async (orgId: string, id: string, updates: Partial<TreadPattern>) => {
+      if (mockUser || !db) { LocalDB.update(`tread_patterns`, id, updates); return; }
       await db.collection("tread_patterns").doc(id).update(sanitize(updates));
   },
 
-  deleteTreadPattern: async (id: string) => {
-      if (mockUser || !db) { LocalDB.delete('tread_patterns', id); return; }
+  deleteTreadPattern: async (orgId: string, id: string) => {
+      if (mockUser || !db) { LocalDB.delete(`tread_patterns`, id); return; }
       await db.collection("tread_patterns").doc(id).delete();
   },
 
-  subscribeToServiceOrders: (callback: (orders: ServiceOrder[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('service_orders', (data) => callback(data.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
+  subscribeToServiceOrders: (orgId: string, callback: (orders: ServiceOrder[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`service_orders`, (data) => callback(data.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
     return db.collection("service_orders").orderBy("createdAt", "desc").onSnapshot(snapshot => {
       const orders: ServiceOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as ServiceOrder));
@@ -656,19 +684,19 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addServiceOrder: async (order: ServiceOrder) => {
-    if (mockUser || !db) { LocalDB.add('service_orders', order); return; }
+  addServiceOrder: async (orgId: string, order: ServiceOrder) => {
+    if (mockUser || !db) { LocalDB.add(`service_orders`, order); return; }
     await db.collection("service_orders").doc(order.id).set(sanitize(order));
   },
 
-  updateServiceOrder: async (orderId: string, updates: Partial<ServiceOrder>) => {
-    if (mockUser || !db) { LocalDB.update('service_orders', orderId, updates); return; }
+  updateServiceOrder: async (orgId: string, orderId: string, updates: Partial<ServiceOrder>) => {
+    if (mockUser || !db) { LocalDB.update(`service_orders`, orderId, updates); return; }
     await db.collection("service_orders").doc(orderId).update(sanitize(updates));
   },
 
-  updateServiceOrderBatch: async (updates: { id: string, updates: Partial<ServiceOrder> }[]) => {
+  updateServiceOrderBatch: async (orgId: string, updates: { id: string, updates: Partial<ServiceOrder> }[]) => {
     if (mockUser || !db) {
-      updates.forEach(u => LocalDB.update('service_orders', u.id, u.updates));
+      updates.forEach(u => LocalDB.update(`service_orders`, u.id, u.updates));
       return;
     }
     const batch = db.batch();
@@ -679,8 +707,8 @@ export const storageService = {
     await batch.commit();
   },
 
-  subscribeToMaintenancePlans: (callback: (plans: import('../types').MaintenancePlan[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('maintenance_plans', callback);
+  subscribeToMaintenancePlans: (orgId: string, callback: (plans: import('../types').MaintenancePlan[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`maintenance_plans`, callback);
     return db.collection("maintenance_plans").onSnapshot(snapshot => {
       const plans: import('../types').MaintenancePlan[] = [];
       snapshot.forEach(doc => plans.push(doc.data() as import('../types').MaintenancePlan));
@@ -688,23 +716,23 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addMaintenancePlan: async (plan: import('../types').MaintenancePlan) => {
-    if (mockUser || !db) { LocalDB.add('maintenance_plans', plan); return; }
+  addMaintenancePlan: async (orgId: string, plan: import('../types').MaintenancePlan) => {
+    if (mockUser || !db) { LocalDB.add(`maintenance_plans`, plan); return; }
     await db.collection("maintenance_plans").doc(plan.id).set(sanitize(plan));
   },
 
-  updateMaintenancePlan: async (planId: string, updates: Partial<import('../types').MaintenancePlan>) => {
-    if (mockUser || !db) { LocalDB.update('maintenance_plans', planId, updates); return; }
+  updateMaintenancePlan: async (orgId: string, planId: string, updates: Partial<import('../types').MaintenancePlan>) => {
+    if (mockUser || !db) { LocalDB.update(`maintenance_plans`, planId, updates); return; }
     await db.collection("maintenance_plans").doc(planId).update(sanitize(updates));
   },
 
-  deleteMaintenancePlan: async (planId: string) => {
-    if (mockUser || !db) { LocalDB.delete('maintenance_plans', planId); return; }
+  deleteMaintenancePlan: async (orgId: string, planId: string) => {
+    if (mockUser || !db) { LocalDB.delete(`maintenance_plans`, planId); return; }
     await db.collection("maintenance_plans").doc(planId).delete();
   },
 
-  subscribeToMaintenanceSchedules: (callback: (schedules: import('../types').MaintenanceSchedule[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('maintenance_schedules', callback);
+  subscribeToMaintenanceSchedules: (orgId: string, callback: (schedules: import('../types').MaintenanceSchedule[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`maintenance_schedules`, callback);
     return db.collection("maintenance_schedules").onSnapshot(snapshot => {
       const schedules: import('../types').MaintenanceSchedule[] = [];
       snapshot.forEach(doc => schedules.push(doc.data() as import('../types').MaintenanceSchedule));
@@ -712,23 +740,23 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addMaintenanceSchedule: async (schedule: import('../types').MaintenanceSchedule) => {
-    if (mockUser || !db) { LocalDB.add('maintenance_schedules', schedule); return; }
+  addMaintenanceSchedule: async (orgId: string, schedule: import('../types').MaintenanceSchedule) => {
+    if (mockUser || !db) { LocalDB.add(`maintenance_schedules`, schedule); return; }
     await db.collection("maintenance_schedules").doc(schedule.id).set(sanitize(schedule));
   },
 
-  updateMaintenanceSchedule: async (scheduleId: string, updates: Partial<import('../types').MaintenanceSchedule>) => {
-    if (mockUser || !db) { LocalDB.update('maintenance_schedules', scheduleId, updates); return; }
+  updateMaintenanceSchedule: async (orgId: string, scheduleId: string, updates: Partial<import('../types').MaintenanceSchedule>) => {
+    if (mockUser || !db) { LocalDB.update(`maintenance_schedules`, scheduleId, updates); return; }
     await db.collection("maintenance_schedules").doc(scheduleId).update(sanitize(updates));
   },
 
-  deleteMaintenanceSchedule: async (scheduleId: string) => {
-    if (mockUser || !db) { LocalDB.delete('maintenance_schedules', scheduleId); return; }
+  deleteMaintenanceSchedule: async (orgId: string, scheduleId: string) => {
+    if (mockUser || !db) { LocalDB.delete(`maintenance_schedules`, scheduleId); return; }
     await db.collection("maintenance_schedules").doc(scheduleId).delete();
   },
 
-  subscribeToRetreadOrders: (callback: (orders: RetreadOrder[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('retread_orders', (data) => callback(data.sort((a:any,b:any) => new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime())));
+  subscribeToRetreadOrders: (orgId: string, callback: (orders: RetreadOrder[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`retread_orders`, (data) => callback(data.sort((a:any,b:any) => new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime())));
     return db.collection("retread_orders").orderBy("sentDate", "desc").onSnapshot(snapshot => {
       const orders: RetreadOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as RetreadOrder));
@@ -736,18 +764,18 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addRetreadOrder: async (order: RetreadOrder) => {
-    if (mockUser || !db) { LocalDB.add('retread_orders', order); return; }
+  addRetreadOrder: async (orgId: string, order: RetreadOrder) => {
+    if (mockUser || !db) { LocalDB.add(`retread_orders`, order); return; }
     await db.collection("retread_orders").doc(order.id).set(sanitize(order));
   },
 
-  updateRetreadOrder: async (orderId: string, updates: Partial<RetreadOrder>) => {
-    if (mockUser || !db) { LocalDB.update('retread_orders', orderId, updates); return; }
+  updateRetreadOrder: async (orgId: string, orderId: string, updates: Partial<RetreadOrder>) => {
+    if (mockUser || !db) { LocalDB.update(`retread_orders`, orderId, updates); return; }
     await db.collection("retread_orders").doc(orderId).update(sanitize(updates));
   },
 
-  subscribeToStock: (callback: (items: StockItem[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('stock_items', callback);
+  subscribeToStock: (orgId: string, callback: (items: StockItem[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`stock_items`, callback);
     return db.collection("stock_items").orderBy('name').onSnapshot((snapshot) => {
       const items: StockItem[] = [];
       snapshot.forEach((doc) => items.push(doc.data() as StockItem));
@@ -755,8 +783,8 @@ export const storageService = {
     }, () => {});
   },
 
-  subscribeToStockMovements: (callback: (movements: StockMovement[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('stock_movements', (data) => callback(data.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())));
+  subscribeToStockMovements: (orgId: string, callback: (movements: StockMovement[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`stock_movements`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())));
     return db.collection("stock_movements").orderBy('date', 'desc').limit(100).onSnapshot((snapshot) => {
       const movements: StockMovement[] = [];
       snapshot.forEach((doc) => movements.push(doc.data() as StockMovement));
@@ -764,29 +792,29 @@ export const storageService = {
     }, () => {});
   },
 
-  addStockItem: async (item: StockItem) => {
-    if (mockUser || !db) { LocalDB.add('stock_items', item); return; }
+  addStockItem: async (orgId: string, item: StockItem) => {
+    if (mockUser || !db) { LocalDB.add(`stock_items`, item); return; }
     await db.collection("stock_items").doc(item.id).set(sanitize(item));
   },
 
-  updateStockItem: async (item: StockItem) => {
-    if (mockUser || !db) { LocalDB.update('stock_items', item.id, item); return; }
+  updateStockItem: async (orgId: string, item: StockItem) => {
+    if (mockUser || !db) { LocalDB.update(`stock_items`, item.id, item); return; }
     await db.collection("stock_items").doc(item.id).update(sanitize(item));
   },
 
-  deleteStockItem: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('stock_items', id); return; }
+  deleteStockItem: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`stock_items`, id); return; }
     await db.collection("stock_items").doc(id).delete();
   },
 
-  registerStockMovement: async (movement: StockMovement) => {
+  registerStockMovement: async (orgId: string, movement: StockMovement) => {
     if (mockUser || !db) {
-        LocalDB.add('stock_movements', movement);
-        const items = LocalDB.get('stock_items') as StockItem[];
+        LocalDB.add(`stock_movements`, movement);
+        const items = LocalDB.get(`stock_items`) as StockItem[];
         const item = items.find(i => i.id === movement.itemId);
         if (item) {
             const newQty = movement.type === 'ENTRY' ? item.quantity + movement.quantity : item.quantity - movement.quantity;
-            LocalDB.update('stock_items', item.id, { quantity: newQty, updatedAt: new Date().toISOString() });
+            LocalDB.update(`stock_items`, item.id, { quantity: newQty, updatedAt: new Date().toISOString() });
         }
         return;
     }
@@ -801,8 +829,8 @@ export const storageService = {
     }
   },
 
-  subscribeToDrivers: (callback: (drivers: Driver[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('drivers', callback, []);
+  subscribeToDrivers: (orgId: string, callback: (drivers: Driver[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`drivers`, callback, []);
     return db.collection("drivers").orderBy("name").onSnapshot((snapshot) => {
       const drivers: Driver[] = [];
       snapshot.forEach((doc) => drivers.push(doc.data() as Driver));
@@ -810,24 +838,24 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addDriver: async (driver: Driver) => {
-    if (mockUser || !db) { LocalDB.add('drivers', driver); logActivity("Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES'); return; }
+  addDriver: async (orgId: string, driver: Driver) => {
+    if (mockUser || !db) { LocalDB.add(`drivers`, driver); logActivity(orgId, "Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES'); return; }
     await db.collection("drivers").doc(driver.id).set(sanitize(driver));
-    logActivity("Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES');
+    logActivity(orgId, "Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES');
   },
 
-  updateDriver: async (id: string, updates: Partial<Driver>) => {
-    if (mockUser || !db) { LocalDB.update('drivers', id, updates); return; }
+  updateDriver: async (orgId: string, id: string, updates: Partial<Driver>) => {
+    if (mockUser || !db) { LocalDB.update(`drivers`, id, updates); return; }
     await db.collection("drivers").doc(id).update(sanitize(updates));
   },
 
-  deleteDriver: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('drivers', id); return; }
+  deleteDriver: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`drivers`, id); return; }
     await db.collection("drivers").doc(id).delete();
   },
 
-  subscribeToCollaborators: (callback: (collaborators: Collaborator[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('collaborators', callback, []);
+  subscribeToCollaborators: (orgId: string, callback: (collaborators: Collaborator[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`collaborators`, callback, []);
     return db.collection("collaborators").orderBy("name").onSnapshot((snapshot) => {
       const collaborators: Collaborator[] = [];
       snapshot.forEach((doc) => collaborators.push(doc.data() as Collaborator));
@@ -835,58 +863,58 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addCollaborator: async (collaborator: Collaborator) => {
-    if (mockUser || !db) { LocalDB.add('collaborators', collaborator); logActivity("Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL'); return; }
+  addCollaborator: async (orgId: string, collaborator: Collaborator) => {
+    if (mockUser || !db) { LocalDB.add(`collaborators`, collaborator); logActivity(orgId, "Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL'); return; }
     await db.collection("collaborators").doc(collaborator.id).set(sanitize(collaborator));
-    logActivity("Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL');
+    logActivity(orgId, "Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL');
   },
 
-  updateCollaborator: async (id: string, updates: Partial<Collaborator>) => {
-    if (mockUser || !db) { LocalDB.update('collaborators', id, updates); return; }
+  updateCollaborator: async (orgId: string, id: string, updates: Partial<Collaborator>) => {
+    if (mockUser || !db) { LocalDB.update(`collaborators`, id, updates); return; }
     await db.collection("collaborators").doc(id).update(sanitize(updates));
   },
 
-  deleteCollaborator: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('collaborators', id); return; }
+  deleteCollaborator: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`collaborators`, id); return; }
     await db.collection("collaborators").doc(id).delete();
   },
 
-  subscribeToSettings: (callback: (settings: SystemSettings) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('settings', callback, DEFAULT_SETTINGS);
+  subscribeToSettings: (orgId: string, callback: (settings: SystemSettings) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`settings`, callback, DEFAULT_SETTINGS);
     return db.collection("settings").doc("global").onSnapshot((doc) => {
       if (doc.exists) callback({ ...DEFAULT_SETTINGS, ...doc.data() } as SystemSettings);
       else callback(DEFAULT_SETTINGS);
     }, () => callback(DEFAULT_SETTINGS));
   },
 
-  saveSettings: async (settings: SystemSettings) => {
-    if (mockUser || !db) { LocalDB.set('settings', settings); return; }
+  saveSettings: async (orgId: string, settings: SystemSettings) => {
+    if (mockUser || !db) { LocalDB.set(`settings`, settings); return; }
     await db.collection("settings").doc("global").set(sanitize(settings));
   },
 
-  subscribeToTrackerSettings: (callback: (settings: TrackerSettings) => void) => {
+  subscribeToTrackerSettings: (orgId: string, callback: (settings: TrackerSettings) => void) => {
     const DEFAULT_TRACKER: TrackerSettings = { 
       apiUrl: 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService', 
       user: 'JOMEDELOGTORREOPENTECH', 
       pass: 'sascar', 
       active: true 
     };
-    if (mockUser || !db) return LocalDB.subscribe('tracker_settings', callback, DEFAULT_TRACKER);
+    if (mockUser || !db) return LocalDB.subscribe(`tracker_settings`, callback, DEFAULT_TRACKER);
     return db.collection("settings").doc("tracker").onSnapshot((doc) => {
       if (doc.exists) callback({ ...DEFAULT_TRACKER, ...doc.data() } as TrackerSettings);
       else callback(DEFAULT_TRACKER);
     }, () => callback(DEFAULT_TRACKER));
   },
 
-  saveTrackerSettings: async (settings: TrackerSettings) => {
-    if (mockUser || !db) { LocalDB.set('tracker_settings', settings); return; }
+  saveTrackerSettings: async (orgId: string, settings: TrackerSettings) => {
+    if (mockUser || !db) { LocalDB.set(`tracker_settings`, settings); return; }
     await db.collection("settings").doc("tracker").set(sanitize(settings));
   },
 
   logActivity,
 
-  subscribeToArrivalAlerts: (callback: (alerts: ArrivalAlert[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('arrival_alerts', callback, []);
+  subscribeToArrivalAlerts: (orgId: string, callback: (alerts: ArrivalAlert[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`arrival_alerts`, callback, []);
     return db.collection("arrival_alerts").onSnapshot((snapshot) => {
       const alerts: ArrivalAlert[] = [];
       snapshot.forEach((doc) => alerts.push({ ...doc.data(), id: doc.id } as ArrivalAlert));
@@ -894,14 +922,14 @@ export const storageService = {
     }, () => callback([]));
   },
 
-  addArrivalAlert: async (alert: ArrivalAlert) => {
-    if (mockUser || !db) { LocalDB.add('arrival_alerts', alert); return; }
+  addArrivalAlert: async (orgId: string, alert: ArrivalAlert) => {
+    if (mockUser || !db) { LocalDB.add(`arrival_alerts`, alert); return; }
     await db.collection("arrival_alerts").doc(alert.id).set(sanitize(alert));
   },
 
-  updateArrivalAlert: async (id: string, updates: Partial<ArrivalAlert>) => {
+  updateArrivalAlert: async (orgId: string, id: string, updates: Partial<ArrivalAlert>) => {
     try {
-      if (mockUser || !db) { LocalDB.update('arrival_alerts', id, updates); return; }
+      if (mockUser || !db) { LocalDB.update(`arrival_alerts`, id, updates); return; }
       await db.collection("arrival_alerts").doc(id).update(sanitize(updates));
     } catch (error) {
       console.error('[storageService] Error updating arrival alert:', error);
@@ -909,45 +937,39 @@ export const storageService = {
     }
   },
 
-  deleteArrivalAlert: async (id: string) => {
-    console.log('[StorageService] deleteArrivalAlert called for ID:', id);
-    console.log('[StorageService] Current state - mockUser:', !!mockUser, 'db:', !!db);
-    
+  deleteArrivalAlert: async (orgId: string, id: string) => {
     if (mockUser || !db) { 
-      console.log('[StorageService] Redirecting to LocalDB.delete');
-      LocalDB.delete('arrival_alerts', id); 
+      LocalDB.delete(`arrival_alerts`, id); 
       return; 
     }
     try {
-      console.log('[StorageService] Attempting Firestore delete for doc:', id);
       await db.collection("arrival_alerts").doc(id).delete();
-      console.log('[StorageService] Firestore delete successful');
     } catch (error) {
       console.error('[StorageService] Firestore delete failed:', error);
       throw error;
     }
   },
 
-  subscribeToTireLoans: (callback: (loans: TireLoan[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe('tire_loans', callback, []);
+  subscribeToTireLoans: (orgId: string, callback: (loans: TireLoan[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`tire_loans`, callback, []);
     return db.collection("tire_loans").onSnapshot((snapshot) => {
       callback(snapshot.docs.map(doc => doc.data() as TireLoan));
     }, () => callback([]));
   },
 
-  addTireLoan: async (loan: TireLoan) => {
-    if (mockUser || !db) { LocalDB.add('tire_loans', loan); return; }
+  addTireLoan: async (orgId: string, loan: TireLoan) => {
+    if (mockUser || !db) { LocalDB.add(`tire_loans`, loan); return; }
     await db.collection("tire_loans").doc(loan.id).set(sanitize(loan));
   },
 
-  updateTireLoan: async (id: string, updates: Partial<TireLoan>) => {
-    if (mockUser || !db) { LocalDB.update('tire_loans', id, updates); return; }
+  updateTireLoan: async (orgId: string, id: string, updates: Partial<TireLoan>) => {
+    if (mockUser || !db) { LocalDB.update(`tire_loans`, id, updates); return; }
     await db.collection("tire_loans").doc(id).update(sanitize(updates));
   },
 
-  getLogsByUser: async (userId: string, limit = 300): Promise<SystemLog[]> => {
+  getLogsByUser: async (orgId: string, userId: string, limit = 300): Promise<SystemLog[]> => {
      if (mockUser || userId.startsWith('mock-') || !db) {
-         const logs = LocalDB.get('system_logs') as SystemLog[];
+         const logs = LocalDB.get(`logs`) as SystemLog[];
          return logs.filter(l => l.userId === userId).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
      }
      try {
@@ -956,9 +978,9 @@ export const storageService = {
      } catch (e) { return []; }
   },
 
-  getGlobalLogs: async (limit = 300): Promise<SystemLog[]> => {
+  getGlobalLogs: async (orgId: string, limit = 300): Promise<SystemLog[]> => {
     if (mockUser || !db) {
-        const logs = LocalDB.get('system_logs') as SystemLog[];
+        const logs = LocalDB.get(`logs`) as SystemLog[];
         return logs.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
     }
     try {
@@ -967,28 +989,28 @@ export const storageService = {
     } catch (e) { return []; }
   },
 
-  resetData: async () => {
+  resetData: async (orgId: string) => {
     console.log("Iniciando resetData...");
     
     // 1. Handle LocalDB (which uses localStorage)
     // Clear all relevant keys
     const keysToClear = [
-        'vehicles', 'tires', 'system_logs', 'retreaders', 'tread_patterns', 
-        'service_orders', 'retread_orders', 'stock_items', 'stock_movements', 'drivers'
+        `vehicles`, `tires`, `logs`, `retreaders`, `tread_patterns`, 
+        `service_orders`, `retread_orders`, `stock_items`, `stock_movements`, `drivers`
     ];
     
     // Reset vehicles odometer specifically
-    const vehicles = LocalDB.get('vehicles') as any[] || [];
+    const vehicles = LocalDB.get(`vehicles`) as any[] || [];
     const resetVehicles = vehicles.map(v => ({
         ...v,
         odometer: 0
     }));
 
     // Clear everything from localStorage
-    keysToClear.forEach(key => localStorage.removeItem(key));
+    keysToClear.forEach(key => localStorage.removeItem(`gm_local_${key}`));
     
     // Restore reset vehicles
-    LocalDB.set('vehicles', resetVehicles);
+    LocalDB.set(`vehicles`, resetVehicles);
     
     console.log("LocalDB/localStorage resetado.");
 
