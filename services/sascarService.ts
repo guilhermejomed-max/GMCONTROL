@@ -35,7 +35,7 @@ export const sascarService = {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ plates, trackerSettings })
-        });
+        }, 150000); // 150s timeout no frontend
         
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -60,8 +60,8 @@ export const sascarService = {
 
         if (isLastRetry) {
           console.error('Erro na integração Sascar (Final):', error);
-          if (isTimeout) throw new Error('A requisição à Sascar demorou muito tempo (Timeout excedido).');
-          if (isNetworkError) throw new Error('Erro de conexão com o servidor. Verifique se o servidor está online ou se há um problema de rede.');
+          if (isTimeout) throw new Error('A requisição à Sascar demorou muito tempo. A sincronização continua em segundo plano, tente novamente em alguns instantes.');
+          if (isNetworkError) throw new Error('Erro de conexão com o servidor. O servidor pode estar processando uma fila longa da Sascar. Aguarde um momento e tente novamente.');
           throw error;
         }
         

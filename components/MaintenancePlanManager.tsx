@@ -4,13 +4,14 @@ import { ClipboardList, Plus, Search, Calendar, Truck, Save, X, Trash2 } from 'l
 import { storageService } from '../services/storageService';
 
 interface Props {
+  orgId: string;
   plans: MaintenancePlan[];
   schedules: MaintenanceSchedule[];
   vehicles: Vehicle[];
   stockItems: StockItem[];
 }
 
-export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehicles, stockItems }) => {
+export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedules, vehicles, stockItems }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanType, setNewPlanType] = useState<'KM' | 'DATE'>('KM');
@@ -25,12 +26,13 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
   const [scheduleVehicleId, setScheduleVehicleId] = useState('');
   const [scheduleDueKm, setScheduleDueKm] = useState('');
   const [scheduleDueDate, setScheduleDueDate] = useState('');
+  const [vehicleSearch, setVehicleSearch] = useState('');
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlanName || !newPlanInterval) return;
 
-    await storageService.addMaintenancePlan({
+    await storageService.addMaintenancePlan(orgId, {
       id: Date.now().toString(),
       name: newPlanName,
       description: newPlanDescription,
@@ -55,7 +57,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
 
   const confirmDeletePlan = async () => {
     if (isDeleteConfirmOpen) {
-      await storageService.deleteMaintenancePlan(isDeleteConfirmOpen);
+      await storageService.deleteMaintenancePlan(orgId, isDeleteConfirmOpen);
       setIsDeleteConfirmOpen(null);
     }
   };
@@ -64,7 +66,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
     e.preventDefault();
     if (!selectedPlanForSchedule || !scheduleVehicleId) return;
 
-    await storageService.addMaintenanceSchedule({
+    await storageService.addMaintenanceSchedule(orgId, {
       id: Date.now().toString(),
       planId: selectedPlanForSchedule.id,
       vehicleId: scheduleVehicleId,
@@ -176,6 +178,14 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
               </div>
               
               <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pesquisar Placa</label>
+                <input 
+                  type="text" 
+                  placeholder="Digite a placa para filtrar..."
+                  className="w-full px-3 py-2 mb-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
+                  value={vehicleSearch}
+                  onChange={e => setVehicleSearch(e.target.value)}
+                />
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Veículo</label>
                 <select 
                   required
@@ -184,7 +194,10 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
                 >
                   <option value="">Selecione um veículo...</option>
-                  {vehicles.map(v => (
+                  {vehicles
+                    .filter(v => v.plate.toLowerCase().includes(vehicleSearch.toLowerCase()))
+                    .sort((a, b) => a.plate.localeCompare(b.plate))
+                    .map(v => (
                     <option key={`vehicle-${v.id}`} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
                   ))}
                 </select>

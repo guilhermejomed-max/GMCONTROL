@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus } from '../types';
-import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package, Truck, Wrench } from 'lucide-react';
 
 interface ReportsHubProps {
   tires: Tire[];
@@ -59,9 +59,21 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
     ],
     VEHICLES: [
       { id: 'plate', label: 'Placa', accessor: (v: Vehicle) => v.plate },
+      { id: 'fleetNumber', label: 'Prefixo', accessor: (v: Vehicle) => v.fleetNumber || '-' },
       { id: 'model', label: 'Modelo', accessor: (v: Vehicle) => v.model },
+      { id: 'brand', label: 'Marca', accessor: (v: Vehicle) => v.brand || '-' },
       { id: 'type', label: 'Tipo', accessor: (v: Vehicle) => v.type },
+      { id: 'year', label: 'Ano', accessor: (v: Vehicle) => v.year || '-' },
+      { id: 'color', label: 'Cor', accessor: (v: Vehicle) => v.color || '-' },
+      { id: 'fuelType', label: 'Combustível', accessor: (v: Vehicle) => v.fuelType || '-' },
+      { id: 'axles', label: 'Eixos', accessor: (v: Vehicle) => v.axles || 0 },
       { id: 'odometer', label: 'Hodômetro', accessor: (v: Vehicle) => v.odometer?.toLocaleString() || '0' },
+      { id: 'vin', label: 'Chassi', accessor: (v: Vehicle) => v.vin || '-' },
+      { id: 'renavam', label: 'Renavam', accessor: (v: Vehicle) => v.renavam || '-' },
+      { id: 'engine', label: 'Motor', accessor: (v: Vehicle) => v.engine || '-' },
+      { id: 'transmission', label: 'Câmbio', accessor: (v: Vehicle) => v.transmission || '-' },
+      { id: 'tiresBrand', label: 'Marca Pneus', accessor: (v: Vehicle) => v.tiresBrand || '-' },
+      { id: 'tiresSize', label: 'Medida Pneus', accessor: (v: Vehicle) => v.tiresSize || '-' },
       { id: 'tireCount', label: 'Qtd Pneus', accessor: (v: Vehicle, ctx: any) => ctx.tires?.filter((t: Tire) => t.vehicleId === v.id).length || 0 },
       { id: 'location', label: 'Última Loc.', accessor: (v: Vehicle) => v.lastLocation?.city || '-' },
       { id: 'lastUpdate', label: 'Atualização', accessor: (v: Vehicle) => formatDate(v.lastLocation?.updatedAt || '') },
@@ -125,6 +137,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedPlate, setSelectedPlate] = useState('');
+  const [selectedType, setSelectedType] = useState('');
 
   // --- PRESETS DE DATA ---
   const setDateRange = (range: 'WEEK' | 'MONTH') => {
@@ -137,6 +152,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
       }
       setStartDate(start.toISOString().split('T')[0]);
       setEndDate(end.toISOString().split('T')[0]);
+      setSelectedModel('');
+      setSelectedPlate('');
+      setSelectedType('');
   };
 
   // --- HANDLER PARA TROCA DE FONTE ---
@@ -146,6 +164,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
       // Seleciona automaticamente as primeiras 8 colunas da nova fonte
       const defaultCols = COLUMN_DEFINITIONS[newSource].slice(0, 8).map(c => c.id);
       setSelectedColumns(defaultCols);
+      setSelectedModel('');
+      setSelectedPlate('');
+      setSelectedType('');
   };
 
   // --- PROCESSAMENTO DE DADOS ---
@@ -158,7 +179,10 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
     } else if (source === 'VEHICLES') {
       rawData = [...vehicles];
     } else if (source === 'MAINTENANCE') {
-      rawData = [...serviceOrders];
+      rawData = serviceOrders.map(o => {
+          const vehicle = vehicles.find(v => v.id === o.vehicleId);
+          return { ...o, type: vehicle?.type || '' };
+      });
       rawData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else if (source === 'MOVEMENTS') {
       rawData = tires.flatMap(t => (t.history || []).map(h => ({ ...h, tireId: t.id })));
@@ -225,7 +249,8 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
             plate: vehicle.plate,
             date: o.date || o.completedAt || o.createdAt,
             service: o.title,
-            cost: totalCost
+            cost: totalCost,
+            type: vehicle.type
           });
         }
       });
@@ -277,7 +302,25 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
         const search = searchText.toLowerCase();
         // Cria uma string JSON apenas dos valores para busca
         const str = Object.values(item).join(' ').toLowerCase();
-        return str.includes(search);
+        if (!str.includes(search)) return false;
+      }
+
+      // Filtro de Modelo
+      if (selectedModel) {
+        const itemModel = (item.model || '').toLowerCase();
+        if (!itemModel.includes(selectedModel.toLowerCase())) return false;
+      }
+
+      // Filtro de Placa
+      if (selectedPlate) {
+        const itemPlate = (item.plate || item.vehiclePlate || '').toLowerCase();
+        if (!itemPlate.includes(selectedPlate.toLowerCase())) return false;
+      }
+
+      // Filtro de Tipo
+      if (selectedType) {
+        const itemType = (item.type || '').toLowerCase();
+        if (!itemType.includes(selectedType.toLowerCase())) return false;
       }
 
       return true;
@@ -299,7 +342,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
     }
 
     return filtered;
-  }, [source, tires, vehicles, serviceOrders, retreadOrders, startDate, endDate, searchText, sortConfig]);
+  }, [source, tires, vehicles, serviceOrders, retreadOrders, startDate, endDate, searchText, sortConfig, selectedModel, selectedPlate, selectedType]);
 
   // --- RESUMO DO RELATÓRIO ---
   const reportSummary = useMemo(() => {
@@ -384,61 +427,156 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
     `).join('');
 
     const html = `
+      <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório Profissional - GM Control</title>
+          <title>Relatório - GM Control</title>
           <style>
-            @page { size: landscape; margin: 1cm; }
-            body { font-family: 'Inter', -apple-system, sans-serif; font-size: 10px; color: #1e293b; margin: 0; padding: 0; }
-            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px; }
-            .logo-area { display: flex; align-items: center; gap: 10px; }
-            .logo-icon { width: 30px; height: 30px; background: #4f46e5; border-radius: 8px; }
-            .company-name { font-size: 18px; font-weight: 900; color: #1e293b; letter-spacing: -0.5px; }
-            .report-title { font-size: 14px; font-weight: 700; color: #4f46e5; text-transform: uppercase; margin: 0; }
-            .meta { font-size: 9px; color: #64748b; text-align: right; }
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
             
-            .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-            .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; rounded: 8px; }
-            .summary-label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
-            .summary-value { font-size: 14px; font-weight: 700; color: #1e293b; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+              color: #1e293b; 
+              line-height: 1.5; 
+              padding: 40px;
+              background: #fff;
+            }
+            
+            .header { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-start; 
+              margin-bottom: 40px; 
+              border-bottom: 2px solid #f1f5f9;
+              padding-bottom: 20px;
+            }
+            
+            .logo-section { display: flex; align-items: center; gap: 12px; }
+            .logo-box { 
+              width: 48px; 
+              height: 48px; 
+              background: #4f46e5; 
+              border-radius: 12px; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center;
+              color: white;
+              font-weight: 800;
+              font-size: 20px;
+            }
+            
+            .company-info h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: #0f172a; }
+            .company-info p { font-size: 12px; color: #64748b; font-weight: 500; }
+            
+            .report-meta { text-align: right; }
+            .report-meta h2 { font-size: 14px; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+            .report-meta p { font-size: 11px; color: #64748b; }
 
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th { background: #f1f5f9; text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; font-size: 9px; text-transform: uppercase; font-weight: 800; color: #475569; }
-            td { padding: 8px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-            tr:nth-child(even) { background: #fcfdfe; }
+            .summary-container { 
+              display: grid; 
+              grid-template-columns: repeat(3, 1fr); 
+              gap: 20px; 
+              margin-bottom: 40px; 
+            }
             
-            .footer { position: fixed; bottom: 0; width: 100%; font-size: 8px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 5px; }
+            .summary-item { 
+              background: #f8fafc; 
+              border: 1px solid #e2e8f0; 
+              padding: 16px; 
+              border-radius: 16px; 
+            }
+            
+            .summary-item .label { 
+              font-size: 10px; 
+              font-weight: 700; 
+              color: #64748b; 
+              text-transform: uppercase; 
+              letter-spacing: 0.05em; 
+              margin-bottom: 8px; 
+            }
+            
+            .summary-item .value { 
+              font-size: 18px; 
+              font-weight: 800; 
+              color: #0f172a; 
+            }
+
+            table { 
+              width: 100%; 
+              border-collapse: separate; 
+              border-spacing: 0; 
+              margin-top: 20px; 
+            }
+            
+            th { 
+              background: #f8fafc; 
+              text-align: left; 
+              padding: 12px 16px; 
+              border-bottom: 2px solid #e2e8f0; 
+              font-size: 10px; 
+              text-transform: uppercase; 
+              font-weight: 700; 
+              color: #475569; 
+              letter-spacing: 0.025em;
+            }
+            
+            td { 
+              padding: 12px 16px; 
+              border-bottom: 1px solid #f1f5f9; 
+              font-size: 11px; 
+              color: #334155; 
+            }
+            
+            tr:nth-child(even) td { background: #fafafa; }
+            
+            .footer { 
+              margin-top: 50px; 
+              padding-top: 20px; 
+              border-top: 1px solid #e2e8f0; 
+              display: flex; 
+              justify-content: space-between; 
+              font-size: 10px; 
+              color: #94a3b8; 
+            }
+
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+              @page { margin: 2cm; size: landscape; }
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <div class="logo-area">
-              <div class="logo-icon"></div>
-              <div>
-                <div class="company-name">GM CONTROL</div>
-                <div class="report-title">${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Manutenção' : source === 'COSTS' ? 'Financeiro Completo' : source === 'MODEL_COSTS' ? 'Custos por Modelo' : 'Relatório de Frota'}</div>
+            <div class="logo-section">
+              <div class="logo-box">GM</div>
+              <div class="company-info">
+                <h1>GM CONTROL</h1>
+                <p>Gestão Inteligente de Frotas e Pneus</p>
               </div>
             </div>
-            <div class="meta">
-              Gerado em: ${new Date().toLocaleString('pt-BR')}<br>
-              Filtros: ${startDate || 'Início'} até ${endDate || 'Fim'}
+            <div class="report-meta">
+              <h2>${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Relatório de Manutenção' : source === 'COSTS' ? 'Análise Financeira' : source === 'MODEL_COSTS' ? 'Custos por Modelo' : 'Relatório Operacional'}</h2>
+              <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+              <p>Período: ${startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Início'} — ${endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'}</p>
             </div>
           </div>
 
           ${reportSummary ? `
-            <div class="summary-grid">
-              <div class="summary-card">
-                <div class="summary-label">Total de Registros</div>
-                <div class="summary-value">${reportSummary.totalRecords}</div>
+            <div class="summary-container">
+              <div class="summary-item">
+                <div class="label">Total de Registros</div>
+                <div class="value">${reportSummary.totalRecords}</div>
               </div>
               ${reportSummary.totalValue !== null ? `
-                <div class="summary-card">
-                  <div class="summary-label">Valor Total Acumulado</div>
-                  <div class="summary-value">${money(reportSummary.totalValue)}</div>
+                <div class="summary-container-item">
+                  <div class="label">Investimento Total</div>
+                  <div class="value">${money(reportSummary.totalValue)}</div>
                 </div>
-                <div class="summary-card">
-                  <div class="summary-label">Média por Registro</div>
-                  <div class="summary-value">${money(reportSummary.avgValue || 0)}</div>
+                <div class="summary-container-item">
+                  <div class="label">Custo Médio</div>
+                  <div class="value">${money(reportSummary.avgValue || 0)}</div>
                 </div>
               ` : ''}
             </div>
@@ -452,10 +590,18 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
           </table>
 
           <div class="footer">
-            GM Control - Sistema de Gestão de Frotas e Pneus • Relatório Confidencial • Página 1 de 1
+            <div>GM Control &copy; ${new Date().getFullYear()} • Sistema de Gestão</div>
+            <div>Relatório Gerencial • Documento Interno</div>
           </div>
 
-          <script>window.onload = function() { window.print(); window.close(); }</script>
+          <script>
+            window.onload = function() { 
+              setTimeout(() => {
+                window.print(); 
+                window.close(); 
+              }, 500);
+            }
+          </script>
         </body>
       </html>
     `;
@@ -468,95 +614,146 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
   const renderContext = { tires, vehicles };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in duration-500">
+    <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in duration-700">
       
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
-            <FileBarChart className="h-7 w-7 text-indigo-600"/> Gerador de Relatórios
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
+            <FileBarChart className="h-8 w-8 text-indigo-600"/> Centro de Inteligência
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Monte tabelas dinâmicas cruzando informações do sistema.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Análise avançada de dados e exportação de relatórios gerenciais.</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => { setStartDate(''); setEndDate(''); setSearchText(''); setSortConfig(null); }} className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all text-sm">
-            <RefreshCw className="h-4 w-4" /> Limpar
+        <div className="flex gap-3">
+          <button onClick={() => { 
+            setStartDate(''); 
+            setEndDate(''); 
+            setSearchText(''); 
+            setSelectedModel('');
+            setSelectedPlate('');
+            setSelectedType('');
+            setSortConfig(null); 
+          }} className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-5 py-3 rounded-2xl font-bold flex items-center gap-2 border border-slate-200 dark:border-slate-700 transition-all text-sm shadow-sm">
+            <RefreshCw className="h-4 w-4" /> Resetar
           </button>
-          <button onClick={handleExportCSV} disabled={reportData.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all text-sm disabled:opacity-50">
-            <Download className="h-4 w-4" /> Exportar CSV
+          <button onClick={handleExportCSV} disabled={reportData.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all text-sm disabled:opacity-50">
+            <Download className="h-4 w-4" /> CSV
           </button>
-          <button onClick={handlePrint} disabled={reportData.length === 0} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all text-sm disabled:opacity-50">
-            <Printer className="h-4 w-4" /> Imprimir / PDF
+          <button onClick={handlePrint} disabled={reportData.length === 0} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all text-sm disabled:opacity-50">
+            <Printer className="h-4 w-4" /> Imprimir PDF
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-8 h-full overflow-hidden">
         
         {/* SIDEBAR DE CONFIGURAÇÃO */}
-        <div className="w-full lg:w-80 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-y-auto custom-scrollbar flex-shrink-0">
-          <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-            <h3 className="font-bold text-slate-700 dark:text-white flex items-center gap-2"><Filter className="h-4 w-4"/> Configuração</h3>
+        <div className="w-full lg:w-80 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-y-auto custom-scrollbar flex-shrink-0">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+            <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-base"><Filter className="h-5 w-5 text-indigo-500"/> Parâmetros</h3>
           </div>
           
-          <div className="p-5 space-y-6">
+          <div className="p-6 space-y-8">
             {/* FONTE DE DADOS */}
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">1. Fonte de Dados</label>
-              <select 
-                value={source} 
-                onChange={(e) => handleSourceChange(e.target.value as ReportSource)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="VEHICLES">Frota e KM</option>
-                <option value="BRAND_MODELS">Marcas e Modelos</option>
-                <option value="MAINTENANCE">Manutenção</option>
-                <option value="MODEL_COSTS">Custos por Modelo</option>
-              </select>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">1. Módulo de Dados</label>
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  { id: 'VEHICLES', label: 'Frota e KM', icon: Truck },
+                  { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package },
+                  { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench },
+                  { id: 'MODEL_COSTS', label: 'Custos por Modelo', icon: TrendingUp }
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleSourceChange(opt.id as ReportSource)}
+                    className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left ${source === opt.id ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-600 text-indigo-900 dark:text-indigo-300' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                  >
+                    <opt.icon className={`h-5 w-5 ${source === opt.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                    <span className="text-sm font-bold">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* FILTROS */}
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">2. Filtros</label>
-              <div className="space-y-3">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">2. Refinar Busca</label>
+              <div className="space-y-4">
                 <div className="flex gap-2">
-                    <button onClick={() => setDateRange('WEEK')} className="flex-1 p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-[10px] font-bold">Última Semana</button>
-                    <button onClick={() => setDateRange('MONTH')} className="flex-1 p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-[10px] font-bold">Último Mês</button>
+                    <button onClick={() => setDateRange('WEEK')} className="flex-1 p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-bold hover:bg-indigo-600 hover:text-white transition-colors">7 Dias</button>
+                    <button onClick={() => setDateRange('MONTH')} className="flex-1 p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-bold hover:bg-indigo-600 hover:text-white transition-colors">30 Dias</button>
                 </div>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400"/>
+                  <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400"/>
                   <input 
                     type="text" 
-                    placeholder="Busca textual..." 
-                    className="w-full pl-9 p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                    placeholder="Filtrar resultados..." 
+                    className="w-full pl-11 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white transition-all"
                     value={searchText}
                     onChange={e => setSearchText(e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-bold text-slate-400 mb-1 block">De</label>
-                    <input type="date" className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Início</label>
+                    <input type="date" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-[9px] font-bold text-slate-400 mb-1 block">Até</label>
-                    <input type="date" className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Fim</label>
+                    <input type="date" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={endDate} onChange={e => setEndDate(e.target.value)} />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Modelo</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Volvo"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
+                      value={selectedModel} 
+                      onChange={e => setSelectedModel(e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Placa</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: ABC"
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
+                      value={selectedPlate} 
+                      onChange={e => setSelectedPlate(e.target.value)} 
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Tipo de Veículo</label>
+                  <select 
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={selectedType}
+                    onChange={e => setSelectedType(e.target.value)}
+                  >
+                    <option value="">Todos os tipos</option>
+                    <option value="CAVALO">Cavalo</option>
+                    <option value="CARRETA">Carreta</option>
+                  </select>
                 </div>
               </div>
             </div>
 
             {/* SELEÇÃO DE COLUNAS */}
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex justify-between items-center">
-                <span>3. Colunas Visíveis</span>
-                <span className="text-indigo-500">{selectedColumns.length} sel.</span>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex justify-between items-center">
+                <span>3. Colunas</span>
+                <span className="text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">{selectedColumns.length}</span>
               </label>
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {COLUMN_DEFINITIONS[source].map(col => (
-                  <label key={col.id} className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition-all ${selectedColumns.includes(col.id) ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100'}`}>
-                    <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${selectedColumns.includes(col.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
-                      {selectedColumns.includes(col.id) && <Check className="h-3 w-3 text-white" />}
+                  <label key={col.id} className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${selectedColumns.includes(col.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-60 hover:opacity-100'}`}>
+                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${selectedColumns.includes(col.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-700'}`}>
+                      {selectedColumns.includes(col.id) && <Check className="h-3.5 w-3.5 text-white" />}
                     </div>
                     <span className={`text-xs font-bold ${selectedColumns.includes(col.id) ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}`}>{col.label}</span>
                     <input type="checkbox" className="hidden" checked={selectedColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} />
@@ -568,40 +765,40 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
         </div>
 
         {/* ÁREA DE PRÉ-VISUALIZAÇÃO (TABELA) */}
-        <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+        <div className="flex-1 flex flex-col gap-8 overflow-hidden">
           
           {/* SUMMARY CARDS */}
           {reportSummary && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-                <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
-                  <Package className="h-6 w-6"/>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-5">
+                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
+                  <Package className="h-7 w-7"/>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Registros</p>
-                  <p className="text-xl font-black text-slate-800 dark:text-white">{reportSummary.totalRecords}</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Registros</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white">{reportSummary.totalRecords}</p>
                 </div>
               </div>
 
               {reportSummary.totalValue !== null && (
                 <>
-                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-                    <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
-                      <DollarSign className="h-6 w-6"/>
+                  <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-5">
+                    <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
+                      <DollarSign className="h-7 w-7"/>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Custo Total Acumulado</p>
-                      <p className="text-xl font-black text-emerald-600">{money(reportSummary.totalValue)}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Custo Acumulado</p>
+                      <p className="text-2xl font-black text-emerald-600">{money(reportSummary.totalValue)}</p>
                     </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
-                    <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-600">
-                      <TrendingUp className="h-6 w-6"/>
+                  <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-5">
+                    <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-600">
+                      <TrendingUp className="h-7 w-7"/>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Média por Registro</p>
-                      <p className="text-xl font-black text-slate-800 dark:text-white">{money(reportSummary.avgValue || 0)}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Média por Item</p>
+                      <p className="text-2xl font-black text-slate-900 dark:text-white">{money(reportSummary.avgValue || 0)}</p>
                     </div>
                   </div>
                 </>
@@ -609,61 +806,65 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
             </div>
           )}
 
-          <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
-            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-               <div className="flex items-center gap-2">
-                  <Columns className="h-4 w-4 text-slate-400"/>
-                  <span className="text-xs font-bold text-slate-500 uppercase">Pré-visualização</span>
+          <div className="flex-1 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col overflow-hidden">
+            <div className="px-6 py-5 bg-slate-50/50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+               <div className="flex items-center gap-3">
+                  <Columns className="h-5 w-5 text-indigo-500"/>
+                  <span className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-tight">Pré-visualização dos Dados</span>
                </div>
-               <span className="text-xs font-bold bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-full text-slate-600 dark:text-slate-400">{reportData.length} registros</span>
+               <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase mr-2">Status:</span>
+                  <span className="text-xs font-bold bg-indigo-600 text-white px-3 py-1 rounded-full shadow-lg shadow-indigo-600/20">{reportData.length} Linhas</span>
+               </div>
             </div>
             
-            <div className="flex-1 overflow-auto custom-scrollbar p-4 relative">
-               <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs uppercase font-bold sticky top-0 z-10">
+            <div className="flex-1 overflow-auto custom-scrollbar relative">
+               <table className="w-full text-left border-separate border-spacing-0">
+                  <thead className="bg-white dark:bg-slate-900 text-slate-400 text-[10px] uppercase font-black tracking-widest sticky top-0 z-10">
                     <tr>
                       {colsToRender.length > 0 ? colsToRender.map(c => (
                         <th 
                           key={c.id} 
-                          className="p-3 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors group"
+                          className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap cursor-pointer hover:text-indigo-600 transition-colors group bg-white dark:bg-slate-900"
                           onClick={() => handleSort(c.id)}
                         >
                           <div className="flex items-center gap-2">
                             {c.label}
                             {sortConfig?.key === c.id ? (
-                              sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-500" /> : <ArrowDown className="h-3 w-3 text-indigo-500" />
+                              sortConfig.direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-indigo-600" /> : <ArrowDown className="h-3.5 w-3.5 text-indigo-600" />
                             ) : (
-                              <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowUpDown className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             )}
                           </div>
                         </th>
                       )) : (
-                          <th className="p-3 border-b border-slate-200 dark:border-slate-700 text-center">Nenhuma coluna selecionada</th>
+                          <th className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 text-center">Selecione as colunas na barra lateral</th>
                       )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                  <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50 text-sm">
                     {reportData.length === 0 ? (
                       <tr>
-                          <td colSpan={Math.max(colsToRender.length, 1)} className="p-12 text-center text-slate-400">
-                              <div className="flex flex-col items-center justify-center opacity-60">
-                                  <AlertCircle className="h-10 w-10 mb-2"/>
-                                  <span>Nenhum dado encontrado para os filtros atuais.</span>
+                          <td colSpan={Math.max(colsToRender.length, 1)} className="p-20 text-center">
+                              <div className="flex flex-col items-center justify-center opacity-30">
+                                  <AlertCircle className="h-16 w-16 mb-4 text-slate-300"/>
+                                  <span className="text-lg font-bold text-slate-400">Nenhum dado para exibir</span>
+                                  <p className="text-sm">Ajuste os filtros ou mude a fonte de dados.</p>
                               </div>
                           </td>
                       </tr>
                     ) : (
                       reportData.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <tr key={idx} className="group hover:bg-slate-50/50 dark:hover:bg-indigo-900/5 transition-colors">
                           {colsToRender.length > 0 ? colsToRender.map(c => {
                             const val = c.accessor(row, renderContext);
                             return (
-                              <td key={c.id} className="p-3 text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                              <td key={c.id} className="px-6 py-4 text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                                 {c.format ? c.format(val) : (val !== undefined && val !== null ? val : '-')}
                               </td>
                             );
                           }) : (
-                              <td className="p-3 text-center text-slate-400">-</td>
+                              <td className="px-6 py-4 text-center text-slate-300">-</td>
                           )}
                         </tr>
                       ))

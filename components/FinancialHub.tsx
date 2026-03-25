@@ -184,7 +184,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = []
             const d = new Date(order.returnedDate);
             if (d >= start && d <= end) {
                 retreadCount += order.tireIds.length; // Count tires, not orders
-                retreadValue += order.totalCost || 0;
+                retreadValue += order.totalCost || (order.items ? order.items.reduce((sum, i) => sum + (i.cost || 0), 0) : 0);
             }
         }
     });

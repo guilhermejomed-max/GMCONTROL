@@ -333,12 +333,13 @@ async function startServer() {
               }
 
               const result = await synchronizedSascarCall(async () => {
+                  const remainingTime = Math.max(5000, currentTimeout - (Date.now() - fetchStartTime));
                   if (Date.now() - fetchStartTime > currentTimeout) return null;
                   return client.obterPacotePosicoesJSONAsync({
                       usuario: user,
                       senha: pass,
                       quantidade: 5000
-                  }, { timeout: 60000 }).then(([res]: any) => res);
+                  }, { timeout: Math.min(60000, remainingTime) }).then(([res]: any) => res);
               }) as any;
               
               if (!result) {
@@ -502,7 +503,7 @@ async function startServer() {
 
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
-      const MAX_REQUEST_TIME = 110000; // Aumentado para 110s para dar margem ao frontend (180s)
+      const MAX_REQUEST_TIME = 50000; // Reduzido para 50s para evitar timeout do Nginx (60s)
       const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
@@ -629,9 +630,14 @@ async function startServer() {
           }
           logToFile(`[Sascar] Sem cache. Aguardando fetch global...`);
           try {
-              await sascarCache.fetchPromise;
+              // Espera pelo fetch global, mas com um timeout de segurança para não travar a requisição do usuário
+              const fetchPromiseWithTimeout = Promise.race([
+                  sascarCache.fetchPromise,
+                  new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout aguardando fetch global')), 45000))
+              ]);
+              await fetchPromiseWithTimeout;
           } catch (e: any) {
-              logToFile(`[Sascar] Erro no fetch global: ${e.message}`);
+              logToFile(`[Sascar] Aviso no fetch global: ${e.message}. Retornando cache parcial se disponível.`);
           }
           idToPlateMap = sascarCache.idToPlateMap;
           latestPositions = new Map(sascarCache.latestPositions); // clone

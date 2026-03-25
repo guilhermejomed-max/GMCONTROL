@@ -508,6 +508,7 @@ CQU4B36;1782356
 GDX2D42;1652287`;
 
 interface VehicleManagerProps {
+  orgId: string;
   vehicles: Vehicle[];
   vehicleBrandModels?: VehicleBrandModel[];
   tires: Tire[];
@@ -526,7 +527,7 @@ interface VehicleManagerProps {
   onSyncSascar?: (showModal?: boolean) => Promise<number>;
 }
 
-export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
+export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -552,13 +553,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
   useEffect(() => {
     if (selectedVehicleRG) {
-      const unsub = storageService.subscribeToArrivalAlerts((alerts) => {
+      const unsub = storageService.subscribeToArrivalAlerts(orgId, (alerts) => {
         setVehicleAlerts(alerts.filter(a => a.vehiclePlate === selectedVehicleRG.plate));
       });
       setActiveRGTab('geral');
       return () => unsub();
     }
-  }, [selectedVehicleRG]);
+  }, [selectedVehicleRG, orgId]);
 
   useEffect(() => {
     if (selectedVehicleRG) {
@@ -597,7 +598,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
         createdAt: new Date().toISOString(),
         createdBy: 'Usuário' // Ideally from auth
       };
-      await storageService.addArrivalAlert(newAlert);
+      await storageService.addArrivalAlert(orgId, newAlert);
       setIsScheduling(false);
       setSchedulingData({ targetName: '', targetLat: 0, targetLng: 0, radius: 500, services: '' });
     } catch (error) {
@@ -614,7 +615,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       if (onDeleteAlert) {
         await onDeleteAlert(id);
       } else {
-        await storageService.deleteArrivalAlert(id);
+        await storageService.deleteArrivalAlert(orgId, id);
       }
     } catch (error) {
       console.error("Error deleting alert:", error);
@@ -692,9 +693,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
   const handleSaveBrandModel = async (e: FormEvent) => {
     e.preventDefault();
     if (editingBrandModelId) {
-      await storageService.updateVehicleBrandModel({ id: editingBrandModelId, ...brandModelFormData });
+      await storageService.updateVehicleBrandModel(orgId, { id: editingBrandModelId, ...brandModelFormData });
     } else {
-      await storageService.addVehicleBrandModel({ id: Date.now().toString(), ...brandModelFormData });
+      await storageService.addVehicleBrandModel(orgId, { id: Date.now().toString(), ...brandModelFormData });
     }
     setEditingBrandModelId(null);
     setIsAddingBrand(false);
@@ -704,7 +705,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
   const handleDeleteBrandModel = async (id: string) => {
     if (window.confirm("Deseja excluir esta marca/modelo?")) {
-      await storageService.deleteVehicleBrandModel(id);
+      await storageService.deleteVehicleBrandModel(orgId, id);
     }
   };
 
@@ -758,7 +759,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       const kmSinceLastService = vehicle.odometer - lastServiceKm;
       
       const isMaintenanceOverdue = kmSinceLastService >= maintenanceInterval;
-      const isMaintenanceNear = kmSinceLastService >= (maintenanceInterval - 1000) && !isMaintenanceOverdue;
+      const isMaintenanceNear = kmSinceLastService >= (maintenanceInterval - 5000) && !isMaintenanceOverdue;
       
       // Verifica se algum pneu passou da vida útil estimada (padrão 80k se não houver catálogo)
       const hasExpiredTires = mountedTires.some(t => {
@@ -802,7 +803,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       if (filterType === 'MAINTENANCE') return status.isMaintenanceOverdue || status.isMaintenanceNear;
 
       return true;
-    });
+    }).sort((a, b) => a.plate.localeCompare(b.plate));
   }, [vehicles, searchTerm, tires, settings, filterType, vehicleBrandModels]);
 
   const handleOpenAdd = () => {
@@ -1207,10 +1208,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                     }
                 }
 
-                if (updatesBatch.length > 0) await storageService.updateVehicleBatch(updatesBatch);
+                if (updatesBatch.length > 0) await storageService.updateVehicleBatch(orgId, updatesBatch);
                 
                 if (createsBatch.length > 0) {
-                    await storageService.importDataBatch([], createsBatch);
+                    await storageService.importDataBatch(orgId, [], createsBatch);
                     setLastImportedIds(createsBatch.map(v => v.id)); // Armazena IDs para desfazer
                 }
 
@@ -1352,7 +1353,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
 
       if (updatesBatch.length > 0) {
           console.log(`[Sascar Sync] Aplicando ${updatesBatch.length} atualizações no banco...`);
-          await storageService.updateVehicleBatch(updatesBatch);
+          await storageService.updateVehicleBatch(orgId, updatesBatch);
           console.log(`[Sascar Sync] ${updatesBatch.length} veículos atualizados com sucesso.`);
           alert(`Sucesso! ${updatesBatch.length} veículos do GM CONTROL foram atualizados.`);
       } else {
@@ -1513,7 +1514,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 className={`bg-white dark:bg-slate-900 p-5 rounded-2xl border shadow-sm group transition-all relative overflow-hidden cursor-pointer 
                     ${isSelectionMode 
                         ? (isSelected ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100') 
-                        : (status.hasLowTread || status.isHighKm || status.isMissingTires ? 'border-red-200 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800')
+                        : (status.hasLowTread || status.isMaintenanceOverdue || status.isMissingTires || status.hasExpiredTires
+                            ? 'border-red-200 dark:border-red-900/50' 
+                            : status.isMaintenanceNear 
+                                ? 'border-yellow-300 dark:border-yellow-900/50 bg-yellow-50/10'
+                                : 'border-slate-200 dark:border-slate-800')
                     }`}
             >
               {isSelectionMode && (
@@ -1584,7 +1589,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                       </span>
                   )}
                   {status.isMaintenanceNear && (
-                      <span className="text-[10px] font-bold bg-orange-500 text-white px-2 py-1 rounded flex items-center gap-1 border border-orange-600">
+                      <span className="text-[10px] font-bold bg-yellow-400 text-yellow-900 px-2 py-1 rounded flex items-center gap-1 border border-yellow-500">
                           <AlertTriangle className="h-3 w-3"/> Manutenção Próxima
                       </span>
                   )}
@@ -1980,7 +1985,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                             serviceOrders
                               .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
-                              .reduce((acc, so) => acc + (so.totalCost || 0), 0)
+                              .reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0)), 0)
                           )}
                         </p>
                       </div>
@@ -1990,15 +1995,31 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                           {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO').length}
                         </p>
                       </div>
-                      <div className={`p-4 rounded-2xl border ${getVehicleStatus(selectedVehicleRG).isMaintenanceOverdue ? 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-900/30' : 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/30'}`}>
-                        <p className={`text-[10px] font-bold uppercase mb-1 ${getVehicleStatus(selectedVehicleRG).isMaintenanceOverdue ? 'text-red-600' : 'text-blue-600'}`}>Próxima Preventiva</p>
-                        <p className="text-2xl font-black text-slate-800 dark:text-white">
-                          {getVehicleStatus(selectedVehicleRG).kmToNextMaintenance.toLocaleString()} km
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-1 italic">
-                          {getVehicleStatus(selectedVehicleRG).isMaintenanceOverdue ? 'Manutenção Vencida!' : 'Restantes para a troca'}
-                        </p>
-                      </div>
+                      {(() => {
+                        const status = getVehicleStatus(selectedVehicleRG);
+                        const boxColor = status.isMaintenanceOverdue 
+                          ? 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-900/30' 
+                          : status.isMaintenanceNear 
+                            ? 'bg-yellow-50 border-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-900/30'
+                            : 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/30';
+                        const textColor = status.isMaintenanceOverdue 
+                          ? 'text-red-600' 
+                          : status.isMaintenanceNear 
+                            ? 'text-yellow-600'
+                            : 'text-blue-600';
+                        
+                        return (
+                          <div className={`p-4 rounded-2xl border ${boxColor}`}>
+                            <p className={`text-[10px] font-bold uppercase mb-1 ${textColor}`}>Próxima Preventiva</p>
+                            <p className="text-2xl font-black text-slate-800 dark:text-white">
+                              {status.kmToNextMaintenance.toLocaleString()} km
+                            </p>
+                            <p className="text-[10px] text-slate-500 mt-1 italic">
+                              {status.isMaintenanceOverdue ? 'Manutenção Vencida!' : 'Restantes para a troca'}
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2088,7 +2109,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                                     <div className="flex items-center justify-between">
                                       <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
                                       <p className="font-black text-sm text-slate-800 dark:text-white">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || 0)}
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0))}
                                       </p>
                                     </div>
                                   </div>
@@ -2226,7 +2247,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PLACA</label>
-                  <input required type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value.toUpperCase()})} />
+                  <input required type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white uppercase font-bold" value={formData.plate || ''} onChange={e => setFormData({...formData, plate: e.target.value.toUpperCase()})} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO</label>
@@ -2272,65 +2293,65 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">EIXOS</label>
-                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.axles} onChange={e => setFormData({...formData, axles: Number(e.target.value)})} />
+                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.axles ?? 3} onChange={e => setFormData({...formData, axles: Number(e.target.value)})} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HODÔMETRO</label>
-                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.odometer} onChange={e => setFormData({...formData, odometer: Number(e.target.value)})} />
+                  <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.odometer ?? 0} onChange={e => setFormData({...formData, odometer: Number(e.target.value)})} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ANO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})} placeholder="Ex: 2022" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.year || ''} onChange={e => setFormData({...formData, year: e.target.value})} placeholder="Ex: 2022" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COR</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="Ex: Branco" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.color || ''} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="Ex: Branco" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FROTA #</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fleetNumber} onChange={e => setFormData({...formData, fleetNumber: e.target.value})} placeholder="Ex: 1020" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fleetNumber || ''} onChange={e => setFormData({...formData, fleetNumber: e.target.value})} placeholder="Ex: 1020" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RENAVAM</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.renavam} onChange={e => setFormData({...formData, renavam: e.target.value})} placeholder="Renavam" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.renavam || ''} onChange={e => setFormData({...formData, renavam: e.target.value})} placeholder="Renavam" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CHASSI (VIN)</label>
-                <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
+                <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin || ''} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MOTOR</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.engine} onChange={e => setFormData({...formData, engine: e.target.value})} placeholder="Ex: D13" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.engine || ''} onChange={e => setFormData({...formData, engine: e.target.value})} placeholder="Ex: D13" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÂMBIO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.transmission} onChange={e => setFormData({...formData, transmission: e.target.value})} placeholder="Ex: I-Shift" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.transmission || ''} onChange={e => setFormData({...formData, transmission: e.target.value})} placeholder="Ex: I-Shift" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COMBUSTÍVEL</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fuelType} onChange={e => setFormData({...formData, fuelType: e.target.value})} placeholder="Ex: Diesel" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fuelType || ''} onChange={e => setFormData({...formData, fuelType: e.target.value})} placeholder="Ex: Diesel" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÓD. SASCAR (Opcional)</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.sascarCode} onChange={e => setFormData({...formData, sascarCode: e.target.value})} placeholder="ID Sascar" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.sascarCode || ''} onChange={e => setFormData({...formData, sascarCode: e.target.value})} placeholder="ID Sascar" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA PNEU PADRÃO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresBrand} onChange={e => setFormData({...formData, tiresBrand: e.target.value})} placeholder="Ex: Michelin" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresBrand || ''} onChange={e => setFormData({...formData, tiresBrand: e.target.value})} placeholder="Ex: Michelin" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MEDIDA PNEU PADRÃO</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresSize} onChange={e => setFormData({...formData, tiresSize: e.target.value})} placeholder="Ex: 295/80 R22.5" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresSize || ''} onChange={e => setFormData({...formData, tiresSize: e.target.value})} placeholder="Ex: 295/80 R22.5" />
                 </div>
               </div>
 
@@ -2341,21 +2362,21 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM DE REVISÃO (INTERVALO)</label>
-                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.revisionIntervalKm} onChange={e => setFormData({...formData, revisionIntervalKm: Number(e.target.value)})} />
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.revisionIntervalKm ?? 10000} onChange={e => setFormData({...formData, revisionIntervalKm: Number(e.target.value)})} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">QTD LITROS ÓLEO</label>
-                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.oilLiters} onChange={e => setFormData({...formData, oilLiters: Number(e.target.value)})} />
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.oilLiters ?? 0} onChange={e => setFormData({...formData, oilLiters: Number(e.target.value)})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM ÚLTIMA PREVENTIVA</label>
-                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveKm} onChange={e => setFormData({...formData, lastPreventiveKm: Number(e.target.value)})} />
+                    <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveKm ?? 0} onChange={e => setFormData({...formData, lastPreventiveKm: Number(e.target.value)})} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">DATA ÚLTIMA PREVENTIVA</label>
-                    <input type="date" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveDate} onChange={e => setFormData({...formData, lastPreventiveDate: e.target.value})} />
+                    <input type="date" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveDate || ''} onChange={e => setFormData({...formData, lastPreventiveDate: e.target.value})} />
                   </div>
                 </div>
               </div>

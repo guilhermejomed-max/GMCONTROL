@@ -21,11 +21,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Firebase Compat Scripts (Global Load) -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
-
     <script>
       window.tailwind.config = {
         darkMode: 'class',
@@ -62,32 +57,10 @@
       window.process = { env: { NODE_ENV: 'production' } };
     </script>
     
-    <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom": "https://esm.sh/react-dom@18.2.0?deps=react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?deps=react@18.2.0",
-    "lucide-react": "https://esm.sh/lucide-react@0.460.0?deps=react@18.2.0",
-    "recharts": "https://esm.sh/recharts@2.13.3?deps=react@18.2.0,react-dom@18.2.0",
-    "xlsx": "https://esm.sh/xlsx@0.18.5",
-    "react-markdown": "https://esm.sh/react-markdown@9.0.1?deps=react@18.2.0",
-    "react-qr-code": "https://esm.sh/react-qr-code@2.0.15?deps=react@18.2.0",
-    "html5-qrcode": "https://esm.sh/html5-qrcode@2.3.8",
-    "firebase/compat/app": "data:text/javascript,export default window.firebase;",
-    "firebase/compat/auth": "data:text/javascript,export default window.firebase.auth;",
-    "firebase/compat/firestore": "data:text/javascript,export default window.firebase.firestore;",
-    "react/": "https://esm.sh/react@18.2.0/",
-    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/"
-  }
-}
-</script>
   <link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
-  <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

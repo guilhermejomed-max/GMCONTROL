@@ -16,28 +16,26 @@ let app: firebase.app.App | undefined;
 let db: firebase.firestore.Firestore | undefined;
 let auth: firebase.auth.Auth | undefined;
 
-// Safe initialization handling for missing window.firebase (e.g. adblockers/offline)
-const win = window as any;
-if (win.firebase) {
-    try {
-        app = win.firebase.apps.length > 0 ? win.firebase.app() : win.firebase.initializeApp(firebaseConfig);
-        db = app!.firestore();
-        auth = app!.auth();
-
-        // Configure Firestore settings
-        try {
-            db.settings({ 
-                experimentalForceLongPolling: true,
-                ignoreUndefinedProperties: true
-            });
-        } catch (e) {
-            console.warn("Firestore settings configuration failed or already configured", e);
-        }
-    } catch (e) {
-        console.error("Firebase init failed:", e);
+try {
+    console.log("Initializing Firebase with project:", firebaseConfig.projectId);
+    // Initialize Firebase using the imported SDK
+    if (!firebase.apps.length) {
+        app = firebase.initializeApp(firebaseConfig);
+    } else {
+        app = firebase.app();
     }
-} else {
-    console.error("Firebase SDK not loaded");
+    
+    db = app.firestore();
+    auth = app.auth();
+
+    // Configure Firestore settings
+    db.settings({ 
+        experimentalForceLongPolling: true,
+        ignoreUndefinedProperties: true
+    });
+    console.log("Firebase initialized successfully");
+} catch (e) {
+    console.error("Firebase initialization failed:", e);
 }
 
 // Export safely
