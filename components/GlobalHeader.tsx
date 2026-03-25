@@ -45,7 +45,6 @@ export const GlobalHeader: FC<GlobalHeaderProps> = ({ tires, vehicles, onResultC
 
     const vehicleResults: SearchResult[] = vehicles
       .filter(v => v.plate.toLowerCase().includes(lowerQuery))
-      .sort((a, b) => a.plate.localeCompare(b.plate))
       .map(v => {
         const res: SearchResult = { 
           id: v.id,

@@ -303,7 +303,7 @@ const TireDetailModal: React.FC<{
                                                                     <div className="flex items-center justify-between">
                                                                         <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
                                                                         <p className="font-black text-sm text-slate-800 dark:text-white">
-                                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0))}
+                                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || 0)}
                                                                         </p>
                                                                     </div>
                                                                 </div>

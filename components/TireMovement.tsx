@@ -190,9 +190,7 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
   }, [selectedPos, mountedTires]);
 
   const filteredVehicles = useMemo(() => {
-    return vehicles
-      .filter(v => v.plate.toUpperCase().includes(searchTerm.toUpperCase()))
-      .sort((a, b) => a.plate.localeCompare(b.plate));
+    return vehicles.filter(v => v.plate.toUpperCase().includes(searchTerm.toUpperCase()));
   }, [vehicles, searchTerm]);
 
   // Reset states when position changes

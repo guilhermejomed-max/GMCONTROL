@@ -223,7 +223,7 @@ export const DriversHub: FC<DriversHubProps> = ({ drivers, vehicles, tires, onAd
                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Veículo Atribuído</label>
                       <select className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" value={assignedVehicleId} onChange={e => setAssignedVehicleId(e.target.value)}>
                          <option value="">Sem veículo</option>
-                         {[...vehicles].sort((a, b) => a.plate.localeCompare(b.plate)).map(v => (
+                         {vehicles.map(v => (
                             <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
                          ))}
                       </select>

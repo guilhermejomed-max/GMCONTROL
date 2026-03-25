@@ -758,7 +758,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       const kmSinceLastService = vehicle.odometer - lastServiceKm;
       
       const isMaintenanceOverdue = kmSinceLastService >= maintenanceInterval;
-      const isMaintenanceNear = kmSinceLastService >= (maintenanceInterval - 5000) && !isMaintenanceOverdue;
+      const isMaintenanceNear = kmSinceLastService >= (maintenanceInterval - 1000) && !isMaintenanceOverdue;
       
       // Verifica se algum pneu passou da vida útil estimada (padrão 80k se não houver catálogo)
       const hasExpiredTires = mountedTires.some(t => {
@@ -802,7 +802,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
       if (filterType === 'MAINTENANCE') return status.isMaintenanceOverdue || status.isMaintenanceNear;
 
       return true;
-    }).sort((a, b) => a.plate.localeCompare(b.plate));
+    });
   }, [vehicles, searchTerm, tires, settings, filterType, vehicleBrandModels]);
 
   const handleOpenAdd = () => {
@@ -1513,11 +1513,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                 className={`bg-white dark:bg-slate-900 p-5 rounded-2xl border shadow-sm group transition-all relative overflow-hidden cursor-pointer 
                     ${isSelectionMode 
                         ? (isSelected ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-100') 
-                        : (status.hasLowTread || status.isMaintenanceOverdue || status.isMissingTires || status.hasExpiredTires
-                            ? 'border-red-200 dark:border-red-900/50' 
-                            : status.isMaintenanceNear 
-                                ? 'border-yellow-300 dark:border-yellow-900/50 bg-yellow-50/10'
-                                : 'border-slate-200 dark:border-slate-800')
+                        : (status.hasLowTread || status.isHighKm || status.isMissingTires ? 'border-red-200 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800')
                     }`}
             >
               {isSelectionMode && (
@@ -1588,7 +1584,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                       </span>
                   )}
                   {status.isMaintenanceNear && (
-                      <span className="text-[10px] font-bold bg-yellow-400 text-yellow-900 px-2 py-1 rounded flex items-center gap-1 border border-yellow-500">
+                      <span className="text-[10px] font-bold bg-orange-500 text-white px-2 py-1 rounded flex items-center gap-1 border border-orange-600">
                           <AlertTriangle className="h-3 w-3"/> Manutenção Próxima
                       </span>
                   )}
@@ -1984,7 +1980,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                             serviceOrders
                               .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
-                              .reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0)), 0)
+                              .reduce((acc, so) => acc + (so.totalCost || 0), 0)
                           )}
                         </p>
                       </div>
@@ -1994,31 +1990,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                           {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO').length}
                         </p>
                       </div>
-                      {(() => {
-                        const status = getVehicleStatus(selectedVehicleRG);
-                        const boxColor = status.isMaintenanceOverdue 
-                          ? 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-900/30' 
-                          : status.isMaintenanceNear 
-                            ? 'bg-yellow-50 border-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-900/30'
-                            : 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/30';
-                        const textColor = status.isMaintenanceOverdue 
-                          ? 'text-red-600' 
-                          : status.isMaintenanceNear 
-                            ? 'text-yellow-600'
-                            : 'text-blue-600';
-                        
-                        return (
-                          <div className={`p-4 rounded-2xl border ${boxColor}`}>
-                            <p className={`text-[10px] font-bold uppercase mb-1 ${textColor}`}>Próxima Preventiva</p>
-                            <p className="text-2xl font-black text-slate-800 dark:text-white">
-                              {status.kmToNextMaintenance.toLocaleString()} km
-                            </p>
-                            <p className="text-[10px] text-slate-500 mt-1 italic">
-                              {status.isMaintenanceOverdue ? 'Manutenção Vencida!' : 'Restantes para a troca'}
-                            </p>
-                          </div>
-                        );
-                      })()}
+                      <div className={`p-4 rounded-2xl border ${getVehicleStatus(selectedVehicleRG).isMaintenanceOverdue ? 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-900/30' : 'bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/30'}`}>
+                        <p className={`text-[10px] font-bold uppercase mb-1 ${getVehicleStatus(selectedVehicleRG).isMaintenanceOverdue ? 'text-red-600' : 'text-blue-600'}`}>Próxima Preventiva</p>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">
+                          {getVehicleStatus(selectedVehicleRG).kmToNextMaintenance.toLocaleString()} km
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1 italic">
+                          {getVehicleStatus(selectedVehicleRG).isMaintenanceOverdue ? 'Manutenção Vencida!' : 'Restantes para a troca'}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2108,7 +2088,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ vehicles, vehicleBrand
                                     <div className="flex items-center justify-between">
                                       <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
                                       <p className="font-black text-sm text-slate-800 dark:text-white">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0))}
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || 0)}
                                       </p>
                                     </div>
                                   </div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus } from '../types';
-import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle } from 'lucide-react';
+import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package } from 'lucide-react';
 
 interface ReportsHubProps {
   tires: Tire[];
@@ -11,7 +11,7 @@ interface ReportsHubProps {
   vehicleBrandModels?: any[];
 }
 
-type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS';
+type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS';
 
 interface ColumnDef {
   id: string;
@@ -67,12 +67,17 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'lastUpdate', label: 'Atualização', accessor: (v: Vehicle) => formatDate(v.lastLocation?.updatedAt || '') },
     ],
     MAINTENANCE: [
-      { id: 'date', label: 'Data', accessor: (o: ServiceOrder) => formatDate(o.createdAt) },
+      { id: 'date', label: 'Data', accessor: (o: ServiceOrder) => formatDate(o.date || o.completedAt || o.createdAt) },
       { id: 'vehicle', label: 'Veículo', accessor: (o: ServiceOrder, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === o.vehicleId)?.plate || '-' },
       { id: 'title', label: 'Serviço', accessor: (o: ServiceOrder) => o.title },
       { id: 'status', label: 'Status', accessor: (o: ServiceOrder) => o.status },
-      { id: 'cost', label: 'Custo Total', accessor: (o: ServiceOrder) => o.totalCost || (o.parts ? o.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0), format: money },
-      { id: 'mechanic', label: 'Mecânico', accessor: (o: ServiceOrder) => o.completedBy || '-' },
+      { id: 'mechanic', label: 'Colaborador', accessor: (o: ServiceOrder) => o.collaboratorName || '-' },
+      { id: 'laborCost', label: 'Mão de Obra', accessor: (o: ServiceOrder) => o.laborCost || 0, format: money },
+      { id: 'partsCost', label: 'Peças', accessor: (o: ServiceOrder) => (o.parts || []).reduce((sum, p) => sum + (p.quantity * p.unitCost), 0), format: money },
+      { id: 'cost', label: 'Custo Total', accessor: (o: ServiceOrder) => {
+        const partsCost = (o.parts || []).reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
+        return (o.laborCost || 0) + partsCost;
+      }, format: money },
     ],
     MOVEMENTS: [
       { id: 'date', label: 'Data', accessor: (log: any) => formatDate(log.date) },
@@ -98,11 +103,19 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'vehicleCount', label: 'Qtd Veículos', accessor: (item: any) => item.vehicleCount },
       { id: 'totalKms', label: 'KM Total da Frota', accessor: (item: any) => item.totalKms.toLocaleString() },
       { id: 'avgKms', label: 'KM Médio', accessor: (item: any) => item.avgKms.toLocaleString() },
+    ],
+    MODEL_COSTS: [
+      { id: 'model', label: 'Modelo do Veículo', accessor: (item: any) => item.model },
+      { id: 'plate', label: 'Placa', accessor: (item: any) => item.plate },
+      { id: 'date', label: 'Data', accessor: (item: any) => formatDate(item.date) },
+      { id: 'service', label: 'Serviço/Manutenção', accessor: (item: any) => item.service },
+      { id: 'cost', label: 'Custo', accessor: (item: any) => item.cost, format: money },
     ]
 };
 
 export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [], serviceOrders = [], retreadOrders = [], vehicleBrandModels = [] }) => {
   const [source, setSource] = useState<ReportSource>('VEHICLES');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   
   // Inicializa com as colunas padrão
   const [selectedColumns, setSelectedColumns] = useState<string[]>(
@@ -164,17 +177,21 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
         date: o.returnedDate || o.sentDate,
         type: 'RECAPAGEM',
         ref: o.retreaderName,
-        value: o.totalCost || (o.items ? o.items.reduce((sum, i) => sum + (i.cost || 0), 0) : 0),
+        value: o.totalCost || 0,
         desc: `Ordem #${o.orderNumber}`
       }));
 
-      const services = serviceOrders.filter(o => o.status === 'CONCLUIDO').map(o => ({
-        date: o.completedAt || o.createdAt,
-        type: 'MANUTENÇÃO',
-        ref: o.vehiclePlate,
-        value: o.totalCost || (o.parts ? o.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0), 
-        desc: o.title
-      }));
+      const services = serviceOrders.filter(o => o.status === 'CONCLUIDO').map(o => {
+        const partsCost = (o.parts || []).reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
+        const totalCost = (o.laborCost || 0) + partsCost;
+        return {
+          date: o.date || o.completedAt || o.createdAt,
+          type: 'MANUTENÇÃO',
+          ref: o.vehiclePlate,
+          value: totalCost, 
+          desc: `${o.title} ${o.collaboratorName ? `(${o.collaboratorName})` : ''}`
+        };
+      });
 
       rawData = [...purchases, ...retreads, ...services];
       rawData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -196,6 +213,23 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
         };
       });
       rawData = brandModelStats.sort((a, b) => b.vehicleCount - a.vehicleCount);
+    } else if (source === 'MODEL_COSTS') {
+      const costs: any[] = [];
+      serviceOrders.filter(o => o.status === 'CONCLUIDO').forEach(o => {
+        const vehicle = vehicles.find(v => v.id === o.vehicleId);
+        if (vehicle) {
+          const partsCost = (o.parts || []).reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
+          const totalCost = (o.laborCost || 0) + partsCost;
+          costs.push({
+            model: vehicle.model || 'Desconhecido',
+            plate: vehicle.plate,
+            date: o.date || o.completedAt || o.createdAt,
+            service: o.title,
+            cost: totalCost
+          });
+        }
+      });
+      rawData = costs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } else if (source === 'SUMMARY') {
         // Cálculo do resumo
         const filteredTires = tires.filter(t => {
@@ -219,7 +253,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
     }
 
     // 2. Filtrar Dados
-    return rawData.filter(item => {
+    let filtered = rawData.filter(item => {
       // Filtro de Data
       if (startDate || endDate) {
         const itemDateStr = item.date || item.purchaseDate || item.createdAt || item.lastLocation?.updatedAt;
@@ -248,11 +282,89 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
 
       return true;
     });
-  }, [source, tires, vehicles, serviceOrders, retreadOrders, startDate, endDate, searchText]);
+
+    // 3. Ordenar Dados
+    if (sortConfig) {
+      const colDef = COLUMN_DEFINITIONS[source].find(c => c.id === sortConfig.key);
+      if (colDef) {
+        filtered.sort((a, b) => {
+          const valA = colDef.accessor(a, { tires, vehicles });
+          const valB = colDef.accessor(b, { tires, vehicles });
+
+          if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+    }
+
+    return filtered;
+  }, [source, tires, vehicles, serviceOrders, retreadOrders, startDate, endDate, searchText, sortConfig]);
+
+  // --- RESUMO DO RELATÓRIO ---
+  const reportSummary = useMemo(() => {
+    if (reportData.length === 0) return null;
+
+    const totalRecords = reportData.length;
+    let totalValue = 0;
+    let hasValue = false;
+
+    // Tenta encontrar colunas de custo/valor
+    const valueCol = COLUMN_DEFINITIONS[source].find(c => c.id === 'cost' || c.id === 'value' || c.id === 'totalCost');
+    
+    if (valueCol) {
+      hasValue = true;
+      totalValue = reportData.reduce((acc, item) => {
+        const val = valueCol.accessor(item, { tires, vehicles });
+        return acc + (Number(val) || 0);
+      }, 0);
+    }
+
+    return {
+      totalRecords,
+      totalValue: hasValue ? totalValue : null,
+      avgValue: hasValue && totalRecords > 0 ? totalValue / totalRecords : null
+    };
+  }, [reportData, source, tires, vehicles]);
 
   // --- FUNÇÕES DE INTERFACE ---
   const toggleColumn = (id: string) => {
     setSelectedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => {
+      if (prev?.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        return null;
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const handleExportCSV = () => {
+    const cols = COLUMN_DEFINITIONS[source].filter(c => selectedColumns.includes(c.id));
+    const context = { tires, vehicles };
+    
+    const header = cols.map(c => c.label).join(';');
+    const rows = reportData.map(row => 
+      cols.map(c => {
+        const val = c.accessor(row, context);
+        const formatted = c.format ? c.format(val) : (val !== undefined && val !== null ? val : '-');
+        // Remove pontos e vírgulas que podem quebrar o CSV se necessário, ou apenas escapa
+        return `"${String(formatted).replace(/"/g, '""')}"`;
+      }).join(';')
+    );
+
+    const csvContent = [header, ...rows].join('\n');
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `relatorio_${source.toLowerCase()}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handlePrint = () => {
@@ -274,27 +386,76 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
     const html = `
       <html>
         <head>
-          <title>Relatório Personalizado - GM Control</title>
+          <title>Relatório Profissional - GM Control</title>
           <style>
-            body { font-family: sans-serif; font-size: 10px; color: #333; }
-            h1 { font-size: 16px; margin-bottom: 5px; text-transform: uppercase; color: #0f172a; }
-            .meta { font-size: 9px; color: #666; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th { background: #f1f5f9; text-align: left; padding: 6px; border-bottom: 1px solid #ccc; font-size: 9px; text-transform: uppercase; }
-            td { padding: 6px; border-bottom: 1px solid #eee; }
-            tr:nth-child(even) { background: #f9fafb; }
+            @page { size: landscape; margin: 1cm; }
+            body { font-family: 'Inter', -apple-system, sans-serif; font-size: 10px; color: #1e293b; margin: 0; padding: 0; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #4f46e5; padding-bottom: 10px; margin-bottom: 20px; }
+            .logo-area { display: flex; align-items: center; gap: 10px; }
+            .logo-icon { width: 30px; height: 30px; background: #4f46e5; border-radius: 8px; }
+            .company-name { font-size: 18px; font-weight: 900; color: #1e293b; letter-spacing: -0.5px; }
+            .report-title { font-size: 14px; font-weight: 700; color: #4f46e5; text-transform: uppercase; margin: 0; }
+            .meta { font-size: 9px; color: #64748b; text-align: right; }
+            
+            .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+            .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; rounded: 8px; }
+            .summary-label { font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+            .summary-value { font-size: 14px; font-weight: 700; color: #1e293b; }
+
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th { background: #f1f5f9; text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; font-size: 9px; text-transform: uppercase; font-weight: 800; color: #475569; }
+            td { padding: 8px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+            tr:nth-child(even) { background: #fcfdfe; }
+            
+            .footer { position: fixed; bottom: 0; width: 100%; font-size: 8px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 5px; }
           </style>
         </head>
         <body>
-          <h1>Relatório: ${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Manutenção' : source === 'COSTS' ? 'Financeiro Completo' : 'Histórico de Movimentação'}</h1>
-          <div class="meta">Gerado em ${new Date().toLocaleString()} • ${reportData.length} registros</div>
+          <div class="header">
+            <div class="logo-area">
+              <div class="logo-icon"></div>
+              <div>
+                <div class="company-name">GM CONTROL</div>
+                <div class="report-title">${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Manutenção' : source === 'COSTS' ? 'Financeiro Completo' : source === 'MODEL_COSTS' ? 'Custos por Modelo' : 'Relatório de Frota'}</div>
+              </div>
+            </div>
+            <div class="meta">
+              Gerado em: ${new Date().toLocaleString('pt-BR')}<br>
+              Filtros: ${startDate || 'Início'} até ${endDate || 'Fim'}
+            </div>
+          </div>
+
+          ${reportSummary ? `
+            <div class="summary-grid">
+              <div class="summary-card">
+                <div class="summary-label">Total de Registros</div>
+                <div class="summary-value">${reportSummary.totalRecords}</div>
+              </div>
+              ${reportSummary.totalValue !== null ? `
+                <div class="summary-card">
+                  <div class="summary-label">Valor Total Acumulado</div>
+                  <div class="summary-value">${money(reportSummary.totalValue)}</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-label">Média por Registro</div>
+                  <div class="summary-value">${money(reportSummary.avgValue || 0)}</div>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+
           <table>
             <thead>
               <tr>${cols.map(c => `<th>${c.label}</th>`).join('')}</tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
           </table>
-          <script>window.onload = function() { window.print(); }</script>
+
+          <div class="footer">
+            GM Control - Sistema de Gestão de Frotas e Pneus • Relatório Confidencial • Página 1 de 1
+          </div>
+
+          <script>window.onload = function() { window.print(); window.close(); }</script>
         </body>
       </html>
     `;
@@ -318,8 +479,11 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
           <p className="text-sm text-slate-500 dark:text-slate-400">Monte tabelas dinâmicas cruzando informações do sistema.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { setStartDate(''); setEndDate(''); setSearchText(''); }} className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all text-sm">
+          <button onClick={() => { setStartDate(''); setEndDate(''); setSearchText(''); setSortConfig(null); }} className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all text-sm">
             <RefreshCw className="h-4 w-4" /> Limpar
+          </button>
+          <button onClick={handleExportCSV} disabled={reportData.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all text-sm disabled:opacity-50">
+            <Download className="h-4 w-4" /> Exportar CSV
           </button>
           <button onClick={handlePrint} disabled={reportData.length === 0} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all text-sm disabled:opacity-50">
             <Printer className="h-4 w-4" /> Imprimir / PDF
@@ -347,6 +511,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
                 <option value="VEHICLES">Frota e KM</option>
                 <option value="BRAND_MODELS">Marcas e Modelos</option>
                 <option value="MAINTENANCE">Manutenção</option>
+                <option value="MODEL_COSTS">Custos por Modelo</option>
               </select>
             </div>
 
@@ -403,54 +568,109 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
         </div>
 
         {/* ÁREA DE PRÉ-VISUALIZAÇÃO (TABELA) */}
-        <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
-          <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-             <div className="flex items-center gap-2">
-                <Columns className="h-4 w-4 text-slate-400"/>
-                <span className="text-xs font-bold text-slate-500 uppercase">Pré-visualização</span>
-             </div>
-             <span className="text-xs font-bold bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-full text-slate-600 dark:text-slate-400">{reportData.length} registros</span>
-          </div>
+        <div className="flex-1 flex flex-col gap-6 overflow-hidden">
           
-          <div className="flex-1 overflow-auto custom-scrollbar p-4 relative">
-             <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs uppercase font-bold sticky top-0 z-10">
-                  <tr>
-                    {colsToRender.length > 0 ? colsToRender.map(c => (
-                      <th key={c.id} className="p-3 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap">{c.label}</th>
-                    )) : (
-                        <th className="p-3 border-b border-slate-200 dark:border-slate-700 text-center">Nenhuma coluna selecionada</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
-                  {reportData.length === 0 ? (
+          {/* SUMMARY CARDS */}
+          {reportSummary && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
+                  <Package className="h-6 w-6"/>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Registros</p>
+                  <p className="text-xl font-black text-slate-800 dark:text-white">{reportSummary.totalRecords}</p>
+                </div>
+              </div>
+
+              {reportSummary.totalValue !== null && (
+                <>
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+                    <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
+                      <DollarSign className="h-6 w-6"/>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Custo Total Acumulado</p>
+                      <p className="text-xl font-black text-emerald-600">{money(reportSummary.totalValue)}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+                    <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-600">
+                      <TrendingUp className="h-6 w-6"/>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Média por Registro</p>
+                      <p className="text-xl font-black text-slate-800 dark:text-white">{money(reportSummary.avgValue || 0)}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+               <div className="flex items-center gap-2">
+                  <Columns className="h-4 w-4 text-slate-400"/>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Pré-visualização</span>
+               </div>
+               <span className="text-xs font-bold bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-full text-slate-600 dark:text-slate-400">{reportData.length} registros</span>
+            </div>
+            
+            <div className="flex-1 overflow-auto custom-scrollbar p-4 relative">
+               <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs uppercase font-bold sticky top-0 z-10">
                     <tr>
-                        <td colSpan={Math.max(colsToRender.length, 1)} className="p-12 text-center text-slate-400">
-                            <div className="flex flex-col items-center justify-center opacity-60">
-                                <AlertCircle className="h-10 w-10 mb-2"/>
-                                <span>Nenhum dado encontrado para os filtros atuais.</span>
-                            </div>
-                        </td>
+                      {colsToRender.length > 0 ? colsToRender.map(c => (
+                        <th 
+                          key={c.id} 
+                          className="p-3 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors group"
+                          onClick={() => handleSort(c.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {c.label}
+                            {sortConfig?.key === c.id ? (
+                              sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-500" /> : <ArrowDown className="h-3 w-3 text-indigo-500" />
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            )}
+                          </div>
+                        </th>
+                      )) : (
+                          <th className="p-3 border-b border-slate-200 dark:border-slate-700 text-center">Nenhuma coluna selecionada</th>
+                      )}
                     </tr>
-                  ) : (
-                    reportData.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        {colsToRender.length > 0 ? colsToRender.map(c => {
-                          const val = c.accessor(row, renderContext);
-                          return (
-                            <td key={c.id} className="p-3 text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                              {c.format ? c.format(val) : (val !== undefined && val !== null ? val : '-')}
-                            </td>
-                          );
-                        }) : (
-                            <td className="p-3 text-center text-slate-400">-</td>
-                        )}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                    {reportData.length === 0 ? (
+                      <tr>
+                          <td colSpan={Math.max(colsToRender.length, 1)} className="p-12 text-center text-slate-400">
+                              <div className="flex flex-col items-center justify-center opacity-60">
+                                  <AlertCircle className="h-10 w-10 mb-2"/>
+                                  <span>Nenhum dado encontrado para os filtros atuais.</span>
+                              </div>
+                          </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-             </table>
+                    ) : (
+                      reportData.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                          {colsToRender.length > 0 ? colsToRender.map(c => {
+                            const val = c.accessor(row, renderContext);
+                            return (
+                              <td key={c.id} className="p-3 text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                                {c.format ? c.format(val) : (val !== undefined && val !== null ? val : '-')}
+                              </td>
+                            );
+                          }) : (
+                              <td className="p-3 text-center text-slate-400">-</td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+               </table>
+            </div>
           </div>
         </div>
 

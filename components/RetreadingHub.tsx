@@ -124,13 +124,13 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ tires, retreadOrde
 
   const savingsData = useMemo(() => {
     const concluded = retreadOrders.filter(o => o.status === 'CONCLUIDO');
-    const totalSpent = concluded.reduce((sum, o) => sum + (o.totalCost || (o.items ? o.items.reduce((sum, i) => sum + (i.cost || 0), 0) : 0)), 0);
+    const totalSpent = concluded.reduce((sum, o) => sum + (o.totalCost || 0), 0);
     let savings = 0;
     concluded.forEach(order => {
         order.tireIds.forEach(id => {
             const tire = tires.find(t => t.id === id);
             const tirePrice = tire ? (tire.price || 2500) : 2500;
-            const retreadCostPerTire = (order.totalCost || (order.items ? order.items.reduce((sum, i) => sum + (i.cost || 0), 0) : 0)) / (order.tireIds.length || 1);
+            const retreadCostPerTire = (order.totalCost || 0) / (order.tireIds.length || 1);
             savings += (tirePrice - retreadCostPerTire);
         });
     });

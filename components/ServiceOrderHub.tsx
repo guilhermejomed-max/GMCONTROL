@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2 } from 'lucide-react';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 
@@ -13,21 +13,91 @@ interface ServiceOrderHubProps {
   tires?: Tire[]; // Needed for tire selection
   stockItems?: StockItem[]; // Needed for maintenance plan items
   onUpdateOrder: (orderId: string, updates: Partial<ServiceOrder>) => Promise<void>;
+  onUpdateOrderBatch?: (updates: { id: string, updates: Partial<ServiceOrder> }[]) => Promise<void>;
   onAddOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
   settings?: SystemSettings;
   arrivalAlerts?: ArrivalAlert[];
   initialVehicleId?: string;
   initialModalOpen?: boolean;
   onCloseInitialModal?: () => void;
+  collaborators?: import('../types').Collaborator[];
+  onAddCollaborator?: (collaborator: import('../types').Collaborator) => Promise<void>;
+  onUpdateCollaborator?: (id: string, updates: Partial<import('../types').Collaborator>) => Promise<void>;
+  onDeleteCollaborator?: (id: string) => Promise<void>;
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
-type TabView = 'ORDERS' | 'PMS';
+type TabView = 'ORDERS' | 'PMS' | 'COLLABORATORS';
 
-export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders, maintenancePlans = [], maintenanceSchedules = [], vehicles = [], vehicleBrandModels = [], tires = [], stockItems = [], onUpdateOrder, onAddOrder, settings, arrivalAlerts = [], initialVehicleId, initialModalOpen, onCloseInitialModal }) => {
+export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ 
+  serviceOrders, 
+  maintenancePlans = [], 
+  maintenanceSchedules = [], 
+  vehicles = [], 
+  vehicleBrandModels = [], 
+  tires = [], 
+  stockItems = [], 
+  onUpdateOrder, 
+  onUpdateOrderBatch,
+  onAddOrder, 
+  settings, 
+  arrivalAlerts = [], 
+  initialVehicleId, 
+  initialModalOpen, 
+  onCloseInitialModal,
+  collaborators = [],
+  onAddCollaborator,
+  onUpdateCollaborator,
+  onDeleteCollaborator
+}) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
+
+  const handleMigrateOrders = async () => {
+    if (!collaborators || collaborators.length < 2 || !onUpdateOrderBatch || isMigrating) return;
+    
+    // Check if there's anything to migrate (orders without collaborator)
+    const ordersToMigrate = serviceOrders.filter(o => !o.collaboratorId);
+    if (ordersToMigrate.length === 0) return;
+
+    setIsMigrating(true);
+    try {
+      const activeCollaborators = collaborators.filter(c => c.isActive);
+      if (activeCollaborators.length === 0) return;
+
+      const updates = ordersToMigrate.map((order, index) => {
+        const collaborator = activeCollaborators[index % activeCollaborators.length];
+        const laborHours = 1;
+        const laborCost = (collaborator.hourlyRate || 0) * laborHours;
+        
+        return {
+          id: order.id,
+          updates: {
+            collaboratorId: collaborator.id,
+            collaboratorName: collaborator.name,
+            laborHours: laborHours,
+            laborCost: laborCost
+          }
+        };
+      });
+
+      await onUpdateOrderBatch(updates);
+      console.log("Migração automática de colaboradores concluída.");
+    } catch (error) {
+      console.error("Erro na migração automática:", error);
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  // Run migration automatically when data is available
+  React.useEffect(() => {
+    if (serviceOrders.length > 0 && collaborators.length >= 2) {
+      handleMigrateOrders();
+    }
+  }, [serviceOrders.length, collaborators.length]);
   
   // Create Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -49,12 +119,16 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
   const [newOrderDate, setNewOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [newOrderOdometer, setNewOrderOdometer] = useState<number | ''>('');
   const [isPreventiveMaintenance, setIsPreventiveMaintenance] = useState(false);
+  const [newOrderCollaboratorId, setNewOrderCollaboratorId] = useState('');
+  const [newOrderLaborHours, setNewOrderLaborHours] = useState<number | ''>(1);
   
   // Edit Modal State
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [editOrderTitle, setEditOrderTitle] = useState('');
   const [editOrderDetails, setEditOrderDetails] = useState('');
   const [editOrderDate, setEditOrderDate] = useState('');
+  const [editOrderCollaboratorId, setEditOrderCollaboratorId] = useState('');
+  const [editOrderLaborHours, setEditOrderLaborHours] = useState<number | ''>('');
   const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
@@ -66,7 +140,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
   const [newOrderParts, setNewOrderParts] = useState<{ itemId: string; name: string; quantity: number; unitCost: number }[]>([]);
   const [selectedStockItemId, setSelectedStockItemId] = useState('');
   const [selectedStockItemQty, setSelectedStockItemQty] = useState(1);
-  const [vehicleSearch, setVehicleSearch] = useState('');
 
   const handleUpdatePartQty = (itemId: string, newQty: number) => {
       if (newQty < 1) return;
@@ -295,6 +368,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
             }
           }
 
+          const collaborator = collaborators.find(c => c.id === newOrderCollaboratorId);
+          const laborCost = (collaborator && newOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(newOrderLaborHours) : 0;
+
           await onAddOrder({
               vehicleId: vehicle.id,
               vehiclePlate: vehicle.plate,
@@ -308,7 +384,10 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
               isPreventiveMaintenance,
               odometer: newOrderOdometer !== '' ? newOrderOdometer : undefined,
               parts: newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
-              totalCost: newOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0),
+              collaboratorId: newOrderCollaboratorId || undefined,
+              collaboratorName: collaborator?.name,
+              laborHours: newOrderLaborHours !== '' ? Number(newOrderLaborHours) : undefined,
+              laborCost: laborCost > 0 ? laborCost : undefined,
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
           });
@@ -322,6 +401,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           setNewOrderOdometer('');
           setIsPreventiveMaintenance(false);
           setNewOrderParts([]);
+          setNewOrderCollaboratorId('');
+          setNewOrderLaborHours('');
       } catch (err) {
           console.error(err);
           alert("Erro ao criar Ordem de Serviço.");
@@ -336,6 +417,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
       setEditOrderDetails(order.details);
       setEditOrderDate(order.date || '');
       setEditOrderParts(order.parts || []);
+      setEditOrderCollaboratorId(order.collaboratorId || '');
+      setEditOrderLaborHours(order.laborHours || '');
   };
 
   const handleUpdateOrderDetails = async (e: React.FormEvent) => {
@@ -344,12 +427,18 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
 
       setIsUpdating(true);
       try {
+          const collaborator = collaborators.find(c => c.id === editOrderCollaboratorId);
+          const laborCost = (collaborator && editOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(editOrderLaborHours) : 0;
+
           await onUpdateOrder(editingOrder.id, {
               title: editOrderTitle,
               details: editOrderDetails,
               date: editOrderDate,
               parts: editOrderParts.length > 0 ? editOrderParts : undefined,
-              totalCost: editOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0)
+              collaboratorId: editOrderCollaboratorId || undefined,
+              collaboratorName: collaborator?.name,
+              laborHours: editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined,
+              laborCost: laborCost > 0 ? laborCost : undefined
           });
           setEditingOrder(null);
       } catch (err) {
@@ -404,6 +493,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           >
             <ClipboardList className="h-4 w-4" /> Plano de Manutenção (PMS)
           </button>
+          <button 
+            onClick={() => setActiveTab('COLLABORATORS')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'COLLABORATORS' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+          >
+            <UserCircle className="h-4 w-4" /> Colaboradores
+          </button>
         </div>
       </div>
 
@@ -427,9 +522,16 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
 
       {activeTab === 'PMS' ? (
         <MaintenancePlanManager plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
+      ) : activeTab === 'COLLABORATORS' ? (
+        <CollaboratorManager 
+          collaborators={collaborators} 
+          onAdd={onAddCollaborator} 
+          onUpdate={onUpdateCollaborator} 
+          onDelete={onDeleteCollaborator} 
+        />
       ) : (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             {onAddOrder && (
                 <button 
                     onClick={() => setIsCreateModalOpen(true)}
@@ -494,6 +596,18 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               </span>
                           </>
                       )}
+
+                      {order.collaboratorName && (
+                          <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded font-bold border border-blue-200 dark:border-blue-800">
+                              <UserCircle className="h-3 w-3"/> {order.collaboratorName} {order.laborHours ? `(${order.laborHours}h)` : ''}
+                          </span>
+                      )}
+
+                      {order.laborCost && order.laborCost > 0 && (
+                          <span className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 px-2 py-0.5 rounded font-bold border border-emerald-200 dark:border-emerald-800">
+                              <DollarSign className="h-3 w-3"/> Mão de Obra: R$ {order.laborCost.toFixed(2)}
+                          </span>
+                      )}
                    </div>
                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 border-l-2 border-slate-200 dark:border-slate-700 pl-3">{order.details}</p>
                    
@@ -538,14 +652,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                   </div>
                   <form onSubmit={handleCreateOrder} className="p-6 space-y-4">
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pesquisar Placa</label>
-                          <input 
-                              type="text" 
-                              placeholder="Digite a placa para filtrar..."
-                              className="w-full p-3 mb-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                              value={vehicleSearch}
-                              onChange={e => setVehicleSearch(e.target.value)}
-                          />
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo (Obrigatório)</label>
                           <select 
                               required 
@@ -561,10 +667,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                               }}
                           >
                               <option value="">Selecione um veículo...</option>
-                              {vehicles
-                                  .filter(v => v.plate.toLowerCase().includes(vehicleSearch.toLowerCase()))
-                                  .sort((a, b) => a.plate.localeCompare(b.plate))
-                                  .map(v => (
+                              {vehicles.map(v => (
                                   <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
                               ))}
                           </select>
@@ -732,6 +835,34 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                           />
                       </div>
 
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Colaborador / Mecânico</label>
+                              <select 
+                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold text-sm"
+                                  value={newOrderCollaboratorId}
+                                  onChange={e => setNewOrderCollaboratorId(e.target.value)}
+                              >
+                                  <option value="">Selecionar...</option>
+                                  {collaborators.filter(c => c.isActive).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Horas de Mão de Obra</label>
+                              <input 
+                                  type="number"
+                                  step="0.5"
+                                  min="0"
+                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold text-sm"
+                                  placeholder="Ex: 2.5"
+                                  value={newOrderLaborHours}
+                                  onChange={e => setNewOrderLaborHours(e.target.value === '' ? '' : Number(e.target.value))}
+                              />
+                          </div>
+                      </div>
+
                       <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-2">
                               <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
@@ -850,6 +981,34 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
                           />
                       </div>
 
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Colaborador / Mecânico</label>
+                              <select 
+                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold text-sm"
+                                  value={editOrderCollaboratorId}
+                                  onChange={e => setEditOrderCollaboratorId(e.target.value)}
+                              >
+                                  <option value="">Selecionar...</option>
+                                  {collaborators.filter(c => c.isActive || c.id === editingOrder.collaboratorId).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Horas de Mão de Obra</label>
+                              <input 
+                                  type="number"
+                                  step="0.5"
+                                  min="0"
+                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold text-sm"
+                                  placeholder="Ex: 2.5"
+                                  value={editOrderLaborHours}
+                                  onChange={e => setEditOrderLaborHours(e.target.value === '' ? '' : Number(e.target.value))}
+                              />
+                          </div>
+                      </div>
+
                       <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-2">
                               <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
@@ -929,6 +1088,195 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ serviceOrders,
           </div>
       )}
       </>
+      )}
+    </div>
+  );
+};
+
+interface CollaboratorManagerProps {
+  collaborators: import('../types').Collaborator[];
+  onAdd?: (collaborator: import('../types').Collaborator) => Promise<void>;
+  onUpdate?: (id: string, updates: Partial<import('../types').Collaborator>) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+}
+
+const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators, onAdd, onUpdate, onDelete }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCollaborator, setEditingCollaborator] = useState<import('../types').Collaborator | null>(null);
+  
+  const [name, setName] = useState('');
+  const [position, setPosition] = useState('');
+  const [salary, setSalary] = useState<number | ''>('');
+  const [hiredDate, setHiredDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isActive, setIsActive] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onAdd || !onUpdate) return;
+
+    setLoading(true);
+    try {
+      if (editingCollaborator) {
+        await onUpdate(editingCollaborator.id, {
+          name,
+          position,
+          salary: Number(salary),
+          hiredDate,
+          isActive,
+          hourlyRate: Number(salary) / 220 // Assuming 220 hours per month
+        });
+      } else {
+        await onAdd({
+          id: Date.now().toString(),
+          name,
+          position,
+          salary: Number(salary),
+          hiredDate,
+          isActive,
+          hourlyRate: Number(salary) / 220
+        });
+      }
+      setIsModalOpen(false);
+      resetForm();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar colaborador.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setEditingCollaborator(null);
+    setName('');
+    setPosition('');
+    setSalary('');
+    setHiredDate(new Date().toISOString().split('T')[0]);
+    setIsActive(true);
+  };
+
+  const handleEdit = (c: import('../types').Collaborator) => {
+    setEditingCollaborator(c);
+    setName(c.name);
+    setPosition(c.position);
+    setSalary(c.salary);
+    setHiredDate(c.hiredDate);
+    setIsActive(c.isActive);
+    setIsModalOpen(true);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Gestão de Colaboradores</h3>
+        <button 
+          onClick={() => { resetForm(); setIsModalOpen(true); }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all text-sm"
+        >
+          <Plus className="h-4 w-4" /> Novo Colaborador
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {collaborators.map(c => (
+          <div key={c.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h4 className="font-bold text-slate-800 dark:text-white">{c.name}</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{c.position}</p>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {c.isActive ? 'Ativo' : 'Inativo'}
+              </span>
+            </div>
+            <div className="space-y-1 mb-4">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Salário:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">R$ {c.salary.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Custo/Hora:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">R$ {c.hourlyRate?.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Admissão:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">{new Date(c.hiredDate + 'T12:00:00').toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => handleEdit(c)} className="flex-1 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-200 transition-colors">Editar</button>
+              {onDelete && (
+                <button onClick={() => { if(confirm('Excluir colaborador?')) onDelete(c.id); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+              <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                <UserCircle className="h-5 w-5 text-blue-600"/> {editingCollaborator ? 'Editar Colaborador' : 'Novo Colaborador'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label>
+                <input 
+                  type="text" required 
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                  value={name} onChange={e => setName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo / Função</label>
+                <input 
+                  type="text" required 
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                  value={position} onChange={e => setPosition(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Salário Mensal (R$)</label>
+                  <input 
+                    type="number" required 
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                    value={salary} onChange={e => setSalary(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Admissão</label>
+                  <input 
+                    type="date" required 
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                    value={hiredDate} onChange={e => setHiredDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" id="isActive"
+                  checked={isActive} onChange={e => setIsActive(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="isActive" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Colaborador Ativo</label>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold hover:bg-slate-200 transition-colors">Cancelar</button>
+                <button type="submit" disabled={loading} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all">
+                  {loading ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

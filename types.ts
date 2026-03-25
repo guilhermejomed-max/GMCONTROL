@@ -272,6 +272,16 @@ export interface StockMovement {
 }
 
 // --- V5.0 Interfaces ---
+export interface Collaborator {
+  id: string;
+  name: string;
+  position: string;
+  salary: number;
+  hourlyRate?: number;
+  isActive: boolean;
+  hiredDate: string;
+}
+
 export interface ServiceOrder {
   id: string;
   orderNumber: number;
@@ -283,6 +293,10 @@ export interface ServiceOrder {
   startTime?: string; // New field for start time
   status: 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
   totalCost?: number;
+  laborCost?: number; // New: Labor cost
+  laborHours?: number; // New: Hours worked
+  collaboratorId?: string; // New: Linked collaborator
+  collaboratorName?: string; // New: Collaborator name for history
   parts?: { name: string; quantity: number; unitCost: number }[];
   maintenanceBaseId?: string;
   maintenanceBaseName?: string;

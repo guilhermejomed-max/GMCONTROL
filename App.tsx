@@ -28,7 +28,6 @@ import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
-import { isVehicleInBase } from './src/utils/vehicleUtils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X } from 'lucide-react';
 
@@ -172,6 +171,7 @@ export const App = () => {
   const [retreadOrders, setRetreadOrders] = useState<RetreadOrder[]>([]);
   const [settings, setSettings] = useState<SystemSettings | undefined>(undefined);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [collaborators, setCollaborators] = useState<import('./types').Collaborator[]>([]);
   const [arrivalAlerts, setArrivalAlerts] = useState<ArrivalAlert[]>([]);
   const [stockItems, setStockItems] = useState<import('./types').StockItem[]>([]);
   
@@ -210,6 +210,7 @@ export const App = () => {
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(setRetreadOrders);
     const unsubSettings = storageService.subscribeToSettings(setSettings);
     const unsubDrivers = storageService.subscribeToDrivers(setDrivers);
+    const unsubCollaborators = storageService.subscribeToCollaborators(setCollaborators);
     const unsubTracker = storageService.subscribeToTrackerSettings(setTrackerSettings);
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(setArrivalAlerts);
     const unsubStockItems = storageService.subscribeToStock(setStockItems);
@@ -224,6 +225,7 @@ export const App = () => {
         unsubRetreadOrders();
         unsubSettings();
         unsubDrivers();
+        unsubCollaborators();
         unsubTracker();
         unsubArrivalAlerts();
         unsubStockItems();
@@ -268,62 +270,55 @@ export const App = () => {
         const distance = R * c; // in metres
 
         const radius = alert.radius || 500;
-          if (distance <= radius && isVehicleInBase(vehicle, settings)) {
-            // Vehicle arrived!
-            storageService.updateArrivalAlert(alert.id, { 
-              status: 'ARRIVED', 
-              actualArrivalDate: new Date().toISOString() 
-            });
-            
-            // Check for maintenance status of the arriving vehicle
-            const currentKm = vehicle.odometer || 0;
-            const lastPreventiveKm = vehicle.lastPreventiveKm || 0;
-            const revisionInterval = vehicle.revisionIntervalKm || 10000;
-            const nextPreventiveKm = lastPreventiveKm + revisionInterval;
-            const kmRemaining = nextPreventiveKm - currentKm;
-            
-            let maintenanceAlert = "";
-            if (kmRemaining <= 0) {
-              maintenanceAlert = `O veículo ${vehicle.plate} chegou e está com MANUTENÇÃO VENCIDA há ${Math.abs(kmRemaining)} km!`;
-            } else if (kmRemaining <= 1000) {
-              maintenanceAlert = `O veículo ${vehicle.plate} chegou e está PRÓXIMO da manutenção (faltam ${kmRemaining} km).`;
-            } else {
-              maintenanceAlert = `O veículo ${vehicle.plate} chegou ao destino: ${alert.targetName}`;
-            }
-
-            addToast(kmRemaining <= 0 ? 'error' : (kmRemaining <= 1000 ? 'warning' : 'success'), 
-                     'Chegada de Veículo', maintenanceAlert);
-            
-            // Voice Alert (TTS)
-            if ('speechSynthesis' in window) {
-              const utterance = new SpeechSynthesisUtterance(maintenanceAlert);
-              utterance.lang = 'pt-BR';
-              window.speechSynthesis.speak(utterance);
-            }
-            
-            // Also check if there are other vehicles overdue (ONLY IN BASE)
-            const otherOverdue = vehicles.filter(v => {
-              if (v.id === vehicle.id) return false;
-              const next = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
-              const isOverdue = (v.odometer || 0) >= next;
-              return isOverdue && isVehicleInBase(v, settings);
-            });
-
-            if (otherOverdue.length > 0) {
-              setTimeout(() => {
-                addToast('info', 'Resumo de Manutenção', `Existem outros ${otherOverdue.length} veículos com manutenção vencida na base.`);
-              }, 2000);
-            }
-            
-            // Also log activity
-            storageService.logActivity("Chegada", maintenanceAlert, 'VEHICLES');
-          } else if (distance <= radius) {
-            // Vehicle arrived but NOT in base - just update status without toast
-            storageService.updateArrivalAlert(alert.id, { 
-              status: 'ARRIVED', 
-              actualArrivalDate: new Date().toISOString() 
-            });
+        if (distance <= radius) {
+          // Vehicle arrived!
+          storageService.updateArrivalAlert(alert.id, { 
+            status: 'ARRIVED', 
+            actualArrivalDate: new Date().toISOString() 
+          });
+          
+          // Check for maintenance status of the arriving vehicle
+          const currentKm = vehicle.odometer || 0;
+          const lastPreventiveKm = vehicle.lastPreventiveKm || 0;
+          const revisionInterval = vehicle.revisionIntervalKm || 10000;
+          const nextPreventiveKm = lastPreventiveKm + revisionInterval;
+          const kmRemaining = nextPreventiveKm - currentKm;
+          
+          let maintenanceAlert = "";
+          if (kmRemaining <= 0) {
+            maintenanceAlert = `O veículo ${vehicle.plate} chegou e está com MANUTENÇÃO VENCIDA há ${Math.abs(kmRemaining)} km!`;
+          } else if (kmRemaining <= 1000) {
+            maintenanceAlert = `O veículo ${vehicle.plate} chegou e está PRÓXIMO da manutenção (faltam ${kmRemaining} km).`;
+          } else {
+            maintenanceAlert = `O veículo ${vehicle.plate} chegou ao destino: ${alert.targetName}`;
           }
+
+          addToast(kmRemaining <= 0 ? 'error' : (kmRemaining <= 1000 ? 'warning' : 'success'), 
+                   'Chegada de Veículo', maintenanceAlert);
+          
+          // Voice Alert (TTS)
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(maintenanceAlert);
+            utterance.lang = 'pt-BR';
+            window.speechSynthesis.speak(utterance);
+          }
+          
+          // Also check if there are other vehicles overdue
+          const otherOverdue = vehicles.filter(v => {
+            if (v.id === vehicle.id) return false;
+            const next = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
+            return (v.odometer || 0) >= next;
+          });
+
+          if (otherOverdue.length > 0) {
+            setTimeout(() => {
+              addToast('info', 'Resumo de Manutenção', `Existem outros ${otherOverdue.length} veículos com manutenção vencida na frota.`);
+            }, 2000);
+          }
+          
+          // Also log activity
+          storageService.logActivity("Chegada", maintenanceAlert, 'VEHICLES');
+        }
       }
     });
   }, [vehicles, arrivalAlerts]);
@@ -519,8 +514,7 @@ export const App = () => {
         await storageService.updateVehicleBatch(updatesBatch);
         totalUpdated = updatesBatch.length;
         console.log(`[Sascar Sync] Sincronização finalizada: ${totalUpdated} veículos atualizados.`);
-        // Suppress automatic sync success toast per user request
-        if (showModal) addToast('success', 'Sincronização', `${totalUpdated} veículos atualizados.`);
+        if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
       } else {
         console.log("[Sascar Sync] Nenhum dado novo para atualizar.");
         if (showModal) addToast('info', 'Sincronização', 'Nenhum dado novo encontrado para os veículos cadastrados.');
@@ -533,7 +527,7 @@ export const App = () => {
       return totalUpdated;
     } catch (error: any) {
       console.error("[Sascar Sync] Erro crítico:", error);
-      if (showModal) addToast('error', 'Erro na Sincronização', error.message || 'Falha ao comunicar com a Sascar.');
+      addToast('error', 'Erro na Sincronização', error.message || 'Falha ao comunicar com a Sascar.');
       return 0;
     } finally {
       isSyncingRef.current = false;
@@ -564,13 +558,11 @@ export const App = () => {
   };
 
   // Auto-sync when entering location tab
-  /*
   useEffect(() => {
     if (currentTab === 'location' && user && trackerSettings?.active) {
       syncSascar();
     }
   }, [currentTab, !!user, trackerSettings?.active]);
-  */
 
   const addToast = (type: any, title: string, message: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -720,33 +712,15 @@ export const App = () => {
 
                     <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 md:p-2.5 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 bg-white/50 dark:bg-slate-900/50 rounded-xl transition-all shadow-sm border border-slate-200/50 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 hover:text-blue-600">
                         <Bell className="h-5 w-5" />
-                        {(() => {
-                            const overdueCount = maintenanceSchedules.filter(s => {
-                                if (s.status !== 'OVERDUE') return false;
-                                const v = vehicles.find(veh => veh.id === s.vehicleId);
-                                return v ? isVehicleInBase(v, settings) : false;
-                            }).length;
-
-                            const criticalTiresCount = tires.filter(t => {
-                                if (t.currentTreadDepth > (settings?.minTreadDepth || 3)) return false;
-                                const v = vehicles.find(veh => veh.id === t.vehicleId);
-                                return v ? isVehicleInBase(v, settings) : true;
-                            }).length;
-
-                            const arrivalCount = arrivalAlerts.filter(a => {
-                                if (a.status !== 'PENDING' && a.status !== 'ARRIVED') return false;
-                                const v = vehicles.find(veh => veh.plate === a.vehiclePlate);
-                                return v ? isVehicleInBase(v, settings) : false;
-                            }).length;
-
-                            const total = overdueCount + criticalTiresCount + arrivalCount;
-
-                            return total > 0 ? (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-950 animate-pulse">
-                                    {total}
-                                </span>
-                            ) : null;
-                        })()}
+                        {(arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
+                          maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
+                          tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length) > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-950 animate-pulse">
+                                {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
+                                 maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
+                                 tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length}
+                            </span>
+                        )}
                     </button>
                 </div>
             </header>
@@ -819,18 +793,23 @@ export const App = () => {
                 tires={tires} 
                 stockItems={stockItems} 
                 onUpdateOrder={storageService.updateServiceOrder} 
+                onUpdateOrderBatch={storageService.updateServiceOrderBatch}
                 onAddOrder={handleAddServiceOrder} 
                 settings={settings} 
                 arrivalAlerts={arrivalAlerts} 
                 initialVehicleId={preselectedVehicleId || undefined}
                 initialModalOpen={shouldOpenOSModal}
                 onCloseInitialModal={() => setShouldOpenOSModal(false)}
+                collaborators={collaborators}
+                onAddCollaborator={storageService.addCollaborator}
+                onUpdateCollaborator={storageService.updateCollaborator}
+                onDeleteCollaborator={storageService.deleteCollaborator}
               />
             )}
             {currentTab === 'service' && <ServiceManager userLevel={userRole} />}
             {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} vehicleBrandModels={vehicleBrandModels} />}
             {currentTab === 'settings' && <Settings currentSettings={settings || {} as any} onUpdateSettings={storageService.saveSettings} />}
-            {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={storageService.addDriver} onUpdateDriver={storageService.updateDriver} onDeleteDriver={storageService.deleteDriver} onUpdateVehicle={storageService.updateVehicle} />}
+            {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={storageService.addDriver} onUpdateDriver={(driver) => storageService.updateDriver(driver.id, driver)} onDeleteDriver={storageService.deleteDriver} onUpdateVehicle={storageService.updateVehicle} />}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent />}
         </div>
       </main>

@@ -114,7 +114,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
       const vehicleIds = bmVehicles.map(v => v.id);
       
       const bmServiceOrders = serviceOrders.filter(so => vehicleIds.includes(so.vehicleId));
-      const totalMaintenanceCost = bmServiceOrders.reduce((sum, so) => sum + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0)), 0);
+      const totalMaintenanceCost = bmServiceOrders.reduce((sum, so) => sum + (so.totalCost || 0), 0);
       const totalMaintenances = bmServiceOrders.length;
       
       const bmTires = tires.filter(t => t.vehicleId && vehicleIds.includes(t.vehicleId));

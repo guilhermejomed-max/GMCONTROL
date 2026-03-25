@@ -2,7 +2,6 @@
 import React, { useState, useMemo } from 'react';
 import { Tire, SystemSettings, Vehicle, ArrivalAlert, MaintenanceSchedule, MaintenancePlan } from '../types';
 import { X, MapPin, CheckCircle2, Clock, Trash2, Bell, Wrench, CalendarClock, AlertTriangle, Gauge, Disc } from 'lucide-react';
-import { isVehicleInBase } from '../src/utils/vehicleUtils';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
@@ -24,32 +23,58 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
-  // Overdue Maintenance
+  // Helper to check if vehicle is at any base
+  const isVehicleAtBase = (vehicle?: Vehicle) => {
+    if (!vehicle || !vehicle.lastLocation || !settings.savedPoints) return false;
+    const { lat, lng } = vehicle.lastLocation;
+    return settings.savedPoints.some(point => {
+      const R = 6371e3;
+      const φ1 = lat * Math.PI/180;
+      const φ2 = point.lat * Math.PI/180;
+      const Δφ = (point.lat - lat) * Math.PI/180;
+      const Δλ = (point.lng - lng) * Math.PI/180;
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c;
+      return distance <= (point.radius || 500);
+    });
+  };
+
+  // Overdue Maintenance (Only Oil changes at base)
   const overdueMaintenance = useMemo(() => {
-    return maintenanceSchedules.filter(s => {
+    const overdueFromSchedules = maintenanceSchedules.filter(s => {
       if (s.status !== 'OVERDUE') return false;
       const vehicle = vehicles.find(v => v.id === s.vehicleId);
-      return vehicle ? isVehicleInBase(vehicle, settings) : false;
+      const plan = maintenancePlans.find(p => p.id === s.planId);
+      const isOil = plan?.name.toLowerCase().includes('óleo') || plan?.name.toLowerCase().includes('oleo');
+      return isOil && isVehicleAtBase(vehicle);
     });
-  }, [maintenanceSchedules, vehicles, settings]);
 
-  // Low Tread Depth Tires
+    const overdueFromVehicles = vehicles.filter(v => {
+      if (v.type !== 'CAVALO') return false;
+      const nextDue = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
+      return (v.odometer || 0) >= nextDue && isVehicleAtBase(v);
+    }).map(v => ({
+      id: `vehicle-overdue-${v.id}`,
+      vehicleId: v.id,
+      planId: 'preventive',
+      status: 'OVERDUE' as const,
+      nextDueKm: (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000),
+      isVehicleBased: true
+    }));
+
+    return [...overdueFromSchedules, ...overdueFromVehicles];
+  }, [maintenanceSchedules, vehicles, maintenancePlans, settings.savedPoints]);
+
+  // Low Tread Depth Tires (Hide as per user request to show ONLY important ones)
   const criticalTires = useMemo(() => {
-    return tires.filter(t => {
-      if (t.currentTreadDepth > (settings.minTreadDepth || 3)) return false;
-      const vehicle = vehicles.find(v => v.id === t.vehicleId);
-      return vehicle ? isVehicleInBase(vehicle, settings) : true; // Se estiver no estoque (sem veículo), mostramos? O usuário disse "veículos que estiverem na base". Se o pneu está no estoque, tecnicamente está na base.
-    });
-  }, [tires, vehicles, settings]);
+    return []; // tires.filter(t => t.currentTreadDepth <= (settings.minTreadDepth || 3));
+  }, []);
 
-  // Filter alerts: only show those not dismissed AND in base
+  // Filter alerts: only show those not dismissed AND arrived
   const visibleAlerts = useMemo(() => {
-    return arrivalAlerts.filter(alert => {
-      if (dismissedIds.has(alert.id)) return false;
-      const vehicle = vehicles.find(v => v.plate === alert.vehiclePlate);
-      return vehicle ? isVehicleInBase(vehicle, settings) : false;
-    });
-  }, [arrivalAlerts, dismissedIds, vehicles, settings]);
+    return arrivalAlerts.filter(alert => !dismissedIds.has(alert.id) && alert.status === 'ARRIVED');
+  }, [arrivalAlerts, dismissedIds]);
 
   const handleClearAll = () => {
     const newDismissed = new Set(dismissedIds);
@@ -96,9 +121,9 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           )}
 
           {/* OVERDUE MAINTENANCE */}
-          {overdueMaintenance.map(schedule => {
+          {overdueMaintenance.map((schedule: any) => {
             const vehicle = vehicles.find(v => v.id === schedule.vehicleId);
-            const plan = maintenancePlans.find(p => p.id === schedule.planId);
+            const planName = schedule.isVehicleBased ? 'Troca de Óleo (Preventiva)' : maintenancePlans.find(p => p.id === schedule.planId)?.name;
             return (
               <div key={schedule.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-red-100 dark:border-red-900/30 shadow-sm flex items-start gap-3 relative overflow-hidden group transition-all hover:shadow-md">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
@@ -106,10 +131,10 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                   <AlertTriangle className="h-5 w-5"/>
                 </div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-black uppercase text-red-600">Manutenção Vencida</p>
+                  <p className="text-[10px] font-black uppercase text-red-600">Manutenção Vencida na Base</p>
                   <h4 className="font-bold text-slate-800 dark:text-white text-sm">{vehicle?.plate || 'Veículo'}</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    Plano: <span className="font-bold">{plan?.name}</span>
+                    Plano: <span className="font-bold">{planName}</span>
                   </p>
                   <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500">
                     {schedule.nextDueKm && <span className="flex items-center gap-1"><Gauge className="h-3 w-3"/> Venceu com: {schedule.nextDueKm.toLocaleString()} km</span>}

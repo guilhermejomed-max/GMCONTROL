@@ -32,12 +32,10 @@ export const YardAnalysis: FC<YardAnalysisProps> = ({ vehicles = [], tires = [],
   const [isSaving, setIsSaving] = useState(false);
 
   const filteredVehicles = useMemo(() => {
-    return (vehicles || [])
-      .filter(v => 
-        v.plate.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        v.model.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => a.plate.localeCompare(b.plate));
+    return (vehicles || []).filter(v => 
+      v.plate.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      v.model.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   }, [vehicles, searchTerm]);
 
   const selectedVehicle = useMemo(() => 

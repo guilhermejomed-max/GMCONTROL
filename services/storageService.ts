@@ -1,7 +1,7 @@
 
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator } from '../types';
 
 const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
@@ -666,6 +666,19 @@ export const storageService = {
     await db.collection("service_orders").doc(orderId).update(sanitize(updates));
   },
 
+  updateServiceOrderBatch: async (updates: { id: string, updates: Partial<ServiceOrder> }[]) => {
+    if (mockUser || !db) {
+      updates.forEach(u => LocalDB.update('service_orders', u.id, u.updates));
+      return;
+    }
+    const batch = db.batch();
+    updates.forEach(u => {
+      const ref = db.collection("service_orders").doc(u.id);
+      batch.update(ref, sanitize(u.updates));
+    });
+    await batch.commit();
+  },
+
   subscribeToMaintenancePlans: (callback: (plans: import('../types').MaintenancePlan[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe('maintenance_plans', callback);
     return db.collection("maintenance_plans").onSnapshot(snapshot => {
@@ -803,16 +816,39 @@ export const storageService = {
     logActivity("Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES');
   },
 
-  updateDriver: async (driver: Driver) => {
-    if (mockUser || !db) { LocalDB.update('drivers', driver.id, driver); logActivity("Editou Motorista", `Atualizou ${driver.name}`, 'VEHICLES'); return; }
-    await db.collection("drivers").doc(driver.id).set(sanitize(driver), { merge: true });
-    logActivity("Editou Motorista", `Atualizou ${driver.name}`, 'VEHICLES');
+  updateDriver: async (id: string, updates: Partial<Driver>) => {
+    if (mockUser || !db) { LocalDB.update('drivers', id, updates); return; }
+    await db.collection("drivers").doc(id).update(sanitize(updates));
   },
 
   deleteDriver: async (id: string) => {
-    if (mockUser || !db) { LocalDB.delete('drivers', id); logActivity("Excluiu Motorista", `ID: ${id}`, 'VEHICLES'); return; }
+    if (mockUser || !db) { LocalDB.delete('drivers', id); return; }
     await db.collection("drivers").doc(id).delete();
-    logActivity("Excluiu Motorista", `ID: ${id}`, 'VEHICLES');
+  },
+
+  subscribeToCollaborators: (callback: (collaborators: Collaborator[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe('collaborators', callback, []);
+    return db.collection("collaborators").orderBy("name").onSnapshot((snapshot) => {
+      const collaborators: Collaborator[] = [];
+      snapshot.forEach((doc) => collaborators.push(doc.data() as Collaborator));
+      callback(collaborators);
+    }, () => callback([]));
+  },
+
+  addCollaborator: async (collaborator: Collaborator) => {
+    if (mockUser || !db) { LocalDB.add('collaborators', collaborator); logActivity("Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL'); return; }
+    await db.collection("collaborators").doc(collaborator.id).set(sanitize(collaborator));
+    logActivity("Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL');
+  },
+
+  updateCollaborator: async (id: string, updates: Partial<Collaborator>) => {
+    if (mockUser || !db) { LocalDB.update('collaborators', id, updates); return; }
+    await db.collection("collaborators").doc(id).update(sanitize(updates));
+  },
+
+  deleteCollaborator: async (id: string) => {
+    if (mockUser || !db) { LocalDB.delete('collaborators', id); return; }
+    await db.collection("collaborators").doc(id).delete();
   },
 
   subscribeToSettings: (callback: (settings: SystemSettings) => void) => {

@@ -25,7 +25,6 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
   const [scheduleVehicleId, setScheduleVehicleId] = useState('');
   const [scheduleDueKm, setScheduleDueKm] = useState('');
   const [scheduleDueDate, setScheduleDueDate] = useState('');
-  const [vehicleSearch, setVehicleSearch] = useState('');
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,14 +176,6 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pesquisar Placa</label>
-                <input 
-                  type="text" 
-                  placeholder="Digite a placa para filtrar..."
-                  className="w-full px-3 py-2 mb-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
-                  value={vehicleSearch}
-                  onChange={e => setVehicleSearch(e.target.value)}
-                />
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Veículo</label>
                 <select 
                   required
@@ -193,10 +184,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ plans, schedules, vehi
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
                 >
                   <option value="">Selecione um veículo...</option>
-                  {vehicles
-                    .filter(v => v.plate.toLowerCase().includes(vehicleSearch.toLowerCase()))
-                    .sort((a, b) => a.plate.localeCompare(b.plate))
-                    .map(v => (
+                  {vehicles.map(v => (
                     <option key={`vehicle-${v.id}`} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
                   ))}
                 </select>

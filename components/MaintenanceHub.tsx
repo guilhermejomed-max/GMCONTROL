@@ -31,7 +31,7 @@ export const MaintenanceHub: FC<MaintenanceHubProps> = ({ tires, vehicles, onUpd
   const filteredVehicles = useMemo(() => vehicles.filter(v => 
     v.plate.toLowerCase().includes(searchTerm.toLowerCase()) || 
     v.model.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.plate.localeCompare(b.plate)), [vehicles, searchTerm]);
+  ), [vehicles, searchTerm]);
 
   const mountedTires = useMemo(() => {
     if (!selectedVehicle) return [];
