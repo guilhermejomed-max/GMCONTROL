@@ -159,6 +159,7 @@ export const App = () => {
 
   // App State
   const [currentTab, setCurrentTab] = useState<TabView>('dashboard');
+  const [isReportsFullScreen, setIsReportsFullScreen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   
@@ -184,6 +185,10 @@ export const App = () => {
   const [syncModal, setSyncModal] = useState<{ isOpen: boolean, updatedPlates: string[] }>({ isOpen: false, updatedPlates: [] });
   const [preselectedVehicleId, setPreselectedVehicleId] = useState<string | null>(null);
   const [shouldOpenOSModal, setShouldOpenOSModal] = useState(false);
+
+  useEffect(() => {
+    setIsReportsFullScreen(false);
+  }, [currentTab]);
 
   useEffect(() => {
     const unsubAuth = storageService.subscribeToAuth((u) => {
@@ -665,65 +670,69 @@ export const App = () => {
 
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-300 ${darkMode ? 'dark' : ''}`}>
-      <Sidebar 
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
-        isMobileOpen={isMobileOpen}
-        setIsMobileOpen={setIsMobileOpen}
-        onLogout={storageService.logout}
-        onExportData={() => {}}
-        onImportData={() => {}}
-        userLevel={userRole}
-        userName={user.displayName || user.email || 'Usuário'}
-        settings={settings}
-        activeModule={activeModule}
-        onChangeModule={() => setActiveModule(prev => prev === 'TIRES' ? 'VEHICLES' : prev === 'VEHICLES' ? 'MECHANICAL' : 'TIRES')}
-        darkMode={darkMode}
-        toggleDarkMode={toggleDarkMode}
-      />
+      {!isReportsFullScreen && (
+        <Sidebar 
+          currentTab={currentTab}
+          onTabChange={setCurrentTab}
+          isMobileOpen={isMobileOpen}
+          setIsMobileOpen={setIsMobileOpen}
+          onLogout={storageService.logout}
+          onExportData={() => {}}
+          onImportData={() => {}}
+          userLevel={userRole}
+          userName={user.displayName || user.email || 'Usuário'}
+          settings={settings}
+          activeModule={activeModule}
+          onChangeModule={() => setActiveModule(prev => prev === 'TIRES' ? 'VEHICLES' : prev === 'VEHICLES' ? 'MECHANICAL' : 'TIRES')}
+          darkMode={darkMode}
+          toggleDarkMode={toggleDarkMode}
+        />
+      )}
       
-      <main className="lg:ml-72 min-h-screen p-3 md:p-4 lg:py-6 lg:px-8 transition-all duration-300">
+      <main className={`${!isReportsFullScreen ? 'lg:ml-72' : ''} min-h-screen p-3 md:p-4 lg:py-6 lg:px-8 transition-all duration-300`}>
         <div className="w-full space-y-4 md:space-y-6">
-            <header className="sticky top-0 z-30 mb-4 md:mb-6 px-3 py-2 md:py-3 bg-slate-100/90 dark:bg-slate-950/90 backdrop-blur-md flex items-center gap-3 border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm rounded-xl md:rounded-2xl">
-                <div className="flex items-center gap-2 pl-1 min-w-fit">
-                    <button className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors" onClick={() => setIsMobileOpen(true)}>
-                        <Menu className="h-6 w-6" />
-                    </button>
-                    <h1 className="text-lg md:text-xl font-black text-slate-800 dark:text-white hidden sm:block whitespace-nowrap">
-                        {getPageTitle(currentTab)}
-                    </h1>
-                </div>
+            {!isReportsFullScreen && (
+              <header className="sticky top-0 z-30 mb-4 md:mb-6 px-3 py-2 md:py-3 bg-slate-100/90 dark:bg-slate-950/90 backdrop-blur-md flex items-center gap-3 border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm rounded-xl md:rounded-2xl">
+                  <div className="flex items-center gap-2 pl-1 min-w-fit">
+                      <button className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors" onClick={() => setIsMobileOpen(true)}>
+                          <Menu className="h-6 w-6" />
+                      </button>
+                      <h1 className="text-lg md:text-xl font-black text-slate-800 dark:text-white hidden sm:block whitespace-nowrap">
+                          {getPageTitle(currentTab)}
+                      </h1>
+                  </div>
 
-                {/* Mobile Title (When hidden on larger) */}
-                <h1 className="text-sm font-black text-slate-800 dark:text-white sm:hidden whitespace-nowrap truncate flex-1">
-                    {getPageTitle(currentTab)}
-                </h1>
+                  {/* Mobile Title (When hidden on larger) */}
+                  <h1 className="text-sm font-black text-slate-800 dark:text-white sm:hidden whitespace-nowrap truncate flex-1">
+                      {getPageTitle(currentTab)}
+                  </h1>
 
-                <div className="flex-1 flex justify-end md:justify-center max-w-4xl mx-auto px-2">
-                    {/* Compact Search on Mobile */}
-                    <GlobalHeader tires={tires} vehicles={vehicles} onResultClick={handleGlobalSearch} />
-                </div>
+                  <div className="flex-1 flex justify-end md:justify-center max-w-4xl mx-auto px-2">
+                      {/* Compact Search on Mobile */}
+                      <GlobalHeader tires={tires} vehicles={vehicles} onResultClick={handleGlobalSearch} />
+                  </div>
 
-                <div className="flex items-center justify-end gap-2 min-w-fit">
-                    <span className="hidden lg:flex bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 items-center gap-2 shadow-sm backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-slate-900 cursor-default">
-                        <Calendar className="h-4 w-4 text-blue-600" /> 
-                        {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    </span>
+                  <div className="flex items-center justify-end gap-2 min-w-fit">
+                      <span className="hidden lg:flex bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 items-center gap-2 shadow-sm backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-slate-900 cursor-default">
+                          <Calendar className="h-4 w-4 text-blue-600" /> 
+                          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </span>
 
-                    <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 md:p-2.5 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 bg-white/50 dark:bg-slate-900/50 rounded-xl transition-all shadow-sm border border-slate-200/50 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 hover:text-blue-600">
-                        <Bell className="h-5 w-5" />
-                        {(arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
-                          maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
-                          tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length) > 0 && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-950 animate-pulse">
-                                {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
-                                 maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
-                                 tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length}
-                            </span>
-                        )}
-                    </button>
-                </div>
-            </header>
+                      <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 md:p-2.5 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 bg-white/50 dark:bg-slate-900/50 rounded-xl transition-all shadow-sm border border-slate-200/50 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 hover:text-blue-600">
+                          <Bell className="h-5 w-5" />
+                          {(arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
+                            maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
+                            tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length) > 0 && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-950 animate-pulse">
+                                  {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
+                                   maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
+                                   tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length}
+                              </span>
+                          )}
+                      </button>
+                  </div>
+              </header>
+            )}
 
             {currentTab === 'dashboard' && (
               <Dashboard 
@@ -807,7 +816,7 @@ export const App = () => {
               />
             )}
             {currentTab === 'service' && <ServiceManager userLevel={userRole} />}
-            {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} vehicleBrandModels={vehicleBrandModels} />}
+            {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} vehicleBrandModels={vehicleBrandModels} onFullScreenToggle={setIsReportsFullScreen} />}
             {currentTab === 'settings' && <Settings currentSettings={settings || {} as any} onUpdateSettings={storageService.saveSettings} />}
             {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={storageService.addDriver} onUpdateDriver={(driver) => storageService.updateDriver(driver.id, driver)} onDeleteDriver={storageService.deleteDriver} onUpdateVehicle={storageService.updateVehicle} />}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent />}

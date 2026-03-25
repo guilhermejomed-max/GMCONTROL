@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus } from '../types';
-import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package, Truck, Wrench } from 'lucide-react';
+import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package, Truck, Wrench, Maximize, Minimize } from 'lucide-react';
 
 interface ReportsHubProps {
   tires: Tire[];
@@ -9,6 +9,7 @@ interface ReportsHubProps {
   serviceOrders: ServiceOrder[];
   retreadOrders: RetreadOrder[];
   vehicleBrandModels?: any[];
+  onFullScreenToggle?: (isFull: boolean) => void;
 }
 
 type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS';
@@ -125,7 +126,14 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
     ]
 };
 
-export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [], serviceOrders = [], retreadOrders = [], vehicleBrandModels = [] }) => {
+export const ReportsHub: React.FC<ReportsHubProps> = ({ 
+  tires = [], 
+  vehicles = [], 
+  serviceOrders = [], 
+  retreadOrders = [], 
+  vehicleBrandModels = [],
+  onFullScreenToggle
+}) => {
   const [source, setSource] = useState<ReportSource>('VEHICLES');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   
@@ -140,6 +148,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedPlate, setSelectedPlate] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // --- PRESETS DE DATA ---
   const setDateRange = (range: 'WEEK' | 'MONTH') => {
@@ -636,6 +645,17 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
           }} className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-5 py-3 rounded-2xl font-bold flex items-center gap-2 border border-slate-200 dark:border-slate-700 transition-all text-sm shadow-sm">
             <RefreshCw className="h-4 w-4" /> Resetar
           </button>
+          <button 
+            onClick={() => {
+              const nextState = !isFullScreen;
+              setIsFullScreen(nextState);
+              if (onFullScreenToggle) onFullScreenToggle(nextState);
+            }} 
+            className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-5 py-3 rounded-2xl font-bold flex items-center gap-2 border border-slate-200 dark:border-slate-700 transition-all text-sm shadow-sm"
+          >
+            {isFullScreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            {isFullScreen ? 'Sair Tela Cheia' : 'Tela Cheia'}
+          </button>
           <button onClick={handleExportCSV} disabled={reportData.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all text-sm disabled:opacity-50">
             <Download className="h-4 w-4" /> CSV
           </button>
@@ -648,124 +668,126 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
       <div className="flex flex-col lg:flex-row gap-8 h-full overflow-hidden">
         
         {/* SIDEBAR DE CONFIGURAÇÃO */}
-        <div className="w-full lg:w-80 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-y-auto custom-scrollbar flex-shrink-0">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
-            <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-base"><Filter className="h-5 w-5 text-indigo-500"/> Parâmetros</h3>
-          </div>
-          
-          <div className="p-6 space-y-8">
-            {/* FONTE DE DADOS */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">1. Módulo de Dados</label>
-              <div className="grid grid-cols-1 gap-2">
-                {[
-                  { id: 'VEHICLES', label: 'Frota e KM', icon: Truck },
-                  { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package },
-                  { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench },
-                  { id: 'MODEL_COSTS', label: 'Custos por Modelo', icon: TrendingUp }
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => handleSourceChange(opt.id as ReportSource)}
-                    className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left ${source === opt.id ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-600 text-indigo-900 dark:text-indigo-300' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'}`}
-                  >
-                    <opt.icon className={`h-5 w-5 ${source === opt.id ? 'text-indigo-600' : 'text-slate-400'}`} />
-                    <span className="text-sm font-bold">{opt.label}</span>
-                  </button>
-                ))}
-              </div>
+        {!isFullScreen && (
+          <div className="w-full lg:w-80 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-y-auto custom-scrollbar flex-shrink-0">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-base"><Filter className="h-5 w-5 text-indigo-500"/> Parâmetros</h3>
             </div>
-
-            {/* FILTROS */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">2. Refinar Busca</label>
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                    <button onClick={() => setDateRange('WEEK')} className="flex-1 p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-bold hover:bg-indigo-600 hover:text-white transition-colors">7 Dias</button>
-                    <button onClick={() => setDateRange('MONTH')} className="flex-1 p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-bold hover:bg-indigo-600 hover:text-white transition-colors">30 Dias</button>
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400"/>
-                  <input 
-                    type="text" 
-                    placeholder="Filtrar resultados..." 
-                    className="w-full pl-11 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white transition-all"
-                    value={searchText}
-                    onChange={e => setSearchText(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Início</label>
-                    <input type="date" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Fim</label>
-                    <input type="date" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Modelo</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: Volvo"
-                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
-                      value={selectedModel} 
-                      onChange={e => setSelectedModel(e.target.value)} 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Placa</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ex: ABC"
-                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
-                      value={selectedPlate} 
-                      onChange={e => setSelectedPlate(e.target.value)} 
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Tipo de Veículo</label>
-                  <select 
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={selectedType}
-                    onChange={e => setSelectedType(e.target.value)}
-                  >
-                    <option value="">Todos os tipos</option>
-                    <option value="CAVALO">Cavalo</option>
-                    <option value="CARRETA">Carreta</option>
-                  </select>
+            
+            <div className="p-6 space-y-8">
+              {/* FONTE DE DADOS */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">1. Módulo de Dados</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { id: 'VEHICLES', label: 'Frota e KM', icon: Truck },
+                    { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package },
+                    { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench },
+                    { id: 'MODEL_COSTS', label: 'Custos por Modelo', icon: TrendingUp }
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => handleSourceChange(opt.id as ReportSource)}
+                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left ${source === opt.id ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-600 text-indigo-900 dark:text-indigo-300' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                    >
+                      <opt.icon className={`h-5 w-5 ${source === opt.id ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      <span className="text-sm font-bold">{opt.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
 
-            {/* SELEÇÃO DE COLUNAS */}
-            <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex justify-between items-center">
-                <span>3. Colunas</span>
-                <span className="text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">{selectedColumns.length}</span>
-              </label>
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                {COLUMN_DEFINITIONS[source].map(col => (
-                  <label key={col.id} className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${selectedColumns.includes(col.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-60 hover:opacity-100'}`}>
-                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${selectedColumns.includes(col.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-700'}`}>
-                      {selectedColumns.includes(col.id) && <Check className="h-3.5 w-3.5 text-white" />}
+              {/* FILTROS */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">2. Refinar Busca</label>
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                      <button onClick={() => setDateRange('WEEK')} className="flex-1 p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-bold hover:bg-indigo-600 hover:text-white transition-colors">7 Dias</button>
+                      <button onClick={() => setDateRange('MONTH')} className="flex-1 p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-bold hover:bg-indigo-600 hover:text-white transition-colors">30 Dias</button>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400"/>
+                    <input 
+                      type="text" 
+                      placeholder="Filtrar resultados..." 
+                      className="w-full pl-11 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white transition-all"
+                      value={searchText}
+                      onChange={e => setSearchText(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Início</label>
+                      <input type="date" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
                     </div>
-                    <span className={`text-xs font-bold ${selectedColumns.includes(col.id) ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}`}>{col.label}</span>
-                    <input type="checkbox" className="hidden" checked={selectedColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} />
-                  </label>
-                ))}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Fim</label>
+                      <input type="date" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Modelo</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: Volvo"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
+                        value={selectedModel} 
+                        onChange={e => setSelectedModel(e.target.value)} 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Placa</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: ABC"
+                        className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
+                        value={selectedPlate} 
+                        onChange={e => setSelectedPlate(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Tipo de Veículo</label>
+                    <select 
+                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={selectedType}
+                      onChange={e => setSelectedType(e.target.value)}
+                    >
+                      <option value="">Todos os tipos</option>
+                      <option value="CAVALO">Cavalo</option>
+                      <option value="CARRETA">Carreta</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SELEÇÃO DE COLUNAS */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex justify-between items-center">
+                  <span>3. Colunas</span>
+                  <span className="text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">{selectedColumns.length}</span>
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                  {COLUMN_DEFINITIONS[source].map(col => (
+                    <label key={col.id} className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${selectedColumns.includes(col.id) ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-60 hover:opacity-100'}`}>
+                      <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${selectedColumns.includes(col.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-700'}`}>
+                        {selectedColumns.includes(col.id) && <Check className="h-3.5 w-3.5 text-white" />}
+                      </div>
+                      <span className={`text-xs font-bold ${selectedColumns.includes(col.id) ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}`}>{col.label}</span>
+                      <input type="checkbox" className="hidden" checked={selectedColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} />
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ÁREA DE PRÉ-VISUALIZAÇÃO (TABELA) */}
-        <div className="flex-1 flex flex-col gap-8 overflow-hidden">
+        <div className={`flex-1 flex flex-col gap-8 overflow-hidden ${isFullScreen ? 'w-full' : ''}`}>
           
           {/* SUMMARY CARDS */}
           {reportSummary && (
@@ -797,7 +819,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({ tires = [], vehicles = [
                       <TrendingUp className="h-7 w-7"/>
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Média por Item</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Média por Carro</p>
                       <p className="text-2xl font-black text-slate-900 dark:text-white">{money(reportSummary.avgValue || 0)}</p>
                     </div>
                   </div>
