@@ -1,29 +1,93 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: id, orgId, name, email, role, ...
+    //
+    // Collection: tires, vehicles, service_orders, retreaders, tread_patterns, 
+    //             maintenance_plans, maintenance_schedules, retread_orders, 
+    //             drivers, collaborators, arrival_alerts, stock_items, 
+    //             stock_movements, tire_loans, system_logs
+    // Fields: id, orgId, ...
+    //
+    // Collection: settings
+    // Document ID: orgId or tracker_orgId
+    // Fields: ..., orgId
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isAdmin() {
-      return isAuthenticated() && 
+      return isAuthenticated() &&
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         request.auth.token.email == "guilherme.jomed@gmail.com");
+          isCreator());
     }
 
-    match /vehicleBrandModels/{modelId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+    function isCreator() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "guilherme.jomed@gmail.com" || 
+              request.auth.token.email == "gui@gmail.com") && 
+             request.auth.token.email_verified == true;
     }
 
-    match /vehicles/{vehicleId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+    function isSameOrg(orgId) {
+      return isAuthenticated() && (
+        orgId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.orgId ||
+        orgId == request.auth.uid ||
+        isCreator()
+      );
     }
 
-    match /{document=**} {
-      allow read, write: if isAuthenticated();
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'orgId', 'name', 'email', 'role']) &&
+             data.id is string &&
+             data.orgId is string &&
+             data.name is string &&
+             data.email is string &&
+             data.role is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (request.auth.uid == userId || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /{collectionName}/{docId} {
+      allow read, write: if isAuthenticated() && (
+        (request.resource.data != null && isSameOrg(request.resource.data.orgId)) ||
+        (resource.data != null && isSameOrg(resource.data.orgId)) ||
+        (collectionName == 'settings' && (isSameOrg(docId) || isSameOrg(docId.replace('tracker_', ''))))
+      );
+    }
+    
+    match /system_logs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
     }
   }
 }

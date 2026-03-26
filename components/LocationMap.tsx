@@ -13,13 +13,18 @@ interface LocationMapProps {
   tires: Tire[];
   settings?: SystemSettings;
   onSync: (showModal?: boolean) => Promise<number>;
+  onUpdateSettings: (settings: SystemSettings) => Promise<void>;
 }
 
 type FilterStatus = 'ALL' | 'OK' | 'WARNING' | 'CRITICAL';
 type MapLayer = 'light' | 'dark' | 'satellite';
 
-export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, settings, onSync }) => {
+export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, settings, onSync, onUpdateSettings }) => {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSavingPoint, setIsSavingPoint] = useState(false);
+  const [newPointCoords, setNewPointCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [newPointName, setNewPointName] = useState('');
+  const [newPointRadius, setNewPointRadius] = useState(500);
   const handleSync = async () => {
     setIsSyncing(true);
     await onSync(true);
@@ -147,6 +152,12 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
         
         mapInstance.current = map;
         markerLayerRef.current = L.layerGroup().addTo(map);
+
+        // Map Click Listener
+        map.on('click', (e: any) => {
+            setNewPointCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+            setIsSavingPoint(true);
+        });
         
         setTimeout(() => map.invalidateSize(), 100);
     }
@@ -243,6 +254,46 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
           layerGroup.addLayer(marker);
       });
 
+      // --- SAVED POINTS RENDERING ---
+      if (settings?.savedPoints) {
+          settings.savedPoints.forEach(p => {
+              const latLng = [p.lat, p.lng];
+              
+              // Circle for radius
+              const circle = L.circle(latLng, {
+                  radius: p.radius,
+                  color: '#3b82f6',
+                  fillColor: '#3b82f6',
+                  fillOpacity: 0.1,
+                  weight: 1
+              });
+              layerGroup.addLayer(circle);
+
+              // Marker for point
+              const pointIcon = L.divIcon({
+                  className: 'custom-point-marker',
+                  html: `
+                    <div style="
+                        width: 24px; height: 24px; 
+                        background-color: #3b82f6; 
+                        border: 2px solid white; border-radius: 50%;
+                        display: flex; align-items: center; justify-content: center;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                    ">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                  `,
+                  iconSize: [24, 24],
+                  iconAnchor: [12, 12]
+              });
+
+              const marker = L.marker(latLng, { icon: pointIcon })
+                  .bindPopup(`<b>${p.name}</b><br/>Raio: ${p.radius}m`);
+              
+              layerGroup.addLayer(marker);
+          });
+      }
+
       // Lógica de Zoom Automático (Fit Bounds)
       // Ajusta o mapa para mostrar todos os veículos se houver veículos e nenhum estiver selecionado.
       if (hasValidLocation && !selectedVehicleId) {
@@ -281,6 +332,46 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
       } else {
           alert("Localização do veículo não disponível.");
       }
+  };
+
+  const handleSavePoint = async () => {
+      if (!newPointCoords || !newPointName.trim()) return;
+
+      const newPoint = {
+          id: Date.now().toString(),
+          name: newPointName,
+          lat: newPointCoords.lat,
+          lng: newPointCoords.lng,
+          radius: newPointRadius
+      };
+
+      const updatedSettings = {
+          ...settings!,
+          savedPoints: [...(settings?.savedPoints || []), newPoint]
+      };
+
+      await onUpdateSettings(updatedSettings);
+      setIsSavingPoint(false);
+      setNewPointName('');
+      setNewPointCoords(null);
+  };
+
+  const handleSaveCurrentLocation = () => {
+      if (!navigator.geolocation) {
+          alert("Geolocalização não suportada pelo seu navegador.");
+          return;
+      }
+
+      navigator.geolocation.getCurrentPosition((position) => {
+          setNewPointCoords({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+          });
+          setIsSavingPoint(true);
+      }, (error) => {
+          console.error("Erro ao obter localização:", error);
+          alert("Não foi possível obter sua localização atual.");
+      });
   };
 
   const getTimeAgo = (dateStr?: string) => {
@@ -384,6 +475,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
           <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none">
              <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-lg flex flex-col gap-1 pointer-events-auto">
                  <button onClick={handleSync} disabled={isSyncing} className={`p-2 rounded-lg transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Sincronizar Agora"><Zap className="h-5 w-5"/></button>
+                 <button onClick={handleSaveCurrentLocation} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-all" title="Salvar Minha Localização"><MapPin className="h-5 w-5"/></button>
                  <button onClick={() => setActiveLayer('light')} className={`p-2 rounded-lg transition-all ${activeLayer === 'light' ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Mapa Padrão"><Sun className="h-5 w-5"/></button>
                  <button onClick={() => setActiveLayer('dark')} className={`p-2 rounded-lg transition-all ${activeLayer === 'dark' ? 'bg-slate-700 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Mapa Escuro"><Moon className="h-5 w-5"/></button>
                  <button onClick={() => setActiveLayer('satellite')} className={`p-2 rounded-lg transition-all ${activeLayer === 'satellite' ? 'bg-green-100 text-green-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Satélite"><Satellite className="h-5 w-5"/></button>
@@ -476,6 +568,62 @@ export const LocationMap: React.FC<LocationMapProps> = ({ vehicles, tires, setti
                    )}
                 </div>
              </div>
+          )}
+
+          {/* SAVE POINT MODAL */}
+          {isSavingPoint && (
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-[2000] flex items-center justify-center p-4">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                      <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
+                          <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
+                              <MapPin className="h-5 w-5 text-blue-600" /> Salvar Ponto
+                          </h3>
+                          <button onClick={() => setIsSavingPoint(false)} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5"/></button>
+                      </div>
+                      <div className="p-4 space-y-4">
+                          <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nome do Ponto</label>
+                              <input 
+                                type="text" 
+                                value={newPointName}
+                                onChange={e => setNewPointName(e.target.value)}
+                                placeholder="Ex: Base Central, Cliente X..."
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                                autoFocus
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Raio de Alerta (metros)</label>
+                              <input 
+                                type="number" 
+                                value={newPointRadius}
+                                onChange={e => setNewPointRadius(Number(e.target.value))}
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                              />
+                          </div>
+                          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/30">
+                              <p className="text-[10px] text-blue-700 dark:text-blue-300 font-medium leading-relaxed">
+                                  Este ponto será salvo nas configurações globais e poderá ser usado para agendamentos e alertas de chegada.
+                              </p>
+                          </div>
+                      </div>
+                      <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex gap-2">
+                          <button 
+                            onClick={() => setIsSavingPoint(false)}
+                            className="flex-1 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            onClick={handleSavePoint}
+                            disabled={!newPointName.trim()}
+                            className="flex-1 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all"
+                          >
+                            Salvar Ponto
+                          </button>
+                      </div>
+                  </div>
+              </div>
           )}
        </div>
     </div>

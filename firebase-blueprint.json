@@ -1,20 +1,37 @@
 {
   "entities": {
-    "vehicleBrandModels": {
-      "title": "Vehicle Brand and Model",
-      "description": "Definition of vehicle brands and their specific models with technical specs.",
+    "users": {
+      "title": "User",
+      "description": "System user or team member.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "orgId": { "type": "string" },
+        "name": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "allowedModules": { "type": "array", "items": { "type": "string" } },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string" },
+        "lastLogin": { "type": "string" }
+      },
+      "required": ["id", "orgId", "name", "username", "email", "role"]
+    },
+    "tires": {
+      "title": "Tire",
+      "description": "A tire in the system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgId": { "type": "string" },
+        "fireNumber": { "type": "string" },
         "brand": { "type": "string" },
         "model": { "type": "string" },
-        "type": { "type": "string", "enum": ["CAVALO", "CARRETA"] },
-        "axles": { "type": "integer" },
-        "maintenancePlanId": { "type": "string" },
-        "oilChangeInterval": { "type": "integer" },
-        "oilLiters": { "type": "integer" }
+        "size": { "type": "string" },
+        "status": { "type": "string" }
       },
-      "required": ["id", "brand", "model", "type", "axles"]
+      "required": ["id", "orgId", "fireNumber"]
     },
     "vehicles": {
       "title": "Vehicle",
@@ -22,21 +39,58 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "orgId": { "type": "string" },
         "plate": { "type": "string" },
         "type": { "type": "string" },
         "brandModelId": { "type": "string" },
         "odometer": { "type": "integer" }
+      },
+      "required": ["id", "orgId", "plate"]
+    },
+    "service_orders": {
+      "title": "Service Order",
+      "description": "A maintenance or repair order.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgId": { "type": "string" },
+        "orderNumber": { "type": "integer" },
+        "vehicleId": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "orgId", "orderNumber", "vehicleId"]
+    },
+    "system_logs": {
+      "title": "System Log",
+      "description": "Activity log entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "module": { "type": "string" },
+        "timestamp": { "type": "string" }
       }
     }
   },
   "firestore": {
-    "vehicleBrandModels": {
-      "schema": "vehicleBrandModels",
-      "description": "Collection of vehicle brands and models."
-    },
-    "vehicles": {
-      "schema": "vehicles",
-      "description": "Collection of vehicles."
-    }
+    "users": { "schema": "users", "description": "System users." },
+    "tires": { "schema": "tires", "description": "Tires inventory." },
+    "vehicles": { "schema": "vehicles", "description": "Fleet vehicles." },
+    "service_orders": { "schema": "service_orders", "description": "Maintenance orders." },
+    "system_logs": { "schema": "system_logs", "description": "Activity logs." },
+    "retreaders": { "schema": "object", "description": "Retreading partners." },
+    "tread_patterns": { "schema": "object", "description": "Tire tread patterns." },
+    "maintenance_plans": { "schema": "object", "description": "Vehicle maintenance plans." },
+    "maintenance_schedules": { "schema": "object", "description": "Scheduled maintenance." },
+    "retread_orders": { "schema": "object", "description": "Tire retreading orders." },
+    "settings": { "schema": "object", "description": "System settings per organization." },
+    "drivers": { "schema": "object", "description": "Fleet drivers." },
+    "collaborators": { "schema": "object", "description": "Team collaborators." },
+    "arrival_alerts": { "schema": "object", "description": "Vehicle arrival notifications." },
+    "stock_items": { "schema": "object", "description": "Inventory stock items." },
+    "stock_movements": { "schema": "object", "description": "Stock movement history." }
   }
 }

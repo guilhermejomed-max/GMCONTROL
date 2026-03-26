@@ -244,6 +244,7 @@ export interface TeamMember {
   permissions?: string[];
   createdAt: string;
   lastLogin?: string; // Novo campo
+  password?: string; // Para persistência local mock
 }
 
 export interface StockItem {
@@ -395,7 +396,7 @@ export interface MaintenanceSchedule {
   status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

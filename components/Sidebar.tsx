@@ -45,7 +45,6 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'retreader-ranking', label: 'Ranking de Fornecedores', icon: Trophy, modules: ['TIRES'] },
     // Relatórios removido a pedido
     { id: 'scrap', label: 'Sucata/Descarte', icon: Trash2, modules: ['TIRES'] },
-    { id: 'strategic-analysis', label: 'Análise Estratégica', icon: PieChart, modules: ['TIRES'] },
     { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
     { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['TIRES'] },
