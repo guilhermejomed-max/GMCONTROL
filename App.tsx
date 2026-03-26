@@ -7,6 +7,7 @@ import { TireForm } from './components/TireForm';
 import { TireMovement } from './components/TireMovement';
 import { InspectionHub } from './components/InspectionHub';
 import { RetreadingHub } from './components/RetreadingHub';
+import { StrategicAnalysis } from './components/StrategicAnalysis';
 import { DemandForecast } from './components/DemandForecast';
 import { FinancialHub } from './components/FinancialHub';
 import { EsgPanel } from './components/EsgPanel';
@@ -642,6 +643,7 @@ export const App = () => {
       case 'retreading': return 'Gestão de Reformas';
       case 'retreader-ranking': return 'Ranking de Fornecedores';
       case 'scrap': return 'Sucata e Descarte';
+      case 'strategic-analysis': return 'Análise Estratégica';
       case 'demand-forecast': return 'Previsão de Demanda';
       case 'financial': return 'Financeiro';
       case 'esg-panel': return 'Painel ESG';
@@ -774,6 +776,7 @@ export const App = () => {
             {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} />}
             {currentTab === 'retreading' && <RetreadingHub orgId={orgId} tires={tires} retreadOrders={retreadOrders} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onNotification={addToast} settings={settings} />}
             {currentTab === 'retreader-ranking' && <RetreaderRanking tires={tires} retreadOrders={retreadOrders} />}
+            {currentTab === 'strategic-analysis' && <StrategicAnalysis tires={tires} vehicles={vehicles} settings={settings} />}
             {currentTab === 'demand-forecast' && <DemandForecast tires={tires} vehicles={vehicles} settings={settings} />}
             {currentTab === 'financial' && <FinancialHub tires={tires} vehicles={vehicles} retreadOrders={retreadOrders} />}
             {currentTab === 'esg-panel' && <EsgPanel tires={tires} retreadOrders={retreadOrders} />}
@@ -790,7 +793,7 @@ export const App = () => {
                 }}
               />
             )}
-            {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} onSync={syncSascar} onUpdateSettings={(s) => storageService.saveSettings(orgId, s)} />}
+            {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} onSync={syncSascar} />}
             {currentTab === 'service-orders' && (
               <ServiceOrderHub 
                 orgId={orgId}

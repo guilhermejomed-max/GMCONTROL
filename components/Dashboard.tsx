@@ -314,6 +314,29 @@ export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders =
         </div>
       </div>
 
+      {/* 2. AI INSIGHT BAR */}
+      <div className={`p-4 rounded-2xl border flex items-start md:items-center gap-4 shadow-sm relative overflow-hidden transition-colors duration-500 ${
+          stats.aiMood === 'BAD' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900' :
+          stats.aiMood === 'WARN' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900' :
+          'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+      }`}>
+          <div className={`p-2 rounded-xl shrink-0 ${
+              stats.aiMood === 'BAD' ? 'bg-red-100 text-red-600' :
+              stats.aiMood === 'WARN' ? 'bg-amber-100 text-amber-600' :
+              'bg-blue-100 text-blue-600'
+          }`}>
+              <BrainCircuit className="h-6 w-6"/>
+          </div>
+          <div className="flex-1 z-10">
+              <h4 className={`text-xs font-black uppercase tracking-widest mb-0.5 ${
+                  stats.aiMood === 'BAD' ? 'text-red-600' :
+                  stats.aiMood === 'WARN' ? 'text-amber-600' :
+                  'text-blue-600'
+              }`}>Análise Inteligente</h4>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{stats.aiInsight}</p>
+          </div>
+          {stats.aiMood === 'GOOD' && <Sparkles className="h-24 w-24 text-blue-400/20 absolute -right-6 -bottom-6 rotate-12"/>}
+      </div>
 
       {/* 3. BENTO GRID - KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

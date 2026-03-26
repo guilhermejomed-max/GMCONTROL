@@ -6,93 +6,6 @@ import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem
 const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
-console.log("[StorageService] Initializing. db:", !!db, "auth:", !!auth);
-
-async function testConnection() {
-  if (!db) {
-    console.warn("[StorageService] Firestore not initialized, skipping connection test.");
-    return;
-  }
-
-  let attempts = 0;
-  const maxAttempts = 3;
-  
-  const tryConnect = async () => {
-    try {
-      // Force a server check to verify configuration
-      await db!.collection('test').doc('connection').get({ source: 'server' });
-      console.log("[StorageService] Firestore connection test successful");
-    } catch (error: any) {
-      if (error.message && error.message.includes('the client is offline')) {
-        if (attempts < maxAttempts) {
-          attempts++;
-          console.log(`[StorageService] Firestore offline, retrying in 2s (attempt ${attempts}/${maxAttempts})...`);
-          setTimeout(tryConnect, 2000);
-        } else {
-          console.error("[StorageService] Please check your Firebase configuration. The client is offline.");
-        }
-      } else {
-        // Other errors (like 404 or permission denied) mean we ARE connected but the doc/path is restricted
-        console.log("[StorageService] Firestore reachable (received response):", error.message);
-      }
-    }
-  };
-
-  tryConnect();
-}
-testConnection();
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth?.currentUser?.uid,
-      email: auth?.currentUser?.email,
-      emailVerified: auth?.currentUser?.emailVerified,
-      isAnonymous: auth?.currentUser?.isAnonymous,
-      tenantId: auth?.currentUser?.tenantId,
-      providerInfo: auth?.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
-
 const DEFAULT_SETTINGS: SystemSettings = {
   minTreadDepth: 3,
   warningTreadDepth: 5,
@@ -230,66 +143,11 @@ const notifyAuthSubscribers = () => {
 export const storageService = {
   login: async (username: string, pass: string) => {
     const cleanUser = username.trim().toLowerCase();
-    const cleanPass = pass.trim();
     
-    console.log(`[StorageService] Attempting login for: ${cleanUser}`);
-
-    // Try Firebase Authentication FIRST
-    if (auth) {
-        try {
-            const emailToAuth = cleanUser.includes('@') ? cleanUser : `${cleanUser}${INTERNAL_DOMAIN}`;
-            console.log(`[StorageService] Trying Firebase login for: ${emailToAuth}`);
-            const userCred = await auth.signInWithEmailAndPassword(emailToAuth, pass);
-            
-            if (userCred.user && db) {
-               console.log(`[StorageService] Firebase login successful, checking user document`);
-               const userDoc = await db.collection("users").doc(userCred.user.uid).get();
-               if (!userDoc.exists) {
-                   console.log(`[StorageService] Creating missing user document in Firestore`);
-                   const member: TeamMember = {
-                       id: userCred.user.uid,
-                       orgId: userCred.user.uid,
-                       name: userCred.user.displayName || 'Usuário',
-                       username: cleanUser,
-                       email: userCred.user.email || '',
-                       role: 'SENIOR',
-                       allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
-                       permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
-                       createdAt: new Date().toISOString(),
-                       lastLogin: new Date().toISOString()
-                   };
-                   await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
-               } else {
-                   const data = userDoc.data();
-                   if (data && !data.orgId) {
-                       console.log(`[StorageService] Migrating user document to include orgId`);
-                       await db.collection("users").doc(userCred.user.uid).update({ orgId: userCred.user.uid });
-                   }
-                   await db.collection("users").doc(userCred.user.uid).update({ lastLogin: new Date().toISOString() });
-               }
-            }
-            console.log(`[StorageService] Firebase login successful`);
-            return;
-        } catch (error: any) {
-            console.warn(`[StorageService] Firebase Login Failed for ${cleanUser}:`, error.code, error.message);
-            // If it's a wrong password for a real Firebase account, we should probably fail
-            if (error.code === 'auth/wrong-password') {
-                throw new Error("Senha incorreta para esta conta do Firebase.");
-            }
-            // For network errors or user-not-found, we fallthrough to mock bypass and local check
-            if (error.code === 'auth/network-request-failed') {
-                console.log("[StorageService] Network error, continuing to local fallback");
-            }
-        }
-    } else {
-        console.warn("[StorageService] Firebase Auth not initialized, falling back to LocalDB");
-    }
-
     // Hardcoded bypass for immediate access or demo
-    const isMockBypass = (cleanUser === 'admin' && cleanPass === 'admin') || (cleanUser === 'demo' && cleanPass === 'demo');
+    const isMockBypass = (cleanUser === 'admin' && pass === 'admin') || (cleanUser === 'demo' && pass === 'demo');
 
     if (isMockBypass) {
-        console.log(`[StorageService] Mock bypass triggered for: ${cleanUser}`);
         const uid = cleanUser === 'admin' ? 'mock-admin-id' : 'mock-demo-id';
         const name = cleanUser === 'admin' ? 'Administrador Local' : 'Usuário Demo';
         const email = `${cleanUser}${INTERNAL_DOMAIN}`;
@@ -312,12 +170,10 @@ export const storageService = {
         } else {
             const adminUser: TeamMember = {
                 id: uid,
-                orgId: uid,
                 name: name,
                 username: cleanUser,
                 email: email,
                 role: 'SENIOR',
-                password: cleanPass, // Store password for consistency
                 allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
                 permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
                 createdAt: now,
@@ -330,29 +186,34 @@ export const storageService = {
         return;
     }
 
+    // Try Firebase Authentication
+    if (auth) {
+        try {
+            const emailToAuth = cleanUser.includes('@') ? cleanUser : `${cleanUser}${INTERNAL_DOMAIN}`;
+            const userCred = await auth.signInWithEmailAndPassword(emailToAuth, pass);
+            
+            if (userCred.user && db) {
+               await db.collection("users").doc(userCred.user.uid).update({ lastLogin: new Date().toISOString() }).catch(() => {});
+            }
+            return;
+        } catch (error: any) {
+            console.warn("Firebase Login Failed:", error.code);
+            // Fallthrough to local check
+        }
+    }
+
     // Local DB Fallback
-    console.log(`[StorageService] Falling back to LocalDB for: ${cleanUser}`);
     const localUsers = LocalDB.get('users') as TeamMember[];
     const found = localUsers.find(u => u.username === cleanUser || u.email === cleanUser || u.email === `${cleanUser}${INTERNAL_DOMAIN}`);
     
     if (found) {
-        // Validate password: check stored password or hardcoded fallbacks
-        const isValidPass = (found.password && cleanPass === found.password) || 
-                           cleanPass === 'demo' || 
-                           cleanPass === '123456' || 
-                           cleanPass === 'admin';
-                           
-        if (isValidPass) {
-             console.log(`[StorageService] LocalDB login successful for: ${cleanUser}`);
+        // Validate mock password simply by checking if it matches the username for fallback ease or if it's the "demo" pass
+        if (pass === 'demo' || pass === '123456' || pass === 'admin') {
              mockUser = { uid: found.id, displayName: found.name, email: found.email, isAnonymous: false };
              LocalDB.update('users', found.id, { lastLogin: new Date().toISOString() });
              notifyAuthSubscribers();
              return;
-        } else {
-            console.warn(`[StorageService] LocalDB login failed: Invalid password for ${cleanUser}`);
         }
-    } else {
-        console.warn(`[StorageService] LocalDB login failed: User not found in LocalDB: ${cleanUser}`);
     }
 
     throw new Error("Credenciais inválidas ou usuário não encontrado. Tente 'admin' / 'admin' se for o primeiro acesso.");
@@ -363,20 +224,15 @@ export const storageService = {
     const email = cleanInput.includes('@') ? cleanInput : `${cleanInput}${INTERNAL_DOMAIN}`;
     const username = cleanInput.includes('@') ? cleanInput.split('@')[0] : cleanInput;
 
-    console.log(`[StorageService] Attempting registration for: ${email}`);
-
     // Force local registration if offline or mock user is active
     if (mockUser || cleanInput === 'demo' || cleanInput.endsWith('@demo.com')) {
-        console.log(`[StorageService] Forcing local registration for: ${email}`);
         const uid = 'mock-' + Date.now();
         const member: TeamMember = {
             id: uid,
-            orgId: uid,
             name: name,
             username: username,
             email: email,
             role: 'SENIOR',
-            password: pass, // Store password for local login
             allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
             permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
             createdAt: new Date().toISOString(),
@@ -391,10 +247,8 @@ export const storageService = {
     // Try Firebase
     if (auth && db) {
         try {
-            console.log(`[StorageService] Trying Firebase registration for: ${email}`);
             const userCred = await auth.createUserWithEmailAndPassword(email, pass);
             if (userCred.user) {
-                console.log(`[StorageService] Firebase registration successful, updating profile and Firestore`);
                 await userCred.user.updateProfile({ displayName: name });
                 const member: TeamMember = {
                     id: userCred.user.uid,
@@ -402,41 +256,27 @@ export const storageService = {
                     username: username,
                     email: email,
                     role: 'SENIOR',
-                    orgId: userCred.user.uid,
                     allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
                     permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
                     createdAt: new Date().toISOString(),
                     lastLogin: new Date().toISOString()
                 };
                 await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
-                console.log(`[StorageService] Firestore user document created`);
                 return;
             }
         } catch (error: any) {
-            console.warn(`[StorageService] Firebase Register Failed for ${email}:`, error.code, error.message);
-            if (error.code === 'auth/email-already-in-use') {
-                throw new Error("Este e-mail já está em uso. Tente fazer login.");
-            }
-            if (error.code === 'auth/network-request-failed') {
-                throw new Error("Erro de conexão com o Firebase. Verifique sua internet.");
-            }
-            // Fallthrough to local fallback
+            console.warn("Firebase Register Failed, using local fallback:", error.code);
         }
-    } else {
-        console.warn("[StorageService] Firebase Auth or DB not initialized, falling back to local registration");
     }
 
     // Local Fallback for Register
-    console.log(`[StorageService] Falling back to local registration for: ${email}`);
     const uid = 'local-' + Date.now();
     const member: TeamMember = {
         id: uid,
-        orgId: uid,
         name: name,
         username: username,
         email: email,
         role: 'SENIOR',
-        password: pass, // Store password for local login
         allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
         permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
         createdAt: new Date().toISOString(),
@@ -511,19 +351,7 @@ export const storageService = {
     
     if (mockUser || !auth || !db) {
         const id = 'mock-' + Date.now();
-        const member: TeamMember = { 
-            id, 
-            orgId: id, 
-            name, 
-            username, 
-            email, 
-            role, 
-            password: pass, // Store password for local login
-            allowedModules: modules, 
-            permissions, 
-            createdAt: now, 
-            lastLogin: undefined 
-        };
+        const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
         LocalDB.add(`users`, member);
         return username;
     }
@@ -557,14 +385,14 @@ export const storageService = {
     }
 
     if (userCred && userCred.user) {
-        const member: TeamMember = { id: userCred.user.uid, name, username, email, role, allowedModules: modules, permissions, createdAt: now, orgId };
+        const member: TeamMember = { id: userCred.user.uid, name, username, email, role, allowedModules: modules, permissions, createdAt: now };
         await db.collection("users").doc(userCred.user.uid).set(sanitize(member));
         logActivity(orgId, "Criou Usuário", `Cadastrou ${name} (${username})`, 'TIRES');
         console.log("User member saved to Firestore");
         return username;
     } else if (!db) {
         const id = 'local-' + Date.now();
-        const member: TeamMember = { id, orgId: id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
+        const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined };
         LocalDB.add(`users`, member);
         console.log("User saved to LocalDB fallback");
         return username;
@@ -594,24 +422,17 @@ export const storageService = {
 
   subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`tires`, callback);
-    const path = "tires";
-    return db.collection(path).where("orgId", "==", orgId).onSnapshot((snapshot) => {
-      console.log(`[StorageService] Tires subscription for ${orgId} returned ${snapshot.size} docs`);
+    return db.collection("tires").onSnapshot((snapshot) => {
       const tires: Tire[] = [];
       snapshot.forEach((doc) => tires.push(doc.data() as Tire));
       callback(tires);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, (error) => console.error("Error subscribing to tires:", error));
   },
 
   addTire: async (orgId: string, tire: Tire) => {
     if (mockUser || !db) { LocalDB.add(`tires`, tire); logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES'); return; }
-    const path = `tires/${tire.id}`;
-    try {
-      await db.collection("tires").doc(tire.id).set(sanitize({ ...tire, orgId }));
-      logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
-    }
+    await db.collection("tires").doc(tire.id).set(sanitize(tire));
+    logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES');
   },
 
   updateTire: async (orgId: string, tire: Tire) => {
@@ -645,28 +466,21 @@ export const storageService = {
 
   subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`vehicles`, callback);
-    const path = "vehicles";
-    return db.collection(path).where("orgId", "==", orgId).onSnapshot((snapshot) => {
-      console.log(`[StorageService] Vehicles subscription for ${orgId} returned ${snapshot.size} docs`);
+    return db.collection("vehicles").onSnapshot((snapshot) => {
       const vehicles: Vehicle[] = [];
       snapshot.forEach((doc) => vehicles.push(doc.data() as Vehicle));
       callback(vehicles);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, (error) => console.error("Error subscribing to vehicles:", error));
   },
 
   addVehicle: async (orgId: string, vehicle: Vehicle) => {
     if (mockUser || !db) { LocalDB.add(`vehicles`, vehicle); logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
-    const path = `vehicles/${vehicle.id}`;
-    try {
-      await db.collection("vehicles").doc(vehicle.id).set(sanitize({ ...vehicle, orgId }));
-      logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
-    }
+    await db.collection("vehicles").doc(vehicle.id).set(sanitize(vehicle));
+    logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
 
   updateVehicle: async (orgId: string, vehicle: Vehicle) => {
-    const updates = { ...vehicle, lastAutoUpdateDate: new Date().toISOString(), orgId };
+    const updates = { ...vehicle, lastAutoUpdateDate: new Date().toISOString() };
     if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
     logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
@@ -818,18 +632,17 @@ export const storageService = {
 
   subscribeToRetreaders: (orgId: string, callback: (partners: {id: string, name: string}[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`retreaders`, callback, []);
-    const path = "retreaders";
-    return db.collection(path).where("orgId", "==", orgId).orderBy("name").onSnapshot((snapshot) => {
+    return db.collection("retreaders").orderBy("name").onSnapshot((snapshot) => {
         const partners: {id: string, name: string}[] = [];
         snapshot.forEach(doc => partners.push({ id: doc.id, ...doc.data() } as any));
         callback(partners);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addRetreader: async (orgId: string, name: string) => {
       const id = Date.now().toString();
       if (mockUser || !db) { LocalDB.add(`retreaders`, { id, name }); return; }
-      await db.collection("retreaders").doc(id).set({ name, orgId });
+      await db.collection("retreaders").doc(id).set({ name });
   },
 
   deleteRetreader: async (orgId: string, id: string) => {
@@ -839,18 +652,17 @@ export const storageService = {
 
   subscribeToTreadPatterns: (orgId: string, callback: (patterns: TreadPattern[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`tread_patterns`, callback, []);
-    const path = "tread_patterns";
-    return db.collection(path).where("orgId", "==", orgId).orderBy("name").onSnapshot((snapshot) => {
+    return db.collection("tread_patterns").orderBy("name").onSnapshot((snapshot) => {
         const patterns: TreadPattern[] = [];
         snapshot.forEach(doc => patterns.push({ id: doc.id, ...doc.data() } as TreadPattern));
         callback(patterns);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addTreadPattern: async (orgId: string, pattern: Omit<TreadPattern, 'id'>) => {
       const id = Date.now().toString();
       if (mockUser || !db) { LocalDB.add(`tread_patterns`, { id, ...pattern }); return; }
-      await db.collection("tread_patterns").doc(id).set(sanitize({ ...pattern, orgId }));
+      await db.collection("tread_patterns").doc(id).set(sanitize(pattern));
   },
 
   updateTreadPattern: async (orgId: string, id: string, updates: Partial<TreadPattern>) => {
@@ -865,17 +677,16 @@ export const storageService = {
 
   subscribeToServiceOrders: (orgId: string, callback: (orders: ServiceOrder[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`service_orders`, (data) => callback(data.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
-    const path = "service_orders";
-    return db.collection(path).where("orgId", "==", orgId).orderBy("createdAt", "desc").onSnapshot(snapshot => {
+    return db.collection("service_orders").orderBy("createdAt", "desc").onSnapshot(snapshot => {
       const orders: ServiceOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as ServiceOrder));
       callback(orders);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addServiceOrder: async (orgId: string, order: ServiceOrder) => {
     if (mockUser || !db) { LocalDB.add(`service_orders`, order); return; }
-    await db.collection("service_orders").doc(order.id).set(sanitize({ ...order, orgId }));
+    await db.collection("service_orders").doc(order.id).set(sanitize(order));
   },
 
   updateServiceOrder: async (orgId: string, orderId: string, updates: Partial<ServiceOrder>) => {
@@ -898,17 +709,16 @@ export const storageService = {
 
   subscribeToMaintenancePlans: (orgId: string, callback: (plans: import('../types').MaintenancePlan[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`maintenance_plans`, callback);
-    const path = "maintenance_plans";
-    return db.collection(path).where("orgId", "==", orgId).onSnapshot(snapshot => {
+    return db.collection("maintenance_plans").onSnapshot(snapshot => {
       const plans: import('../types').MaintenancePlan[] = [];
       snapshot.forEach(doc => plans.push(doc.data() as import('../types').MaintenancePlan));
       callback(plans);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addMaintenancePlan: async (orgId: string, plan: import('../types').MaintenancePlan) => {
     if (mockUser || !db) { LocalDB.add(`maintenance_plans`, plan); return; }
-    await db.collection("maintenance_plans").doc(plan.id).set(sanitize({ ...plan, orgId }));
+    await db.collection("maintenance_plans").doc(plan.id).set(sanitize(plan));
   },
 
   updateMaintenancePlan: async (orgId: string, planId: string, updates: Partial<import('../types').MaintenancePlan>) => {
@@ -923,17 +733,16 @@ export const storageService = {
 
   subscribeToMaintenanceSchedules: (orgId: string, callback: (schedules: import('../types').MaintenanceSchedule[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`maintenance_schedules`, callback);
-    const path = "maintenance_schedules";
-    return db.collection(path).where("orgId", "==", orgId).onSnapshot(snapshot => {
+    return db.collection("maintenance_schedules").onSnapshot(snapshot => {
       const schedules: import('../types').MaintenanceSchedule[] = [];
       snapshot.forEach(doc => schedules.push(doc.data() as import('../types').MaintenanceSchedule));
       callback(schedules);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addMaintenanceSchedule: async (orgId: string, schedule: import('../types').MaintenanceSchedule) => {
     if (mockUser || !db) { LocalDB.add(`maintenance_schedules`, schedule); return; }
-    await db.collection("maintenance_schedules").doc(schedule.id).set(sanitize({ ...schedule, orgId }));
+    await db.collection("maintenance_schedules").doc(schedule.id).set(sanitize(schedule));
   },
 
   updateMaintenanceSchedule: async (orgId: string, scheduleId: string, updates: Partial<import('../types').MaintenanceSchedule>) => {
@@ -948,17 +757,16 @@ export const storageService = {
 
   subscribeToRetreadOrders: (orgId: string, callback: (orders: RetreadOrder[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`retread_orders`, (data) => callback(data.sort((a:any,b:any) => new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime())));
-    const path = "retread_orders";
-    return db.collection(path).where("orgId", "==", orgId).orderBy("sentDate", "desc").onSnapshot(snapshot => {
+    return db.collection("retread_orders").orderBy("sentDate", "desc").onSnapshot(snapshot => {
       const orders: RetreadOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as RetreadOrder));
       callback(orders);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addRetreadOrder: async (orgId: string, order: RetreadOrder) => {
     if (mockUser || !db) { LocalDB.add(`retread_orders`, order); return; }
-    await db.collection("retread_orders").doc(order.id).set(sanitize({ ...order, orgId }));
+    await db.collection("retread_orders").doc(order.id).set(sanitize(order));
   },
 
   updateRetreadOrder: async (orgId: string, orderId: string, updates: Partial<RetreadOrder>) => {
@@ -968,27 +776,25 @@ export const storageService = {
 
   subscribeToStock: (orgId: string, callback: (items: StockItem[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`stock_items`, callback);
-    const path = "stock_items";
-    return db.collection(path).where("orgId", "==", orgId).orderBy('name').onSnapshot((snapshot) => {
+    return db.collection("stock_items").orderBy('name').onSnapshot((snapshot) => {
       const items: StockItem[] = [];
       snapshot.forEach((doc) => items.push(doc.data() as StockItem));
       callback(items);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => {});
   },
 
   subscribeToStockMovements: (orgId: string, callback: (movements: StockMovement[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`stock_movements`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())));
-    const path = "stock_movements";
-    return db.collection(path).where("orgId", "==", orgId).orderBy('date', 'desc').limit(100).onSnapshot((snapshot) => {
+    return db.collection("stock_movements").orderBy('date', 'desc').limit(100).onSnapshot((snapshot) => {
       const movements: StockMovement[] = [];
       snapshot.forEach((doc) => movements.push(doc.data() as StockMovement));
       callback(movements);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => {});
   },
 
   addStockItem: async (orgId: string, item: StockItem) => {
     if (mockUser || !db) { LocalDB.add(`stock_items`, item); return; }
-    await db.collection("stock_items").doc(item.id).set(sanitize({ ...item, orgId }));
+    await db.collection("stock_items").doc(item.id).set(sanitize(item));
   },
 
   updateStockItem: async (orgId: string, item: StockItem) => {
@@ -1013,7 +819,7 @@ export const storageService = {
         return;
     }
     
-    await db.collection("stock_movements").add(sanitize({ ...movement, orgId }));
+    await db.collection("stock_movements").add(sanitize(movement));
     const itemRef = db.collection("stock_items").doc(movement.itemId);
     const itemDoc = await itemRef.get();
     if (itemDoc.exists) {
@@ -1025,17 +831,16 @@ export const storageService = {
 
   subscribeToDrivers: (orgId: string, callback: (drivers: Driver[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`drivers`, callback, []);
-    const path = "drivers";
-    return db.collection(path).where("orgId", "==", orgId).orderBy("name").onSnapshot((snapshot) => {
+    return db.collection("drivers").orderBy("name").onSnapshot((snapshot) => {
       const drivers: Driver[] = [];
       snapshot.forEach((doc) => drivers.push(doc.data() as Driver));
       callback(drivers);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addDriver: async (orgId: string, driver: Driver) => {
     if (mockUser || !db) { LocalDB.add(`drivers`, driver); logActivity(orgId, "Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES'); return; }
-    await db.collection("drivers").doc(driver.id).set(sanitize({ ...driver, orgId }));
+    await db.collection("drivers").doc(driver.id).set(sanitize(driver));
     logActivity(orgId, "Novo Motorista", `Cadastrou ${driver.name}`, 'VEHICLES');
   },
 
@@ -1051,17 +856,16 @@ export const storageService = {
 
   subscribeToCollaborators: (orgId: string, callback: (collaborators: Collaborator[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`collaborators`, callback, []);
-    const path = "collaborators";
-    return db.collection(path).where("orgId", "==", orgId).orderBy("name").onSnapshot((snapshot) => {
+    return db.collection("collaborators").orderBy("name").onSnapshot((snapshot) => {
       const collaborators: Collaborator[] = [];
       snapshot.forEach((doc) => collaborators.push(doc.data() as Collaborator));
       callback(collaborators);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addCollaborator: async (orgId: string, collaborator: Collaborator) => {
     if (mockUser || !db) { LocalDB.add(`collaborators`, collaborator); logActivity(orgId, "Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL'); return; }
-    await db.collection("collaborators").doc(collaborator.id).set(sanitize({ ...collaborator, orgId }));
+    await db.collection("collaborators").doc(collaborator.id).set(sanitize(collaborator));
     logActivity(orgId, "Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL');
   },
 
@@ -1077,16 +881,15 @@ export const storageService = {
 
   subscribeToSettings: (orgId: string, callback: (settings: SystemSettings) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`settings`, callback, DEFAULT_SETTINGS);
-    const path = `settings/${orgId}`;
-    return db.collection("settings").doc(orgId).onSnapshot((doc) => {
+    return db.collection("settings").doc("global").onSnapshot((doc) => {
       if (doc.exists) callback({ ...DEFAULT_SETTINGS, ...doc.data() } as SystemSettings);
       else callback(DEFAULT_SETTINGS);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback(DEFAULT_SETTINGS));
   },
 
   saveSettings: async (orgId: string, settings: SystemSettings) => {
     if (mockUser || !db) { LocalDB.set(`settings`, settings); return; }
-    await db.collection("settings").doc(orgId).set(sanitize({ ...settings, orgId }));
+    await db.collection("settings").doc("global").set(sanitize(settings));
   },
 
   subscribeToTrackerSettings: (orgId: string, callback: (settings: TrackerSettings) => void) => {
@@ -1097,33 +900,31 @@ export const storageService = {
       active: true 
     };
     if (mockUser || !db) return LocalDB.subscribe(`tracker_settings`, callback, DEFAULT_TRACKER);
-    const path = `settings/tracker_${orgId}`;
-    return db.collection("settings").doc(`tracker_${orgId}`).onSnapshot((doc) => {
+    return db.collection("settings").doc("tracker").onSnapshot((doc) => {
       if (doc.exists) callback({ ...DEFAULT_TRACKER, ...doc.data() } as TrackerSettings);
       else callback(DEFAULT_TRACKER);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback(DEFAULT_TRACKER));
   },
 
   saveTrackerSettings: async (orgId: string, settings: TrackerSettings) => {
     if (mockUser || !db) { LocalDB.set(`tracker_settings`, settings); return; }
-    await db.collection("settings").doc(`tracker_${orgId}`).set(sanitize({ ...settings, orgId }));
+    await db.collection("settings").doc("tracker").set(sanitize(settings));
   },
 
   logActivity,
 
   subscribeToArrivalAlerts: (orgId: string, callback: (alerts: ArrivalAlert[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`arrival_alerts`, callback, []);
-    const path = "arrival_alerts";
-    return db.collection(path).where("orgId", "==", orgId).onSnapshot((snapshot) => {
+    return db.collection("arrival_alerts").onSnapshot((snapshot) => {
       const alerts: ArrivalAlert[] = [];
       snapshot.forEach((doc) => alerts.push({ ...doc.data(), id: doc.id } as ArrivalAlert));
       callback(alerts);
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addArrivalAlert: async (orgId: string, alert: ArrivalAlert) => {
     if (mockUser || !db) { LocalDB.add(`arrival_alerts`, alert); return; }
-    await db.collection("arrival_alerts").doc(alert.id).set(sanitize({ ...alert, orgId }));
+    await db.collection("arrival_alerts").doc(alert.id).set(sanitize(alert));
   },
 
   updateArrivalAlert: async (orgId: string, id: string, updates: Partial<ArrivalAlert>) => {
@@ -1151,15 +952,14 @@ export const storageService = {
 
   subscribeToTireLoans: (orgId: string, callback: (loans: TireLoan[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`tire_loans`, callback, []);
-    const path = "tire_loans";
-    return db.collection(path).where("orgId", "==", orgId).onSnapshot((snapshot) => {
+    return db.collection("tire_loans").onSnapshot((snapshot) => {
       callback(snapshot.docs.map(doc => doc.data() as TireLoan));
-    }, (error) => handleFirestoreError(error, OperationType.GET, path));
+    }, () => callback([]));
   },
 
   addTireLoan: async (orgId: string, loan: TireLoan) => {
     if (mockUser || !db) { LocalDB.add(`tire_loans`, loan); return; }
-    await db.collection("tire_loans").doc(loan.id).set(sanitize({ ...loan, orgId }));
+    await db.collection("tire_loans").doc(loan.id).set(sanitize(loan));
   },
 
   updateTireLoan: async (orgId: string, id: string, updates: Partial<TireLoan>) => {

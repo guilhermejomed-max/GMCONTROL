@@ -829,7 +829,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
     brand: '',
     brandModelId: '',
     axles: 3,
-    type: 'CAVALO',
+    type: 'CAVALO' as 'CAVALO' | 'CARRETA',
     odometer: 0,
     sascarCode: '',
     vin: '',
@@ -2372,13 +2372,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
-                    value={formData.type} 
-                    onChange={e => setFormData({...formData, type: e.target.value})}
-                    placeholder="Ex: CAVALO"
-                  />
+                  <select className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as any})}>
+                    <option value="CAVALO">Cavalo</option>
+                    <option value="CARRETA">Carreta</option>
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4">
