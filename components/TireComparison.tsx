@@ -57,10 +57,6 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
               if (projectedTotalLife > 300000) projectedTotalLife = 300000;
           }
 
-          // CPK Individual Estimado (Preço / Vida Total Projetada)
-          // Se não tiver projeção (pneu novo), usa 0
-          const cpk = projectedTotalLife > 0 ? price / projectedTotalLife : 0;
-
           // 4. Status Técnico
           let status: 'OK' | 'WARNING' | 'CRITICAL' = 'OK';
           let action = 'MANTER';
@@ -82,18 +78,49 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
               projectedTotalLife,
               remainingKm,
               totalKmRun,
-              cpk,
+              cpk: 0, // Será calculado depois com a média
               status,
               action
           };
       });
   }, [sortedTires, inspectionData, vehicle.odometer, minDepth, warnDepth]);
 
+  // --- RECALCULAR PROJEÇÕES COM MÉDIA POR MODELO ---
+  const tireAnalysisWithAverages = useMemo(() => {
+      const modelStats: Record<string, { totalProjected: number, count: number }> = {};
+      
+      // 1. Calcular média por modelo
+      tireAnalysis.forEach(item => {
+          const modelKey = `${item.tire.brand}-${item.tire.model}`;
+          if (item.projectedTotalLife > 0) {
+              if (!modelStats[modelKey]) modelStats[modelKey] = { totalProjected: 0, count: 0 };
+              modelStats[modelKey].totalProjected += item.projectedTotalLife;
+              modelStats[modelKey].count++;
+          }
+      });
+
+      // 2. Aplicar média e calcular CPK
+      return tireAnalysis.map(item => {
+          const modelKey = `${item.tire.brand}-${item.tire.model}`;
+          const stats = modelStats[modelKey];
+          const avgProjected = stats && stats.count > 0 ? stats.totalProjected / stats.count : item.projectedTotalLife;
+          
+          const price = item.tire.price || 0;
+          const cpk = avgProjected > 0 ? price / avgProjected : 0;
+
+          return {
+              ...item,
+              projectedTotalLife: avgProjected,
+              cpk
+          };
+      });
+  }, [tireAnalysis]);
+
   // --- ANÁLISE COMPARATIVA DE MARCAS (BENCHMARK) ---
   const brandAnalysis = useMemo(() => {
       const stats: Record<string, { totalLife: number, totalCpk: number, cpkCount: number, count: number, name: string, totalProjectedKm: number }> = {};
       
-      tireAnalysis.forEach(item => {
+      tireAnalysisWithAverages.forEach(item => {
           // Normaliza marca
           const brand = (item.tire.brand || 'OUTROS').toUpperCase().trim();
           if (!stats[brand]) stats[brand] = { totalLife: 0, totalCpk: 0, cpkCount: 0, count: 0, name: brand, totalProjectedKm: 0 };

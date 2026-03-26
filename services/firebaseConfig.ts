@@ -19,21 +19,35 @@ let auth: firebase.auth.Auth | undefined;
 
 try {
     console.log("Initializing Firebase with project:", firebaseConfig.projectId);
-    // Initialize Firebase using the imported SDK
-    if (!firebase.apps.length) {
-        app = firebase.initializeApp(firebaseConfig);
+    
+    // Find an existing app with the correct project ID
+    const existingApp = firebase.apps.find(a => a.options.projectId === firebaseConfig.projectId);
+    
+    if (existingApp) {
+        app = existingApp;
+        console.log("Using existing Firebase app");
     } else {
-        app = firebase.app();
+        // If no app has the correct config, initialize a new one
+        // Use a unique name if apps already exist to avoid '[DEFAULT] already exists' error
+        const appName = firebase.apps.length > 0 ? `gmcontrol-${Date.now()}` : undefined;
+        app = firebase.initializeApp(firebaseConfig, appName);
+        console.log("Initialized new Firebase app");
     }
     
     db = app.firestore();
     auth = app.auth();
 
     // Configure Firestore settings
-    db.settings({ 
-        experimentalForceLongPolling: true,
-        ignoreUndefinedProperties: true
-    });
+    try {
+        db.settings({ 
+            experimentalForceLongPolling: true,
+            ignoreUndefinedProperties: true
+        });
+    } catch (settingErr) {
+        // Ignore settings errors if already configured
+        console.log("Firestore settings already configured or failed:", settingErr);
+    }
+    
     console.log("Firebase initialized successfully");
 } catch (e) {
     console.error("Firebase initialization failed:", e);

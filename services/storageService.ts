@@ -1,4 +1,5 @@
 
+// Force Vite cache invalidation - 2026-03-26
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
 import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator } from '../types';
