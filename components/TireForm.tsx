@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, FC, FormEvent, ChangeEvent } from 'react';
-import { Tire, TireStatus, SystemSettings, TireModelDefinition, Vehicle } from '../types';
-import { Save, Flame, Loader2, CheckCircle2, Plus, X, Search, Activity, Ruler, CircleDollarSign, BookOpen, Calendar, ArrowLeft, Tag, Layers, Truck } from 'lucide-react';
+import { Tire, TireStatus, SystemSettings, TireModelDefinition, Vehicle, Branch } from '../types';
+import { Save, Flame, Loader2, CheckCircle2, Plus, X, Search, Activity, Ruler, CircleDollarSign, BookOpen, Calendar, ArrowLeft, Tag, Layers, Truck, Building2 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 interface TireFormProps {
@@ -14,9 +14,11 @@ interface TireFormProps {
   vehicles?: Vehicle[];
   autoMountVehicleId?: string;
   autoMountPosition?: string;
+  branches?: Branch[];
+  defaultBranchId?: string;
 }
 
-export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, settings, onUpdateSettings, existingTires = [], vehicles = [], autoMountVehicleId, autoMountPosition }) => {
+export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, settings, onUpdateSettings, existingTires = [], vehicles = [], autoMountVehicleId, autoMountPosition, branches = [], defaultBranchId }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [successTire, setSuccessTire] = useState<Tire | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -46,7 +48,8 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
     retreadKms: 0,
     retreadCount: 0,
     vehicleId: autoMountVehicleId || '',
-    position: autoMountPosition || ''
+    position: autoMountPosition || '',
+    branchId: defaultBranchId || ''
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -121,6 +124,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
         status: formData.status,
         vehicleId: formData.vehicleId || undefined,
         position: formData.position || undefined,
+        branchId: formData.branchId || undefined,
         installOdometer: selectedVehicle ? selectedVehicle.odometer : undefined,
         installDate: formData.vehicleId ? new Date().toISOString() : undefined,
         location: selectedVehicle ? selectedVehicle.plate : 'Estoque'
@@ -229,6 +233,25 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
            </h4>
            
            <div className="space-y-6 relative z-10">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Filial Responsável</label>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                  <select
+                    name="branchId"
+                    value={formData.branchId}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white appearance-none mb-4"
+                  >
+                    <option value="">Selecione a Filial</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Nº Fogo (ID Único)</label>
                 <input 

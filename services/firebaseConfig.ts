@@ -21,7 +21,7 @@ try {
     console.log("Initializing Firebase with project:", firebaseConfig.projectId);
     
     // Find an existing app with the correct project ID
-    const existingApp = firebase.apps.find(a => a.options.projectId === firebaseConfig.projectId);
+    const existingApp = firebase.apps.find(a => (a.options as any).projectId === firebaseConfig.projectId);
     
     if (existingApp) {
         app = existingApp;

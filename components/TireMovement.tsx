@@ -8,10 +8,13 @@ import { TireForm } from './TireForm';
 interface TireMovementProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onAddTire: (tire: Tire) => Promise<void>;
   userLevel: UserLevel;
   settings?: SystemSettings;
+  onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
 }
 
 // --- VISUAL SCHEMATIC COMPONENT (ATUALIZADO COM CORES) ---
@@ -159,7 +162,17 @@ const MovementSchematic: FC<{
   );
 };
 
-export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateTire, onAddTire, userLevel, settings }) => {
+export const TireMovement: FC<TireMovementProps> = ({ 
+  tires: allTires, 
+  vehicles, 
+  branches = [],
+  defaultBranchId,
+  onUpdateTire, 
+  onAddTire, 
+  userLevel, 
+  settings, 
+  onNotification 
+}) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPos, setSelectedPos] = useState<string | null>(null);
@@ -179,6 +192,12 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
   const [isRegisteringNew, setIsRegisteringNew] = useState(false);
   const [isSwapConfirmOpen, setIsSwapConfirmOpen] = useState(false);
 
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
   const mountedTires = useMemo(() => {
     if (!selectedVehicle) return [];
     return tires.filter(t => t.vehicleId === selectedVehicle.id);
@@ -191,7 +210,10 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
 
   const filteredVehicles = useMemo(() => {
     return vehicles
-      .filter(v => v.plate.toUpperCase().includes(searchTerm.toUpperCase()))
+      .filter(v => {
+        const matchesSearch = v.plate.toUpperCase().includes(searchTerm.toUpperCase());
+        return matchesSearch;
+      })
       .sort((a, b) => a.plate.localeCompare(b.plate));
   }, [vehicles, searchTerm]);
 
@@ -215,13 +237,16 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
     return tires.filter(t => {
       const vId = t.vehicleId ? String(t.vehicleId).trim().toLowerCase() : '';
       const isMounted = vId !== '' && vId !== 'null' && vId !== 'undefined';
+      const matchesBranch = !defaultBranchId || t.branchId === defaultBranchId;
+      
       return !isMounted && 
              t.status !== TireStatus.DAMAGED && 
              t.status !== TireStatus.RETREADING && 
+             matchesBranch &&
              (t.fireNumber.toLowerCase().includes(stockSearch.toLowerCase()) || 
               t.brand.toLowerCase().includes(stockSearch.toLowerCase()));
     });
-  }, [tires, stockSearch]);
+  }, [tires, stockSearch, defaultBranchId]);
 
   // --- HANDLERS ---
 
@@ -695,6 +720,13 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
                                         />
                                     </div>
                                     <button 
+                                        onClick={() => setIsScannerOpen(true)}
+                                        className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center gap-2 transition-colors"
+                                        title="Escanear QR Code"
+                                    >
+                                        <ScanLine className="h-5 w-5" />
+                                    </button>
+                                    <button 
                                         onClick={() => setIsRegisteringNew(true)}
                                         className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                                         title="Cadastrar e Montar Novo Pneu"
@@ -727,31 +759,46 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
                                 )}
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
-                                {availableStock.map(t => (
-                                    <div 
-                                        key={t.id} 
-                                        className={`bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-green-500 hover:shadow-md cursor-pointer group transition-all flex justify-between items-center ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}
-                                        onClick={() => isQuickSwapMode ? handleQuickSwapClick(t) : handleMount(t)}
-                                    >
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-black text-slate-800 dark:text-white text-base">{t.fireNumber}</span>
-                                                {t.status === TireStatus.NEW && <span className="text-[9px] bg-green-100 text-green-700 px-1.5 rounded font-bold">NOVO</span>}
-                                                {t.status === TireStatus.RETREADED && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 rounded font-bold">RECAP</span>}
-                                            </div>
-                                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{t.brand} {t.model}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="block text-sm font-black text-slate-700 dark:text-slate-300">{t.currentTreadDepth}mm</span>
-                                        </div>
-                                    </div>
-                                ))}
-                                {availableStock.length === 0 && (
+                            <div className="flex-1 overflow-auto bg-white dark:bg-slate-900">
+                                {availableStock.length === 0 ? (
                                     <div className="text-center text-slate-400 py-10">
                                         <Disc className="h-10 w-10 mx-auto mb-2 opacity-30"/>
                                         <p className="text-xs font-medium">Estoque vazio.</p>
                                     </div>
+                                ) : (
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800">
+                                            <tr>
+                                                <th className="p-3">Fogo / ID</th>
+                                                <th className="p-3">Marca / Modelo</th>
+                                                <th className="p-3 text-right">Sulco</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {availableStock.map(t => (
+                                                <tr 
+                                                    key={t.id} 
+                                                    className={`hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}
+                                                    onClick={() => isQuickSwapMode ? handleQuickSwapClick(t) : handleMount(t)}
+                                                >
+                                                    <td className="p-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-black text-slate-800 dark:text-white">{t.fireNumber}</span>
+                                                            {t.status === TireStatus.NEW && <span className="text-[8px] bg-green-100 text-green-700 px-1 rounded font-bold">NOVO</span>}
+                                                            {t.status === TireStatus.RETREADED && <span className="text-[8px] bg-purple-100 text-purple-700 px-1 rounded font-bold">RECAP</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <div className="font-bold text-slate-700 dark:text-slate-300 text-xs">{t.brand}</div>
+                                                        <div className="text-[9px] text-slate-400 uppercase">{t.model}</div>
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <span className="font-black text-slate-700 dark:text-slate-300">{t.currentTreadDepth}mm</span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 )}
                             </div>
                         </div>
@@ -760,7 +807,36 @@ export const TireMovement: FC<TireMovementProps> = ({ tires, vehicles, onUpdateT
             </div>
         )}
 
-      </div>
-    </div>
-  );
+                {/* SCANNER MODAL */}
+                {isScannerOpen && (
+                    <Scanner 
+                        onClose={() => setIsScannerOpen(false)}
+                        onScan={(data) => {
+                            const tire = tires.find(t => t.fireNumber.toUpperCase() === data.trim().toUpperCase());
+                            if (tire) {
+                                if (tire.status === TireStatus.DAMAGED) {
+                                    onNotification?.('Atenção', `Pneu ${tire.fireNumber} não está disponível para montagem (Status: ${tire.status}).`, 'info');
+                                } else if (tire.vehicleId) {
+                                    onNotification?.('Atenção', `Pneu ${tire.fireNumber} já está montado em outro veículo.`, 'info');
+                                } else {
+                                    onNotification?.('Sucesso', `Pneu ${tire.fireNumber} identificado!`, 'success');
+                                    if (isQuickSwapMode) {
+                                        handleQuickSwapClick(tire);
+                                    } else {
+                                        handleMount(tire);
+                                    }
+                                    setIsScannerOpen(false);
+                                }
+                            } else {
+                                onNotification?.('Erro', `Pneu com código "${data}" não encontrado no sistema.`, 'error');
+                            }
+                        }}
+                        title="Escanear Pneu para Montagem"
+                        placeholder="Número de fogo..."
+                        mode="QR"
+                    />
+                )}
+            </div>
+        </div>
+    );
 };

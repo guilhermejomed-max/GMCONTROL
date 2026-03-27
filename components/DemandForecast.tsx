@@ -10,6 +10,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cart
 interface DemandForecastProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   settings?: SystemSettings;
 }
 
@@ -23,7 +25,18 @@ interface ProjectionResult {
   monthKey: string;
 }
 
-export const DemandForecast: FC<DemandForecastProps> = ({ tires, vehicles, settings }) => {
+export const DemandForecast: FC<DemandForecastProps> = ({ 
+  tires: allTires, 
+  vehicles: allVehicles, 
+  branches = [],
+  defaultBranchId,
+  settings 
+}) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const vehicles = allVehicles;
   const [viewMode, setViewMode] = useState<'TIMELINE' | 'BY_SIZE'>('TIMELINE');
 
   const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);

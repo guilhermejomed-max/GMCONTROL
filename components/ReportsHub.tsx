@@ -8,6 +8,8 @@ interface ReportsHubProps {
   vehicles: Vehicle[];
   serviceOrders: ServiceOrder[];
   retreadOrders: RetreadOrder[];
+  branches?: any[];
+  defaultBranchId?: string;
   vehicleBrandModels?: any[];
   onFullScreenToggle?: (isFull: boolean) => void;
 }
@@ -127,15 +129,31 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
 };
 
 export const ReportsHub: React.FC<ReportsHubProps> = ({ 
-  tires = [], 
-  vehicles = [], 
-  serviceOrders = [], 
-  retreadOrders = [], 
+  tires: allTires = [], 
+  vehicles: allVehicles = [], 
+  serviceOrders: allServiceOrders = [], 
+  retreadOrders: allRetreadOrders = [], 
+  branches = [],
+  defaultBranchId,
   vehicleBrandModels = [],
   onFullScreenToggle
 }) => {
   const [source, setSource] = useState<ReportSource>('VEHICLES');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const vehicles = allVehicles;
+
+  const serviceOrders = useMemo(() => {
+    return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
+  }, [allServiceOrders, defaultBranchId]);
+
+  const retreadOrders = useMemo(() => {
+    return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
+  }, [allRetreadOrders, defaultBranchId]);
   
   // Inicializa com as colunas padrão
   const [selectedColumns, setSelectedColumns] = useState<string[]>(

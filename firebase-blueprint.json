@@ -1,42 +1,385 @@
 {
   "entities": {
-    "vehicleBrandModels": {
-      "title": "Vehicle Brand and Model",
-      "description": "Definition of vehicle brands and their specific models with technical specs.",
+    "User": {
+      "title": "User",
+      "description": "System user profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique user ID (Firebase Auth UID)" },
+        "name": { "type": "string", "description": "Full name" },
+        "username": { "type": "string", "description": "Login username" },
+        "email": { "type": "string", "format": "email", "description": "User email" },
+        "role": { "type": "string", "enum": ["JUNIOR", "PLENO", "SENIOR", "CREATOR", "INSPECTOR"], "description": "Access level" },
+        "allowedModules": { "type": "array", "items": { "type": "string" }, "description": "Modules the user can access" },
+        "permissions": { "type": "array", "items": { "type": "string" }, "description": "Specific permissions" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation date" },
+        "lastLogin": { "type": "string", "format": "date-time", "description": "Last login timestamp" },
+        "branchId": { "type": "string", "description": "Linked branch ID" }
+      },
+      "required": ["id", "name", "username", "email", "role", "createdAt"]
+    },
+    "Tire": {
+      "title": "Tire",
+      "description": "Tire asset information",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "fireNumber": { "type": "string" },
         "brand": { "type": "string" },
         "model": { "type": "string" },
-        "type": { "type": "string", "enum": ["CAVALO", "CARRETA"] },
-        "axles": { "type": "integer" },
-        "maintenancePlanId": { "type": "string" },
-        "oilChangeInterval": { "type": "integer" },
-        "oilLiters": { "type": "integer" }
+        "status": { "type": "string" },
+        "totalKms": { "type": "number" },
+        "currentTreadDepth": { "type": "number" },
+        "branchId": { "type": "string" }
       },
-      "required": ["id", "brand", "model", "type", "axles"]
+      "required": ["id", "fireNumber", "brand", "model", "status", "totalKms", "currentTreadDepth"]
     },
-    "vehicles": {
+    "Vehicle": {
       "title": "Vehicle",
-      "description": "A vehicle in the fleet.",
+      "description": "Vehicle asset information",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "plate": { "type": "string" },
-        "type": { "type": "string" },
-        "brandModelId": { "type": "string" },
-        "odometer": { "type": "integer" }
+        "model": { "type": "string" },
+        "type": { "type": "string", "enum": ["CAVALO", "CARRETA"] },
+        "odometer": { "type": "number" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "plate", "model", "type", "odometer"]
+    },
+    "SystemLog": {
+      "title": "SystemLog",
+      "description": "Audit log for system actions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "module": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userName", "action", "details", "module", "timestamp"]
+    },
+    "VehicleBrandModel": {
+      "title": "VehicleBrandModel",
+      "description": "Brand and model definitions for vehicles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" }
+      },
+      "required": ["id", "brand", "model"]
+    },
+    "Retreader": {
+      "title": "Retreader",
+      "description": "Retreading service providers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "TreadPattern": {
+      "title": "TreadPattern",
+      "description": "Tire tread pattern definitions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "depth": { "type": "number" },
+        "brand": { "type": "string" },
+        "type": { "type": "string" }
+      },
+      "required": ["name", "depth"]
+    },
+    "ServiceOrder": {
+      "title": "ServiceOrder",
+      "description": "Maintenance service orders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "items": { "type": "array" },
+        "totalCost": { "type": "number" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "status", "createdAt"]
+    },
+    "StockItem": {
+      "title": "StockItem",
+      "description": "Items in stock",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "minQuantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "category": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name", "quantity"]
+    },
+    "Driver": {
+      "title": "Driver",
+      "description": "Vehicle drivers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "license": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "status": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "MaintenancePlan": {
+      "title": "MaintenancePlan",
+      "description": "Maintenance plans for vehicles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "intervalKm": { "type": "number" },
+        "intervalDays": { "type": "number" },
+        "tasks": { "type": "array" }
+      },
+      "required": ["id", "name"]
+    },
+    "MaintenanceSchedule": {
+      "title": "MaintenanceSchedule",
+      "description": "Scheduled maintenance tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "planId": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "planId", "dueDate"]
+    },
+    "RetreadOrder": {
+      "title": "RetreadOrder",
+      "description": "Orders for tire retreading",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tireId": { "type": "string" },
+        "retreaderId": { "type": "string" },
+        "status": { "type": "string" },
+        "sentDate": { "type": "string", "format": "date-time" },
+        "expectedReturnDate": { "type": "string", "format": "date-time" },
+        "actualReturnDate": { "type": "string", "format": "date-time" },
+        "cost": { "type": "number" },
+        "treadPatternId": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "tireId", "retreaderId", "status", "sentDate"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Records of stock entries and exits",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "quantity": { "type": "number" },
+        "type": { "type": "string", "enum": ["ENTRY", "EXIT"] },
+        "date": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" },
+        "reason": { "type": "string" },
+        "serviceOrderId": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["itemId", "quantity", "type", "date", "userId"]
+    },
+    "Collaborator": {
+      "title": "Collaborator",
+      "description": "External or internal collaborators",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "status": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Global system configuration",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "language": { "type": "string" },
+        "timezone": { "type": "string" },
+        "notifications": { "type": "object" }
       }
+    },
+    "TrackerSettings": {
+      "title": "TrackerSettings",
+      "description": "Configuration for vehicle trackers",
+      "type": "object",
+      "properties": {
+        "apiUrl": { "type": "string" },
+        "user": { "type": "string" },
+        "pass": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["apiUrl", "user", "pass", "active"]
+    },
+    "ArrivalAlert": {
+      "title": "ArrivalAlert",
+      "description": "Alerts for vehicle arrivals",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "locationId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "arrivedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "locationId", "status", "createdAt"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Company branch information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "location": { "type": "string" },
+        "code": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "cnpj", "location", "code", "createdAt"]
+    },
+    "TireLoan": {
+      "title": "TireLoan",
+      "description": "Records of tire loans",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tireId": { "type": "string" },
+        "borrowerId": { "type": "string" },
+        "status": { "type": "string" },
+        "loanDate": { "type": "string", "format": "date-time" },
+        "returnDate": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "tireId", "borrowerId", "status", "loanDate"]
     }
   },
   "firestore": {
-    "vehicleBrandModels": {
-      "schema": "vehicleBrandModels",
-      "description": "Collection of vehicle brands and models."
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
     },
-    "vehicles": {
-      "schema": "vehicles",
-      "description": "Collection of vehicles."
+    "/tires/{tireId}": {
+      "schema": "Tire",
+      "description": "Tire assets"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Vehicle assets"
+    },
+    "/system_logs/{logId}": {
+      "schema": "SystemLog",
+      "description": "Audit logs"
+    },
+    "/vehicleBrandModels/{id}": {
+      "schema": "VehicleBrandModel",
+      "description": "Vehicle brands/models"
+    },
+    "/retreaders/{id}": {
+      "schema": "Retreader",
+      "description": "Retreading partners"
+    },
+    "/tread_patterns/{id}": {
+      "schema": "TreadPattern",
+      "description": "Tread patterns"
+    },
+    "/service_orders/{id}": {
+      "schema": "ServiceOrder",
+      "description": "Service orders"
+    },
+    "/stock_items/{id}": {
+      "schema": "StockItem",
+      "description": "Stock inventory"
+    },
+    "/drivers/{id}": {
+      "schema": "Driver",
+      "description": "Drivers"
+    },
+    "/maintenance_plans/{id}": {
+      "schema": "MaintenancePlan",
+      "description": "Maintenance plans"
+    },
+    "/maintenance_schedules/{id}": {
+      "schema": "MaintenanceSchedule",
+      "description": "Maintenance schedules"
+    },
+    "/retread_orders/{id}": {
+      "schema": "RetreadOrder",
+      "description": "Retread orders"
+    },
+    "/stock_movements/{id}": {
+      "schema": "StockMovement",
+      "description": "Stock movements"
+    },
+    "/collaborators/{id}": {
+      "schema": "Collaborator",
+      "description": "Collaborators"
+    },
+    "/settings/global": {
+      "schema": "SystemSettings",
+      "description": "Global settings"
+    },
+    "/settings/tracker": {
+      "schema": "TrackerSettings",
+      "description": "Tracker settings"
+    },
+    "/arrival_alerts/{id}": {
+      "schema": "ArrivalAlert",
+      "description": "Arrival alerts"
+    },
+    "/tire_loans/{id}": {
+      "schema": "TireLoan",
+      "description": "Tire loans"
+    },
+    "/branches/{id}": {
+      "schema": "Branch",
+      "description": "Company branches"
     }
   }
 }

@@ -10,15 +10,17 @@ interface BrandModelManagerProps {
   vehicles?: Vehicle[];
   serviceOrders?: ServiceOrder[];
   tires?: Tire[];
+  defaultBranchId?: string;
 }
 
 export const BrandModelManager: FC<BrandModelManagerProps> = ({ 
   orgId,
-  vehicleBrandModels, 
-  maintenancePlans = [],
+  vehicleBrandModels: allVehicleBrandModels, 
+  maintenancePlans: allMaintenancePlans = [],
   vehicles = [],
   serviceOrders = [],
-  tires = []
+  tires = [],
+  defaultBranchId
 }) => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
@@ -27,6 +29,14 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   
+  const vehicleBrandModels = useMemo(() => {
+    return defaultBranchId ? allVehicleBrandModels.filter(bm => bm.branchId === defaultBranchId) : allVehicleBrandModels;
+  }, [allVehicleBrandModels, defaultBranchId]);
+
+  const maintenancePlans = useMemo(() => {
+    return defaultBranchId ? allMaintenancePlans.filter(mp => mp.branchId === defaultBranchId) : allMaintenancePlans;
+  }, [allMaintenancePlans, defaultBranchId]);
+
   const [formData, setFormData] = useState<Partial<VehicleBrandModel>>({
     brand: '',
     model: '',
@@ -34,7 +44,8 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
     axles: 3,
     maintenancePlanId: '',
     oilChangeInterval: 0,
-    oilLiters: 0
+    oilLiters: 0,
+    branchId: defaultBranchId || ''
   });
 
   // Group models by brand
@@ -235,11 +246,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                     <tr key={bm.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                       <td className="py-4 px-2 font-bold text-slate-800 dark:text-white">{bm.model}</td>
                       <td className="py-4 px-2">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                          bm.type === 'CAVALO' 
-                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' 
-                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                        }`}>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                           {bm.type}
                         </span>
                       </td>
@@ -323,12 +330,13 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">TIPO</label>
                   <select 
+                    required
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                     value={formData.type} 
-                    onChange={e => setFormData({...formData, type: e.target.value as 'CAVALO' | 'CARRETA'})}
+                    onChange={e => setFormData({...formData, type: e.target.value as any})}
                   >
-                    <option value="CAVALO">Cavalo</option>
-                    <option value="CARRETA">Carreta</option>
+                    <option value="CAVALO">CAVALO</option>
+                    <option value="CARRETA">CARRETA</option>
                   </select>
                 </div>
                 <div>

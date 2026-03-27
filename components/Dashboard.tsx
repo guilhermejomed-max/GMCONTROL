@@ -19,6 +19,8 @@ import { MaintenanceAgenda } from './MaintenanceAgenda';
 interface DashboardProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   serviceOrders?: ServiceOrder[];
   onNavigate: (tab: TabView) => void;
   onOpenServiceOrder?: (vehicleId: string) => void;
@@ -27,7 +29,24 @@ interface DashboardProps {
 
 type OperationFilter = 'ALL' | 'CAVALO' | 'CARRETA';
 
-export const Dashboard: FC<DashboardProps> = ({ tires, vehicles, serviceOrders = [], onNavigate, onOpenServiceOrder, settings }) => {
+export const Dashboard: FC<DashboardProps> = ({ 
+  tires: allTires, 
+  vehicles: allVehicles, 
+  branches = [],
+  defaultBranchId,
+  serviceOrders: allServiceOrders = [], 
+  onNavigate, 
+  onOpenServiceOrder, 
+  settings 
+}) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const vehicles = allVehicles;
+  const serviceOrders = useMemo(() => {
+    return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
+  }, [allServiceOrders, defaultBranchId]);
   const [period, setPeriod] = useState<'30D' | 'YTD'>('YTD');
   const [opFilter, setOpFilter] = useState<OperationFilter>('ALL');
   

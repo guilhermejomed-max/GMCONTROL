@@ -17,6 +17,8 @@ import {
 interface StrategicAnalysisProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   settings?: SystemSettings;
 }
 
@@ -54,7 +56,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({ tires, vehicles, settings }) => {
+export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({ 
+  tires: allTires, 
+  vehicles: allVehicles, 
+  branches = [],
+  defaultBranchId,
+  settings 
+}) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const vehicles = allVehicles;
   const [opFilter, setOpFilter] = useState<OperationFilter>('ALL');
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);

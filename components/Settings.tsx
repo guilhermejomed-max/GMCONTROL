@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint } from '../types';
+import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch } from '../types';
 import { storageService } from '../services/storageService';
 import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -9,6 +9,7 @@ interface SettingsProps {
   orgId: string;
   currentSettings: SystemSettings;
   onUpdateSettings: (s: SystemSettings) => void;
+  branches: Branch[];
 }
 
 const AVAILABLE_PERMISSIONS = [
@@ -20,7 +21,7 @@ const AVAILABLE_PERMISSIONS = [
   { id: 'manage_team', label: 'Gerenciar Equipe' },
 ];
 
-export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings }) => {
+export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings, branches }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL'>('GENERAL');
   
   // General Settings State
@@ -39,6 +40,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   const [regLastName, setRegLastName] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regRole, setRegRole] = useState<UserLevel>('JUNIOR');
+  const [regBranchId, setRegBranchId] = useState<string>('');
   
   // Permission States
   const [regModules, setRegModules] = useState<ModuleType[]>(['TIRES']);
@@ -239,6 +241,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setRegLastName('');
     setRegPassword('');
     setRegRole('JUNIOR');
+    setRegBranchId('');
     setRegModules(['TIRES']);
     setRegPermissions([]);
     setEditingMemberId(null);
@@ -250,6 +253,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setRegFirstName(first);
     setRegLastName(rest.join(' '));
     setRegRole(member.role);
+    setRegBranchId(member.branchId || '');
     setRegModules(member.allowedModules || ['TIRES']);
     setRegPermissions(member.permissions || []);
     setEditingMemberId(member.id);
@@ -270,8 +274,9 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     try {
       if (editingMemberId) {
          await storageService.updateTeamMember(orgId, editingMemberId, {
-            name: `${regFirstName} ${regLastName}`,
+            name: `${regFirstName} ${regLastName}`.trim(),
             role: regRole,
+            branchId: regBranchId || null,
             allowedModules: regModules,
             permissions: regPermissions
          });
@@ -284,7 +289,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             regPassword, 
             regRole,
             regModules,
-            regPermissions
+            regPermissions,
+            regBranchId || undefined
          );
          alert(`Usuário criado!\nLogin: ${createdUsername}`);
       }
@@ -905,7 +911,10 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <div><label className="block text-xs font-bold text-slate-500 mb-1">Sobrenome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regLastName || ''} onChange={e => setRegLastName(e.target.value)} /></div>
                         <div><label className="block text-xs font-bold text-slate-500 mb-1">Senha {editingMemberId && '(Deixe em branco para manter)'}</label><div className="relative"><Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input type="text" placeholder="******" minLength={6} className="w-full pl-9 p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regPassword || ''} onChange={e => setRegPassword(e.target.value)} /></div></div>
                      </div>
-                     <div><label className="block text-xs font-bold text-slate-500 mb-1">Nível de Acesso Hierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option></select></div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Nível de Acesso Hierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option><option value="INSPECTOR">Inspetor (Acesso Restrito)</option></select></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Filial Vinculada</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regBranchId || ''} onChange={e => setRegBranchId(e.target.value)}><option value="">Todas as Filiais</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
+                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200">
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulos Permitidos</label><div className="space-y-2"><label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('TIRES')} onChange={() => toggleModule('TIRES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Gestão de Pneus</span></label><label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('MECHANICAL')} onChange={() => toggleModule('MECHANICAL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Almoxarifado & Peças</span></label><label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('VEHICLES')} onChange={() => toggleModule('VEHICLES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Gestão de Veículos</span></label></div></div>
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Lock className="h-3 w-3"/> Permissões Específicas</label><div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">{AVAILABLE_PERMISSIONS.map(perm => (<label key={perm.id} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded"><input type="checkbox" checked={regPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} className="w-4 h-4 text-purple-600 rounded" /><span className="text-xs text-slate-700">{perm.label}</span></label>))}</div></div>
@@ -921,6 +930,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                      <tr>
                         <th className="p-3 rounded-tl-lg">Nome / Usuário</th>
                         <th className="p-3">Nível</th>
+                        <th className="p-3">Filial</th>
                         <th className="p-3">Módulos</th>
                         <th className="p-3 text-center">Último Acesso</th>
                         <th className="p-3 rounded-tr-lg text-right">Ações</th>
@@ -930,7 +940,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                      {teamMembers.map(member => (
                         <tr key={member.id} className="hover:bg-slate-50 group">
                            <td className="p-3"><div className="font-bold text-slate-800">{member.name}</div><div className="text-xs text-slate-500 font-mono">{member.username}</div></td>
-                           <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${member.role === 'SENIOR' ? 'bg-red-100 text-red-700' : member.role === 'PLENO' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>{member.role}</span></td>
+                           <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${member.role === 'SENIOR' ? 'bg-red-100 text-red-700' : member.role === 'PLENO' ? 'bg-blue-100 text-blue-700' : member.role === 'INSPECTOR' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>{member.role}</span></td>
+                           <td className="p-3"><span className="text-xs text-slate-600 font-medium bg-slate-100 px-2 py-1 rounded">{member.branchId ? branches.find(b => b.id === member.branchId)?.name || 'Desconhecida' : 'Todas'}</span></td>
                            <td className="p-3"><div className="flex gap-1">{member.allowedModules?.includes('TIRES') && <span className="w-2 h-2 rounded-full bg-blue-500" title="Pneus"></span>}{member.allowedModules?.includes('MECHANICAL') && <span className="w-2 h-2 rounded-full bg-green-500" title="Almoxarifado"></span>}{member.allowedModules?.includes('VEHICLES') && <span className="w-2 h-2 rounded-full bg-emerald-500" title="Veículos"></span>}</div></td>
                            <td className="p-3 text-center">
                               {member.lastLogin ? (

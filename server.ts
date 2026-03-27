@@ -159,7 +159,9 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   app.use((req, res, next) => {
-    logToFile(`[Server] ${req.method} ${req.url}`);
+    if (req.url.startsWith('/api')) {
+      logToFile(`[Server] ${req.method} ${req.url}`);
+    }
     next();
   });
 
@@ -182,7 +184,7 @@ async function startServer() {
       reachedRealTimeOnce: false // Flag para saber se já limpamos o backlog alguma vez
   };
 
-  const MAX_CONCURRENT_SASCAR_CALLS = 5;
+  const MAX_CONCURRENT_SASCAR_CALLS = 10;
   let activeSascarCalls = 0;
   const sascarCallQueue: (() => void)[] = [];
 
@@ -504,7 +506,7 @@ async function startServer() {
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
       const MAX_REQUEST_TIME = 50000; // Reduzido para 50s para evitar timeout do Nginx (60s)
-      const CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+      const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
       const formatDateBRT = (d: Date) => {
@@ -534,7 +536,7 @@ async function startServer() {
                           usuario: user,
                           senha: pass,
                           quantidade: 5000
-                      }, { timeout: 45000 }).then(([res]: any) => res);
+                      }, { timeout: 60000 }).then(([res]: any) => res);
                   }) as any;
                   
                   if (!result) return;
@@ -570,7 +572,7 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.reachedRealTimeOnce ? 5 : 10); 
+      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.latestPositions.size === 0 ? 1 : 0); 
           
           if (!isBackground) {
               logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar alcançar o tempo real.`);

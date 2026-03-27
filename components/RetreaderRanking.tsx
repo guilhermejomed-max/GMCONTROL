@@ -5,9 +5,23 @@ import { Trophy, AlertTriangle, TrendingDown, ShieldAlert, CheckCircle2, XCircle
 interface RetreaderRankingProps {
   tires: Tire[];
   retreadOrders: RetreadOrder[];
+  branches?: any[];
+  defaultBranchId?: string;
 }
 
-export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({ tires, retreadOrders }) => {
+export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({ 
+  tires: allTires, 
+  retreadOrders: allRetreadOrders, 
+  branches = [],
+  defaultBranchId 
+}) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const retreadOrders = useMemo(() => {
+    return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
+  }, [allRetreadOrders, defaultBranchId]);
   const rankingData = useMemo(() => {
     // 1. Get unique retreaders from orders
     const retreaders = Array.from(new Set(retreadOrders.map(o => o.retreaderName).filter(Boolean)));

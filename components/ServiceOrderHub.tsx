@@ -7,6 +7,8 @@ import { MaintenancePlanManager } from './MaintenancePlanManager';
 interface ServiceOrderHubProps {
   orgId: string;
   serviceOrders: ServiceOrder[];
+  branches?: any[];
+  defaultBranchId?: string;
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
   vehicles?: Vehicle[]; // Need vehicles to validate plate
@@ -32,18 +34,20 @@ type TabView = 'ORDERS' | 'PMS' | 'COLLABORATORS';
 
 export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ 
   orgId,
-  serviceOrders, 
+  serviceOrders: allServiceOrders, 
+  branches = [],
+  defaultBranchId,
   maintenancePlans = [], 
   maintenanceSchedules = [], 
-  vehicles = [], 
+  vehicles: allVehicles = [], 
   vehicleBrandModels = [], 
-  tires = [], 
+  tires: allTires = [], 
   stockItems = [], 
   onUpdateOrder, 
   onUpdateOrderBatch,
   onAddOrder, 
   settings, 
-  arrivalAlerts = [], 
+  arrivalAlerts: allArrivalAlerts = [], 
   initialVehicleId, 
   initialModalOpen, 
   onCloseInitialModal,
@@ -55,6 +59,25 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const serviceOrders = useMemo(() => {
+    return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
+  }, [allServiceOrders, defaultBranchId]);
+
+  const vehicles = allVehicles;
+
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const filteredCollaborators = useMemo(() => {
+    return defaultBranchId ? collaborators.filter(c => c.branchId === defaultBranchId) : collaborators;
+  }, [collaborators, defaultBranchId]);
+
+  const arrivalAlerts = useMemo(() => {
+    return defaultBranchId ? allArrivalAlerts.filter(a => a.branchId === defaultBranchId) : allArrivalAlerts;
+  }, [allArrivalAlerts, defaultBranchId]);
+
   const [isMigrating, setIsMigrating] = useState(false);
 
   const handleMigrateOrders = async () => {
@@ -66,7 +89,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
     setIsMigrating(true);
     try {
-      const activeCollaborators = collaborators.filter(c => c.isActive);
+      const activeCollaborators = filteredCollaborators.filter(c => c.isActive);
       if (activeCollaborators.length === 0) return;
 
       const updates = ordersToMigrate.map((order, index) => {
@@ -318,7 +341,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               status: 'PENDING',
                               createdAt: new Date().toISOString(),
                               createdBy: 'Sistema (PMS)',
-                              minOdometer: newNextDueKm
+                              minOdometer: newNextDueKm,
+                              branchId: defaultBranchId
                           };
                           await storageService.addArrivalAlert(orgId, newAlert);
                       }
@@ -363,14 +387,15 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                 services: `O.S.: ${newOrderTitle || 'Manutenção'}`,
                 status: 'PENDING',
                 createdAt: new Date().toISOString(),
-                createdBy: 'Sistema (O.S.)'
+                createdBy: 'Sistema (O.S.)',
+                branchId: defaultBranchId
               };
               await storageService.addArrivalAlert(orgId, newAlert);
               arrivalAlertId = newAlert.id;
             }
           }
 
-          const collaborator = collaborators.find(c => c.id === newOrderCollaboratorId);
+          const collaborator = filteredCollaborators.find(c => c.id === newOrderCollaboratorId);
           const laborCost = (collaborator && newOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(newOrderLaborHours) : 0;
 
           await onAddOrder({
@@ -390,6 +415,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               collaboratorName: collaborator?.name,
               laborHours: newOrderLaborHours !== '' ? Number(newOrderLaborHours) : undefined,
               laborCost: laborCost > 0 ? laborCost : undefined,
+              branchId: defaultBranchId,
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
           });
@@ -429,7 +455,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
       setIsUpdating(true);
       try {
-          const collaborator = collaborators.find(c => c.id === editOrderCollaboratorId);
+          const collaborator = filteredCollaborators.find(c => c.id === editOrderCollaboratorId);
           const laborCost = (collaborator && editOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(editOrderLaborHours) : 0;
 
           await onUpdateOrder(editingOrder.id, {
@@ -526,7 +552,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         <MaintenancePlanManager orgId={orgId} plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
       ) : activeTab === 'COLLABORATORS' ? (
         <CollaboratorManager 
-          collaborators={collaborators} 
+          collaborators={filteredCollaborators}
+          defaultBranchId={defaultBranchId}
+          branches={branches}
           onAdd={onAddCollaborator} 
           onUpdate={onUpdateCollaborator} 
           onDelete={onDeleteCollaborator} 
@@ -846,7 +874,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                   onChange={e => setNewOrderCollaboratorId(e.target.value)}
                               >
                                   <option value="">Selecionar...</option>
-                                  {collaborators.filter(c => c.isActive).map(c => (
+                                  {filteredCollaborators.filter(c => c.isActive).map(c => (
                                       <option key={c.id} value={c.id}>{c.name}</option>
                                   ))}
                               </select>
@@ -992,7 +1020,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                   onChange={e => setEditOrderCollaboratorId(e.target.value)}
                               >
                                   <option value="">Selecionar...</option>
-                                  {collaborators.filter(c => c.isActive || c.id === editingOrder.collaboratorId).map(c => (
+                                  {filteredCollaborators.filter(c => c.isActive || c.id === editingOrder.collaboratorId).map(c => (
                                       <option key={c.id} value={c.id}>{c.name}</option>
                                   ))}
                               </select>
@@ -1097,12 +1125,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
 interface CollaboratorManagerProps {
   collaborators: import('../types').Collaborator[];
+  defaultBranchId?: string;
+  branches?: import('../types').Branch[];
   onAdd?: (collaborator: import('../types').Collaborator) => Promise<void>;
   onUpdate?: (id: string, updates: Partial<import('../types').Collaborator>) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
 }
 
-const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators, onAdd, onUpdate, onDelete }) => {
+const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators, defaultBranchId, branches = [], onAdd, onUpdate, onDelete }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCollaborator, setEditingCollaborator] = useState<import('../types').Collaborator | null>(null);
   
@@ -1110,6 +1140,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
   const [position, setPosition] = useState('');
   const [salary, setSalary] = useState<number | ''>('');
   const [hiredDate, setHiredDate] = useState(new Date().toISOString().split('T')[0]);
+  const [branchId, setBranchId] = useState(defaultBranchId || '');
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
 
@@ -1126,6 +1157,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
           salary: Number(salary),
           hiredDate,
           isActive,
+          branchId,
           hourlyRate: Number(salary) / 220 // Assuming 220 hours per month
         });
       } else {
@@ -1136,7 +1168,8 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
           salary: Number(salary),
           hiredDate,
           isActive,
-          hourlyRate: Number(salary) / 220
+          hourlyRate: Number(salary) / 220,
+          branchId: branchId || defaultBranchId
         });
       }
       setIsModalOpen(false);
@@ -1155,6 +1188,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
     setPosition('');
     setSalary('');
     setHiredDate(new Date().toISOString().split('T')[0]);
+    setBranchId(defaultBranchId || '');
     setIsActive(true);
   };
 
@@ -1164,6 +1198,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
     setPosition(c.position);
     setSalary(c.salary);
     setHiredDate(c.hiredDate);
+    setBranchId(c.branchId || '');
     setIsActive(c.isActive);
     setIsModalOpen(true);
   };
@@ -1262,13 +1297,29 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="checkbox" id="isActive"
-                  checked={isActive} onChange={e => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="isActive" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Colaborador Ativo</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filial Responsável</label>
+                  <select 
+                    required
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                    value={branchId}
+                    onChange={e => setBranchId(e.target.value)}
+                  >
+                    <option value="">Selecione uma filial</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <input 
+                    type="checkbox" id="isActive"
+                    checked={isActive} onChange={e => setIsActive(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="isActive" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Colaborador Ativo</label>
+                </div>
               </div>
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold hover:bg-slate-200 transition-colors">Cancelar</button>

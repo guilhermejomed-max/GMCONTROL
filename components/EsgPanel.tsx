@@ -5,9 +5,23 @@ import { Leaf, Droplet, Wind, Recycle, Award, Printer, Calendar, TrendingUp } fr
 interface EsgPanelProps {
   tires: Tire[];
   retreadOrders: RetreadOrder[];
+  branches?: any[];
+  defaultBranchId?: string;
 }
 
-export const EsgPanel: React.FC<EsgPanelProps> = ({ tires, retreadOrders }) => {
+export const EsgPanel: React.FC<EsgPanelProps> = ({ 
+  tires: allTires, 
+  retreadOrders: allRetreadOrders, 
+  branches = [],
+  defaultBranchId 
+}) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const retreadOrders = useMemo(() => {
+    return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
+  }, [allRetreadOrders, defaultBranchId]);
   const [period, setPeriod] = useState<'ALL' | 'YTD'>('ALL');
 
   const stats = useMemo(() => {

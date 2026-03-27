@@ -1,6 +1,6 @@
 
 import { FC, ChangeEvent } from 'react';
-import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2 } from 'lucide-react';
 import { TabView, UserLevel, SystemSettings, ModuleType } from '../types';
 
 interface SidebarProps {
@@ -45,7 +45,6 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'retreader-ranking', label: 'Ranking de Fornecedores', icon: Trophy, modules: ['TIRES'] },
     // Relatórios removido a pedido
     { id: 'scrap', label: 'Sucata/Descarte', icon: Trash2, modules: ['TIRES'] },
-    { id: 'strategic-analysis', label: 'Análise Estratégica', icon: PieChart, modules: ['TIRES'] },
     { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
     { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['TIRES'] },
@@ -58,6 +57,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
     { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
     { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES'] },
+    { id: 'branches', label: 'Filiais', icon: Building2, modules: ['VEHICLES', 'TIRES'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
 
     // --- MÓDULO OFICINA/PEÇAS ---

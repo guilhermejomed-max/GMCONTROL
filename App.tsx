@@ -22,16 +22,25 @@ import { ServiceManager } from './components/ServiceManager';
 import { Settings } from './components/Settings';
 import { DriversHub } from './components/DriversHub';
 import { ReportsHub } from './components/ReportsHub';
+import { BranchManagement } from './components/BranchManagement';
 import TrackerSettingsComponent from './components/TrackerSettings';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
-import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert } from './types';
-import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X } from 'lucide-react';
+import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch } from './types';
+import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2 } from 'lucide-react';
 
-const LoginScreen = () => {
+const LoginScreen = ({ 
+  branches, 
+  selectedBranchId, 
+  setSelectedBranchId 
+}: { 
+  branches: Branch[], 
+  selectedBranchId?: string, 
+  setSelectedBranchId: (id: string) => void 
+}) => {
   const [username, setUsername] = useState('');
   const [pass, setPass] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -41,6 +50,12 @@ const LoginScreen = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!selectedBranchId && branches.length > 0) {
+      setError('Por favor, selecione uma filial para continuar.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -98,6 +113,24 @@ const LoginScreen = () => {
             </div>
           )}
           
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filial</label>
+            <div className="relative">
+              <Building2 className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+              <select 
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 appearance-none"
+                value={selectedBranchId || ''}
+                onChange={e => setSelectedBranchId(e.target.value)}
+                required
+              >
+                <option value="">Selecione a Filial</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuário (nome.sobrenome)</label>
             <div className="relative">
@@ -176,6 +209,9 @@ export const App = () => {
   const [collaborators, setCollaborators] = useState<import('./types').Collaborator[]>([]);
   const [arrivalAlerts, setArrivalAlerts] = useState<ArrivalAlert[]>([]);
   const [stockItems, setStockItems] = useState<import('./types').StockItem[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
+  const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
   const [userRole, setUserRole] = useState<UserLevel>('SENIOR'); 
   const [activeModule, setActiveModule] = useState<ModuleType>('TIRES');
@@ -192,16 +228,43 @@ export const App = () => {
   }, [currentTab]);
 
   useEffect(() => {
-    const unsubAuth = storageService.subscribeToAuth((u) => {
+    const unsubAuth = storageService.subscribeToAuth(async (u) => {
         setUser(u);
-        if (u && u.email && (u.email.toLowerCase().trim() === 'gui@gmail.com' || u.email.toLowerCase().trim() === 'guilherme.jomed@gmail.com')) {
-            setUserRole('CREATOR');
+        if (u) {
+            // Fetch profile to get role
+            const profile = await storageService.getUserProfile(u.uid);
+            if (profile) {
+                setUserRole(profile.role);
+                if (profile.branchId) {
+                    setSelectedBranchId(profile.branchId);
+                    setUserBranchId(profile.branchId);
+                } else {
+                    setSelectedBranchId(undefined);
+                    setUserBranchId(undefined);
+                }
+                if (profile.role === 'INSPECTOR') {
+                    setCurrentTab('movement');
+                }
+            } else if (u.email && (u.email.toLowerCase().trim() === 'gui@gmail.com' || u.email.toLowerCase().trim() === 'guilherme.jomed@gmail.com')) {
+                setUserRole('CREATOR');
+            } else if (u.email && u.email.toLowerCase().trim() === 'inspetor@gmcontrol.com') {
+                setUserRole('INSPECTOR');
+                setCurrentTab('movement');
+            } else {
+                setUserRole('SENIOR');
+            }
         } else {
-            setUserRole('SENIOR');
+            setSelectedBranchId(undefined);
+            setUserBranchId(undefined);
         }
         setLoadingAuth(false);
     });
     return () => unsubAuth();
+  }, []);
+
+  useEffect(() => {
+    const unsubBranches = storageService.subscribeToBranches(setBranches);
+    return () => unsubBranches();
   }, []);
 
   useEffect(() => {
@@ -598,7 +661,8 @@ export const App = () => {
           id: Date.now().toString(),
           orderNumber: maxOrderNum + 1,
           createdAt: new Date().toISOString(),
-          createdBy: user?.displayName || user?.email || 'Usuário do Sistema'
+          createdBy: user?.displayName || user?.email || 'Usuário do Sistema',
+          branchId: partialOrder.branchId || selectedBranchId
       };
 
       await storageService.addServiceOrder(orgId, newOrder);
@@ -656,6 +720,7 @@ export const App = () => {
       case 'settings': return 'Configurações';
       case 'drivers': return 'Motoristas';
       case 'reports': return 'Relatórios';
+      case 'branches': return 'Gestão de Filiais';
       case 'tracker': return 'Configurações do Rastreador';
       default: return 'GM Control';
     }
@@ -666,7 +731,64 @@ export const App = () => {
   }
 
   if (!user) {
-      return <LoginScreen />;
+      return (
+        <LoginScreen 
+          branches={branches} 
+          selectedBranchId={selectedBranchId} 
+          setSelectedBranchId={setSelectedBranchId} 
+        />
+      );
+  }
+
+  if (userRole === 'INSPECTOR') {
+    return (
+      <div className={`min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-300 ${darkMode ? 'dark' : ''}`}>
+        <header className="sticky top-0 z-30 p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <LifeBuoy className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black text-slate-800 dark:text-white leading-tight">GM Control</h1>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Módulo Inspetor</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={toggleDarkMode}
+              className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+            >
+              {darkMode ? <LayoutDashboard className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
+            </button>
+            <button 
+              onClick={() => storageService.logout()} 
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 font-bold rounded-xl transition-all text-sm flex items-center gap-2"
+            >
+              <X className="h-4 w-4" />
+              Sair
+            </button>
+          </div>
+        </header>
+        
+        <main className="p-4 max-w-5xl mx-auto pb-20">
+          <div className="mb-6">
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white">Movimentação de Pneus</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">Selecione um veículo para iniciar a inspeção ou troca.</p>
+          </div>
+          
+          <TireMovement 
+            tires={tires} 
+            vehicles={vehicles} 
+            onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
+            onAddTire={(tire) => storageService.addTire(orgId, tire)} 
+            userLevel={userRole} 
+            settings={settings} 
+          />
+        </main>
+
+        <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+      </div>
+    );
   }
 
   return (
@@ -714,6 +836,23 @@ export const App = () => {
                   </div>
 
                   <div className="flex items-center justify-end gap-2 min-w-fit">
+                      {branches.length > 0 && (
+                          <div className={`hidden md:flex items-center gap-2 bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-sm backdrop-blur-sm transition-all ${userBranchId ? 'opacity-70 cursor-not-allowed' : 'hover:bg-white dark:hover:bg-slate-900'}`}>
+                              <Building2 className="h-4 w-4 text-blue-600" />
+                              <select
+                                  value={selectedBranchId || ''}
+                                  onChange={(e) => setSelectedBranchId(e.target.value || undefined)}
+                                  disabled={!!userBranchId}
+                                  className="bg-transparent border-none text-xs font-bold text-slate-600 dark:text-slate-300 focus:ring-0 cursor-pointer outline-none disabled:cursor-not-allowed"
+                              >
+                                  <option value="">Todas as Filiais</option>
+                                  {branches.map(b => (
+                                      <option key={b.id} value={b.id}>{b.name}</option>
+                                  ))}
+                              </select>
+                          </div>
+                      )}
+
                       <span className="hidden lg:flex bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 items-center gap-2 shadow-sm backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-slate-900 cursor-default">
                           <Calendar className="h-4 w-4 text-blue-600" /> 
                           {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -739,6 +878,8 @@ export const App = () => {
               <Dashboard 
                 tires={tires} 
                 vehicles={vehicles} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
                 serviceOrders={serviceOrders} 
                 onNavigate={setCurrentTab} 
                 settings={settings} 
@@ -749,11 +890,11 @@ export const App = () => {
                 }}
               />
             )}
-            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onRegister={() => setCurrentTab('register')} userLevel={userRole} />}
-            {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
-            {currentTab === 'register' && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} />}
-            {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} />}
-            {currentTab === 'brand-models' && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} />}
+            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onRegister={() => setCurrentTab('register')} onNotification={addToast} userLevel={userRole} />}
+            {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
+            {currentTab === 'register' && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />}
+            {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} onNotification={addToast} />}
+            {currentTab === 'brand-models' && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} />}
             {currentTab === 'fleet' && <VehicleManager 
               orgId={orgId}
               vehicles={vehicles} 
@@ -772,17 +913,62 @@ export const App = () => {
               settings={settings}
               trackerSettings={trackerSettings}
               onSyncSascar={syncSascar}
+              branches={branches}
+              defaultBranchId={selectedBranchId}
             />}
-            {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} />}
-            {currentTab === 'retreading' && <RetreadingHub orgId={orgId} tires={tires} retreadOrders={retreadOrders} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onNotification={addToast} settings={settings} />}
-            {currentTab === 'retreader-ranking' && <RetreaderRanking tires={tires} retreadOrders={retreadOrders} />}
-            {currentTab === 'strategic-analysis' && <StrategicAnalysis tires={tires} vehicles={vehicles} settings={settings} />}
-            {currentTab === 'demand-forecast' && <DemandForecast tires={tires} vehicles={vehicles} settings={settings} />}
-            {currentTab === 'financial' && <FinancialHub tires={tires} vehicles={vehicles} retreadOrders={retreadOrders} />}
-            {currentTab === 'esg-panel' && <EsgPanel tires={tires} retreadOrders={retreadOrders} />}
+            {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} />}
+            {currentTab === 'retreading' && (
+              <RetreadingHub 
+                orgId={orgId} 
+                tires={tires} 
+                retreadOrders={retreadOrders} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
+                onNotification={addToast} 
+                settings={settings} 
+              />
+            )}
+            {currentTab === 'retreader-ranking' && (
+              <RetreaderRanking 
+                tires={tires} 
+                retreadOrders={retreadOrders} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+              />
+            )}
+            {currentTab === 'strategic-analysis' && <StrategicAnalysis tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} settings={settings} />}
+            {currentTab === 'demand-forecast' && (
+              <DemandForecast 
+                tires={tires} 
+                vehicles={vehicles} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                settings={settings} 
+              />
+            )}
+            {currentTab === 'financial' && (
+              <FinancialHub 
+                tires={tires} 
+                vehicles={vehicles} 
+                retreadOrders={retreadOrders} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+              />
+            )}
+            {currentTab === 'esg-panel' && (
+              <EsgPanel 
+                tires={tires} 
+                retreadOrders={retreadOrders} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+              />
+            )}
             {currentTab === 'maintenance' && (
               <MaintenanceDashboard 
                 vehicles={vehicles} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
                 maintenanceSchedules={maintenanceSchedules} 
                 maintenancePlans={maintenancePlans} 
                 vehicleBrandModels={vehicleBrandModels}
@@ -793,11 +979,23 @@ export const App = () => {
                 }}
               />
             )}
-            {currentTab === 'location' && <LocationMap vehicles={vehicles} tires={tires} settings={settings} onSync={syncSascar} />}
+            {currentTab === 'location' && (
+              <LocationMap 
+                vehicles={vehicles} 
+                tires={tires} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                settings={settings} 
+                onSync={syncSascar} 
+                onUpdateSettings={(newSettings) => storageService.saveSettings(orgId, newSettings)}
+              />
+            )}
             {currentTab === 'service-orders' && (
               <ServiceOrderHub 
                 orgId={orgId}
                 serviceOrders={serviceOrders} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
                 maintenancePlans={maintenancePlans} 
                 maintenanceSchedules={maintenanceSchedules} 
                 vehicles={vehicles} 
@@ -819,9 +1017,33 @@ export const App = () => {
               />
             )}
             {currentTab === 'service' && <ServiceManager orgId={orgId} userLevel={userRole} />}
-            {currentTab === 'reports' && <ReportsHub tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} retreadOrders={retreadOrders} vehicleBrandModels={vehicleBrandModels} onFullScreenToggle={setIsReportsFullScreen} />}
-            {currentTab === 'settings' && <Settings orgId={orgId} currentSettings={settings || {} as any} onUpdateSettings={(s) => storageService.saveSettings(orgId, s)} />}
-            {currentTab === 'drivers' && <DriversHub drivers={drivers} vehicles={vehicles} tires={tires} onAddDriver={(d) => storageService.addDriver(orgId, d)} onUpdateDriver={(driver) => storageService.updateDriver(orgId, driver.id, driver)} onDeleteDriver={(id) => storageService.deleteDriver(orgId, id)} onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} />}
+            {currentTab === 'reports' && (
+              <ReportsHub 
+                tires={tires} 
+                vehicles={vehicles} 
+                serviceOrders={serviceOrders} 
+                retreadOrders={retreadOrders} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                vehicleBrandModels={vehicleBrandModels} 
+                onFullScreenToggle={setIsReportsFullScreen} 
+              />
+            )}
+            {currentTab === 'branches' && <BranchManagement />}
+            {currentTab === 'settings' && <Settings orgId={orgId} currentSettings={settings || {} as any} onUpdateSettings={(s) => storageService.saveSettings(orgId, s)} branches={branches} />}
+            {currentTab === 'drivers' && (
+              <DriversHub 
+                drivers={drivers} 
+                vehicles={vehicles} 
+                tires={tires} 
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                onAddDriver={(d) => storageService.addDriver(orgId, d)} 
+                onUpdateDriver={(driver) => storageService.updateDriver(orgId, driver.id, driver)} 
+                onDeleteDriver={(id) => storageService.deleteDriver(orgId, id)} 
+                onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} 
+              />
+            )}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
         </div>
       </main>
@@ -831,6 +1053,8 @@ export const App = () => {
         onClose={() => setShowNotifications(false)} 
         tires={tires} 
         vehicles={vehicles} 
+        branches={branches}
+        defaultBranchId={selectedBranchId}
         settings={settings || {} as any} 
         arrivalAlerts={arrivalAlerts} 
         maintenanceSchedules={maintenanceSchedules}

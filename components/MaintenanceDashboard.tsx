@@ -5,15 +5,38 @@ import { Search, Truck, AlertTriangle, CheckCircle2, Clock, Filter, ChevronRight
 
 interface Props {
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   maintenanceSchedules: MaintenanceSchedule[];
   maintenancePlans: MaintenancePlan[];
   vehicleBrandModels: VehicleBrandModel[];
   onOpenServiceOrder?: (vehicleId: string) => void;
 }
 
-export const MaintenanceDashboard: React.FC<Props> = ({ vehicles, maintenanceSchedules, maintenancePlans, vehicleBrandModels, onOpenServiceOrder }) => {
+export const MaintenanceDashboard: React.FC<Props> = ({ 
+  vehicles: allVehicles, 
+  branches = [],
+  defaultBranchId,
+  maintenanceSchedules: allMaintenanceSchedules = [], 
+  maintenancePlans: allMaintenancePlans = [], 
+  vehicleBrandModels: allVehicleBrandModels = [], 
+  onOpenServiceOrder 
+}) => {
+  const vehicles = allVehicles;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OK' | 'WARNING' | 'OVERDUE'>('ALL');
+
+  const maintenanceSchedules = useMemo(() => {
+    return defaultBranchId ? allMaintenanceSchedules.filter(s => s.branchId === defaultBranchId) : allMaintenanceSchedules;
+  }, [allMaintenanceSchedules, defaultBranchId]);
+
+  const maintenancePlans = useMemo(() => {
+    return defaultBranchId ? allMaintenancePlans.filter(p => p.branchId === defaultBranchId) : allMaintenancePlans;
+  }, [allMaintenancePlans, defaultBranchId]);
+
+  const vehicleBrandModels = useMemo(() => {
+    return defaultBranchId ? allVehicleBrandModels.filter(bm => bm.branchId === defaultBranchId) : allVehicleBrandModels;
+  }, [allVehicleBrandModels, defaultBranchId]);
 
   const maintenanceData = useMemo(() => {
     return vehicles

@@ -1,8 +1,8 @@
 
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
-import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule } from '../types';
+import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid, Printer } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid, Printer, Building2 } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 
@@ -515,6 +515,8 @@ interface VehicleManagerProps {
   serviceOrders: ServiceOrder[];
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
+  branches?: Branch[];
+  defaultBranchId?: string;
   onAddVehicle: (v: Vehicle) => Promise<void>;
   onDeleteVehicle: (id: string) => Promise<void>;
   onUpdateVehicle: (v: Vehicle) => Promise<void>;
@@ -527,7 +529,7 @@ interface VehicleManagerProps {
   onSyncSascar?: (showModal?: boolean) => Promise<number>;
 }
 
-export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
+export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], branches = [], defaultBranchId, onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -707,7 +709,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
         services: schedulingData.services,
         status: 'PENDING',
         createdAt: new Date().toISOString(),
-        createdBy: 'Usuário' // Ideally from auth
+        createdBy: 'Usuário', // Ideally from auth
+        branchId: defaultBranchId
       };
       await storageService.addArrivalAlert(orgId, newAlert);
       setIsScheduling(false);
@@ -829,7 +832,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
     brand: '',
     brandModelId: '',
     axles: 3,
-    type: 'CAVALO' as 'CAVALO' | 'CARRETA',
+    type: 'CAVALO',
     odometer: 0,
     sascarCode: '',
     vin: '',
@@ -845,7 +848,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
     revisionIntervalKm: 10000,
     oilLiters: 0,
     lastPreventiveKm: 0,
-    lastPreventiveDate: ''
+    lastPreventiveDate: '',
+    branchId: defaultBranchId || ''
   });
 
   // Função para analisar o estado do veículo
@@ -941,7 +945,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
       revisionIntervalKm: 10000,
       oilLiters: 0,
       lastPreventiveKm: 0,
-      lastPreventiveDate: ''
+      lastPreventiveDate: '',
+      branchId: defaultBranchId || ''
     });
     setIsAdding(true);
   };
@@ -970,7 +975,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
       revisionIntervalKm: vehicle.revisionIntervalKm || 10000,
       oilLiters: vehicle.oilLiters || 0,
       lastPreventiveKm: vehicle.lastPreventiveKm || 0,
-      lastPreventiveDate: vehicle.lastPreventiveDate || ''
+      lastPreventiveDate: vehicle.lastPreventiveDate || '',
+      branchId: vehicle.branchId || ''
     });
     setIsAdding(true);
   };
@@ -1014,7 +1020,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
         plate: '', model: '', brand: '', brandModelId: '', axles: 3, type: 'CAVALO', odometer: 0, sascarCode: '',
         vin: '', year: '', color: '', fuelType: '', fleetNumber: '',
         engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: '',
-        revisionIntervalKm: 10000, oilLiters: 0, lastPreventiveKm: 0, lastPreventiveDate: ''
+        revisionIntervalKm: 10000, oilLiters: 0, lastPreventiveKm: 0, lastPreventiveDate: '',
+        branchId: defaultBranchId || ''
       });
     } catch (error) {
       alert("Erro ao salvar veículo.");
@@ -1645,14 +1652,22 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                   </div>
                   <div>
                     <h3 className="font-black text-lg text-slate-800 dark:text-white">{vehicle.plate}</h3>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                      {vehicle.brandModelId 
-                        ? (() => {
-                            const bm = vehicleBrandModels.find(b => b.id === vehicle.brandModelId);
-                            return bm ? `${bm.brand} ${bm.model}` : vehicle.model;
-                          })()
-                        : vehicle.model}
-                    </p>
+                    <div className="flex flex-col">
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                        {vehicle.brandModelId 
+                          ? (() => {
+                              const bm = vehicleBrandModels.find(b => b.id === vehicle.brandModelId);
+                              return bm ? `${bm.brand} ${bm.model}` : vehicle.model;
+                            })()
+                          : vehicle.model}
+                      </p>
+                      {vehicle.branchId && (
+                        <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          {branches.find(b => b.id === vehicle.branchId)?.name || 'Filial não encontrada'}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -2365,6 +2380,26 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
               <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              {/* Branch Selection */}
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Filial de Serviço</label>
+                  <select
+                    required
+                    className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                    value={formData.branchId}
+                    onChange={e => setFormData({ ...formData, branchId: e.target.value })}
+                  >
+                    <option value="">Selecione a Filial</option>
+                    {branches.map(branch => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name} ({branch.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PLACA</label>
@@ -2372,10 +2407,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO</label>
-                  <select className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as any})}>
-                    <option value="CAVALO">Cavalo</option>
-                    <option value="CARRETA">Carreta</option>
-                  </select>
+                  <input 
+                    type="text" 
+                    className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
+                    value={formData.type} 
+                    onChange={e => setFormData({...formData, type: e.target.value})}
+                    placeholder="Ex: CAVALO"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4">

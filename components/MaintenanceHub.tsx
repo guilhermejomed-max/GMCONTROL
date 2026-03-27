@@ -6,6 +6,8 @@ import { Search, Save, Truck, ArrowLeft, ClipboardCheck, ChevronRight, Printer, 
 interface MaintenanceHubProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
   userLevel: UserLevel;
   settings?: SystemSettings;
@@ -20,7 +22,15 @@ interface InspectionEntry {
   notes?: string;
 }
 
-export const MaintenanceHub: FC<MaintenanceHubProps> = ({ tires, vehicles, onUpdateTire, userLevel, settings }) => {
+export const MaintenanceHub: FC<MaintenanceHubProps> = ({ 
+  tires, 
+  vehicles, 
+  branches = [],
+  defaultBranchId,
+  onUpdateTire, 
+  userLevel, 
+  settings 
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   
@@ -28,10 +38,11 @@ export const MaintenanceHub: FC<MaintenanceHubProps> = ({ tires, vehicles, onUpd
   const [inspectionData, setInspectionData] = useState<Record<string, InspectionEntry>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredVehicles = useMemo(() => vehicles.filter(v => 
-    v.plate.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    v.model.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.plate.localeCompare(b.plate)), [vehicles, searchTerm]);
+  const filteredVehicles = useMemo(() => vehicles.filter(v => {
+    const matchesSearch = v.plate.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         v.model.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  }).sort((a, b) => a.plate.localeCompare(b.plate)), [vehicles, searchTerm]);
 
   const mountedTires = useMemo(() => {
     if (!selectedVehicle) return [];

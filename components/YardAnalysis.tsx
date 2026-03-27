@@ -9,6 +9,8 @@ import {
 interface YardAnalysisProps {
   vehicles: Vehicle[];
   tires: Tire[];
+  branches?: any[];
+  defaultBranchId?: string;
   onAddVehicle: (vehicle: Vehicle) => Promise<void>;
   onAddTire: (tire: Tire) => Promise<void>;
   onNavigate: (tab: TabView) => void;
@@ -24,7 +26,20 @@ const LoaderIcon = () => (
   </svg>
 );
 
-export const YardAnalysis: FC<YardAnalysisProps> = ({ vehicles = [], tires = [], onNavigate }) => {
+export const YardAnalysis: FC<YardAnalysisProps> = ({ 
+  vehicles: allVehicles = [], 
+  tires: allTires = [], 
+  branches = [],
+  defaultBranchId,
+  onNavigate 
+}) => {
+  const vehicles = useMemo(() => {
+    return defaultBranchId ? allVehicles.filter(v => v.branchId === defaultBranchId) : allVehicles;
+  }, [allVehicles, defaultBranchId]);
+
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [auditData, setAuditData] = useState<Record<string, AuditStatus>>({});

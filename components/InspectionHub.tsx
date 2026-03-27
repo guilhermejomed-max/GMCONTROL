@@ -9,6 +9,8 @@ import { TireComparison } from './TireComparison';
 interface InspectionHubProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onCreateServiceOrder: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
   settings?: SystemSettings;
@@ -381,13 +383,25 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
   );
 };
 
-export const InspectionHub: FC<InspectionHubProps> = ({ tires, vehicles, onUpdateTire, onCreateServiceOrder, settings }) => {
+export const InspectionHub: FC<InspectionHubProps> = ({ 
+  tires: allTires, 
+  vehicles, 
+  branches = [],
+  defaultBranchId,
+  onUpdateTire, 
+  onCreateServiceOrder, 
+  settings 
+}) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [inspectionState, setInspectionState] = useState<InspectionDataMap>({});
   const [activeTireId, setActiveTireId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
 
   const mountedTires = useMemo(() => {
     if (!selectedVehicle) return [];
@@ -484,7 +498,10 @@ export const InspectionHub: FC<InspectionHubProps> = ({ tires, vehicles, onUpdat
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {vehicles
-            .filter(v => v.plate.toUpperCase().includes(searchTerm.toUpperCase()))
+            .filter(v => {
+              const matchesSearch = v.plate.toUpperCase().includes(searchTerm.toUpperCase());
+              return matchesSearch;
+            })
             .sort((a, b) => a.plate.localeCompare(b.plate))
             .map(v => (
             <div key={v.id} onClick={() => setSelectedVehicle(v)} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-500 hover:shadow-2xl hover:translate-y-[-4px] transition-all group relative overflow-hidden">

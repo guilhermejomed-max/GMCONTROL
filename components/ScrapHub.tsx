@@ -5,18 +5,33 @@ import { Trash2, AlertTriangle, Package, Search, Plus, X, CheckCircle2, Disc } f
 interface ScrapHubProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
   userLevel: UserLevel;
 }
 
-const ScrapHub: React.FC<ScrapHubProps> = ({ tires, vehicles, onUpdateTire, userLevel }) => {
+const ScrapHub: React.FC<ScrapHubProps> = ({ tires, vehicles, branches = [], defaultBranchId, onUpdateTire, userLevel }) => {
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
   const [selectedTireId, setSelectedTireId] = useState('');
   const [discardReason, setDiscardReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const scrappedTires = useMemo(() => tires.filter(t => t.status === TireStatus.DAMAGED), [tires]);
-  const activeTires = useMemo(() => tires.filter(t => t.status !== TireStatus.DAMAGED), [tires]);
+  const scrappedTires = useMemo(() => {
+    return tires.filter(t => {
+      const isScrap = t.status === TireStatus.DAMAGED;
+      const matchesBranch = !defaultBranchId || t.branchId === defaultBranchId;
+      return isScrap && matchesBranch;
+    });
+  }, [tires, defaultBranchId]);
+
+  const activeTires = useMemo(() => {
+    return tires.filter(t => {
+      const isNotScrap = t.status !== TireStatus.DAMAGED;
+      const matchesBranch = !defaultBranchId || t.branchId === defaultBranchId;
+      return isNotScrap && matchesBranch;
+    });
+  }, [tires, defaultBranchId]);
 
   const stats = useMemo(() => {
     const brandCounts: Record<string, number> = {};

@@ -8,6 +8,8 @@ interface NotificationsPanelProps {
   onClose: () => void;
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: any[];
+  defaultBranchId?: string;
   settings: SystemSettings;
   arrivalAlerts: ArrivalAlert[];
   maintenanceSchedules?: MaintenanceSchedule[];
@@ -17,8 +19,30 @@ interface NotificationsPanelProps {
 }
 
 export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ 
-  isOpen, onClose, tires, vehicles, settings, arrivalAlerts, maintenanceSchedules = [], maintenancePlans = [], onDeleteAlert, onDeleteAllAlerts 
+  isOpen, 
+  onClose, 
+  tires: allTires, 
+  vehicles: allVehicles, 
+  branches = [],
+  defaultBranchId,
+  settings, 
+  arrivalAlerts: allArrivalAlerts, 
+  maintenanceSchedules: allMaintenanceSchedules = [], 
+  maintenancePlans = [], 
+  onDeleteAlert, 
+  onDeleteAllAlerts 
 }) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const vehicles = allVehicles;
+
+  const arrivalAlerts = useMemo(() => {
+    return defaultBranchId ? allArrivalAlerts.filter(aa => aa.branchId === defaultBranchId) : allArrivalAlerts;
+  }, [allArrivalAlerts, defaultBranchId]);
+
+  const maintenanceSchedules = allMaintenanceSchedules;
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeletingAll, setIsDeletingAll] = useState(false);

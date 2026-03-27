@@ -9,6 +9,8 @@ interface RetreadingHubProps {
   orgId: string;
   tires: Tire[];
   retreadOrders: RetreadOrder[];
+  branches?: any[];
+  defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onNotification: (type: ToastType, title: string, message: string) => void;
   settings?: SystemSettings;
@@ -70,7 +72,23 @@ const OrderTimeline: React.FC<{ order: RetreadOrder }> = ({ order }) => {
 
 const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-export const RetreadingHub: React.FC<RetreadingHubProps> = ({ orgId, tires, retreadOrders, onUpdateTire, onNotification, settings }) => {
+export const RetreadingHub: React.FC<RetreadingHubProps> = ({ 
+  orgId, 
+  tires: allTires, 
+  retreadOrders: allRetreadOrders, 
+  branches = [],
+  defaultBranchId,
+  onUpdateTire, 
+  onNotification, 
+  settings 
+}) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const retreadOrders = useMemo(() => {
+    return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
+  }, [allRetreadOrders, defaultBranchId]);
   const [activeTab, setActiveTab] = useState<'SEND' | 'TRACK' | 'PARTNERS'>('TRACK');
   const [showDashboard, setShowDashboard] = useState(false);
   const [selectedTireIds, setSelectedTireIds] = useState<Set<string>>(new Set());
@@ -380,7 +398,8 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ orgId, tires, retr
         items: stagedItems, 
         status: 'ENVIADO',
         totalCost: totalEstimatedCost,
-        collectionOrderUrl: collectionFile || undefined
+        collectionOrderUrl: collectionFile || undefined,
+        branchId: defaultBranchId
     };
     
     await storageService.addRetreadOrder(orgId, newOrder);
@@ -1097,57 +1116,67 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({ orgId, tires, retr
                       </div>
                   </div>
                   
-                      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50">
+                      <div className="flex-1 overflow-auto bg-white dark:bg-slate-900">
                           {eligibleTires.length === 0 ? (
-                              <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                              <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
                                   <AlertCircle className="h-10 w-10 mb-2 opacity-30"/>
                                   <p className="font-medium">Nenhum pneu disponível com o filtro atual.</p>
                               </div>
                           ) : (
-                              <div className="space-y-4">
-                                  <div className="flex justify-between items-center px-2">
-                                      <div className="flex items-center gap-4">
-                                          <button 
-                                              onClick={() => {
-                                                  const allIds = eligibleTires.map(t => t.id);
-                                                  const newSelection = new Set(selectedTireIds);
-                                                  allIds.forEach(id => newSelection.add(id));
-                                                  setSelectedTireIds(newSelection);
-                                              }}
-                                              className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
-                                          >
-                                              Selecionar Todos ({eligibleTires.length})
-                                          </button>
-                                          <button 
-                                              onClick={() => setSelectedTireIds(new Set())}
-                                              className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:underline"
-                                          >
-                                              Desmarcar Tudo
-                                          </button>
-                                      </div>
-                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{eligibleTires.length} pneus em estoque</span>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                                      {eligibleTires.map(t => (
-                                          <div 
-                                              key={t.id} 
-                                              onClick={() => toggleSelection(t.id)}
-                                              className={`p-4 rounded-2xl border cursor-pointer transition-all relative group shadow-sm flex flex-col justify-between ${selectedTireIds.has(t.id) ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 ring-2 ring-blue-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-blue-400'}`}
-                                          >
-                                              {selectedTireIds.has(t.id) && <div className="absolute top-3 right-3 text-blue-600 bg-white rounded-full"><CheckCircle2 className="h-5 w-5 fill-current"/></div>}
-                                              <div>
-                                                  <div className="font-black text-lg text-slate-800 dark:text-white">{t.fireNumber}</div>
-                                                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">{t.brand}</div>
-                                                  <div className="text-[10px] text-slate-400 uppercase">{t.model}</div>
-                                              </div>
-                                              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-end">
-                                                  <div className="text-[10px] font-bold text-slate-400">DOT {t.dot}</div>
-                                                  <div className="text-xs font-black text-slate-600 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{t.currentTreadDepth}mm</div>
-                                              </div>
-                                          </div>
-                                      ))}
-                                  </div>
+                              <div className="min-w-full inline-block align-middle">
+                                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+                                      <thead className="bg-slate-50 dark:bg-slate-950 sticky top-0 z-10">
+                                          <tr>
+                                              <th className="px-4 py-3 text-left">
+                                                  <input 
+                                                      type="checkbox"
+                                                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                      checked={eligibleTires.length > 0 && eligibleTires.every(t => selectedTireIds.has(t.id))}
+                                                      onChange={(e) => {
+                                                          const newSelection = new Set(selectedTireIds);
+                                                          if (e.target.checked) {
+                                                              eligibleTires.forEach(t => newSelection.add(t.id));
+                                                          } else {
+                                                              eligibleTires.forEach(t => newSelection.delete(t.id));
+                                                          }
+                                                          setSelectedTireIds(newSelection);
+                                                      }}
+                                                  />
+                                              </th>
+                                              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Fogo / ID</th>
+                                              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Marca / Modelo</th>
+                                              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Sulco</th>
+                                              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">DOT</th>
+                                          </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                          {eligibleTires.map(t => (
+                                              <tr 
+                                                  key={t.id} 
+                                                  onClick={() => toggleSelection(t.id)}
+                                                  className={`cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${selectedTireIds.has(t.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                                              >
+                                                  <td className="px-4 py-3">
+                                                      <input 
+                                                          type="checkbox"
+                                                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                          checked={selectedTireIds.has(t.id)}
+                                                          readOnly
+                                                      />
+                                                  </td>
+                                                  <td className="px-4 py-3 font-black text-slate-800 dark:text-white text-sm">{t.fireNumber}</td>
+                                                  <td className="px-4 py-3">
+                                                      <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{t.brand}</div>
+                                                      <div className="text-[10px] text-slate-400 uppercase">{t.model}</div>
+                                                  </td>
+                                                  <td className="px-4 py-3">
+                                                      <span className="text-xs font-black text-slate-600 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{t.currentTreadDepth}mm</span>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-xs font-bold text-slate-400">{t.dot}</td>
+                                              </tr>
+                                          ))}
+                                      </tbody>
+                                  </table>
                               </div>
                           )}
                       </div>

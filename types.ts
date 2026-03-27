@@ -1,4 +1,13 @@
 
+export interface Branch {
+  id: string;
+  name: string;
+  cnpj: string;
+  location: string;
+  code: string;
+  createdAt: string;
+}
+
 export enum TireStatus {
   NEW = 'Novo',
   USED = 'Usado',
@@ -7,7 +16,7 @@ export enum TireStatus {
   DAMAGED = 'Danificado/Descarte'
 }
 
-export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR';
+export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR' | 'INSPECTOR';
 
 export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES';
 
@@ -25,6 +34,7 @@ export interface SystemLog {
   details: string;
   module: ModuleType;
   timestamp: string;
+  branchId?: string;
 }
 
 export type VisualDamage = 'CORTE' | 'BOLHA' | 'DESGASTE_IRREGULAR' | 'FURO' | 'OUTRO';
@@ -44,6 +54,7 @@ export interface Tire {
   price: number;
   purchaseDate?: string; // Data da compra
   notes?: string;
+  branchId?: string; // Filial vinculada
   
   // New Fields
   treadType?: 'LISO' | 'BORRACHUDO';
@@ -104,6 +115,7 @@ export interface Driver {
   status: string;
   hiredDate: string;
   notes?: string;
+  branchId?: string;
 }
 
 export interface VehicleBrandModel {
@@ -115,6 +127,7 @@ export interface VehicleBrandModel {
   maintenancePlanId?: string;
   oilChangeInterval?: number;
   oilLiters?: number;
+  branchId?: string;
 }
 
 export interface Vehicle {
@@ -131,6 +144,7 @@ export interface Vehicle {
   lastAutoUpdateDate?: string; // Data da última atualização automática de KM (para carretas)
   sascarCode?: string; // Cód. Sascar para integração
   brandModelId?: string; // Reference to VehicleBrandModel
+  branchId?: string; // Filial vinculada
   
   // Extended fields for "RG"
   vin?: string; // Chassi
@@ -175,6 +189,7 @@ export interface ArrivalAlert {
   actualArrivalDate?: string;
   services?: string;
   minOdometer?: number; // Added for PMS scheduling
+  branchId?: string;
 }
 
 export interface TireModelDefinition {
@@ -245,6 +260,7 @@ export interface TeamMember {
   createdAt: string;
   lastLogin?: string; // Novo campo
   password?: string; // Para persistência local mock
+  branchId?: string | null; // Filial vinculada
 }
 
 export interface StockItem {
@@ -281,6 +297,7 @@ export interface Collaborator {
   hourlyRate?: number;
   isActive: boolean;
   hiredDate: string;
+  branchId?: string; // Filial vinculada
 }
 
 export interface ServiceOrder {
@@ -309,6 +326,7 @@ export interface ServiceOrder {
   completedBy?: string;
   completedAt?: string;
   odometer?: number;
+  branchId?: string;
 }
 
 export interface RetreadOrderItem {
@@ -334,6 +352,7 @@ export interface RetreadOrder {
     totalCost?: number;
     notes?: string;
     collectionOrderUrl?: string; // Novo campo para comprovante de coleta
+    branchId?: string;
 }
 
 // --- Shared Inspection Types ---
@@ -383,6 +402,7 @@ export interface MaintenancePlan {
   intervalDays?: number;
   isActive: boolean;
   stockItemIds?: string[]; // Linked items from stock
+  branchId?: string;
 }
 
 export interface MaintenanceSchedule {
@@ -394,9 +414,10 @@ export interface MaintenanceSchedule {
   nextDueKm?: number;
   nextDueDate?: string;
   status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+  branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'branches';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

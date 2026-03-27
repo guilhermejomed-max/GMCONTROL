@@ -17,9 +17,26 @@ interface FinancialHubProps {
   tires: Tire[];
   vehicles?: Vehicle[];
   retreadOrders?: RetreadOrder[];
+  branches?: any[];
+  defaultBranchId?: string;
 }
 
-export const FinancialHub: React.FC<FinancialHubProps> = ({ tires, vehicles = [], retreadOrders = [] }) => {
+export const FinancialHub: React.FC<FinancialHubProps> = ({ 
+  tires: allTires, 
+  vehicles: allVehicles = [], 
+  retreadOrders: allRetreadOrders = [], 
+  branches = [],
+  defaultBranchId 
+}) => {
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
+
+  const vehicles = allVehicles;
+
+  const retreadOrders = useMemo(() => {
+    return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
+  }, [allRetreadOrders, defaultBranchId]);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');

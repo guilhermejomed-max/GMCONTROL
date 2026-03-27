@@ -7,13 +7,34 @@ interface DriversHubProps {
   drivers: Driver[];
   vehicles: Vehicle[];
   tires: Tire[];
+  branches?: any[];
+  defaultBranchId?: string;
   onAddDriver: (driver: Driver) => Promise<void>;
   onUpdateDriver: (driver: Driver) => Promise<void>;
   onDeleteDriver: (id: string) => Promise<void>;
   onUpdateVehicle: (vehicle: Vehicle) => Promise<void>;
 }
 
-export const DriversHub: FC<DriversHubProps> = ({ drivers, vehicles, tires, onAddDriver, onUpdateDriver, onDeleteDriver, onUpdateVehicle }) => {
+export const DriversHub: FC<DriversHubProps> = ({ 
+  drivers: allDrivers, 
+  vehicles: allVehicles, 
+  tires: allTires, 
+  branches = [],
+  defaultBranchId,
+  onAddDriver, 
+  onUpdateDriver, 
+  onDeleteDriver, 
+  onUpdateVehicle 
+}) => {
+  const drivers = useMemo(() => {
+    return defaultBranchId ? allDrivers.filter(d => d.branchId === defaultBranchId) : allDrivers;
+  }, [allDrivers, defaultBranchId]);
+
+  const vehicles = allVehicles;
+
+  const tires = useMemo(() => {
+    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
+  }, [allTires, defaultBranchId]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -82,7 +103,8 @@ export const DriversHub: FC<DriversHubProps> = ({ drivers, vehicles, tires, onAd
               driverId = Date.now().toString();
               const newDriver = { 
                   id: driverId, 
-                  ...formData 
+                  ...formData,
+                  branchId: defaultBranchId
               } as Driver;
               await onAddDriver(newDriver);
           }

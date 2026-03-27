@@ -1,23 +1,30 @@
 
 import React, { useState, useMemo } from 'react';
-import { Tire, TireStatus, Vehicle, UserLevel, ServiceOrder, MaintenancePlan, MaintenanceSchedule } from '../types';
+import * as XLSX from 'xlsx';
+import { Tire, TireStatus, Vehicle, UserLevel, ServiceOrder, MaintenancePlan, MaintenanceSchedule, Branch } from '../types';
 import { 
   Search, Filter, Plus, Trash2, PenLine, FileText, 
   AlertTriangle, CheckCircle2, X, Archive, History, 
   LayoutGrid, List, Gauge, ArrowRight, DollarSign, Package,
   Layers, Disc, Truck, Calendar, Activity, MapPin, TrendingDown,
-  Milestone, RefreshCw, Star
+  Milestone, RefreshCw, Star, QrCode, Printer, ScanLine, CheckSquare,
+  Building2
 } from 'lucide-react';
+import QRCode from 'react-qr-code';
+import { Scanner } from './Scanner';
 
 interface InventoryListProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  branches?: Branch[];
+  defaultBranchId?: string;
   serviceOrders?: ServiceOrder[];
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
   onDelete: (id: string) => Promise<void>;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onRegister?: () => void;
+  onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
   userLevel: UserLevel;
   viewMode?: 'inventory' | 'scrap';
 }
@@ -34,11 +41,12 @@ const getHealthColor = (depth: number) => {
 const TireDetailModal: React.FC<{ 
   tire: Tire; 
   vehicles: Vehicle[]; 
+  branches?: Branch[];
   serviceOrders?: ServiceOrder[];
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
   onClose: () => void 
-}> = ({ tire, vehicles, serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose }) => {
+}> = ({ tire, vehicles, branches = [], serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose }) => {
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
     
     // Cálculo de CPK Individual
@@ -72,12 +80,21 @@ const TireDetailModal: React.FC<{
                         <div>
                             <div className="flex items-center gap-3">
                                 <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{tire.fireNumber}</h2>
-                                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wide">{tire.status}</span>
+                                <span className="text-xs font-bold px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wide">{tire.status}</span>
                             </div>
                             <p className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2 mt-1">
                                 {tire.brand} {tire.model} 
                                 <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                                 {tire.width}/{tire.profile} R{tire.rim}
+                                {tire.branchId && (
+                                    <>
+                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                        <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                            <Building2 className="h-3 w-3" />
+                                            {branches.find(b => b.id === tire.branchId)?.name || 'Filial N/A'}
+                                        </span>
+                                    </>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -93,13 +110,13 @@ const TireDetailModal: React.FC<{
                             {/* VIDA DO PNEU (NOVO) */}
                             <div className="bg-indigo-600 text-white p-5 rounded-2xl shadow-lg shadow-indigo-600/20 relative overflow-hidden">
                                 <div className="absolute right-0 top-0 p-3 opacity-20"><Star className="h-16 w-16"/></div>
-                                <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-80">Estágio Atual</p>
+                                <p className="text-xs font-black uppercase tracking-widest mb-1 opacity-80">Estágio Atual</p>
                                 <h3 className="text-xl font-black">{lifeStageLabel}</h3>
-                                {tire.retreadCount > 0 && <p className="text-[10px] mt-2 font-medium bg-white/20 inline-block px-2 py-0.5 rounded">Reformas: {tire.retreadCount}</p>}
+                                {tire.retreadCount > 0 && <p className="text-xs mt-2 font-medium bg-white/20 inline-block px-2 py-0.5 rounded">Reformas: {tire.retreadCount}</p>}
                             </div>
 
                             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><TrendingDown className="h-3 w-3"/> CPK (Custo por KM)</p>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1"><TrendingDown className="h-3 w-3"/> CPK (Custo por KM)</p>
                                 <div className="text-3xl font-black text-slate-800 dark:text-white font-mono">
                                     R$ {cpk.toFixed(5)}
                                 </div>
@@ -116,7 +133,7 @@ const TireDetailModal: React.FC<{
                             </div>
 
                             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde Atual</p>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde Atual</p>
                                 <div className="flex items-end gap-2 mb-2">
                                     <span className={`text-4xl font-black ${getHealthColor(tire.currentTreadDepth).replace('bg-', 'text-')}`}>
                                         {tire.currentTreadDepth}
@@ -132,7 +149,7 @@ const TireDetailModal: React.FC<{
                             </div>
 
                             <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30">
-                                <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1"><MapPin className="h-3 w-3"/> Localização</p>
+                                <p className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1"><MapPin className="h-3 w-3"/> Localização</p>
                                 {vehicle ? (
                                     <>
                                         <div className="flex items-center gap-2 mb-1">
@@ -140,7 +157,7 @@ const TireDetailModal: React.FC<{
                                             <span className="text-lg font-black text-slate-800 dark:text-white">{vehicle.plate}</span>
                                         </div>
                                         <p className="text-xs font-bold text-slate-500">Posição: {tire.position}</p>
-                                        <p className="text-[10px] text-slate-400 mt-1">Montado em: {new Date(tire.installDate || '').toLocaleDateString()}</p>
+                                        <p className="text-xs text-slate-400 mt-1">Montado em: {new Date(tire.installDate || '').toLocaleDateString()}</p>
                                     </>
                                 ) : (
                                     <div className="flex items-center gap-2">
@@ -190,11 +207,11 @@ const TireDetailModal: React.FC<{
                                                     {icon}
                                                 </div>
                                                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
-                                                    <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex justify-between items-center mb-2">
                                                         <span className="text-xs font-black uppercase tracking-wide text-slate-700 dark:text-slate-200">
                                                             {log.action.replace(/_/g, ' ')}
                                                         </span>
-                                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded">
+                                                        <span className="text-xs font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded">
                                                             {new Date(log.date).toLocaleDateString()}
                                                         </span>
                                                     </div>
@@ -236,17 +253,17 @@ const TireDetailModal: React.FC<{
                                                                         <div>
                                                                             <p className="font-bold text-sm text-slate-800 dark:text-white">{plan?.name || 'Plano Desconhecido'}</p>
                                                                             {schedule.nextDueDate && (
-                                                                                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                                                                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                                                                                     <Calendar className="h-3 w-3" /> Vencimento: {new Date(schedule.nextDueDate).toLocaleDateString('pt-BR')}
                                                                                 </p>
                                                                             )}
                                                                             {schedule.nextDueKm && (
-                                                                                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                                                                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                                                                                     <Gauge className="h-3 w-3" /> Troca com: {schedule.nextDueKm.toLocaleString()} km
                                                                                 </p>
                                                                             )}
                                                                         </div>
-                                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-orange-100 text-orange-700">
+                                                                        <span className="px-2 py-0.5 rounded-full text-xs font-bold uppercase bg-orange-100 text-orange-700">
                                                                             Programado
                                                                         </span>
                                                                     </div>
@@ -276,9 +293,9 @@ const TireDetailModal: React.FC<{
                                                                 <div className="flex justify-between items-start mb-2">
                                                                     <div>
                                                                         <p className="font-bold text-sm text-slate-800 dark:text-white">{so.title}</p>
-                                                                        <p className="text-[10px] text-slate-500">{new Date(so.createdAt).toLocaleDateString('pt-BR')} • OS #{so.id.slice(-5).toUpperCase()}</p>
+                                                                        <p className="text-xs text-slate-500">{new Date(so.createdAt).toLocaleDateString('pt-BR')} • OS #{so.id.slice(-5).toUpperCase()}</p>
                                                                     </div>
-                                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${
                                                                         so.status === 'CONCLUIDO' ? 'bg-green-100 text-green-700' :
                                                                         so.status === 'EM_ANDAMENTO' ? 'bg-blue-100 text-blue-700' :
                                                                         'bg-orange-100 text-orange-700'
@@ -289,9 +306,9 @@ const TireDetailModal: React.FC<{
                                                                 <div className="space-y-3 pt-2 border-t border-slate-50 dark:border-slate-700">
                                                                     {so.parts && so.parts.length > 0 && (
                                                                         <div className="space-y-1">
-                                                                            <p className="text-[9px] font-bold text-slate-500 uppercase">Peças e Insumos:</p>
+                                                                            <p className="text-xs font-bold text-slate-500 uppercase">Peças e Insumos:</p>
                                                                             {so.parts.map((part, idx) => (
-                                                                                <div key={idx} className="flex justify-between text-[10px]">
+                                                                                <div key={idx} className="flex justify-between text-xs">
                                                                                     <span className="text-slate-600 dark:text-slate-400">{part.quantity}x {part.name}</span>
                                                                                     <span className="font-bold text-slate-800 dark:text-white">
                                                                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(part.unitCost * part.quantity)}
@@ -301,7 +318,7 @@ const TireDetailModal: React.FC<{
                                                                         </div>
                                                                     )}
                                                                     <div className="flex items-center justify-between">
-                                                                        <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
+                                                                        <p className="text-xs text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
                                                                         <p className="font-black text-sm text-slate-800 dark:text-white">
                                                                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0))}
                                                                         </p>
@@ -327,13 +344,15 @@ const TireDetailModal: React.FC<{
 interface TireCardProps {
   tire: Tire;
   vehicles: Vehicle[];
+  branches?: Branch[];
   userLevel: UserLevel;
   onDelete: (id: string) => void;
   onClick: (tire: Tire) => void;
+  onPrintQr: (tire: Tire) => void;
   detailed?: boolean;
 }
 
-const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete, onClick, detailed = false }) => {
+const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], userLevel, onDelete, onClick, onPrintQr, detailed = false }) => {
     const depthPercent = Math.min(100, (tire.currentTreadDepth / (tire.originalTreadDepth || 18)) * 100);
     const healthColor = getHealthColor(tire.currentTreadDepth);
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
@@ -345,7 +364,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
         >
             {/* Status Badge */}
             <div className="absolute top-4 right-4">
-                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${
+                <span className={`text-xs font-black uppercase px-2 py-1 rounded-lg border ${
                     tire.status === TireStatus.NEW ? 'bg-blue-50 text-blue-600 border-blue-100' :
                     tire.status === TireStatus.RETREADED ? 'bg-purple-50 text-purple-600 border-purple-100' :
                     'bg-slate-50 text-slate-500 border-slate-100'
@@ -355,18 +374,18 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
             </div>
 
             {/* Header Info */}
-            <div className="mb-4">
+            <div className="mb-4 pr-16">
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight group-hover:text-blue-600 transition-colors">{tire.fireNumber}</h3>
                 <p className="text-xs text-slate-500 font-bold uppercase mt-1">{tire.brand} {tire.model}</p>
-                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{tire.width}/{tire.profile} R{tire.rim}</p>
+                <p className="text-xs text-slate-400 font-mono mt-0.5">{tire.width}/{tire.profile} R{tire.rim}</p>
             </div>
 
             {/* Tread Depth Visual */}
             <div className="mb-4 bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between items-end mb-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Sulco</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Sulco</span>
                     <span className={`text-sm font-black ${tire.currentTreadDepth <= 3 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
-                        {Number(tire.currentTreadDepth || 0).toFixed(1)} <span className="text-[9px]">mm</span>
+                        {Number(tire.currentTreadDepth || 0).toFixed(1)} <span className="text-xs">mm</span>
                     </span>
                 </div>
                 <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -375,27 +394,42 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
             </div>
 
             {/* Location / Vehicle */}
-            <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-xl ${vehicle ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
-                    {vehicle ? <Truck className="h-4 w-4"/> : <Package className="h-4 w-4"/>}
+            <div className="flex flex-col gap-2 mb-4">
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${vehicle ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+                        {vehicle ? <Truck className="h-4 w-4"/> : <Package className="h-4 w-4"/>}
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-400 font-bold uppercase">Localização</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate max-w-[120px]">
+                            {vehicle ? vehicle.plate : (tire.location || 'Estoque')}
+                            {vehicle && <span className="text-xs font-normal text-slate-400 ml-1">({tire.position})</span>}
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Localização</p>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate max-w-[120px]">
-                        {vehicle ? vehicle.plate : (tire.location || 'Estoque')}
-                        {vehicle && <span className="text-xs font-normal text-slate-400 ml-1">({tire.position})</span>}
-                    </p>
-                </div>
+                {tire.branchId && (
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                            <Building2 className="h-4 w-4"/>
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-400 font-bold uppercase">Filial</p>
+                            <p className="text-sm font-bold text-blue-600 dark:text-blue-400 truncate max-w-[120px]">
+                                {branches.find(b => b.id === tire.branchId)?.name || 'Filial não encontrada'}
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {detailed && (
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto text-xs text-slate-500">
                     <div>
-                        <p className="font-bold uppercase text-[10px]">KM 1ª Vida</p>
+                        <p className="font-bold uppercase text-xs">KM 1ª Vida</p>
                         <p>{(tire.firstLifeKms || 0).toLocaleString()} km</p>
                     </div>
                     <div>
-                        <p className="font-bold uppercase text-[10px]">KM Recapagem</p>
+                        <p className="font-bold uppercase text-xs">KM Recapagem</p>
                         <p>{(tire.retreadKms || 0).toLocaleString()} km</p>
                     </div>
                 </div>
@@ -405,10 +439,18 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
             <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto">
                 <span className="text-xs font-mono font-bold text-slate-400">{money(tire.price)}</span>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onPrintQr(tire); }} 
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Imprimir QR Code"
+                    >
+                        <QrCode className="h-4 w-4"/>
+                    </button>
                     {userLevel === 'SENIOR' && (
                         <button 
                             onClick={(e) => { e.stopPropagation(); onDelete(tire.id); }} 
                             className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Excluir"
                         >
                             <Trash2 className="h-4 w-4"/>
                         </button>
@@ -423,24 +465,83 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, userLevel, onDelete
 export const InventoryList: React.FC<InventoryListProps> = ({ 
   tires, 
   vehicles, 
+  branches = [],
+  defaultBranchId,
   serviceOrders = [],
   maintenancePlans = [],
   maintenanceSchedules = [],
   onDelete, 
   onUpdateTire, 
   onRegister, 
+  onNotification,
   userLevel, 
   viewMode = 'inventory' 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP'>(viewMode === 'scrap' ? 'SCRAP' : 'NEW');
-  const [layoutMode, setLayoutMode] = useState<'GRID' | 'LIST'>('GRID');
+  const [layoutMode, setLayoutMode] = useState<'GRID' | 'LIST'>('LIST');
   const [detailedView, setDetailedView] = useState(false);
   const [selectedTire, setSelectedTire] = useState<Tire | null>(null);
 
-  const filteredTires = useMemo(() => {
-    return tires.filter(t => {
-      // 1. Filtro de Texto
+  // Novos estados para QR Code e Inventário
+  const [qrTireToPrint, setQrTireToPrint] = useState<Tire | null>(null);
+  const [selectedTireIds, setSelectedTireIds] = useState<Set<string>>(new Set());
+  const [isBatchPrintModalOpen, setIsBatchPrintModalOpen] = useState(false);
+  const [isInventoryMode, setIsInventoryMode] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannedTireIds, setScannedTireIds] = useState<Set<string>>(new Set());
+  
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Tire | 'health'; direction: 'asc' | 'desc' } | null>(null);
+
+  const filteredByBranchTires = useMemo(() => {
+    return defaultBranchId ? tires.filter(t => t.branchId === defaultBranchId) : tires;
+  }, [tires, defaultBranchId]);
+
+  const stats = useMemo(() => {
+    const stockTires = filteredByBranchTires.filter(t => !t.vehicleId && t.status !== TireStatus.DAMAGED);
+    const total = stockTires.length;
+    const totalValue = filteredByBranchTires.reduce((sum, t) => sum + (t.price || 0), 0);
+    const byStatus = filteredByBranchTires.reduce((acc, t) => {
+      acc[t.status] = (acc[t.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const lowTread = filteredByBranchTires.filter(t => t.currentTreadDepth <= 3).length;
+    
+    return { total, totalValue, byStatus, lowTread };
+  }, [filteredByBranchTires]);
+
+  const handleSort = (key: keyof Tire | 'health') => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const exportToExcel = () => {
+    const data = filteredByBranchTires.map(t => ({
+      'Fogo': t.fireNumber,
+      'Marca': t.brand,
+      'Modelo': t.model,
+      'Medida': `${t.width}/${t.profile} R${t.rim}`,
+      'Sulco Atual (mm)': t.currentTreadDepth,
+      'Status': t.status,
+      'Localização': t.location,
+      'Preço': t.price
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Estoque");
+    XLSX.writeFile(wb, `Estoque_Pneus_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const sortedTires = useMemo(() => {
+    let items = [...filteredByBranchTires];
+    
+    // Apply filters first (same as filteredTires logic)
+    items = items.filter(t => {
       const matchesSearch = 
         t.fireNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -448,7 +549,6 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       
       if (!matchesSearch) return false;
 
-      // 2. Filtro de Categoria
       const isMounted = !!t.vehicleId;
       const isDamaged = t.status === TireStatus.DAMAGED;
 
@@ -461,7 +561,76 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           default: return true;
       }
     });
-  }, [tires, searchTerm, activeCategory]);
+
+    if (sortConfig !== null) {
+      items.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        if (sortConfig.key === 'health') {
+          aValue = a.currentTreadDepth;
+          bValue = b.currentTreadDepth;
+        } else {
+          aValue = a[sortConfig.key as keyof Tire];
+          bValue = b[sortConfig.key as keyof Tire];
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return items;
+  }, [tires, searchTerm, activeCategory, sortConfig, defaultBranchId]);
+
+  const filteredTires = sortedTires; // Replace filteredTires with sortedTires
+
+  const toggleTireSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSelection = new Set(selectedTireIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedTireIds(newSelection);
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedTireIds.size === filteredTires.length) {
+      setSelectedTireIds(new Set());
+    } else {
+      setSelectedTireIds(new Set(filteredTires.map(t => t.id)));
+    }
+  };
+
+  const handleSinglePrint = (tire: Tire) => {
+    setQrTireToPrint(tire);
+    onNotification?.('Impressão', 'Preparando QR Code...', 'info');
+    // Pequeno delay para garantir que o modal renderizou antes de chamar a impressão
+    setTimeout(() => {
+      window.focus();
+      window.print();
+    }, 800);
+  };
+
+  const handleBatchPrint = () => {
+    if (selectedTireIds.size === 0) {
+      onNotification?.('Atenção', 'Selecione pelo menos um pneu para imprimir.', 'info');
+      return;
+    }
+    setIsBatchPrintModalOpen(true);
+    onNotification?.('Impressão', 'Preparando lote para impressão...', 'info');
+    // Pequeno delay para garantir que o modal renderizou antes de chamar a impressão
+    setTimeout(() => {
+      window.focus();
+      window.print();
+    }, 800);
+  };
 
   const handleDelete = async (id: string) => {
       if (confirm("Tem certeza que deseja excluir este pneu?")) {
@@ -472,10 +641,30 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       
+      {/* SUMMARY STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total em Estoque</p>
+              <p className="text-3xl font-black text-slate-800 dark:text-white">{stats.total}</p>
+          </div>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Valor Patrimonial</p>
+              <p className="text-3xl font-black text-blue-600">{money(stats.totalValue)}</p>
+          </div>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Pneus em Uso</p>
+              <p className="text-3xl font-black text-emerald-600">{stats.byStatus[TireStatus.USED] || 0}</p>
+          </div>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Abaixo do Limite (3mm)</p>
+              <p className="text-3xl font-black text-red-500">{stats.lowTread}</p>
+          </div>
+      </div>
+
       {/* BARRA DE NAVEGAÇÃO E FILTROS */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col lg:flex-row flex-wrap justify-between items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
           
-          <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
+          <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl w-full lg:w-auto overflow-x-auto no-scrollbar">
               <button onClick={() => setActiveCategory('NEW')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}>
                   <Disc className="h-4 w-4"/> Novos
               </button>
@@ -493,13 +682,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               </button>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1">
+          <div className="flex items-center flex-wrap gap-2 w-full lg:w-auto justify-center lg:justify-end">
+              <div className="relative flex-1 min-w-[140px] max-w-full lg:max-w-[240px]">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                   <input 
                       type="text" 
                       placeholder="Buscar pneu..." 
-                      className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
                       value={searchTerm}
                       onChange={e => setSearchTerm(e.target.value)}
                   />
@@ -513,13 +702,65 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   )}
               </div>
 
+              <button 
+                  onClick={handleBatchPrint}
+                  className={`p-2 lg:px-4 lg:py-2 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 shrink-0 transition-all ${selectedTireIds.size > 0 ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed'}`}
+                  disabled={selectedTireIds.size === 0}
+              >
+                  <Printer className="h-5 w-5"/> <span className="hidden lg:inline text-xs">Imprimir Selecionados ({selectedTireIds.size})</span>
+              </button>
+
+              <button 
+                  onClick={exportToExcel}
+                  className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors"
+                  title="Exportar para Excel"
+              >
+                  <FileText className="h-5 w-5"/>
+              </button>
+
+              <button 
+                  onClick={() => setIsInventoryMode(!isInventoryMode)} 
+                  className={`p-2 lg:px-4 lg:py-2 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 shrink-0 transition-all ${isInventoryMode ? 'bg-indigo-600 text-white shadow-indigo-600/20' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
+              >
+                  <CheckSquare className="h-5 w-5"/> <span className="hidden lg:inline text-xs">{isInventoryMode ? 'Sair do Inventário' : 'Inventário'}</span>
+              </button>
+
               {onRegister && (
-                  <button onClick={onRegister} className="bg-blue-600 hover:bg-blue-700 text-white p-2 md:px-4 md:py-2 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 shrink-0">
-                      <Plus className="h-5 w-5"/> <span className="hidden md:inline">Cadastrar</span>
+                  <button onClick={onRegister} className="bg-blue-600 hover:bg-blue-700 text-white p-2 lg:px-4 lg:py-2 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 shrink-0">
+                      <Plus className="h-5 w-5"/> <span className="hidden lg:inline text-xs">Cadastrar</span>
                   </button>
               )}
           </div>
       </div>
+
+      {/* PAINEL DE INVENTÁRIO (QUANDO ATIVO) */}
+      {isInventoryMode && (
+          <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
+              <div className="flex items-center gap-3">
+                  <div className="p-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-600/20">
+                      <ScanLine className="h-6 w-6" />
+                  </div>
+                  <div>
+                      <h3 className="font-black text-indigo-900 dark:text-indigo-100">Modo Inventário Ativo</h3>
+                      <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">Escaneie os QR Codes dos pneus para conferir o estoque.</p>
+                  </div>
+              </div>
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                  <div className="flex flex-col items-end">
+                      <span className="text-xs font-bold uppercase text-indigo-500">Progresso</span>
+                      <span className="font-black text-xl text-indigo-700 dark:text-indigo-300">
+                          {scannedTireIds.size} / {filteredTires.length}
+                      </span>
+                  </div>
+                  <button 
+                      onClick={() => setIsScannerOpen(true)}
+                      className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 transition-colors"
+                  >
+                      <QrCode className="h-5 w-5" /> Escanear Pneu
+                  </button>
+              </div>
+          </div>
+      )}
 
       {/* LISTAGEM DE PNEUS */}
       {filteredTires.length === 0 ? (
@@ -535,38 +776,82 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               {layoutMode === 'GRID' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in slide-in-from-bottom-4">
                       {filteredTires.map(tire => (
-                          <TireCard 
-                              key={tire.id} 
-                              tire={tire} 
-                              vehicles={vehicles} 
-                              userLevel={userLevel} 
-                              onDelete={handleDelete}
-                              onClick={setSelectedTire}
-                              detailed={detailedView}
-                          />
+                          <div key={tire.id} className={`relative ${isInventoryMode && scannedTireIds.has(tire.id) ? 'ring-4 ring-emerald-500 rounded-3xl' : ''}`}>
+                              {isInventoryMode && scannedTireIds.has(tire.id) && (
+                                  <div className="absolute -top-3 -right-3 z-10 bg-emerald-500 text-white p-2 rounded-full shadow-lg">
+                                      <CheckCircle2 className="h-5 w-5" />
+                                  </div>
+                              )}
+                              <TireCard 
+                                  tire={tire} 
+                                  vehicles={vehicles} 
+                                  branches={branches}
+                                  userLevel={userLevel} 
+                                  onDelete={handleDelete}
+                                  onClick={setSelectedTire}
+                                  onPrintQr={handleSinglePrint}
+                                  detailed={detailedView}
+                              />
+                          </div>
                       ))}
                   </div>
               ) : (
                   <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm animate-in slide-in-from-bottom-4">
                       <table className="w-full text-left text-sm">
-                          <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">
+                          <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold uppercase text-xs tracking-wider border-b border-slate-100 dark:border-slate-800">
                               <tr>
-                                  <th className="p-5">Fogo / ID</th>
-                                  <th className="p-5">Marca & Modelo</th>
-                                  <th className="p-5 text-center">Sulco</th>
+                                  <th className="p-5 w-10">
+                                      <input 
+                                          type="checkbox" 
+                                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                          checked={selectedTireIds.size === filteredTires.length && filteredTires.length > 0}
+                                          onChange={toggleAllSelection}
+                                      />
+                                  </th>
+                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('fireNumber')}>
+                                      <div className="flex items-center gap-1">
+                                          Fogo / ID {sortConfig?.key === 'fireNumber' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                      </div>
+                                  </th>
+                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('brand')}>
+                                      <div className="flex items-center gap-1">
+                                          Marca & Modelo {sortConfig?.key === 'brand' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                      </div>
+                                  </th>
+                                  <th className="p-5 text-center cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('health')}>
+                                      <div className="flex items-center gap-1 justify-center">
+                                          Sulco {sortConfig?.key === 'health' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                      </div>
+                                  </th>
                                   <th className="p-5">Localização</th>
+                                  <th className="p-5">Filial</th>
                                   <th className="p-5 text-center">Status</th>
-                                  <th className="p-5 text-right">Valor</th>
+                                  <th className="p-5 text-right cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('price')}>
+                                      <div className="flex items-center gap-1 justify-end">
+                                          Valor {sortConfig?.key === 'price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                      </div>
+                                  </th>
                                   <th className="p-5 text-right">Ações</th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                               {filteredTires.map(t => (
-                                  <tr key={t.id} onClick={() => setSelectedTire(t)} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer">
-                                      <td className="p-5 font-black text-slate-800 dark:text-white">{t.fireNumber}</td>
+                                  <tr key={t.id} onClick={() => setSelectedTire(t)} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer ${isInventoryMode && scannedTireIds.has(t.id) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''} ${selectedTireIds.has(t.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                                      <td className="p-5" onClick={(e) => e.stopPropagation()}>
+                                          <input 
+                                              type="checkbox" 
+                                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                              checked={selectedTireIds.has(t.id)}
+                                              onChange={(e) => toggleTireSelection(t.id, e as any)}
+                                          />
+                                      </td>
+                                      <td className="p-5 font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                          {isInventoryMode && scannedTireIds.has(t.id) && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                                          {t.fireNumber}
+                                      </td>
                                       <td className="p-5">
                                           <div className="font-bold text-slate-700 dark:text-slate-300">{t.brand}</div>
-                                          <div className="text-[10px] text-slate-400 uppercase">{t.model} • {t.width}/{t.profile}</div>
+                                          <div className="text-xs text-slate-400 uppercase">{t.model} • {t.width}/{t.profile}</div>
                                       </td>
                                       <td className="p-5 text-center">
                                           <span className={`font-black px-2 py-1 rounded ${getHealthColor(t.currentTreadDepth)} text-white text-xs`}>
@@ -578,14 +863,31 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                               <span className="flex items-center gap-1 text-blue-600"><CheckCircle2 className="h-3 w-3"/> {t.location}</span>
                                           ) : t.location}
                                       </td>
+                                      <td className="p-5 text-slate-600 dark:text-slate-400 font-bold">
+                                          {t.branchId ? (
+                                              <span className="flex items-center gap-1 text-blue-600">
+                                                  <Building2 className="h-3 w-3"/>
+                                                  {branches.find(b => b.id === t.branchId)?.name || 'N/A'}
+                                              </span>
+                                          ) : 'N/A'}
+                                      </td>
                                       <td className="p-5 text-center">
-                                          <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded uppercase text-slate-500">{t.status}</span>
+                                          <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded uppercase text-slate-500">{t.status}</span>
                                       </td>
                                       <td className="p-5 text-right font-mono text-slate-600 dark:text-slate-400">{money(t.price)}</td>
                                       <td className="p-5 text-right">
-                                          {userLevel === 'SENIOR' && (
-                                              <button onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4"/></button>
-                                          )}
+                                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <button 
+                                                  onClick={(e) => { e.stopPropagation(); handleSinglePrint(t); }} 
+                                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                  title="Imprimir QR Code"
+                                              >
+                                                  <QrCode className="h-4 w-4"/>
+                                              </button>
+                                              {userLevel === 'SENIOR' && (
+                                                  <button onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="h-4 w-4"/></button>
+                                              )}
+                                          </div>
                                       </td>
                                   </tr>
                               ))}
@@ -600,10 +902,208 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           <TireDetailModal 
               tire={selectedTire} 
               vehicles={vehicles} 
+              branches={branches}
               serviceOrders={serviceOrders}
               maintenancePlans={maintenancePlans}
               maintenanceSchedules={maintenanceSchedules}
               onClose={() => setSelectedTire(null)} 
+          />
+      )}
+
+      {/* MODAL DE IMPRESSÃO EM LOTE */}
+      {isBatchPrintModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:bg-white print:p-0 print-modal-container">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col print-content print:shadow-none print:w-auto print:max-w-none print:max-h-none print:p-0">
+                  <div className="print:hidden flex justify-between items-center mb-6">
+                      <div>
+                          <h3 className="font-bold text-lg text-slate-800 dark:text-white">Impressão em Lote</h3>
+                          <p className="text-xs text-slate-500">{selectedTireIds.size} pneus selecionados</p>
+                      </div>
+                      <button onClick={() => setIsBatchPrintModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950 rounded-xl print:bg-white print:p-0 print:overflow-visible">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 print:grid-cols-6 print:gap-0 print:block">
+                          {Array.from(selectedTireIds).map(id => {
+                              const tire = tires.find(t => t.id === id);
+                              if (!tire) return null;
+                              return (
+                                  <div key={tire.id} className="bg-white p-4 rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center qr-print-container print:m-0">
+                                      <QRCode value={tire.fireNumber} size={100} />
+                                      <div className="mt-2 text-center print:mt-1">
+                                          <p className="font-black text-sm text-slate-800">{tire.fireNumber}</p>
+                                          <p className="text-[8px] font-bold text-slate-500 uppercase print:hidden truncate w-full">{tire.brand}</p>
+                                      </div>
+                                  </div>
+                              );
+                          })}
+                          <div className="clear-both"></div>
+                      </div>
+                  </div>
+
+                  <div className="print:hidden mt-6 flex justify-end gap-3">
+                      <button onClick={() => setIsBatchPrintModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
+                      <button 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.focus();
+                            window.print();
+                        }} 
+                        className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+                      >
+                          <Printer className="h-4 w-4"/> Imprimir Lote
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL DE IMPRESSÃO DE QR CODE */}
+      {qrTireToPrint && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:bg-white print:p-0 print-modal-container">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-2xl max-w-sm w-full print-content print:shadow-none print:w-auto print:max-w-none">
+                  <div className="print:hidden flex justify-between items-center mb-6">
+                      <h3 className="font-bold text-lg text-slate-800 dark:text-white">Imprimir QR Code</h3>
+                      <button onClick={() => setQrTireToPrint(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
+                  </div>
+                  
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 print:border-none print:p-0 bg-white qr-print-container">
+                      <QRCode value={qrTireToPrint.fireNumber} size={150} />
+                      <div className="mt-4 text-center print:mt-1">
+                          <p className="font-black text-2xl text-slate-800 print:text-sm">{qrTireToPrint.fireNumber}</p>
+                          <p className="text-sm font-bold text-slate-500 uppercase print:hidden">{qrTireToPrint.brand} {qrTireToPrint.model}</p>
+                          <p className="text-xs text-slate-400 print:hidden">{qrTireToPrint.width}/{qrTireToPrint.profile} R{qrTireToPrint.rim}</p>
+                      </div>
+                  </div>
+
+                  <div className="print:hidden mt-6 flex justify-end gap-3">
+                      <button onClick={() => setQrTireToPrint(null)} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
+                      <button 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.focus();
+                            window.print();
+                        }} 
+                        className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+                      >
+                          <Printer className="h-4 w-4"/> Imprimir
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      <style>{`
+          @media print {
+              @page {
+                margin: 0.5cm;
+                size: auto;
+              }
+              body {
+                visibility: hidden !important;
+                background: white !important;
+              }
+              /* Hide everything inside the modal except the print content */
+              .print-modal-container {
+                visibility: visible !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: white !important;
+                display: block !important;
+                z-index: 9999 !important;
+              }
+              .print-modal-container > div {
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: none !important;
+                overflow: visible !important;
+                max-height: none !important;
+              }
+              /* Hide Header and Footer of the modal during print */
+              .print-modal-container > div > div:not(.p-8) {
+                display: none !important;
+              }
+              /* Ensure the content area is visible and correctly positioned */
+              .print-modal-container .p-8 {
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                overflow: visible !important;
+                max-height: none !important;
+                display: block !important;
+              }
+              .print-content {
+                  visibility: visible !important;
+                  display: flex !important;
+                  flex-direction: row !important;
+                  flex-wrap: wrap !important;
+                  align-items: flex-start !important;
+                  justify-content: flex-start !important;
+                  background: white !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
+              }
+              .qr-print-container, .qr-print-container * {
+                  visibility: visible !important;
+              }
+              .qr-print-container {
+                  width: 3cm !important;
+                  height: 3.5cm !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  align-items: center !important;
+                  justify-content: center !important;
+                  padding: 0.2cm !important;
+                  margin: 0.1cm !important;
+                  break-inside: avoid !important;
+                  border: 1px solid #eee !important;
+                  background: white !important;
+                  box-sizing: border-box !important;
+              }
+              .qr-print-container svg {
+                  width: 2.4cm !important;
+                  height: 2.4cm !important;
+              }
+              .qr-print-container p {
+                  font-size: 9pt !important;
+                  font-weight: 900 !important;
+                  margin: 0.1cm 0 0 0 !important;
+                  line-height: 1 !important;
+                  color: black !important;
+                  text-align: center !important;
+                  font-family: sans-serif !important;
+              }
+          }
+      `}</style>
+
+      {/* MODAL DO SCANNER DE INVENTÁRIO */}
+      {isScannerOpen && (
+          <Scanner 
+              onClose={() => setIsScannerOpen(false)}
+              onScan={(data) => {
+                  const tire = tires.find(t => t.fireNumber.toUpperCase() === data.trim().toUpperCase());
+                  if (tire) {
+                      if (scannedTireIds.has(tire.id)) {
+                          onNotification?.('Atenção', `Pneu ${tire.fireNumber} já foi escaneado.`, 'info');
+                      } else {
+                          setScannedTireIds(prev => new Set(prev).add(tire.id));
+                          onNotification?.('Sucesso', `Pneu ${tire.fireNumber} identificado!`, 'success');
+                      }
+                  } else {
+                      onNotification?.('Erro', `Pneu com código "${data}" não encontrado no sistema.`, 'error');
+                  }
+                  setIsScannerOpen(false);
+              }}
+              title="Escanear Pneu"
+              placeholder="Digite o número de fogo..."
+              mode="QR"
           />
       )}
     </div>
