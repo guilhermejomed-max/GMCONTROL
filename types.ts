@@ -122,7 +122,7 @@ export interface VehicleBrandModel {
   id: string;
   brand: string;
   model: string;
-  type: 'CAVALO' | 'CARRETA';
+  type: 'CAVALO' | 'CARRETA' | 'BI-TRUCK';
   axles: number;
   maintenancePlanId?: string;
   oilChangeInterval?: number;
@@ -135,7 +135,7 @@ export interface Vehicle {
   plate: string;
   model: string;
   axles: number;
-  type: 'CAVALO' | 'CARRETA';
+  type: 'CAVALO' | 'CARRETA' | 'BI-TRUCK';
   odometer: number;
   totalCost: number; // Added totalCost
   avgMonthlyKm?: number; // For forecast

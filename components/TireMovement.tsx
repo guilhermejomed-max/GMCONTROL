@@ -137,7 +137,7 @@ const MovementSchematic: FC<{
         
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);
-          const isSteer = vehicle.type === 'CAVALO' && i === 0;
+          const isSteer = (vehicle.type === 'CAVALO' && i === 0) || (vehicle.type === 'BI-TRUCK' && (i === 0 || i === 1));
           return (
             <g key={i}>
               <rect x={cx - 100} y={y - 3} width={200} height={6} rx="2" fill="#1e293b" />

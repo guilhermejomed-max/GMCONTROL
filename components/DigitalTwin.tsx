@@ -120,7 +120,8 @@ export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, setti
         
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);
-          const isSteer = vehicle.type === 'CAVALO' && i === 0;
+          const isSteer = (vehicle.type === 'CAVALO' && i === 0) || (vehicle.type === 'BI-TRUCK' && (i === 0 || i === 1));
+          const isSupport = vehicle.type === 'BI-TRUCK' && i === vehicle.axles - 1;
           return (
             <g key={i}>
               <rect x={cx - 100} y={y - 3} width={200} height={6} rx="2" fill="#1e293b" />
@@ -128,6 +129,13 @@ export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, setti
                 <>
                   {renderTire(`${i + 1}E`, cx - 75, y)}
                   {renderTire(`${i + 1}D`, cx + 75, y)}
+                </>
+              ) : isSupport ? (
+                <>
+                  {renderTire(`${i + 1}EE`, cx - 95, y)}
+                  {renderTire(`${i + 1}EI`, cx - 60, y)}
+                  {renderTire(`${i + 1}DI`, cx + 60, y)}
+                  {renderTire(`${i + 1}DE`, cx + 95, y)}
                 </>
               ) : (
                 <>

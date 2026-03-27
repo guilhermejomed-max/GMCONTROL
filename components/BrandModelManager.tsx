@@ -337,6 +337,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                   >
                     <option value="CAVALO">CAVALO</option>
                     <option value="CARRETA">CARRETA</option>
+                    <option value="BI-TRUCK">BI-TRUCK</option>
                   </select>
                 </div>
                 <div>

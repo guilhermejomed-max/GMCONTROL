@@ -27,7 +27,7 @@ interface DashboardProps {
   settings?: SystemSettings;
 }
 
-type OperationFilter = 'ALL' | 'CAVALO' | 'CARRETA';
+type OperationFilter = 'ALL' | 'CAVALO' | 'CARRETA' | 'BI-TRUCK';
 
 export const Dashboard: FC<DashboardProps> = ({ 
   tires: allTires, 
@@ -318,7 +318,7 @@ export const Dashboard: FC<DashboardProps> = ({
         </div>
         
         <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl shadow-inner">
-            {['ALL', 'CAVALO', 'CARRETA'].map((filter) => (
+            {['ALL', 'CAVALO', 'CARRETA', 'BI-TRUCK'].map((filter) => (
                 <button 
                     key={filter}
                     onClick={() => setOpFilter(filter as OperationFilter)}
@@ -326,8 +326,9 @@ export const Dashboard: FC<DashboardProps> = ({
                 >
                     {filter === 'ALL' && <Layers className="h-3 w-3"/>}
                     {filter === 'CAVALO' && <Truck className="h-3 w-3"/>}
+                    {filter === 'BI-TRUCK' && <Truck className="h-3 w-3"/>}
                     {filter === 'CARRETA' && <Container className="h-3 w-3"/>}
-                    {filter === 'ALL' ? 'Global' : filter === 'CAVALO' ? 'Cavalos' : 'Carretas'}
+                    {filter === 'ALL' ? 'Global' : filter === 'CAVALO' ? 'Cavalos' : filter === 'BI-TRUCK' ? 'Bi-Trucks' : 'Carretas'}
                 </button>
             ))}
         </div>

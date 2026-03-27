@@ -857,7 +857,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
       const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
       
       // 1. Falta de Pneus
-      const expectedTires = vehicle.type === 'CAVALO' ? 2 + ((vehicle.axles - 1) * 4) : vehicle.axles * 4;
+      let expectedTires = vehicle.axles * 4;
+      if (vehicle.type === 'CAVALO') {
+        expectedTires = 2 + ((vehicle.axles - 1) * 4);
+      } else if (vehicle.type === 'BI-TRUCK') {
+        expectedTires = 4 + ((vehicle.axles - 2) * 4);
+      }
       const missingTiresCount = Math.max(0, expectedTires - mountedTires.length);
       const isMissingTires = missingTiresCount > 0;
 
@@ -1648,7 +1653,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400">
-                    {vehicle.type === 'CAVALO' ? <Truck className="h-6 w-6" /> : <Container className="h-6 w-6" />}
+                    {vehicle.type === 'CAVALO' || vehicle.type === 'BI-TRUCK' ? <Truck className="h-6 w-6" /> : <Container className="h-6 w-6" />}
                   </div>
                   <div>
                     <h3 className="font-black text-lg text-slate-800 dark:text-white">{vehicle.plate}</h3>
@@ -1661,10 +1666,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                             })()
                           : vehicle.model}
                       </p>
-                      {vehicle.branchId && (
+                      {vehicle.branchId ? (
                         <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase flex items-center gap-1">
                           <Building2 className="h-3 w-3" />
                           {branches.find(b => b.id === vehicle.branchId)?.name || 'Filial não encontrada'}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          Sem Filial
                         </p>
                       )}
                     </div>
@@ -2383,14 +2393,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
               {/* Branch Selection */}
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Filial de Serviço</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Filial de Serviço (Opcional)</label>
                   <select
-                    required
                     className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
-                    value={formData.branchId}
-                    onChange={e => setFormData({ ...formData, branchId: e.target.value })}
+                    value={formData.branchId || ''}
+                    onChange={e => setFormData({ ...formData, branchId: e.target.value || undefined })}
                   >
-                    <option value="">Selecione a Filial</option>
+                    <option value="">Nenhuma Filial</option>
                     {branches.map(branch => (
                       <option key={branch.id} value={branch.id}>
                         {branch.name} ({branch.code})
@@ -2407,13 +2416,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO</label>
-                  <input 
-                    type="text" 
+                  <select 
                     className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                     value={formData.type} 
-                    onChange={e => setFormData({...formData, type: e.target.value})}
-                    placeholder="Ex: CAVALO"
-                  />
+                    onChange={e => setFormData({...formData, type: e.target.value as 'CAVALO' | 'CARRETA' | 'BI-TRUCK'})}
+                  >
+                    <option value="CAVALO">Cavalo</option>
+                    <option value="CARRETA">Carreta</option>
+                    <option value="BI-TRUCK">Bi-Truck</option>
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4">
@@ -2709,10 +2720,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                   <select 
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                     value={brandModelFormData.type} 
-                    onChange={e => setBrandModelFormData({...brandModelFormData, type: e.target.value as 'CAVALO' | 'CARRETA'})}
+                    onChange={e => setBrandModelFormData({...brandModelFormData, type: e.target.value as 'CAVALO' | 'CARRETA' | 'BI-TRUCK'})}
                   >
                     <option value="CAVALO">Cavalo</option>
                     <option value="CARRETA">Carreta</option>
+                    <option value="BI-TRUCK">Bi-Truck</option>
                   </select>
                 </div>
                 <div>

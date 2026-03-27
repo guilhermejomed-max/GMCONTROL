@@ -491,7 +491,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedTireIds, setScannedTireIds] = useState<Set<string>>(new Set());
   
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Tire | 'health'; direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Tire | 'health' | 'cpk'; direction: 'asc' | 'desc' } | null>(null);
 
   const filteredByBranchTires = useMemo(() => {
     return defaultBranchId ? tires.filter(t => t.branchId === defaultBranchId) : tires;
@@ -511,7 +511,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     return { total, totalValue, byStatus, lowTread };
   }, [filteredByBranchTires]);
 
-  const handleSort = (key: keyof Tire | 'health') => {
+  const handleSort = (key: keyof Tire | 'health' | 'cpk') => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
@@ -535,6 +535,19 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Estoque");
     XLSX.writeFile(wb, `Estoque_Pneus_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const getTireCPK = (t: Tire) => {
+    let currentRun = 0;
+    if (t.vehicleId) {
+      const vehicle = vehicles.find(v => v.id === t.vehicleId);
+      if (vehicle && t.installOdometer) {
+        currentRun = Math.max(0, vehicle.odometer - t.installOdometer);
+      }
+    }
+    const totalKm = (t.totalKms || 0) + currentRun;
+    const totalCost = Number(t.totalInvestment || t.price || 0);
+    return totalKm > 0 ? totalCost / totalKm : 0;
   };
 
   const sortedTires = useMemo(() => {
@@ -570,6 +583,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         if (sortConfig.key === 'health') {
           aValue = a.currentTreadDepth;
           bValue = b.currentTreadDepth;
+        } else if (sortConfig.key === 'cpk') {
+          aValue = getTireCPK(a);
+          bValue = getTireCPK(b);
         } else {
           aValue = a[sortConfig.key as keyof Tire];
           bValue = b[sortConfig.key as keyof Tire];
@@ -831,6 +847,11 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           Valor {sortConfig?.key === 'price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                                       </div>
                                   </th>
+                                  <th className="p-5 text-right cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('cpk')}>
+                                      <div className="flex items-center gap-1 justify-end">
+                                          CPK {sortConfig?.key === 'cpk' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                      </div>
+                                  </th>
                                   <th className="p-5 text-right">Ações</th>
                               </tr>
                           </thead>
@@ -875,6 +896,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded uppercase text-slate-500">{t.status}</span>
                                       </td>
                                       <td className="p-5 text-right font-mono text-slate-600 dark:text-slate-400">{money(t.price)}</td>
+                                      <td className="p-5 text-right font-mono font-bold text-blue-600 dark:text-blue-400">
+                                          {getTireCPK(t).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 4 })}
+                                      </td>
                                       <td className="p-5 text-right">
                                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                               <button 
@@ -923,21 +947,31 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   </div>
                   
                   <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950 rounded-xl print:bg-white print:p-0 print:overflow-visible">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 print:grid-cols-6 print:gap-0 print:block">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 print:flex print:flex-wrap print:gap-4 print:justify-center">
                           {Array.from(selectedTireIds).map(id => {
                               const tire = tires.find(t => t.id === id);
                               if (!tire) return null;
                               return (
-                                  <div key={tire.id} className="bg-white p-4 rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center qr-print-container print:m-0">
-                                      <QRCode value={tire.fireNumber} size={100} />
-                                      <div className="mt-2 text-center print:mt-1">
-                                          <p className="font-black text-sm text-slate-800">{tire.fireNumber}</p>
-                                          <p className="text-[8px] font-bold text-slate-500 uppercase print:hidden truncate w-full">{tire.brand}</p>
+                                  <div key={tire.id} className="bg-white p-4 rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center qr-print-container print:m-0 print:border-2 print:border-black print:p-4 print:break-inside-avoid print:w-[5.5cm]">
+                                      <div className="hidden print:flex flex-col items-center w-full border-b border-black pb-1 mb-2">
+                                          <h2 className="font-black text-sm uppercase tracking-widest text-black">GMcontrol</h2>
+                                      </div>
+
+                                      <div className="print:w-[3.5cm] print:h-[3.5cm] flex justify-center items-center">
+                                          <QRCode value={tire.fireNumber} size={100} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                                      </div>
+                                      
+                                      <div className="mt-2 text-center print:mt-2 print:w-full">
+                                          <p className="font-black text-sm text-slate-800 print:text-xl print:text-black">{tire.fireNumber}</p>
+                                          
+                                          <div className="print:flex print:flex-col print:w-full print:border-t print:border-black print:pt-1 print:mt-1">
+                                              <p className="text-[8px] font-bold text-slate-500 uppercase print:text-[10px] print:text-black truncate w-full">{tire.brand} {tire.model}</p>
+                                              <p className="hidden print:block text-[10px] font-bold text-black uppercase">{tire.width}/{tire.profile} R{tire.rim}</p>
+                                          </div>
                                       </div>
                                   </div>
                               );
                           })}
-                          <div className="clear-both"></div>
                       </div>
                   </div>
 
@@ -968,12 +1002,31 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                       <button onClick={() => setQrTireToPrint(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
                   </div>
                   
-                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 print:border-none print:p-0 bg-white qr-print-container">
-                      <QRCode value={qrTireToPrint.fireNumber} size={150} />
-                      <div className="mt-4 text-center print:mt-1">
-                          <p className="font-black text-2xl text-slate-800 print:text-sm">{qrTireToPrint.fireNumber}</p>
-                          <p className="text-sm font-bold text-slate-500 uppercase print:hidden">{qrTireToPrint.brand} {qrTireToPrint.model}</p>
-                          <p className="text-xs text-slate-400 print:hidden">{qrTireToPrint.width}/{qrTireToPrint.profile} R{qrTireToPrint.rim}</p>
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 print:border-none print:p-0 bg-white qr-print-container print:w-full print:max-w-[10cm] print:mx-auto">
+                      {/* Cabeçalho da Etiqueta (só na impressão) */}
+                      <div className="hidden print:flex flex-col items-center w-full border-b-2 border-black pb-2 mb-4">
+                          <h2 className="font-black text-2xl uppercase tracking-widest text-black">GMcontrol</h2>
+                          <p className="text-xs font-bold uppercase text-black">Gestão de Pneus</p>
+                      </div>
+
+                      <div className="print:w-[6cm] print:h-[6cm] flex justify-center items-center">
+                          <QRCode value={qrTireToPrint.fireNumber} size={150} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                      </div>
+                      
+                      <div className="mt-4 text-center print:mt-4 print:w-full">
+                          <p className="hidden print:block text-xs font-bold uppercase text-black mb-1">Nº de Fogo</p>
+                          <p className="font-black text-2xl text-slate-800 print:text-5xl print:text-black print:mb-4">{qrTireToPrint.fireNumber}</p>
+                          
+                          <div className="print:flex print:flex-col print:gap-2 print:w-full print:border-t-2 print:border-black print:pt-4">
+                              <div className="print:flex print:justify-between print:items-center">
+                                  <p className="text-sm font-bold text-slate-500 uppercase print:text-sm print:text-black">Marca / Modelo</p>
+                                  <p className="text-sm font-bold text-slate-500 uppercase print:text-lg print:text-black print:font-black">{qrTireToPrint.brand} {qrTireToPrint.model}</p>
+                              </div>
+                              <div className="print:flex print:justify-between print:items-center">
+                                  <p className="text-xs text-slate-400 print:text-sm print:font-bold print:uppercase print:text-black">Medida</p>
+                                  <p className="text-xs text-slate-400 print:text-lg print:text-black print:font-black">{qrTireToPrint.width}/{qrTireToPrint.profile} R{qrTireToPrint.rim}</p>
+                              </div>
+                          </div>
                       </div>
                   </div>
 
