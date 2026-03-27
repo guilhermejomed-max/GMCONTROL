@@ -9,9 +9,10 @@ interface Props {
   schedules: MaintenanceSchedule[];
   vehicles: Vehicle[];
   stockItems: StockItem[];
+  defaultBranchId?: string;
 }
 
-export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedules, vehicles, stockItems }) => {
+export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedules, vehicles, stockItems, defaultBranchId }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanType, setNewPlanType] = useState<'KM' | 'DATE'>('KM');
@@ -40,7 +41,8 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
       intervalKm: newPlanType === 'KM' ? Number(newPlanInterval) : undefined,
       intervalDays: newPlanType === 'DATE' ? Number(newPlanInterval) : undefined,
       isActive: true,
-      stockItemIds: newPlanStockItems
+      stockItemIds: newPlanStockItems,
+      branchId: defaultBranchId
     });
 
     setIsCreateModalOpen(false);
@@ -73,6 +75,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
       status: 'PENDING',
       nextDueKm: selectedPlanForSchedule.type === 'KM' ? Number(scheduleDueKm) : undefined,
       nextDueDate: selectedPlanForSchedule.type === 'DATE' ? scheduleDueDate : undefined,
+      branchId: defaultBranchId
     });
 
     setIsScheduleModalOpen(false);

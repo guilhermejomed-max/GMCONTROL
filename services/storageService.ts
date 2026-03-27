@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -797,6 +797,42 @@ export const storageService = {
         snapshot.forEach(doc => patterns.push({ id: doc.id, ...doc.data() } as TreadPattern));
         callback(patterns);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "tread_patterns"));
+  },
+
+  subscribeToPartners: (orgId: string, callback: (partners: Partner[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`partners`, callback, []);
+    return db.collection("partners").orderBy("name").onSnapshot((snapshot) => {
+        const partners: Partner[] = [];
+        snapshot.forEach(doc => partners.push({ id: doc.id, ...doc.data() } as Partner));
+        callback(partners);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "partners"));
+  },
+
+  addPartner: async (orgId: string, partner: Partner) => {
+      if (mockUser || !db) { LocalDB.add(`partners`, partner); return; }
+      try {
+        await db.collection("partners").doc(partner.id).set(sanitize(partner));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, `partners/${partner.id}`);
+      }
+  },
+
+  updatePartner: async (orgId: string, partner: Partner) => {
+      if (mockUser || !db) { LocalDB.update(`partners`, partner.id, partner); return; }
+      try {
+        await db.collection("partners").doc(partner.id).set(sanitize(partner), { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `partners/${partner.id}`);
+      }
+  },
+
+  deletePartner: async (orgId: string, id: string) => {
+      if (mockUser || !db) { LocalDB.delete(`partners`, id); return; }
+      try {
+        await db.collection("partners").doc(id).delete();
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `partners/${id}`);
+      }
   },
 
   addTreadPattern: async (orgId: string, pattern: Omit<TreadPattern, 'id'>) => {

@@ -288,6 +288,13 @@ export interface StockMovement {
   notes?: string;
 }
 
+export interface Partner {
+  id: string;
+  name: string;
+  services: { id: string; name: string; description?: string; cost: number }[];
+  branchId?: string;
+}
+
 // --- V5.0 Interfaces ---
 export interface Collaborator {
   id: string;
@@ -316,10 +323,14 @@ export interface ServiceOrder {
   collaboratorId?: string; // New: Linked collaborator
   collaboratorName?: string; // New: Collaborator name for history
   parts?: { name: string; quantity: number; unitCost: number }[];
+  services?: { id: string; name: string; cost: number }[]; // New: Linked services
   maintenanceBaseId?: string;
   maintenanceBaseName?: string;
   arrivalAlertId?: string;
   isPreventiveMaintenance?: boolean;
+  serviceType?: 'INTERNAL' | 'EXTERNAL'; // New: Internal or External
+  providerName?: string; // New: Provider name
+  externalServiceCost?: number; // New: External service cost
   date?: string; // Data da O.S. (pode ser diferente de createdAt)
   createdBy: string;
   createdAt: string;
@@ -417,7 +428,7 @@ export interface MaintenanceSchedule {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'branches';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'branches' | 'partners';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { PartnerManager } from './components/PartnerManager';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { InventoryList } from './components/InventoryList';
@@ -204,6 +205,7 @@ export const App = () => {
   const [maintenancePlans, setMaintenancePlans] = useState<import('./types').MaintenancePlan[]>([]);
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<import('./types').MaintenanceSchedule[]>([]);
   const [retreadOrders, setRetreadOrders] = useState<RetreadOrder[]>([]);
+  const [partners, setPartners] = useState<import('./types').Partner[]>([]);
   const [settings, setSettings] = useState<SystemSettings | undefined>(undefined);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [collaborators, setCollaborators] = useState<import('./types').Collaborator[]>([]);
@@ -277,6 +279,7 @@ export const App = () => {
     const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
     const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(orgId, setMaintenanceSchedules);
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
+    const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
     const unsubSettings = storageService.subscribeToSettings(orgId, setSettings);
     const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
     const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
@@ -292,6 +295,7 @@ export const App = () => {
         unsubMaintenancePlans();
         unsubMaintenanceSchedules();
         unsubRetreadOrders();
+        unsubPartners();
         unsubSettings();
         unsubDrivers();
         unsubCollaborators();
@@ -890,6 +894,7 @@ export const App = () => {
                 }}
               />
             )}
+            {currentTab === 'partners' && <PartnerManager orgId={orgId} />}
             {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onRegister={() => setCurrentTab('register')} onNotification={addToast} userLevel={userRole} />}
             {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
             {currentTab === 'register' && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />}
@@ -1011,6 +1016,7 @@ export const App = () => {
                 initialModalOpen={shouldOpenOSModal}
                 onCloseInitialModal={() => setShouldOpenOSModal(false)}
                 collaborators={collaborators}
+                partners={partners}
                 onAddCollaborator={(c) => storageService.addCollaborator(orgId, c)}
                 onUpdateCollaborator={(id, updates) => storageService.updateCollaborator(orgId, id, updates)}
                 onDeleteCollaborator={(id) => storageService.deleteCollaborator(orgId, id)}

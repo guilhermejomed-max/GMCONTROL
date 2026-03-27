@@ -24,6 +24,7 @@ interface ServiceOrderHubProps {
   initialModalOpen?: boolean;
   onCloseInitialModal?: () => void;
   collaborators?: import('../types').Collaborator[];
+  partners?: import('../types').Partner[];
   onAddCollaborator?: (collaborator: import('../types').Collaborator) => Promise<void>;
   onUpdateCollaborator?: (id: string, updates: Partial<import('../types').Collaborator>) => Promise<void>;
   onDeleteCollaborator?: (id: string) => Promise<void>;
@@ -52,6 +53,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   initialModalOpen, 
   onCloseInitialModal,
   collaborators = [],
+  partners = [],
   onAddCollaborator,
   onUpdateCollaborator,
   onDeleteCollaborator
@@ -78,52 +80,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
     return defaultBranchId ? allArrivalAlerts.filter(a => a.branchId === defaultBranchId) : allArrivalAlerts;
   }, [allArrivalAlerts, defaultBranchId]);
 
-  const [isMigrating, setIsMigrating] = useState(false);
+  const filteredMaintenancePlans = useMemo(() => {
+    return defaultBranchId ? maintenancePlans.filter(p => p.branchId === defaultBranchId) : maintenancePlans;
+  }, [maintenancePlans, defaultBranchId]);
 
-  const handleMigrateOrders = async () => {
-    if (!collaborators || collaborators.length < 2 || !onUpdateOrderBatch || isMigrating) return;
-    
-    // Check if there's anything to migrate (orders without collaborator)
-    const ordersToMigrate = serviceOrders.filter(o => !o.collaboratorId);
-    if (ordersToMigrate.length === 0) return;
+  const filteredMaintenanceSchedules = useMemo(() => {
+    return defaultBranchId ? maintenanceSchedules.filter(s => s.branchId === defaultBranchId) : maintenanceSchedules;
+  }, [maintenanceSchedules, defaultBranchId]);
 
-    setIsMigrating(true);
-    try {
-      const activeCollaborators = filteredCollaborators.filter(c => c.isActive);
-      if (activeCollaborators.length === 0) return;
-
-      const updates = ordersToMigrate.map((order, index) => {
-        const collaborator = activeCollaborators[index % activeCollaborators.length];
-        const laborHours = 1;
-        const laborCost = (collaborator.hourlyRate || 0) * laborHours;
-        
-        return {
-          id: order.id,
-          updates: {
-            collaboratorId: collaborator.id,
-            collaboratorName: collaborator.name,
-            laborHours: laborHours,
-            laborCost: laborCost
-          }
-        };
-      });
-
-      await onUpdateOrderBatch(updates);
-      console.log("Migração automática de colaboradores concluída.");
-    } catch (error) {
-      console.error("Erro na migração automática:", error);
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
-  // Run migration automatically when data is available
-  React.useEffect(() => {
-    if (serviceOrders.length > 0 && collaborators.length >= 2) {
-      handleMigrateOrders();
-    }
-  }, [serviceOrders.length, collaborators.length]);
-  
   // Create Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newOrderVehicleId, setNewOrderVehicleId] = useState('');
@@ -145,7 +109,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [newOrderOdometer, setNewOrderOdometer] = useState<number | ''>('');
   const [isPreventiveMaintenance, setIsPreventiveMaintenance] = useState(false);
   const [newOrderCollaboratorId, setNewOrderCollaboratorId] = useState('');
+  const [newOrderPartnerId, setNewOrderPartnerId] = useState('');
+  const [newOrderServiceId, setNewOrderServiceId] = useState('');
   const [newOrderLaborHours, setNewOrderLaborHours] = useState<number | ''>(1);
+  
+  const [newOrderServiceType, setNewOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
+  const [newOrderProviderName, setNewOrderProviderName] = useState('');
+  const [newOrderExternalServiceCost, setNewOrderExternalServiceCost] = useState<number | ''>('');
   
   // Edit Modal State
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
@@ -154,6 +124,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [editOrderDate, setEditOrderDate] = useState('');
   const [editOrderCollaboratorId, setEditOrderCollaboratorId] = useState('');
   const [editOrderLaborHours, setEditOrderLaborHours] = useState<number | ''>('');
+  const [editOrderServiceType, setEditOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
+  const [editOrderProviderName, setEditOrderProviderName] = useState('');
+  const [editOrderExternalServiceCost, setEditOrderExternalServiceCost] = useState<number | ''>('');
   const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
@@ -397,13 +370,20 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
           const collaborator = filteredCollaborators.find(c => c.id === newOrderCollaboratorId);
           const laborCost = (collaborator && newOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(newOrderLaborHours) : 0;
+          
+          const partner = partners.find(p => p.id === newOrderPartnerId);
+          const service = partner?.services.find(s => s.id === newOrderServiceId);
 
-          await onAddOrder({
+              await onAddOrder({
               vehicleId: vehicle.id,
               vehiclePlate: vehicle.plate,
               title: newOrderTitle || (newOrderDetails.length > 40 ? newOrderDetails.substring(0, 40) + '...' : newOrderDetails) || 'Manutenção',
               details: newOrderDetails,
               date: newOrderDate,
+              serviceType: newOrderServiceType,
+              providerName: newOrderServiceType === 'EXTERNAL' ? partner?.name : undefined,
+              externalServiceCost: newOrderServiceType === 'EXTERNAL' ? (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) : undefined,
+              services: newOrderServiceType === 'EXTERNAL' && service ? [{ id: service.id, name: service.name, cost: (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) }] : undefined,
               maintenancePlanId: newOrderMaintenancePlanId || undefined,
               maintenanceBaseId: newOrderMaintenanceBaseId || undefined,
               maintenanceBaseName: settings?.savedPoints?.find(p => p.id === newOrderMaintenanceBaseId)?.name,
@@ -431,6 +411,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           setNewOrderParts([]);
           setNewOrderCollaboratorId('');
           setNewOrderLaborHours('');
+          setNewOrderServiceType('INTERNAL');
+          setNewOrderPartnerId('');
+          setNewOrderServiceId('');
+          setNewOrderProviderName('');
+          setNewOrderExternalServiceCost('');
       } catch (err) {
           console.error(err);
           alert("Erro ao criar Ordem de Serviço.");
@@ -447,6 +432,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       setEditOrderParts(order.parts || []);
       setEditOrderCollaboratorId(order.collaboratorId || '');
       setEditOrderLaborHours(order.laborHours || '');
+      setEditOrderServiceType(order.serviceType || 'INTERNAL');
+      setEditOrderProviderName(order.providerName || '');
+      setEditOrderExternalServiceCost(order.externalServiceCost || '');
   };
 
   const handleUpdateOrderDetails = async (e: React.FormEvent) => {
@@ -462,6 +450,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               title: editOrderTitle,
               details: editOrderDetails,
               date: editOrderDate,
+              serviceType: editOrderServiceType,
+              providerName: editOrderServiceType === 'EXTERNAL' ? editOrderProviderName : undefined,
+              externalServiceCost: editOrderServiceType === 'EXTERNAL' && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : undefined,
               parts: editOrderParts.length > 0 ? editOrderParts : undefined,
               collaboratorId: editOrderCollaboratorId || undefined,
               collaboratorName: collaborator?.name,
@@ -549,7 +540,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       )}
 
       {activeTab === 'PMS' ? (
-        <MaintenancePlanManager orgId={orgId} plans={maintenancePlans} schedules={maintenanceSchedules} vehicles={vehicles} stockItems={stockItems} />
+        <MaintenancePlanManager orgId={orgId} plans={filteredMaintenancePlans} schedules={filteredMaintenanceSchedules} vehicles={vehicles} stockItems={stockItems} defaultBranchId={defaultBranchId} />
       ) : activeTab === 'COLLABORATORS' ? (
         <CollaboratorManager 
           collaborators={filteredCollaborators}
@@ -638,6 +629,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <DollarSign className="h-3 w-3"/> Mão de Obra: R$ {order.laborCost.toFixed(2)}
                           </span>
                       )}
+                      {order.externalServiceCost && order.externalServiceCost > 0 && (
+                          <span className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300 px-2 py-0.5 rounded font-bold border border-amber-200 dark:border-amber-800">
+                              <DollarSign className="h-3 w-3"/> Serviço Externo: R$ {order.externalServiceCost.toFixed(2)}
+                          </span>
+                      )}
                    </div>
                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 border-l-2 border-slate-200 dark:border-slate-700 pl-3">{order.details}</p>
                    
@@ -681,6 +677,77 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
                   </div>
                   <form onSubmit={handleCreateOrder} className="p-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço</label>
+                              <select 
+                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                  value={newOrderServiceType}
+                                  onChange={e => setNewOrderServiceType(e.target.value as 'INTERNAL' | 'EXTERNAL')}
+                              >
+                                  <option value="INTERNAL">Interno</option>
+                                  <option value="EXTERNAL">Externo</option>
+                              </select>
+                          </div>
+                          {newOrderServiceType === 'EXTERNAL' && (
+                              <>
+                                  <div>
+                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Parceiro (Obrigatório)</label>
+                                      <select 
+                                          required 
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                          value={newOrderPartnerId}
+                                          onChange={e => {
+                                              setNewOrderPartnerId(e.target.value);
+                                              setNewOrderServiceId('');
+                                          }}
+                                      >
+                                          <option value="">Selecione um parceiro...</option>
+                                          {partners.map(p => (
+                                              <option key={p.id} value={p.id}>{p.name}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+                                  {newOrderPartnerId && (
+                                      <div>
+                                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Serviço (Obrigatório)</label>
+                                          <select 
+                                              required 
+                                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                              value={newOrderServiceId}
+                                              onChange={e => {
+                                                  const svcId = e.target.value;
+                                                  setNewOrderServiceId(svcId);
+                                                  const partner = partners.find(p => p.id === newOrderPartnerId);
+                                                  const service = partner?.services.find(s => s.id === svcId);
+                                                  if (service) {
+                                                      setNewOrderExternalServiceCost(service.cost);
+                                                  }
+                                              }}
+                                          >
+                                              <option value="">Selecione um serviço...</option>
+                                              {partners.find(p => p.id === newOrderPartnerId)?.services.map(s => (
+                                                  <option key={s.id} value={s.id}>{s.name} - R$ {s.cost.toFixed(2)}</option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                  )}
+                                  {newOrderPartnerId && newOrderServiceId && (
+                                      <div>
+                                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Valor do Serviço (R$)</label>
+                                          <input 
+                                              type="number"
+                                              required 
+                                              placeholder="0.00"
+                                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                              value={newOrderExternalServiceCost}
+                                              onChange={e => setNewOrderExternalServiceCost(e.target.value === '' ? '' : Number(e.target.value))}
+                                          />
+                                      </div>
+                                  )}
+                              </>
+                          )}
+                      </div>
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo (Obrigatório)</label>
                           <select 
@@ -983,6 +1050,45 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       <button onClick={() => setEditingOrder(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
                   </div>
                   <form onSubmit={handleUpdateOrderDetails} className="p-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço</label>
+                              <select 
+                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                  value={editOrderServiceType}
+                                  onChange={e => setEditOrderServiceType(e.target.value as 'INTERNAL' | 'EXTERNAL')}
+                              >
+                                  <option value="INTERNAL">Interno</option>
+                                  <option value="EXTERNAL">Externo</option>
+                              </select>
+                          </div>
+                          {editOrderServiceType === 'EXTERNAL' && (
+                              <>
+                                  <div>
+                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Fornecedor (Obrigatório)</label>
+                                      <input 
+                                          type="text"
+                                          required 
+                                          placeholder="Nome do fornecedor"
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                          value={editOrderProviderName}
+                                          onChange={e => setEditOrderProviderName(e.target.value)}
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Valor do Serviço (R$)</label>
+                                      <input 
+                                          type="number"
+                                          required 
+                                          placeholder="0.00"
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                          value={editOrderExternalServiceCost}
+                                          onChange={e => setEditOrderExternalServiceCost(e.target.value === '' ? '' : Number(e.target.value))}
+                                      />
+                                  </div>
+                              </>
+                          )}
+                      </div>
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo</label>
                           <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 font-bold text-sm">
