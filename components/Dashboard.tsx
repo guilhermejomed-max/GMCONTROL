@@ -1,6 +1,6 @@
 
 import { useMemo, useState, FC } from 'react';
-import { Tire, TireStatus, Vehicle, TabView, SystemSettings, ServiceOrder } from '../types';
+import { Tire, TireStatus, Vehicle, TabView, SystemSettings, ServiceOrder, VehicleType } from '../types';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   BarChart, Bar, Legend, ComposedChart, Line, Cell,
@@ -25,9 +25,10 @@ interface DashboardProps {
   onNavigate: (tab: TabView) => void;
   onOpenServiceOrder?: (vehicleId: string) => void;
   settings?: SystemSettings;
+  vehicleTypes?: VehicleType[];
 }
 
-type OperationFilter = 'ALL' | 'CAVALO' | 'CARRETA' | 'BI-TRUCK';
+type OperationFilter = string;
 
 export const Dashboard: FC<DashboardProps> = ({ 
   tires: allTires, 
@@ -37,7 +38,8 @@ export const Dashboard: FC<DashboardProps> = ({
   serviceOrders: allServiceOrders = [], 
   onNavigate, 
   onOpenServiceOrder, 
-  settings 
+  settings,
+  vehicleTypes = []
 }) => {
   const tires = useMemo(() => {
     return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
@@ -318,17 +320,21 @@ export const Dashboard: FC<DashboardProps> = ({
         </div>
         
         <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl shadow-inner">
-            {['ALL', 'CAVALO', 'CARRETA', 'BI-TRUCK'].map((filter) => (
+            <button 
+                onClick={() => setOpFilter('ALL')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${opFilter === 'ALL' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+                <Layers className="h-3 w-3"/>
+                Global
+            </button>
+            {vehicleTypes.map((type) => (
                 <button 
-                    key={filter}
-                    onClick={() => setOpFilter(filter as OperationFilter)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${opFilter === filter ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    key={type.id}
+                    onClick={() => setOpFilter(type.name)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${opFilter === type.name ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 >
-                    {filter === 'ALL' && <Layers className="h-3 w-3"/>}
-                    {filter === 'CAVALO' && <Truck className="h-3 w-3"/>}
-                    {filter === 'BI-TRUCK' && <Truck className="h-3 w-3"/>}
-                    {filter === 'CARRETA' && <Container className="h-3 w-3"/>}
-                    {filter === 'ALL' ? 'Global' : filter === 'CAVALO' ? 'Cavalos' : filter === 'BI-TRUCK' ? 'Bi-Trucks' : 'Carretas'}
+                    <Truck className="h-3 w-3"/>
+                    {type.name}
                 </button>
             ))}
         </div>

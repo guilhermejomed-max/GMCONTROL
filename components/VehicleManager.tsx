@@ -1,6 +1,6 @@
 
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
-import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch } from '../types';
+import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType } from '../types';
 import { storageService } from '../services/storageService';
 import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid, Printer, Building2 } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
@@ -527,9 +527,31 @@ interface VehicleManagerProps {
   settings: SystemSettings | null;
   trackerSettings: TrackerSettings | null;
   onSyncSascar?: (showModal?: boolean) => Promise<number>;
+  vehicleTypes?: VehicleType[];
 }
 
-export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehicleBrandModels = [], tires, serviceOrders, maintenancePlans = [], maintenanceSchedules = [], branches = [], defaultBranchId, onAddVehicle, onDeleteVehicle, onUpdateVehicle, onUpdateServiceOrder, onDeleteAlert, onSimulateArrival, userLevel, settings, trackerSettings, onSyncSascar }) => {
+export const VehicleManager: FC<VehicleManagerProps> = ({ 
+  orgId, 
+  vehicles, 
+  vehicleBrandModels = [], 
+  tires, 
+  serviceOrders, 
+  maintenancePlans = [], 
+  maintenanceSchedules = [], 
+  branches = [], 
+  defaultBranchId, 
+  onAddVehicle, 
+  onDeleteVehicle, 
+  onUpdateVehicle, 
+  onUpdateServiceOrder, 
+  onDeleteAlert, 
+  onSimulateArrival, 
+  userLevel, 
+  settings, 
+  trackerSettings, 
+  onSyncSascar,
+  vehicleTypes: propVehicleTypes = []
+}) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -586,7 +608,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
       .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const totalSpent = vehicleOrders.reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0)), 0);
+    const totalSpent = vehicleOrders.reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0) + (so.laborCost || 0) + (so.externalServiceCost || 0)), 0);
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -792,6 +814,17 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
 
   // Brand Models State
   const [isManagingBrandModels, setIsManagingBrandModels] = useState(false);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(propVehicleTypes);
+
+  useEffect(() => {
+    if (propVehicleTypes.length > 0) {
+      setVehicleTypes(propVehicleTypes);
+    } else {
+      const unsub = storageService.subscribeToVehicleTypes(orgId, setVehicleTypes);
+      return () => unsub();
+    }
+  }, [orgId, propVehicleTypes]);
+
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
   const [isAddingModel, setIsAddingModel] = useState(false);
@@ -2107,6 +2140,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                       vehicle={selectedVehicleRG} 
                       mountedTires={tires.filter(t => t.vehicleId === selectedVehicleRG.id)} 
                       settings={settings} 
+                      vehicleTypes={vehicleTypes}
                     />
                 </div>
                   </>
@@ -2121,7 +2155,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                             serviceOrders
                               .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
-                              .reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0)), 0)
+                              .reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0) + (so.laborCost || 0) + (so.externalServiceCost || 0)), 0)
                           )}
                         </p>
                       </div>
@@ -2161,7 +2195,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMS)
+                          <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMJ)
                         </h4>
                         {maintenanceSchedules.filter(s => s.vehicleId === selectedVehicleRG.id && s.status === 'PENDING').length === 0 ? (
                           <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
@@ -2255,7 +2289,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                                     <div className="flex items-center justify-between">
                                       <p className="text-[10px] text-slate-500 italic truncate max-w-[60%]">{so.details}</p>
                                       <p className="font-black text-sm text-slate-800 dark:text-white">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0))}
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0) + (so.laborCost || 0) + (so.externalServiceCost || 0))}
                                       </p>
                                     </div>
                                   </div>
@@ -2419,11 +2453,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                   <select 
                     className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                     value={formData.type} 
-                    onChange={e => setFormData({...formData, type: e.target.value as 'CAVALO' | 'CARRETA' | 'BI-TRUCK'})}
+                    onChange={e => setFormData({...formData, type: e.target.value})}
                   >
-                    <option value="CAVALO">Cavalo</option>
-                    <option value="CARRETA">Carreta</option>
-                    <option value="BI-TRUCK">Bi-Truck</option>
+                    <option value="">Selecione o tipo</option>
+                    {vehicleTypes.map(vt => (
+                      <option key={vt.id} value={vt.name}>{vt.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -2720,11 +2755,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
                   <select 
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                     value={brandModelFormData.type} 
-                    onChange={e => setBrandModelFormData({...brandModelFormData, type: e.target.value as 'CAVALO' | 'CARRETA' | 'BI-TRUCK'})}
+                    onChange={e => setBrandModelFormData({...brandModelFormData, type: e.target.value})}
                   >
-                    <option value="CAVALO">Cavalo</option>
-                    <option value="CARRETA">Carreta</option>
-                    <option value="BI-TRUCK">Bi-Truck</option>
+                    <option value="">Selecione o tipo</option>
+                    {vehicleTypes.map(vt => (
+                      <option key={vt.id} value={vt.name}>{vt.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -2741,7 +2777,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({ orgId, vehicles, vehic
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENÇÃO (PMS)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENÇÃO (PMJ)</label>
                 <select 
                   className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                   value={brandModelFormData.maintenancePlanId || ''} 

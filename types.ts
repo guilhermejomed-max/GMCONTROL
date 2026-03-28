@@ -118,11 +118,20 @@ export interface Driver {
   branchId?: string;
 }
 
+export interface VehicleType {
+  id: string;
+  name: string;
+  defaultAxles: number;
+  steerAxlesCount: number; // Number of steer axles (usually 1 or 2)
+  description?: string;
+  branchId?: string;
+}
+
 export interface VehicleBrandModel {
   id: string;
   brand: string;
   model: string;
-  type: 'CAVALO' | 'CARRETA' | 'BI-TRUCK';
+  type: string; // Dynamic type name or ID
   axles: number;
   maintenancePlanId?: string;
   oilChangeInterval?: number;
@@ -135,7 +144,7 @@ export interface Vehicle {
   plate: string;
   model: string;
   axles: number;
-  type: 'CAVALO' | 'CARRETA' | 'BI-TRUCK';
+  type: string; // Dynamic type name or ID
   odometer: number;
   totalCost: number; // Added totalCost
   avgMonthlyKm?: number; // For forecast
@@ -428,7 +437,7 @@ export interface MaintenanceSchedule {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'branches' | 'partners';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'branches' | 'partners';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

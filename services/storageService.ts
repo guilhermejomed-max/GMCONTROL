@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -281,7 +281,7 @@ export const storageService = {
     throw new Error("Credenciais inválidas ou usuário não encontrado. Tente 'admin' / 'admin' se for o primeiro acesso.");
   },
 
-  register: async (usernameOrEmail: string, pass: string, name: string) => {
+  register: async (usernameOrEmail: string, pass: string, name: string, branchId?: string) => {
     const cleanInput = usernameOrEmail.trim().toLowerCase();
     const email = cleanInput.includes('@') ? cleanInput : `${cleanInput}${INTERNAL_DOMAIN}`;
     const username = cleanInput.includes('@') ? cleanInput.split('@')[0] : cleanInput;
@@ -294,6 +294,7 @@ export const storageService = {
             name: name,
             username: username,
             email: email,
+            branchId: branchId,
             role: 'SENIOR',
             allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
             permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
@@ -317,6 +318,7 @@ export const storageService = {
                     name: name,
                     username: username,
                     email: email,
+                    branchId: branchId,
                     role: 'SENIOR',
                     allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
                     permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
@@ -338,6 +340,7 @@ export const storageService = {
         name: name,
         username: username,
         email: email,
+        branchId: branchId,
         role: 'SENIOR',
         allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES'],
         permissions: ['view_financial', 'edit_tires', 'delete_records', 'view_reports', 'manage_stock', 'manage_team'],
@@ -669,6 +672,73 @@ export const storageService = {
       handleFirestoreError(error, OperationType.DELETE, `vehicleBrandModels/${id}`);
     }
     logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
+  },
+
+  subscribeToVehicleTypes: (orgId: string, callback: (types: VehicleType[]) => void) => {
+    const seedIfEmpty = async (types: VehicleType[]) => {
+      if (types.length === 0) {
+        console.log("Seeding default vehicle types...");
+        const defaults: VehicleType[] = [
+          { id: 'vt1', name: 'CAVALO', defaultAxles: 3, steerAxlesCount: 1 },
+          { id: 'vt2', name: 'CARRETA', defaultAxles: 3, steerAxlesCount: 0 },
+          { id: 'vt3', name: 'BI-TRUCK', defaultAxles: 4, steerAxlesCount: 2 },
+          { id: 'vt4', name: 'BITRUCK', defaultAxles: 4, steerAxlesCount: 2 },
+          { id: 'vt5', name: '3/4', defaultAxles: 2, steerAxlesCount: 1 }
+        ];
+        
+        for (const t of defaults) {
+          if (mockUser || !db) {
+            LocalDB.add(`vehicleTypes`, t);
+          } else {
+            await db.collection("vehicleTypes").doc(t.id).set(sanitize(t));
+          }
+        }
+      }
+    };
+
+    if (mockUser || !db) {
+      return LocalDB.subscribe(`vehicleTypes`, (data) => {
+        seedIfEmpty(data);
+        callback(data);
+      });
+    }
+    
+    return db.collection("vehicleTypes").onSnapshot((snapshot) => {
+      const types: VehicleType[] = [];
+      snapshot.forEach((doc) => types.push(doc.data() as VehicleType));
+      seedIfEmpty(types);
+      callback(types);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "vehicleTypes"));
+  },
+
+  addVehicleType: async (orgId: string, type: VehicleType) => {
+    if (mockUser || !db) { LocalDB.add(`vehicleTypes`, type); logActivity(orgId, "Novo Tipo de Veículo", `${type.name}`, 'TIRES'); return; }
+    try {
+      await db.collection("vehicleTypes").doc(type.id).set(sanitize(type));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `vehicleTypes/${type.id}`);
+    }
+    logActivity(orgId, "Novo Tipo de Veículo", `${type.name}`, 'TIRES');
+  },
+
+  updateVehicleType: async (orgId: string, type: VehicleType) => {
+    if (mockUser || !db) { LocalDB.update(`vehicleTypes`, type.id, type); logActivity(orgId, "Editou Tipo de Veículo", `${type.name}`, 'TIRES'); return; }
+    try {
+      await db.collection("vehicleTypes").doc(type.id).set(sanitize(type), { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `vehicleTypes/${type.id}`);
+    }
+    logActivity(orgId, "Editou Tipo de Veículo", `${type.name}`, 'TIRES');
+  },
+
+  deleteVehicleType: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`vehicleTypes`, id); logActivity(orgId, "Excluiu Tipo de Veículo", `ID: ${id}`, 'TIRES'); return; }
+    try {
+      await db.collection("vehicleTypes").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `vehicleTypes/${id}`);
+    }
+    logActivity(orgId, "Excluiu Tipo de Veículo", `ID: ${id}`, 'TIRES');
   },
 
   updateVehicleBatch: async (orgId: string, updates: any[]) => {

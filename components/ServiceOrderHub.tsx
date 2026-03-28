@@ -28,10 +28,11 @@ interface ServiceOrderHubProps {
   onAddCollaborator?: (collaborator: import('../types').Collaborator) => Promise<void>;
   onUpdateCollaborator?: (id: string, updates: Partial<import('../types').Collaborator>) => Promise<void>;
   onDeleteCollaborator?: (id: string) => Promise<void>;
+  userLevel: import('../types').UserLevel;
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
-type TabView = 'ORDERS' | 'PMS' | 'COLLABORATORS';
+type TabView = 'ORDERS' | 'PMJ' | 'COLLABORATORS';
 
 export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({ 
   orgId,
@@ -56,7 +57,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   partners = [],
   onAddCollaborator,
   onUpdateCollaborator,
-  onDeleteCollaborator
+  onDeleteCollaborator,
+  userLevel
 }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
@@ -310,10 +312,10 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               targetLat: base.lat,
                               targetLng: base.lng,
                               radius: base.radius || settings.alertRadius || 500,
-                              services: `Próxima PMS: ${plan.name}`,
+                              services: `Próxima PMJ: ${plan.name}`,
                               status: 'PENDING',
                               createdAt: new Date().toISOString(),
-                              createdBy: 'Sistema (PMS)',
+                              createdBy: 'Sistema (PMJ)',
                               minOdometer: newNextDueKm,
                               branchId: defaultBranchId
                           };
@@ -507,10 +509,10 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
             <Wrench className="h-4 w-4" /> Ordens de Serviço
           </button>
           <button 
-            onClick={() => setActiveTab('PMS')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'PMS' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            onClick={() => setActiveTab('PMJ')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'PMJ' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
           >
-            <ClipboardList className="h-4 w-4" /> Plano de Manutenção (PMS)
+            <ClipboardList className="h-4 w-4" /> Plano de Manutenção (PMJ)
           </button>
           <button 
             onClick={() => setActiveTab('COLLABORATORS')}
@@ -539,8 +541,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         </div>
       )}
 
-      {activeTab === 'PMS' ? (
-        <MaintenancePlanManager orgId={orgId} plans={filteredMaintenancePlans} schedules={filteredMaintenanceSchedules} vehicles={vehicles} stockItems={stockItems} defaultBranchId={defaultBranchId} />
+      {activeTab === 'PMJ' ? (
+        <MaintenancePlanManager orgId={orgId} plans={filteredMaintenancePlans} schedules={filteredMaintenanceSchedules} vehicles={vehicles} stockItems={stockItems} defaultBranchId={defaultBranchId} userLevel={userLevel} />
       ) : activeTab === 'COLLABORATORS' ? (
         <CollaboratorManager 
           collaborators={filteredCollaborators}
@@ -583,14 +585,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       
       <div className="space-y-4">
         {filteredOrders.map(order => (
-          <div key={order.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
-             <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div key={order.id} className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+             <div className="flex flex-col md:flex-row justify-between items-start gap-3">
                 <div className="flex-1">
-                   <div className="flex items-center gap-3 mb-2">
-                     <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold px-2 py-1 rounded">#{String(order.orderNumber).padStart(4, '0')}</span>
+                   <div className="flex items-center gap-2 mb-1">
+                     <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold px-1.5 py-0.5 rounded">#{String(order.orderNumber).padStart(4, '0')}</span>
                      {getStatusPill(order.status)}
                    </div>
-                   <h3 className="font-bold text-lg text-slate-800 dark:text-white">{order.title}</h3>
+                   <h3 className="font-bold text-base text-slate-800 dark:text-white">{order.title}</h3>
                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
                       <span className="flex items-center gap-1"><Truck className="h-3 w-3"/> {order.vehiclePlate}</span>
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> {order.date ? `Data: ${new Date(order.date + 'T12:00:00').toLocaleDateString()}` : `Aberto em: ${new Date(order.createdAt).toLocaleString()}`}</span>
@@ -634,6 +636,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <DollarSign className="h-3 w-3"/> Serviço Externo: R$ {order.externalServiceCost.toFixed(2)}
                           </span>
                       )}
+                      {order.providerName && (
+                          <span className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded font-bold border border-purple-200 dark:border-purple-800">
+                              <Truck className="h-3 w-3"/> Prestador: {order.providerName}
+                          </span>
+                      )}
                    </div>
                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 border-l-2 border-slate-200 dark:border-slate-700 pl-3">{order.details}</p>
                    
@@ -647,11 +654,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                        </div>
                    )}
                 </div>
+
                 {order.status !== 'CONCLUIDO' && (
-                  <div className="flex md:flex-col gap-2 shrink-0 self-start md:self-center">
-                    <button onClick={() => handleOpenEditModal(order)} className="w-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 rounded-lg transition-colors flex items-center gap-1"><Wrench className="h-3 w-3"/> Editar</button>
-                    {order.status === 'PENDENTE' && <button onClick={() => handleStatusChange(order, 'EM_ANDAMENTO')} className="w-full text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 p-2 rounded-lg transition-colors flex items-center gap-1"><Loader className="h-3 w-3"/> Iniciar Serviço</button>}
-                    {order.status === 'EM_ANDAMENTO' && <button onClick={() => handleStatusChange(order, 'CONCLUIDO')} className="w-full text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 p-2 rounded-lg transition-colors flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/> Finalizar</button>}
+                  <div className="flex md:flex-col gap-1 shrink-0 self-start md:self-center">
+                    <button onClick={() => handleOpenEditModal(order)} className="w-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 p-1.5 rounded transition-colors flex items-center gap-1"><Wrench className="h-3 w-3"/> Editar</button>
+                    {order.status === 'PENDENTE' && <button onClick={() => handleStatusChange(order, 'EM_ANDAMENTO')} className="w-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 p-1.5 rounded transition-colors flex items-center gap-1"><Loader className="h-3 w-3"/> Iniciar</button>}
+                    {order.status === 'EM_ANDAMENTO' && <button onClick={() => handleStatusChange(order, 'CONCLUIDO')} className="w-full text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 p-1.5 rounded transition-colors flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/> Finalizar</button>}
                   </div>
                 )}
              </div>
@@ -811,7 +819,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       {vehicleMaintenancePlan && (
                           <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800">
                               <h4 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
-                                  <ClipboardList className="h-4 w-4"/> Plano Sugerido (PMS)
+                                  <ClipboardList className="h-4 w-4"/> Plano Sugerido (PMJ)
                               </h4>
                               <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-3">
                                   Este veículo possui o plano <strong>{vehicleMaintenancePlan.name}</strong> vinculado ao seu modelo.
@@ -819,13 +827,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <button 
                                   type="button"
                                   onClick={() => {
-                                      setNewOrderTitle(`PMS: ${vehicleMaintenancePlan.name}`);
+                                      setNewOrderTitle(`PMJ: ${vehicleMaintenancePlan.name}`);
                                       setNewOrderMaintenancePlanId(vehicleMaintenancePlan.id);
-                                      setNewOrderDetails(`PMS: ${vehicleMaintenancePlan.name}\n\nObservações:\n`);
+                                      setNewOrderDetails(`PMJ: ${vehicleMaintenancePlan.name}\n\nObservações:\n`);
                                       
-                                      // Auto-add parts from PMS if available
+                                      // Auto-add parts from PMJ if available
                                       if (vehicleMaintenancePlan.stockItemIds && vehicleMaintenancePlan.stockItemIds.length > 0) {
-                                          const pmsParts = vehicleMaintenancePlan.stockItemIds.map(id => {
+                                          const pmjParts = vehicleMaintenancePlan.stockItemIds.map(id => {
                                               const item = stockItems.find(i => i.id === id);
                                               if (item) {
                                                   return {
@@ -837,7 +845,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                               }
                                               return null;
                                           }).filter(p => p !== null) as any[];
-                                          setNewOrderParts(pmsParts);
+                                          setNewOrderParts(pmjParts);
                                       }
                                   }}
                                   className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
@@ -848,7 +856,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       )}
 
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vincular PMS (Opcional)</label>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vincular PMJ (Opcional)</label>
                           <select 
                             className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
                             value={newOrderMaintenancePlanId}
@@ -858,12 +866,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                 if (planId) {
                                     const plan = maintenancePlans.find(p => p.id === planId);
                                     if (plan) {
-                                        setNewOrderTitle(`PMS: ${plan.name}`);
-                                        setNewOrderDetails(`PMS: ${plan.name}\n\nObservações:\n`);
+                                        setNewOrderTitle(`PMJ: ${plan.name}`);
+                                        setNewOrderDetails(`PMJ: ${plan.name}\n\nObservações:\n`);
                                         
-                                        // Auto-add parts from PMS if available
+                                        // Auto-add parts from PMJ if available
                                         if (plan.stockItemIds && plan.stockItemIds.length > 0) {
-                                            const pmsParts = plan.stockItemIds.map(id => {
+                                            const pmjParts = plan.stockItemIds.map(id => {
                                                 const item = stockItems.find(i => i.id === id);
                                                 if (item) {
                                                     return {
@@ -875,13 +883,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                                 }
                                                 return null;
                                             }).filter(p => p !== null) as any[];
-                                            setNewOrderParts(pmsParts);
+                                            setNewOrderParts(pmjParts);
                                         }
                                     }
                                 }
                             }}
                           >
-                              <option value="">Nenhum PMS selecionado</option>
+                              <option value="">Nenhum PMJ selecionado</option>
                               {maintenancePlans.map(plan => (
                                   <option key={plan.id} value={plan.id}>{plan.name}</option>
                               ))}

@@ -1,6 +1,6 @@
 
 import React, { useMemo, FC, useState } from 'react';
-import { Tire, Vehicle, SystemSettings, TireStatus } from '../types';
+import { Tire, Vehicle, SystemSettings, TireStatus, VehicleType } from '../types';
 import { 
   Target, Trophy, TrendingUp, TrendingDown, DollarSign, Calculator, 
   Truck, Container, ArrowRight, Activity, AlertCircle, Map as MapIcon, 
@@ -20,6 +20,7 @@ interface StrategicAnalysisProps {
   branches?: any[];
   defaultBranchId?: string;
   settings?: SystemSettings;
+  vehicleTypes?: VehicleType[];
 }
 
 type OperationFilter = 'ALL' | 'DIRECIONAL' | 'TRACAO' | 'CARRETA';
@@ -61,7 +62,8 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
   vehicles: allVehicles, 
   branches = [],
   defaultBranchId,
-  settings 
+  settings,
+  vehicleTypes = []
 }) => {
   const tires = useMemo(() => {
     return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
@@ -75,12 +77,34 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
   const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const getOperation = (vType: string, pos: string): OperationFilter => {
-    if (vType === 'CARRETA') return 'CARRETA';
-    if (vType === 'CAVALO') {
-      if (['1E', '1D', '1E1', '1D1'].includes(pos)) return 'DIRECIONAL';
-      return 'TRACAO';
+    // Busca o tipo de veículo dinâmico
+    const vehicleType = vehicleTypes.find(vt => vt.id === vType || vt.name === vType);
+    
+    if (!vehicleType) {
+      // Fallback para tipos conhecidos se não encontrar o objeto de tipo
+      if (vType === 'CARRETA') return 'CARRETA';
+      if (['CAVALO', 'BI-TRUCK', 'BITRUCK', '3/4'].includes(vType)) {
+        if (['1E', '1D', '1E1', '1D1', '2E', '2D'].includes(pos)) return 'DIRECIONAL';
+        return 'TRACAO';
+      }
+      return 'ALL';
     }
-    return 'ALL';
+
+    // Se for um tipo que não tem eixos direcionais ou é explicitamente uma carreta
+    if (vehicleType.name.toUpperCase().includes('CARRETA') || vehicleType.steerAxlesCount === 0) {
+      return 'CARRETA';
+    }
+
+    // Lógica baseada na contagem de eixos direcionais
+    const steerAxles = vehicleType.steerAxlesCount || 1;
+    const steerPositions = [];
+    for (let i = 1; i <= steerAxles; i++) {
+      const suffix = i === 1 ? '' : String(i - 1);
+      steerPositions.push(`${i}E${suffix}`, `${i}D${suffix}`);
+    }
+
+    if (steerPositions.includes(pos)) return 'DIRECIONAL';
+    return 'TRACAO';
   };
 
   // --- ANÁLISE DE SUCATA (NOVO) ---

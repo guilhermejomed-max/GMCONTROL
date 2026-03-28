@@ -10,9 +10,10 @@ interface Props {
   vehicles: Vehicle[];
   stockItems: StockItem[];
   defaultBranchId?: string;
+  userLevel: import('../types').UserLevel;
 }
 
-export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedules, vehicles, stockItems, defaultBranchId }) => {
+export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedules, vehicles, stockItems, defaultBranchId, userLevel }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanType, setNewPlanType] = useState<'KM' | 'DATE'>('KM');
@@ -97,23 +98,27 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
           <ClipboardList className="h-5 w-5 text-blue-600" />
           Planos Cadastrados
         </h3>
-        <button 
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all text-sm"
-        >
-          <Plus className="h-4 w-4" /> Novo Plano
-        </button>
+        {(userLevel === 'SENIOR' || userLevel === 'CREATOR') && (
+          <button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all text-sm"
+          >
+            <Plus className="h-4 w-4" /> Novo Plano
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {plans.map((plan, index) => (
           <div key={`plan-${plan.id}-${index}`} className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative group">
-            <button 
-              onClick={() => handleDeletePlan(plan.id)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {(userLevel === 'SENIOR' || userLevel === 'CREATOR') && (
+              <button 
+                onClick={() => handleDeletePlan(plan.id)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
             <h4 className="font-bold text-slate-800 dark:text-white text-lg">{plan.name}</h4>
             {plan.description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{plan.description}</p>}
             

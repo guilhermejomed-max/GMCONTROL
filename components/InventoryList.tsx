@@ -1,17 +1,18 @@
 
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Tire, TireStatus, Vehicle, UserLevel, ServiceOrder, MaintenancePlan, MaintenanceSchedule, Branch } from '../types';
+import { Tire, TireStatus, Vehicle, UserLevel, ServiceOrder, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType } from '../types';
 import { 
   Search, Filter, Plus, Trash2, PenLine, FileText, 
   AlertTriangle, CheckCircle2, X, Archive, History, 
   LayoutGrid, List, Gauge, ArrowRight, DollarSign, Package,
   Layers, Disc, Truck, Calendar, Activity, MapPin, TrendingDown,
   Milestone, RefreshCw, Star, QrCode, Printer, ScanLine, CheckSquare,
-  Building2
+  Building2, ChevronDown, FileSpreadsheet, ClipboardList
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Scanner } from './Scanner';
+import { isSteerAxle } from '../lib/vehicleUtils';
 
 interface InventoryListProps {
   tires: Tire[];
@@ -27,6 +28,7 @@ interface InventoryListProps {
   onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
   userLevel: UserLevel;
   viewMode?: 'inventory' | 'scrap';
+  vehicleTypes?: VehicleType[];
 }
 
 const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -45,8 +47,9 @@ const TireDetailModal: React.FC<{
   serviceOrders?: ServiceOrder[];
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
-  onClose: () => void 
-}> = ({ tire, vehicles, branches = [], serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose }) => {
+  onClose: () => void;
+  vehicleTypes?: VehicleType[];
+}> = ({ tire, vehicles, branches = [], serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose, vehicleTypes = [] }) => {
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
     
     // Cálculo de CPK Individual
@@ -232,10 +235,10 @@ const TireDetailModal: React.FC<{
                                     </h3>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Próximos Serviços (PMS) */}
+                                        {/* Próximos Serviços (PMJ) */}
                                         <div className="space-y-3">
                                             <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                                                <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMS)
+                                                <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMJ)
                                             </h4>
                                             {maintenanceSchedules.filter(s => s.vehicleId === vehicle.id && s.status === 'PENDING').length === 0 ? (
                                                 <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
@@ -461,6 +464,132 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
     );
 };
 
+// --- MODAL DE RELATÓRIOS ---
+const ReportsModal: React.FC<{
+  onClose: () => void;
+  onShowMissingTires: () => void;
+  onDownloadInventory: () => void;
+}> = ({ onClose, onShowMissingTires, onDownloadInventory }) => {
+  return (
+    <div className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+          <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Relatórios de Pneus</h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+            <X className="h-6 w-6 text-slate-400" />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-3">
+          <button 
+            onClick={onDownloadInventory}
+            className="w-full flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 transition-all group"
+          >
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl group-hover:scale-110 transition-transform">
+              <FileSpreadsheet className="h-6 w-6" />
+            </div>
+            <div className="text-left">
+              <p className="font-black text-slate-800 dark:text-white uppercase text-sm">Inventário Geral</p>
+              <p className="text-xs text-slate-500">Exportar todos os pneus em estoque e em uso para Excel.</p>
+            </div>
+          </button>
+
+          <button 
+            onClick={onShowMissingTires}
+            className="w-full flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800 transition-all group"
+          >
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl group-hover:scale-110 transition-transform">
+              <ClipboardList className="h-6 w-6" />
+            </div>
+            <div className="text-left">
+              <p className="font-black text-slate-800 dark:text-white uppercase text-sm">Pneus Faltantes</p>
+              <p className="text-xs text-slate-500">Verificar posições vazias nos veículos da frota.</p>
+            </div>
+          </button>
+        </div>
+        
+        <div className="p-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+          <button onClick={onClose} className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- MODAL DE RELATÓRIO DE PNEUS FALTANTES ---
+const MissingTiresReportModal: React.FC<{
+  missingTires: any[];
+  onClose: () => void;
+  onDownload: () => void;
+}> = ({ missingTires, onClose, onDownload }) => {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[80vh] rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col animate-in zoom-in-95">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 text-red-600 rounded-xl">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Relatório de Pneus Faltantes</h2>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+            <X className="h-6 w-6 text-slate-400" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          <div className="space-y-4">
+            {missingTires.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
+                <p className="text-slate-500 font-bold">Nenhum pneu faltante encontrado em toda a frota!</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
+                      <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Veículo</th>
+                      <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Eixo</th>
+                      <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Posição</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {missingTires.map((m, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="p-4">
+                          <p className="text-sm font-black text-slate-700 dark:text-slate-200">{m.plate}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase">{m.fleetNumber}</p>
+                        </td>
+                        <td className="p-4 text-sm font-bold text-slate-600 dark:text-slate-400">{m.axle}º Eixo</td>
+                        <td className="p-4">
+                          <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-xs font-black text-slate-500">{m.position}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="p-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+          <button onClick={onClose} className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors">Fechar</button>
+          {missingTires.length > 0 && (
+            <button 
+              onClick={onDownload}
+              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all text-sm"
+            >
+              <FileSpreadsheet className="h-4 w-4" /> Baixar Excel
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- COMPONENTE PRINCIPAL ---
 export const InventoryList: React.FC<InventoryListProps> = ({ 
   tires, 
@@ -475,7 +604,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   onRegister, 
   onNotification,
   userLevel, 
-  viewMode = 'inventory' 
+  viewMode = 'inventory',
+  vehicleTypes = []
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP'>(viewMode === 'scrap' ? 'SCRAP' : 'NEW');
@@ -490,6 +620,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [isInventoryMode, setIsInventoryMode] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedTireIds, setScannedTireIds] = useState<Set<string>>(new Set());
+  
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [showMissingTiresReport, setShowMissingTiresReport] = useState(false);
   
   const [sortConfig, setSortConfig] = useState<{ key: keyof Tire | 'health' | 'cpk'; direction: 'asc' | 'desc' } | null>(null);
 
@@ -535,6 +668,56 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Estoque");
     XLSX.writeFile(wb, `Estoque_Pneus_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const getMissingTires = () => {
+    const missingTires: any[] = [];
+    vehicles.forEach(vehicle => {
+      const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
+      
+      for (let i = 0; i < vehicle.axles; i++) {
+        const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
+        const isSupport = vehicle.type === 'BI-TRUCK' && i === vehicle.axles - 1;
+        
+        const positions = isSteer ? [`${i + 1}E`, `${i + 1}D`] : [`${i + 1}EE`, `${i + 1}EI`, `${i + 1}DI`, `${i + 1}DE`];
+        
+        positions.forEach(pos => {
+          const hasTire = mountedTires.some(t => t.position === pos);
+          if (!hasTire) {
+            missingTires.push({
+              plate: vehicle.plate,
+              fleetNumber: vehicle.fleetNumber || 'N/A',
+              model: vehicle.model,
+              axle: i + 1,
+              position: pos
+            });
+          }
+        });
+      }
+    });
+    return missingTires;
+  };
+
+  const exportMissingTiresToExcel = () => {
+    const missingTires = getMissingTires();
+
+    if (missingTires.length === 0) {
+      if (onNotification) onNotification('Relatório', 'Nenhum pneu faltante encontrado.', 'info');
+      return;
+    }
+
+    const data = missingTires.map(m => ({
+      'Placa': m.plate,
+      'Prefixo': m.fleetNumber,
+      'Modelo': m.model,
+      'Eixo': m.axle,
+      'Posição Faltante': m.position
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pneus Faltantes");
+    XLSX.writeFile(wb, `Relatorio_Pneus_Faltantes_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const getTireCPK = (t: Tire) => {
@@ -727,11 +910,12 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               </button>
 
               <button 
-                  onClick={exportToExcel}
-                  className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors"
-                  title="Exportar para Excel"
+                  onClick={() => setShowReportsModal(true)}
+                  className="p-2 lg:px-4 lg:py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors flex items-center gap-2"
+                  title="Relatórios"
               >
-                  <FileText className="h-5 w-5"/>
+                  <FileSpreadsheet className="h-5 w-5"/>
+                  <span className="hidden lg:inline text-xs font-bold">Relatórios</span>
               </button>
 
               <button 
@@ -931,6 +1115,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               maintenancePlans={maintenancePlans}
               maintenanceSchedules={maintenanceSchedules}
               onClose={() => setSelectedTire(null)} 
+              vehicleTypes={vehicleTypes}
           />
       )}
 

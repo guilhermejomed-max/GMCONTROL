@@ -51,12 +51,13 @@ export const Sidebar: FC<SidebarProps> = ({
     
     // --- MÓDULO VEÍCULOS ---
     { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
+    { id: 'vehicle-types', label: 'Tipos de Veículos', icon: Layers, modules: ['VEHICLES'] },
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
     { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
     { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
-    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES'] },
+    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES', 'TIRES'] },
     { id: 'branches', label: 'Filiais', icon: Building2, modules: ['VEHICLES', 'TIRES'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
 

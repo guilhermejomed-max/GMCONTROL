@@ -1,13 +1,15 @@
 import React, { FC } from 'react';
-import { Tire, Vehicle, SystemSettings } from '../types';
+import { Tire, Vehicle, SystemSettings, VehicleType } from '../types';
+import { isSteerAxle } from '../lib/vehicleUtils';
 
 interface DigitalTwinProps {
   vehicle: Vehicle;
   mountedTires: Tire[];
   settings?: SystemSettings;
+  vehicleTypes?: VehicleType[];
 }
 
-export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, settings }) => {
+export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, settings, vehicleTypes = [] }) => {
   const width = 280; 
   const cx = width / 2;
   const startY = 70;
@@ -120,7 +122,7 @@ export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, setti
         
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);
-          const isSteer = (vehicle.type === 'CAVALO' && i === 0) || (vehicle.type === 'BI-TRUCK' && (i === 0 || i === 1));
+          const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
           const isSupport = vehicle.type === 'BI-TRUCK' && i === vehicle.axles - 1;
           return (
             <g key={i}>

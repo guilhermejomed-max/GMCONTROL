@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo, useEffect, FC } from 'react';
-import { Tire, Vehicle, TireStatus, UserLevel, SystemSettings } from '../types';
+import { Tire, Vehicle, TireStatus, UserLevel, SystemSettings, VehicleType } from '../types';
 import { Truck, Search, X, CheckCircle2, Disc, ArrowDownCircle, ArrowUpCircle, ScanLine, Gauge, ArrowLeft, Container, RefreshCw, Repeat, ArrowRight, Activity, TrendingDown, Calendar, Milestone, Recycle, ChevronRight, Target, Move, ArrowRightLeft, MousePointerClick, Loader2, Package, AlertTriangle, RefreshCcw, Plus } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { TireForm } from './TireForm';
+import { isSteerAxle, getAxlePositions } from '../lib/vehicleUtils';
 
 interface TireMovementProps {
   tires: Tire[];
@@ -15,6 +16,7 @@ interface TireMovementProps {
   userLevel: UserLevel;
   settings?: SystemSettings;
   onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
+  vehicleTypes?: VehicleType[];
 }
 
 // --- VISUAL SCHEMATIC COMPONENT (ATUALIZADO COM CORES) ---
@@ -25,7 +27,8 @@ const MovementSchematic: FC<{
   onSelectPos: (pos: string) => void;
   rotationSourcePos?: string | null;
   settings?: SystemSettings; // Recebe settings para limites de sulco
-}> = ({ vehicle, mountedTires, selectedPos, onSelectPos, rotationSourcePos, settings }) => {
+  vehicleTypes?: VehicleType[];
+}> = ({ vehicle, mountedTires, selectedPos, onSelectPos, rotationSourcePos, settings, vehicleTypes = [] }) => {
   
   const width = 280; 
   const cx = width / 2;
@@ -137,7 +140,7 @@ const MovementSchematic: FC<{
         
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);
-          const isSteer = (vehicle.type === 'CAVALO' && i === 0) || (vehicle.type === 'BI-TRUCK' && (i === 0 || i === 1));
+          const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
           return (
             <g key={i}>
               <rect x={cx - 100} y={y - 3} width={200} height={6} rx="2" fill="#1e293b" />
@@ -171,7 +174,8 @@ export const TireMovement: FC<TireMovementProps> = ({
   onAddTire, 
   userLevel, 
   settings, 
-  onNotification 
+  onNotification,
+  vehicleTypes = []
 }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -575,6 +579,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                         onSelectPos={handlePosClick}
                         rotationSourcePos={rotationSource}
                         settings={settings}
+                        vehicleTypes={vehicleTypes}
                     />
                     {!selectedPos && !rotationSource && (
                         <div className="absolute top-10 flex items-center gap-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-6 py-4 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-bounce cursor-default pointer-events-none">

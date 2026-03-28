@@ -1,5 +1,5 @@
-import React, { useState, FC, useMemo } from 'react';
-import { VehicleBrandModel, MaintenancePlan, Vehicle, ServiceOrder, Tire } from '../types';
+import React, { useState, FC, useMemo, useEffect } from 'react';
+import { VehicleBrandModel, MaintenancePlan, Vehicle, ServiceOrder, Tire, VehicleType } from '../types';
 import { storageService } from '../services/storageService';
 import { Save, Trash2, PenLine, Truck, Loader2, Plus, X, Car, ClipboardList, ChevronRight, LayoutGrid, BarChart3 } from 'lucide-react';
 
@@ -11,6 +11,7 @@ interface BrandModelManagerProps {
   serviceOrders?: ServiceOrder[];
   tires?: Tire[];
   defaultBranchId?: string;
+  vehicleTypes?: VehicleType[];
 }
 
 export const BrandModelManager: FC<BrandModelManagerProps> = ({ 
@@ -20,7 +21,8 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
   vehicles = [],
   serviceOrders = [],
   tires = [],
-  defaultBranchId
+  defaultBranchId,
+  vehicleTypes = []
 }) => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
@@ -40,7 +42,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
   const [formData, setFormData] = useState<Partial<VehicleBrandModel>>({
     brand: '',
     model: '',
-    type: 'CAVALO',
+    type: vehicleTypes.length > 0 ? vehicleTypes[0].name : '',
     axles: 3,
     maintenancePlanId: '',
     oilChangeInterval: 0,
@@ -237,7 +239,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                     <th className="pb-3 px-2">Eixos</th>
                     <th className="pb-3 px-2">Troca de Óleo</th>
                     <th className="pb-3 px-2">Litragem</th>
-                    <th className="pb-3 px-2">Plano PMS</th>
+                    <th className="pb-3 px-2">Plano PMJ</th>
                     <th className="pb-3 px-2 text-right">Ações</th>
                   </tr>
                 </thead>
@@ -333,11 +335,19 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                     required
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                     value={formData.type} 
-                    onChange={e => setFormData({...formData, type: e.target.value as any})}
+                    onChange={e => {
+                      const selectedType = vehicleTypes.find(vt => vt.name === e.target.value);
+                      setFormData({
+                        ...formData, 
+                        type: e.target.value,
+                        axles: selectedType?.defaultAxles || formData.axles
+                      });
+                    }}
                   >
-                    <option value="CAVALO">CAVALO</option>
-                    <option value="CARRETA">CARRETA</option>
-                    <option value="BI-TRUCK">BI-TRUCK</option>
+                    <option value="">Selecione o tipo</option>
+                    {vehicleTypes.map(vt => (
+                      <option key={vt.id} value={vt.name}>{vt.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -380,7 +390,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENÇÃO (PMS)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENÇÃO (PMJ)</label>
                 <select 
                   className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                   value={formData.maintenancePlanId || ''} 

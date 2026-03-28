@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus } from '../types';
+import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus, ModuleType, VehicleType } from '../types';
 import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package, Truck, Wrench, Maximize, Minimize } from 'lucide-react';
 
 interface ReportsHubProps {
@@ -12,9 +12,11 @@ interface ReportsHubProps {
   defaultBranchId?: string;
   vehicleBrandModels?: any[];
   onFullScreenToggle?: (isFull: boolean) => void;
+  activeModule?: ModuleType;
+  vehicleTypes?: VehicleType[];
 }
 
-type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS';
+type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS' | 'MISSING_TIRES';
 
 interface ColumnDef {
   id: string;
@@ -100,6 +102,13 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'action', label: 'Ação', accessor: (log: any) => log.action },
       { id: 'details', label: 'Detalhes', accessor: (log: any) => log.details },
     ],
+    MISSING_TIRES: [
+      { id: 'plate', label: 'Placa', accessor: (m: any) => m.plate },
+      { id: 'fleetNumber', label: 'Prefixo', accessor: (m: any) => m.fleetNumber },
+      { id: 'model', label: 'Modelo', accessor: (m: any) => m.model },
+      { id: 'axle', label: 'Eixo', accessor: (m: any) => `${m.axle}º Eixo` },
+      { id: 'position', label: 'Posição', accessor: (m: any) => m.position },
+    ],
     COSTS: [
       { id: 'date', label: 'Data', accessor: (item: any) => formatDate(item.date) },
       { id: 'type', label: 'Tipo Custo', accessor: (item: any) => item.type },
@@ -136,9 +145,14 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   branches = [],
   defaultBranchId,
   vehicleBrandModels = [],
-  onFullScreenToggle
+  onFullScreenToggle,
+  activeModule,
+  vehicleTypes = []
 }) => {
-  const [source, setSource] = useState<ReportSource>('VEHICLES');
+  const [source, setSource] = useState<ReportSource>(
+    activeModule === 'TIRES' ? 'TIRES' : 
+    activeModule === 'MECHANICAL' ? 'MAINTENANCE' : 'VEHICLES'
+  );
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   const tires = useMemo(() => {
@@ -157,7 +171,10 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   
   // Inicializa com as colunas padrão
   const [selectedColumns, setSelectedColumns] = useState<string[]>(
-      COLUMN_DEFINITIONS['VEHICLES'].slice(0, 8).map(c => c.id)
+      COLUMN_DEFINITIONS[
+        activeModule === 'TIRES' ? 'TIRES' : 
+        activeModule === 'MECHANICAL' ? 'MAINTENANCE' : 'VEHICLES'
+      ].slice(0, 8).map(c => c.id)
   );
   
   const [startDate, setStartDate] = useState('');
@@ -167,6 +184,14 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   const [selectedPlate, setSelectedPlate] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
+
+  useEffect(() => {
+    const initialSource: ReportSource = 
+      activeModule === 'TIRES' ? 'TIRES' : 
+      activeModule === 'MECHANICAL' ? 'MAINTENANCE' : 'VEHICLES';
+    setSource(initialSource);
+    setSelectedColumns(COLUMN_DEFINITIONS[initialSource].slice(0, 8).map(c => c.id));
+  }, [activeModule]);
 
   // --- PRESETS DE DATA ---
   const setDateRange = (range: 'WEEK' | 'MONTH') => {
@@ -282,6 +307,39 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
         }
       });
       rawData = costs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (source === 'MISSING_TIRES') {
+      const missingTires: any[] = [];
+      vehicles.forEach(vehicle => {
+        const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
+        
+        for (let i = 0; i < (vehicle.axles || 0); i++) {
+          const vehicleType = vehicleTypes.find(vt => vt.id === vehicle.type || vt.name === vehicle.type);
+          let isSteer = false;
+          
+          if (vehicleType) {
+            isSteer = i < (vehicleType.steerAxlesCount || 1);
+          } else {
+            // Fallback
+            isSteer = (['CAVALO', '3/4'].includes(vehicle.type) && i === 0) || (['BI-TRUCK', 'BITRUCK'].includes(vehicle.type) && (i === 0 || i === 1));
+          }
+          
+          const positions = isSteer ? [`${i + 1}E`, `${i + 1}D`] : [`${i + 1}EE`, `${i + 1}EI`, `${i + 1}DI`, `${i + 1}DE`];
+          
+          positions.forEach(pos => {
+            const hasTire = mountedTires.some(t => t.position === pos);
+            if (!hasTire) {
+              missingTires.push({
+                plate: vehicle.plate,
+                fleetNumber: vehicle.fleetNumber || 'N/A',
+                model: vehicle.model,
+                axle: i + 1,
+                position: pos
+              });
+            }
+          });
+        }
+      });
+      rawData = missingTires;
     } else if (source === 'SUMMARY') {
         // Cálculo do resumo
         const filteredTires = tires.filter(t => {
@@ -698,6 +756,8 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">1. Módulo de Dados</label>
                 <div className="grid grid-cols-1 gap-2">
                   {[
+                    { id: 'TIRES', label: 'Inventário de Pneus', icon: Package },
+                    { id: 'MISSING_TIRES', label: 'Pneus Faltantes', icon: AlertCircle },
                     { id: 'VEHICLES', label: 'Frota e KM', icon: Truck },
                     { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package },
                     { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench },

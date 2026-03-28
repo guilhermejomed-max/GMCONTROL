@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo, FC, useRef, useEffect } from 'react';
-import { Tire, Vehicle, SystemSettings, VisualDamage, ServiceOrder, InspectionRecord } from '../types';
+import { Tire, Vehicle, SystemSettings, VisualDamage, ServiceOrder, InspectionRecord, VehicleType } from '../types';
 import { 
   Search, Truck, ArrowLeft, CheckCircle2, AlertOctagon, AlertTriangle, X, Save, Activity, Gauge, Ruler, Target, GitCompare, Loader2, ChevronRight, Target as TargetIcon, MousePointer2, Camera, ScanLine, Info, CheckSquare, Square
 } from 'lucide-react';
 import { TireComparison } from './TireComparison';
+import { isSteerAxle } from '../lib/vehicleUtils';
 
 interface InspectionHubProps {
   tires: Tire[];
@@ -14,6 +15,7 @@ interface InspectionHubProps {
   onUpdateTire: (tire: Tire) => Promise<void>;
   onCreateServiceOrder: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
   settings?: SystemSettings;
+  vehicleTypes?: VehicleType[];
 }
 
 type InspectionDataMap = Record<string, InspectionRecord>;
@@ -169,7 +171,8 @@ const ProVehicleSchematic: FC<{
   activeTireId?: string | null;
   onTireSelect: (tireId: string) => void;
   settings?: SystemSettings;
-}> = ({ vehicle, mountedTires, inspectionData, activeTireId, onTireSelect, settings }) => {
+  vehicleTypes?: VehicleType[];
+}> = ({ vehicle, mountedTires, inspectionData, activeTireId, onTireSelect, settings, vehicleTypes = [] }) => {
   const width = 280; 
   const cx = width / 2;
   const startY = 70;
@@ -217,7 +220,7 @@ const ProVehicleSchematic: FC<{
         <path d={`M ${cx-30} 30 L ${cx+30} 30 L ${cx+35} 55 L ${cx-35} 55 Z`} fill="#334155" opacity="0.5" />
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);
-          const isSteer = vehicle.type === 'CAVALO' && i === 0;
+          const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
           return (
             <g key={i}>
               <rect x={cx - 100} y={y - 3} width={200} height={6} rx="2" fill="#1e293b" />
@@ -390,7 +393,8 @@ export const InspectionHub: FC<InspectionHubProps> = ({
   defaultBranchId,
   onUpdateTire, 
   onCreateServiceOrder, 
-  settings 
+  settings,
+  vehicleTypes = []
 }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -549,6 +553,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
           <ProVehicleSchematic
             vehicle={selectedVehicle} mountedTires={mountedTires} inspectionData={inspectionState}
             activeTireId={activeTireId} onTireSelect={setActiveTireId} settings={settings}
+            vehicleTypes={vehicleTypes}
           />
           
           {!activeTireId && (
@@ -591,6 +596,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
           inspectionData={inspectionState}
           settings={settings}
           onClose={() => setShowComparison(false)}
+          vehicleTypes={vehicleTypes}
         />
       )}
     </div>

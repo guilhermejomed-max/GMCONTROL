@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
-import { Tire, Vehicle, SystemSettings, InspectionRecord } from '../types';
+import { Tire, Vehicle, SystemSettings, InspectionRecord, VehicleType } from '../types';
+import { isSteerAxle } from '../lib/vehicleUtils';
 import { X, Printer, AlertTriangle, TrendingDown, Calculator, Scale, DollarSign, ArrowRight, Activity, Layers, AlertOctagon, Disc, BarChart3, ShieldAlert, Trophy, ThumbsDown, Crown, CheckCircle2, Info, HelpCircle, Medal, ArrowUpRight } from 'lucide-react';
 
 interface TireComparisonProps {
@@ -9,9 +10,10 @@ interface TireComparisonProps {
   inspectionData: Record<string, InspectionRecord>;
   settings?: SystemSettings;
   onClose: () => void;
+  vehicleTypes?: VehicleType[];
 }
 
-export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, inspectionData, settings, onClose }) => {
+export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, inspectionData, settings, onClose, vehicleTypes = [] }) => {
   const minDepth = settings?.minTreadDepth || 3.0;
   const warnDepth = settings?.warningTreadDepth || 5.0;
 
@@ -395,7 +397,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
             ${Array.from({ length: vehicle.axles }).map((_, i) => {
                 const y = startY + (i * axleSpacing); 
                 const axleCenterY = y + 25; 
-                const isSteer = vehicle.type === 'CAVALO' && i === 0;
+                const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
                 const axleWidth = isSteer ? 150 : 190;
                 const axleX = centerX - (axleWidth / 2);
                 let axleSvg = `<rect x="${axleX}" y="${axleCenterY - 3}" width="${axleWidth}" height="6" fill="#cbd5e1" rx="2" />`;
