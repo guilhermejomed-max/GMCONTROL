@@ -45,7 +45,9 @@ export const Dashboard: FC<DashboardProps> = ({
     return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
   }, [allTires, defaultBranchId]);
 
-  const vehicles = allVehicles;
+  const vehicles = useMemo(() => {
+    return defaultBranchId ? allVehicles.filter(v => v.branchId === defaultBranchId) : allVehicles;
+  }, [allVehicles, defaultBranchId]);
   const serviceOrders = useMemo(() => {
     return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
   }, [allServiceOrders, defaultBranchId]);
@@ -62,12 +64,15 @@ export const Dashboard: FC<DashboardProps> = ({
     const minDepth = settings?.minTreadDepth || 3;
 
     // 1. FILTERING
-    const filteredVehicles = vehicles?.filter(v => opFilter === 'ALL' || v.type === opFilter) || [];
+    const branchVehicles = defaultBranchId ? (vehicles || []).filter(v => v.branchId === defaultBranchId) : (vehicles || []);
+    const branchTiresForStats = defaultBranchId ? (tires || []).filter(t => t.branchId === defaultBranchId) : (tires || []);
+
+    const filteredVehicles = branchVehicles.filter(v => opFilter === 'ALL' || v.type === opFilter);
     const vehicleIds = new Set(filteredVehicles.map(v => v.id));
     
     const filteredTires = opFilter === 'ALL' 
-        ? (tires || [])
-        : (tires || []).filter(t => t.vehicleId && vehicleIds.has(t.vehicleId));
+        ? branchTiresForStats
+        : branchTiresForStats.filter(t => t.vehicleId && vehicleIds.has(t.vehicleId));
 
     const mountedTires = filteredTires.filter(t => t.vehicleId);
 
@@ -133,14 +138,14 @@ export const Dashboard: FC<DashboardProps> = ({
         .slice(0, 3);
 
     // 5. LIVE OPERATIONS FEED (Global History)
-    const recentActivity = (tires || [])
+    const recentActivity = branchTiresForStats
         .flatMap(t => (t.history || []).map(h => ({ ...h, tire: t.fireNumber, id: t.id + h.date })))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5);
 
     // 6. STOCK VELOCITY (Most mounted models last 30 days)
     const velocityMap: Record<string, number> = {};
-    (tires || []).forEach(t => {
+    branchTiresForStats.forEach(t => {
         const recentMounts = t.history?.filter(h => h.action === 'MONTADO' && new Date(h.date) > thirtyDaysAgo);
         if(recentMounts?.length) {
             const key = `${t.brand} ${t.model}`;
@@ -186,16 +191,31 @@ export const Dashboard: FC<DashboardProps> = ({
         const currentMonth = now.getMonth();
         for(let i=currentMonth; i>=0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-            monthlyData[key] = { name: key, fullDate: d, custo: 0, aquisicao: 0, recapagem: 0, cpk: 0 };
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            monthlyData[key] = { name: d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase(), fullDate: d, custo: 0, aquisicao: 0, recapagem: 0, cpk: 0 };
+        }
+    } else if (period === '12M') {
+        for(let i=11; i>=0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            monthlyData[key] = { name: d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase(), fullDate: d, custo: 0, aquisicao: 0, recapagem: 0, cpk: 0 };
         }
     } else {
         // 30D - just show last 2 months to have some line/area
         for(let i=1; i>=0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-            monthlyData[key] = { name: key, fullDate: d, custo: 0, aquisicao: 0, recapagem: 0, cpk: 0 };
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            monthlyData[key] = { name: d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase(), fullDate: d, custo: 0, aquisicao: 0, recapagem: 0, cpk: 0 };
         }
+    }
+
+    let startDate = new Date();
+    if (period === 'YTD') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else if (period === '12M') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    } else {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     }
 
     let totalGlobalKms = 0;
@@ -219,12 +239,14 @@ export const Dashboard: FC<DashboardProps> = ({
 
         // Acquisition
         if (t.purchaseDate) {
-            const d = new Date(t.purchaseDate);
-            const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-            if (monthlyData[key] && d.getFullYear() === now.getFullYear()) {
-                const cost = t.price || 0;
-                monthlyData[key].custo += cost;
-                monthlyData[key].aquisicao += cost;
+            const d = new Date(t.purchaseDate.includes('T') ? t.purchaseDate : t.purchaseDate + 'T12:00:00');
+            if (d >= startDate) {
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                if (monthlyData[key]) {
+                    const cost = t.price || 0;
+                    monthlyData[key].custo += cost;
+                    monthlyData[key].aquisicao += cost;
+                }
             }
         }
 
@@ -236,11 +258,13 @@ export const Dashboard: FC<DashboardProps> = ({
             
             retreadEvents.forEach(ev => {
                 if (ev.date) {
-                    const d = new Date(ev.date);
-                    const key = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-                    if (monthlyData[key] && d.getFullYear() === now.getFullYear()) {
-                        monthlyData[key].custo += costPerRetread;
-                        monthlyData[key].recapagem += costPerRetread;
+                    const d = new Date(ev.date.includes('T') ? ev.date : ev.date + 'T12:00:00');
+                    if (d >= startDate) {
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        if (monthlyData[key]) {
+                            monthlyData[key].custo += costPerRetread;
+                            monthlyData[key].recapagem += costPerRetread;
+                        }
                     }
                 }
             });
@@ -257,8 +281,11 @@ export const Dashboard: FC<DashboardProps> = ({
     // 12. BURN RATE & SAVINGS
     let totalWearMm = 0, totalKmForWear = 0, totalRetreadSavings = 0;
     filteredTires.forEach(t => {
-        const run = t.totalKms || 0;
-        if (run > 10000) {
+        const vehicle = vehicles?.find(v => v.id === t.vehicleId);
+        const currentRun = (vehicle && t.installOdometer) ? Math.max(0, vehicle.odometer - t.installOdometer) : 0;
+        const run = (t.totalKms || 0) + currentRun;
+
+        if (run > 0) {
             const consumed = (t.originalTreadDepth || 18) - t.currentTreadDepth;
             if (consumed > 0) { totalWearMm += consumed; totalKmForWear += run; }
         }
@@ -319,24 +346,25 @@ export const Dashboard: FC<DashboardProps> = ({
           </p>
         </div>
         
-        <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl shadow-inner">
-            <button 
-                onClick={() => setOpFilter('ALL')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${opFilter === 'ALL' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+        <div className="flex gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl shadow-inner relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Truck className="h-4 w-4 text-indigo-500" />
+            </div>
+            <select
+                value={opFilter}
+                onChange={(e) => setOpFilter(e.target.value)}
+                className="pl-10 pr-8 py-2.5 rounded-xl text-sm font-bold transition-all bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm outline-none border-none cursor-pointer appearance-none min-w-[200px]"
             >
-                <Layers className="h-3 w-3"/>
-                Global
-            </button>
-            {vehicleTypes.map((type) => (
-                <button 
-                    key={type.id}
-                    onClick={() => setOpFilter(type.name)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${opFilter === type.name ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                    <Truck className="h-3 w-3"/>
-                    {type.name}
-                </button>
-            ))}
+                <option value="ALL">Global (Todos os Veículos)</option>
+                {vehicleTypes.map((type) => (
+                    <option key={type.id} value={type.name}>
+                        {type.name}
+                    </option>
+                ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                <ChevronRight className="h-4 w-4 text-slate-400 rotate-90" />
+            </div>
         </div>
       </div>
 
@@ -419,7 +447,7 @@ export const Dashboard: FC<DashboardProps> = ({
                     <p className="text-xs text-slate-500">Custo operacional acumulado (Aquisição + Serviços).</p>
                 </div>
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                    {['30D', 'YTD'].map((p) => (
+                    {['30D', 'YTD', '12M'].map((p) => (
                         <button 
                             key={p} 
                             onClick={() => setPeriod(p as any)}

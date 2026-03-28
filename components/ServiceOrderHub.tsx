@@ -275,8 +275,17 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
           // Update Maintenance Schedule if applicable
           const vehicle = vehicles.find(v => v.plate === order.vehiclePlate);
-          if (vehicle && order.maintenancePlanId) {
-              const plan = maintenancePlans.find(p => p.id === order.maintenancePlanId);
+          if (vehicle) {
+              const orderCost = order.totalCost || 0;
+              if (orderCost > 0) {
+                  await storageService.updateVehicle(orgId, {
+                      ...vehicle,
+                      totalCost: (vehicle.totalCost || 0) + orderCost
+                  });
+              }
+
+              if (order.maintenancePlanId) {
+                  const plan = maintenancePlans.find(p => p.id === order.maintenancePlanId);
               if (plan && plan.intervalKm) {
                   const newLastPerformedKm = vehicle.odometer;
                   const newNextDueKm = newLastPerformedKm + plan.intervalKm;
@@ -324,6 +333,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                   }
               }
           }
+      }
       }
       await onUpdateOrder(order.id, updates);
   };

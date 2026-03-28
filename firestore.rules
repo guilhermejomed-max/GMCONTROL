@@ -308,6 +308,18 @@ service cloud.firestore {
              (!('oilLiters' in data) || (data.oilLiters is number && data.oilLiters >= 0));
     }
 
+    function isValidVehicleType(data) {
+      return hasRequiredFields(['id', 'name', 'defaultAxles']) &&
+             hasOnlyAllowedFields(['id', 'name', 'defaultAxles', 'steerAxlesCount', 'description', 'createdAt', 'branchId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.defaultAxles is number && data.defaultAxles >= 0 &&
+             (!('steerAxlesCount' in data) || (data.steerAxlesCount is number && data.steerAxlesCount >= 0)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             (!('createdAt' in data) || isValidDateString(data.createdAt)) &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
     function isValidSystemSettings(data) {
       return hasOnlyAllowedFields(['companyName', 'logoUrl', 'primaryColor', 'secondaryColor', 'language', 'timezone', 'notifications']) &&
              (!('companyName' in data) || (data.companyName is string && data.companyName.size() <= 100)) &&
@@ -493,6 +505,13 @@ service cloud.firestore {
                     request.resource.data.tireId == resource.data.tireId &&
                     request.resource.data.loanDate == resource.data.loanDate;
       allow delete: if isAdmin();
+    }
+
+    match /vehicleTypes/{id} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior()) && isValidVehicleType(request.resource.data);
+      allow update: if (isAdmin() || isSenior()) && isValidVehicleType(request.resource.data) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin() || isSenior();
     }
 
     match /branches/{id} {
