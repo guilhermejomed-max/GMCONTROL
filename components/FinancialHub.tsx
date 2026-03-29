@@ -37,9 +37,25 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
   const retreadOrders = useMemo(() => {
     return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
   }, [allRetreadOrders, defaultBranchId]);
+  const [treadFilter, setTreadFilter] = useState<'ALL' | 'LISO' | 'BORRACHUDO'>('ALL');
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
+
+  const filteredTires = useMemo(() => {
+    if (treadFilter === 'ALL') return tires;
+    return tires.filter(t => {
+        // Use treadType if available, otherwise fallback to model/pattern check
+        const tireType = t.treadType || '';
+        const model = t.model || '';
+        const pattern = (t as any).treadPattern || ''; // Fallback for legacy
+        
+        const isLiso = tireType === 'LISO' || model.toLowerCase().includes('liso') || pattern.toLowerCase().includes('liso');
+        const isBorrachudo = tireType === 'BORRACHUDO' || model.toLowerCase().includes('borrachudo') || pattern.toLowerCase().includes('borrachudo');
+        
+        return treadFilter === 'LISO' ? isLiso : isBorrachudo;
+    });
+  }, [tires, treadFilter]);
 
   const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -63,7 +79,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
         model: string 
     }> = {};
 
-    tires.forEach(tire => {
+    filteredTires.forEach(tire => {
       const investment = Number(tire.totalInvestment || tire.price || 0);
       const original = tire.originalTreadDepth || 18;
       const current = tire.currentTreadDepth;
@@ -149,7 +165,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
       timelineData, // Keeping existing structure
       efficiencyData
     };
-  }, [tires, vehicles]);
+  }, [filteredTires, vehicles]);
 
   const reportData = useMemo(() => {
     if (!reportStartDate || !reportEndDate) return null;
@@ -233,6 +249,15 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise de ativos, depreciação e retorno sobre investimento (ROI).</p>
         </div>
         <div className="flex gap-2 w-full lg:w-auto">
+           <select 
+             className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm"
+             value={treadFilter}
+             onChange={e => setTreadFilter(e.target.value as any)}
+           >
+             <option value="ALL">Todos os Pneus</option>
+             <option value="LISO">Pneus Lisos</option>
+             <option value="BORRACHUDO">Pneus Borrachudos</option>
+           </select>
            <button onClick={() => {
                // Scroll to report section
                document.getElementById('custom-report')?.scrollIntoView({ behavior: 'smooth' });

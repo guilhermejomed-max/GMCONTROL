@@ -24,6 +24,7 @@ interface StrategicAnalysisProps {
 }
 
 type OperationFilter = 'ALL' | 'DIRECIONAL' | 'TRACAO' | 'CARRETA';
+type TreadFilter = 'ALL' | 'LISO' | 'BORRACHUDO';
 
 interface ModelStrategicData {
   key: string;
@@ -71,6 +72,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
 
   const vehicles = allVehicles;
   const [opFilter, setOpFilter] = useState<OperationFilter>('ALL');
+  const [treadFilter, setTreadFilter] = useState<TreadFilter>('ALL');
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
@@ -171,6 +173,9 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
         }
       } else if (opFilter !== 'ALL') return;
 
+      // Filtro de Tipo de Banda
+      if (treadFilter !== 'ALL' && tire.treadType !== treadFilter) return;
+
       const key = `${tire.brand.trim().toUpperCase()} - ${tire.model.trim().toUpperCase()}`;
       if (!groups[key]) {
         groups[key] = { brand: tire.brand.trim().toUpperCase(), model: tire.model.trim().toUpperCase(), items: [] };
@@ -257,7 +262,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
     }
 
     return results;
-  }, [tires, vehicles, settings, opFilter]);
+  }, [tires, vehicles, settings, opFilter, treadFilter]);
 
   const globalAvgCpk = useMemo(() => {
     if (strategicData.length === 0) return 0;
@@ -307,25 +312,47 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise de eficiência baseada em dados reais de rodagem e motivos de descarte.</p>
         </div>
         
-        <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl inline-flex shadow-inner">
-          {[
-            { id: 'ALL', label: 'Global' },
-            { id: 'DIRECIONAL', label: 'Direcional' },
-            { id: 'TRACAO', label: 'Tração' },
-            { id: 'CARRETA', label: 'Carreta' },
-          ].map(opt => (
-            <button 
-              key={opt.id}
-              onClick={() => setOpFilter(opt.id as OperationFilter)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                opFilter === opt.id 
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl inline-flex shadow-inner">
+            {[
+              { id: 'ALL', label: 'Todos' },
+              { id: 'LISO', label: 'Liso' },
+              { id: 'BORRACHUDO', label: 'Borrachudo' },
+            ].map(opt => (
+              <button 
+                key={opt.id}
+                onClick={() => setTreadFilter(opt.id as TreadFilter)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  treadFilter === opt.id 
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl inline-flex shadow-inner">
+            {[
+              { id: 'ALL', label: 'Global' },
+              { id: 'DIRECIONAL', label: 'Direcional' },
+              { id: 'TRACAO', label: 'Tração' },
+              { id: 'CARRETA', label: 'Carreta' },
+            ].map(opt => (
+              <button 
+                key={opt.id}
+                onClick={() => setOpFilter(opt.id as OperationFilter)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  opFilter === opt.id 
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

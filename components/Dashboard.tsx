@@ -220,6 +220,14 @@ export const Dashboard: FC<DashboardProps> = ({
 
     let totalGlobalKms = 0;
     let consumedGlobalValue = 0;
+    let totalKmsLiso = 0;
+    let consumedValueLiso = 0;
+    let countLiso = 0;
+    let totalDepthLiso = 0;
+    let totalKmsBorrachudo = 0;
+    let consumedValueBorrachudo = 0;
+    let countBorrachudo = 0;
+    let totalDepthBorrachudo = 0;
 
     filteredTires.forEach(t => {
         // CPK Calculation
@@ -232,9 +240,25 @@ export const Dashboard: FC<DashboardProps> = ({
         const current = t.currentTreadDepth || original;
         const safetyLimit = settings?.minTreadDepth || 3;
 
+        if (t.treadType === 'LISO') {
+            countLiso++;
+            totalDepthLiso += current;
+        } else if (t.treadType === 'BORRACHUDO') {
+            countBorrachudo++;
+            totalDepthBorrachudo += current;
+        }
+
         if (totalKm > 0) { 
             totalGlobalKms += totalKm;
             consumedGlobalValue += investment;
+            
+            if (t.treadType === 'LISO') {
+                totalKmsLiso += totalKm;
+                consumedValueLiso += investment;
+            } else if (t.treadType === 'BORRACHUDO') {
+                totalKmsBorrachudo += totalKm;
+                consumedValueBorrachudo += investment;
+            }
         }
 
         // Acquisition
@@ -272,6 +296,10 @@ export const Dashboard: FC<DashboardProps> = ({
     });
 
     const avgCpk = totalGlobalKms > 0 ? consumedGlobalValue / totalGlobalKms : 0;
+    const cpkLiso = totalKmsLiso > 0 ? consumedValueLiso / totalKmsLiso : 0;
+    const cpkBorrachudo = totalKmsBorrachudo > 0 ? consumedValueBorrachudo / totalKmsBorrachudo : 0;
+    const avgDepthLiso = countLiso > 0 ? totalDepthLiso / countLiso : 0;
+    const avgDepthBorrachudo = countBorrachudo > 0 ? totalDepthBorrachudo / countBorrachudo : 0;
 
     const chartData = Object.values(monthlyData).map(d => ({
         ...d,
@@ -319,6 +347,14 @@ export const Dashboard: FC<DashboardProps> = ({
         chartData,
         costDistribution,
         avgCpk,
+        cpkLiso,
+        cpkBorrachudo,
+        totalKmsLiso,
+        totalKmsBorrachudo,
+        countLiso,
+        countBorrachudo,
+        avgDepthLiso,
+        avgDepthBorrachudo,
         watchList,
         recentActivity,
         stockVelocity,
@@ -397,10 +433,30 @@ export const Dashboard: FC<DashboardProps> = ({
          {/* CPK METRIC */}
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between group">
             <div>
-                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Médio</p>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Médio Global</p>
                 <h3 className="text-3xl font-black text-slate-800 dark:text-white font-mono">{stats.totalTires > 0 ? `R$ ${stats.avgCpk.toFixed(4)}` : '---'}</h3>
             </div>
-            <div className="h-10 w-full mt-2 opacity-50 group-hover:opacity-100 transition-opacity">
+            
+            <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Liso (Direcional/Livre)</p>
+                    <p className="text-sm font-black text-slate-700 dark:text-slate-300 font-mono">{stats.totalTires > 0 ? `R$ ${stats.cpkLiso.toFixed(4)}` : '---'}</p>
+                    <div className="mt-1 flex justify-between text-[8px] text-slate-500 font-medium">
+                        <span>{stats.countLiso} pneus</span>
+                        <span>{(stats.totalKmsLiso / 1000).toFixed(1)}k km</span>
+                    </div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Borrachudo (Tração)</p>
+                    <p className="text-sm font-black text-slate-700 dark:text-slate-300 font-mono">{stats.totalTires > 0 ? `R$ ${stats.cpkBorrachudo.toFixed(4)}` : '---'}</p>
+                    <div className="mt-1 flex justify-between text-[8px] text-slate-500 font-medium">
+                        <span>{stats.countBorrachudo} pneus</span>
+                        <span>{(stats.totalKmsBorrachudo / 1000).toFixed(1)}k km</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="h-10 w-full mt-3 opacity-50 group-hover:opacity-100 transition-opacity">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={stats.chartData}>
                         <Line type="monotone" dataKey="cpk" stroke="#6366f1" strokeWidth={2} dot={false} />

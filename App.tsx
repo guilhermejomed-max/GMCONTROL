@@ -24,13 +24,13 @@ import { ServiceManager } from './components/ServiceManager';
 import { Settings } from './components/Settings';
 import { DriversHub } from './components/DriversHub';
 import { ReportsHub } from './components/ReportsHub';
-import { BranchManagement } from './components/BranchManagement';
 import TrackerSettingsComponent from './components/TrackerSettings';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
+import { calculatePredictedTreadDepth } from './src/utils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2 } from 'lucide-react';
 
@@ -53,7 +53,7 @@ const LoginScreen = ({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedBranchId && branches.length > 0) {
+    if (isRegistering && !selectedBranchId && branches.length > 0) {
       setError('Por favor, selecione uma filial para continuar.');
       return;
     }
@@ -115,23 +115,24 @@ const LoginScreen = ({
             </div>
           )}
           
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filial</label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <select 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 appearance-none"
-                value={selectedBranchId || ''}
-                onChange={e => setSelectedBranchId(e.target.value)}
-                required
-              >
-                <option value="">Selecione a Filial</option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+          {isRegistering && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filial</label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                <select 
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 appearance-none"
+                  value={selectedBranchId || ''}
+                  onChange={e => setSelectedBranchId(e.target.value)}
+                >
+                  <option value="">Selecione a Filial</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuário (nome.sobrenome)</label>
@@ -589,6 +590,25 @@ export const App = () => {
 
       if (updatesBatch.length > 0) {
         await storageService.updateVehicleBatch(orgId, updatesBatch);
+        
+        // Auto-update tires
+        const tireUpdates: Partial<Tire>[] = [];
+        updatesBatch.forEach(update => {
+            const vehicle = currentVehicles.find(v => v.id === update.id);
+            if (vehicle) {
+                const tiresOnVehicle = tires.filter(t => t.vehicleId === vehicle.id);
+                tiresOnVehicle.forEach(tire => {
+                    tireUpdates.push({
+                        id: tire.id,
+                        currentTreadDepth: calculatePredictedTreadDepth(tire, update.odometer)
+                    });
+                });
+            }
+        });
+        if (tireUpdates.length > 0) {
+            await storageService.updateTireBatch(orgId, tireUpdates);
+        }
+        
         totalUpdated = updatesBatch.length;
         console.log(`[Sascar Sync] Sincronização finalizada: ${totalUpdated} veículos atualizados.`);
         if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
@@ -701,6 +721,16 @@ export const App = () => {
                   ...vehicle,
                   ...updates
               });
+              
+              // Auto-update tires
+              const tiresOnVehicle = tires.filter(t => t.vehicleId === vehicle.id);
+              const tireUpdates = tiresOnVehicle.map(tire => ({
+                  id: tire.id,
+                  currentTreadDepth: calculatePredictedTreadDepth(tire, updates.odometer || vehicle.odometer || 0)
+              }));
+              if (tireUpdates.length > 0) {
+                  await storageService.updateTireBatch(orgId, tireUpdates);
+              }
           }
       }
   };
@@ -1045,7 +1075,6 @@ export const App = () => {
                 vehicleTypes={vehicleTypes}
               />
             )}
-            {currentTab === 'branches' && <BranchManagement />}
             {currentTab === 'settings' && <Settings orgId={orgId} currentSettings={settings || {} as any} onUpdateSettings={(s) => storageService.saveSettings(orgId, s)} branches={branches} />}
             {currentTab === 'drivers' && (
               <DriversHub 

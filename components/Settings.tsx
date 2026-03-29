@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch } from '../types';
 import { storageService } from '../services/storageService';
-import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download } from 'lucide-react';
+import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download, Building2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
+import { BranchManagement } from './BranchManagement';
 
 interface SettingsProps {
   orgId: string;
@@ -22,7 +23,7 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings, branches }) => {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL' | 'BRANCHES'>('GENERAL');
   
   // General Settings State
   const [formData, setFormData] = useState<SystemSettings>(currentSettings);
@@ -533,6 +534,9 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
            <button onClick={() => setActiveTab('MANUAL')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'MANUAL' ? 'bg-white shadow-sm text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}>
              <FileText className="h-4 w-4" /> Manual
            </button>
+           <button onClick={() => setActiveTab('BRANCHES')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'BRANCHES' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+             <Building2 className="h-4 w-4" /> Filiais
+           </button>
         </div>
       </div>
 
@@ -554,6 +558,13 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                <ManualCard title="Relatórios e Análises" description="Como extrair e interpretar os dados do sistema." />
                <ManualCard title="Configurações e Equipe" description="Aprenda a configurar o sistema e gerenciar acessos." />
             </div>
+         </div>
+      )}
+
+      {/* BRANCHES TAB */}
+      {activeTab === 'BRANCHES' && (
+         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+            <BranchManagement />
          </div>
       )}
 

@@ -75,6 +75,8 @@ export interface Tire {
 
   originalTreadDepth: number;
   currentTreadDepth: number;
+  lastMeasuredDepth?: number;
+  lastMeasuredOdometer?: number;
   
   treadReadings?: {
     depth1: number;

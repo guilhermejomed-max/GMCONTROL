@@ -36,30 +36,28 @@ export const Sidebar: FC<SidebarProps> = ({
 }) => {
   const allMenuItems = [
     // --- MÓDULO PNEUS ---
+    { id: 'register', label: 'Cadastrar Pneu', icon: PlusCircle, modules: ['TIRES'] },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, modules: ['TIRES'] },
     { id: 'inventory', label: 'Estoque de Pneus', icon: Disc, modules: ['TIRES'] },
-    { id: 'register', label: 'Cadastrar Pneu', icon: PlusCircle, modules: ['TIRES'] },
-    { id: 'movement', label: 'Movimentação', icon: ArrowRightLeft, modules: ['TIRES'] },
-    { id: 'inspection', label: 'Inspeção Pro', icon: ClipboardCheck, modules: ['TIRES'] },
-    { id: 'retreading', label: 'Recapagem', icon: Recycle, modules: ['TIRES'] },
-    { id: 'retreader-ranking', label: 'Ranking de Fornecedores', icon: Trophy, modules: ['TIRES'] },
-    // Relatórios removido a pedido
-    { id: 'scrap', label: 'Sucata/Descarte', icon: Trash2, modules: ['TIRES'] },
-    { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
+    { id: 'inspection', label: 'Inspeção Pro', icon: ClipboardCheck, modules: ['TIRES'] },
+    { id: 'movement', label: 'Movimentação', icon: ArrowRightLeft, modules: ['TIRES'] },
     { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['TIRES'] },
+    { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
+    { id: 'retreader-ranking', label: 'Ranking de Fornecedores', icon: Trophy, modules: ['TIRES'] },
+    { id: 'retreading', label: 'Recapagem', icon: Recycle, modules: ['TIRES'] },
+    { id: 'scrap', label: 'Sucata/Descarte', icon: Trash2, modules: ['TIRES'] },
     
     // --- MÓDULO VEÍCULOS ---
-    { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
-    { id: 'vehicle-types', label: 'Tipos de Veículos', icon: Layers, modules: ['VEHICLES'] },
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
-    { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
-    { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
-    { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
     { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
-    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES', 'TIRES'] },
-    { id: 'branches', label: 'Filiais', icon: Building2, modules: ['VEHICLES', 'TIRES'] },
+    { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
+    { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
+    { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
+    { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
+    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES', 'TIRES'] },
+    { id: 'vehicle-types', label: 'Tipos de Veículos', icon: Layers, modules: ['VEHICLES'] },
 
     // --- MÓDULO OFICINA/PEÇAS ---
     { id: 'service', label: 'Almoxarifado (Peças)', icon: Package, modules: ['MECHANICAL'] },
