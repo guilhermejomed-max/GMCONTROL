@@ -796,7 +796,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                            <span className="absolute right-3 top-3.5 text-xs font-bold text-slate-400">mm</span>
                         </div>
                         <select value={newTreadPattern.type} onChange={e => setNewTreadPattern({...newTreadPattern, type: e.target.value as any})} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-800 dark:text-white">
-                           <option value="LISO">LISO (Direcional)</option>
+                           <option value="LISO">LISO (Direcional/Livre)</option>
                            <option value="BORRACHUDO">BORRACHUDO (Tração)</option>
                         </select>
                      </div>

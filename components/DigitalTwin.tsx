@@ -117,8 +117,11 @@ export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, setti
       <svg viewBox={`0 0 ${width} ${totalHeight}`} className="drop-shadow-xl shrink-0" style={{ maxWidth: '100%', height: 'auto', maxHeight: '400px' }}>
         {/* Chassis */}
         <rect x={cx - 6} y={40} width={12} height={totalHeight - 80} rx="3" fill="#1e293b" />
-        {/* Cabin Indicator */}
-        <path d={`M ${cx-30} 30 L ${cx+30} 30 L ${cx+35} 55 L ${cx-35} 55 Z`} fill="#334155" opacity="0.5" />
+        
+        {/* Cabin Indicator (only for non-trailers) */}
+        {!vehicle.type.toUpperCase().includes('CARRETA') && (
+          <path d={`M ${cx-30} 30 L ${cx+30} 30 L ${cx+35} 55 L ${cx-35} 55 Z`} fill="#334155" opacity="0.5" />
+        )}
         
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);

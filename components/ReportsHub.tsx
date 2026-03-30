@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus, ModuleType, VehicleType } from '../types';
 import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package, Truck, Wrench, Maximize, Minimize } from 'lucide-react';
+import { isSteerAxle } from '../lib/vehicleUtils';
 
 interface ReportsHubProps {
   tires: Tire[];
@@ -313,15 +314,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
         const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
         
         for (let i = 0; i < (vehicle.axles || 0); i++) {
-          const vehicleType = vehicleTypes.find(vt => vt.id === vehicle.type || vt.name === vehicle.type);
-          let isSteer = false;
-          
-          if (vehicleType) {
-            isSteer = i < (vehicleType.steerAxlesCount || 1);
-          } else {
-            // Fallback
-            isSteer = (['CAVALO', '3/4'].includes(vehicle.type) && i === 0) || (['BI-TRUCK', 'BITRUCK'].includes(vehicle.type) && (i === 0 || i === 1));
-          }
+          const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
           
           const positions = isSteer ? [`${i + 1}E`, `${i + 1}D`] : [`${i + 1}EE`, `${i + 1}EI`, `${i + 1}DI`, `${i + 1}DE`];
           

@@ -308,7 +308,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
                            onClick={() => setFormData({...formData, treadType: 'LISO'})}
                            className={`p-4 rounded-2xl font-bold text-sm transition-all border-2 ${formData.treadType === 'LISO' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-300'}`}
                        >
-                           Liso (Direcional)
+                           Liso (Direcional/Livre)
                        </button>
                        <button 
                            type="button" 

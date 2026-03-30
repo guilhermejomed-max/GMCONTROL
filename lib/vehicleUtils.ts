@@ -9,14 +9,20 @@ import { VehicleType } from '../types';
  * @returns true se o eixo for direcional
  */
 export const isSteerAxle = (vType: string, axleIndex: number, vehicleTypes: VehicleType[] = []): boolean => {
+  const upperType = vType.toUpperCase();
+  
+  // Força 0 eixos direcionais para qualquer carreta, mesmo se cadastrado errado no banco
+  if (upperType.includes('CARRETA')) {
+    return false;
+  }
+
   const vehicleType = vehicleTypes.find(vt => vt.id === vType || vt.name === vType);
   
   if (vehicleType) {
-    return axleIndex < (vehicleType.steerAxlesCount || 1);
+    return axleIndex < (vehicleType.steerAxlesCount ?? 1);
   }
   
   // Fallback para tipos conhecidos se não encontrar o objeto de tipo
-  const upperType = vType.toUpperCase();
   if (['CAVALO', '3/4', 'TOCO'].includes(upperType)) {
     return axleIndex === 0;
   }

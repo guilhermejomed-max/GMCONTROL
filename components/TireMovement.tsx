@@ -136,7 +136,9 @@ const MovementSchematic: FC<{
         {/* Chassis */}
         <rect x={cx - 6} y={40} width={12} height={totalHeight - 80} rx="3" fill="#1e293b" />
         {/* Cabin Indicator */}
-        <path d={`M ${cx-30} 30 L ${cx+30} 30 L ${cx+35} 55 L ${cx-35} 55 Z`} fill="#334155" opacity="0.5" />
+        {!vehicle.type.toUpperCase().includes('CARRETA') && (
+          <path d={`M ${cx-30} 30 L ${cx+30} 30 L ${cx+35} 55 L ${cx-35} 55 Z`} fill="#334155" opacity="0.5" />
+        )}
         
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);

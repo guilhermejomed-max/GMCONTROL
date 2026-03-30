@@ -217,7 +217,9 @@ const ProVehicleSchematic: FC<{
     <div className="w-full h-full flex justify-center items-center p-6 bg-slate-50 dark:bg-slate-950/50 overflow-y-auto custom-scrollbar border-r border-slate-200 dark:border-slate-800">
       <svg viewBox={`0 0 ${width} ${totalHeight}`} className="drop-shadow-2xl shrink-0" style={{ maxWidth: '100%', height: 'auto', maxHeight: '100%' }}>
         <rect x={cx - 6} y={40} width={12} height={totalHeight - 80} rx="3" fill="#1e293b" />
-        <path d={`M ${cx-30} 30 L ${cx+30} 30 L ${cx+35} 55 L ${cx-35} 55 Z`} fill="#334155" opacity="0.5" />
+        {!vehicle.type.toUpperCase().includes('CARRETA') && (
+          <path d={`M ${cx-30} 30 L ${cx+30} 30 L ${cx+35} 55 L ${cx-35} 55 Z`} fill="#334155" opacity="0.5" />
+        )}
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);
           const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);

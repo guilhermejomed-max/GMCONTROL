@@ -17,6 +17,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
     name: '',
     defaultAxles: 3,
     steerAxlesCount: 1,
+    driveAxlesCount: 0,
     description: ''
   });
 
@@ -27,16 +28,25 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If it's a CARRETA, force steer and drive axles to 0
+    const isCarreta = formData.name.includes('CARRETA');
+    const finalData = {
+      ...formData,
+      steerAxlesCount: isCarreta ? 0 : formData.steerAxlesCount,
+      driveAxlesCount: isCarreta ? 0 : (formData.driveAxlesCount || 0)
+    };
+
     try {
       if (editingType) {
         await storageService.updateVehicleType(orgId, {
           ...editingType,
-          ...formData
+          ...finalData
         });
       } else {
         await storageService.addVehicleType(orgId, {
           id: Date.now().toString(),
-          ...formData
+          ...finalData
         });
       }
       handleCloseModal();
@@ -52,6 +62,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
       name: type.name,
       defaultAxles: type.defaultAxles,
       steerAxlesCount: type.steerAxlesCount,
+      driveAxlesCount: type.driveAxlesCount || 0,
       description: type.description || ''
     });
     setIsModalOpen(true);
@@ -82,6 +93,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
       name: '',
       defaultAxles: 3,
       steerAxlesCount: 1,
+      driveAxlesCount: 0,
       description: ''
     });
   };
@@ -134,14 +146,18 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
             <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1 uppercase">{type.name}</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 line-clamp-2">{type.description || 'Sem descrição'}</p>
 
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-50 dark:border-slate-800">
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Eixos Totais</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Totais</p>
                 <p className="text-lg font-black text-slate-700 dark:text-slate-200">{type.defaultAxles}</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Eixos Direcionais</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Direcionais</p>
                 <p className="text-lg font-black text-slate-700 dark:text-slate-200">{type.steerAxlesCount}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tracionadores</p>
+                <p className="text-lg font-black text-slate-700 dark:text-slate-200">{type.driveAxlesCount || 0}</p>
               </div>
             </div>
           </div>
@@ -181,7 +197,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  <div className={formData.name.includes('CARRETA') ? "col-span-2" : ""}>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Qtd Eixos Totais</label>
                     <input
                       type="number"
@@ -192,18 +208,33 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
                       onChange={(e) => setFormData({ ...formData, defaultAxles: parseInt(e.target.value) })}
                     />
                   </div>
+                  {!formData.name.includes('CARRETA') && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Eixos Direcionais</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 dark:text-white transition-all"
+                        value={formData.steerAxlesCount}
+                        onChange={(e) => setFormData({ ...formData, steerAxlesCount: parseInt(e.target.value) })}
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                {!formData.name.includes('CARRETA') && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Eixos Direcionais</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Eixos Tracionadores</label>
                     <input
                       type="number"
-                      required
                       min="0"
                       className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 dark:text-white transition-all"
-                      value={formData.steerAxlesCount}
-                      onChange={(e) => setFormData({ ...formData, steerAxlesCount: parseInt(e.target.value) })}
+                      value={formData.driveAxlesCount || 0}
+                      onChange={(e) => setFormData({ ...formData, driveAxlesCount: parseInt(e.target.value) })}
                     />
                   </div>
-                </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Descrição (Opcional)</label>

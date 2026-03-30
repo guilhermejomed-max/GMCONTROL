@@ -125,6 +125,7 @@ export interface VehicleType {
   name: string;
   defaultAxles: number;
   steerAxlesCount: number; // Number of steer axles (usually 1 or 2)
+  driveAxlesCount?: number; // Number of drive axles
   description?: string;
   branchId?: string;
 }

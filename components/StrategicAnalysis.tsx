@@ -98,7 +98,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
     }
 
     // Lógica baseada na contagem de eixos direcionais
-    const steerAxles = vehicleType.steerAxlesCount || 1;
+    const steerAxles = vehicleType.steerAxlesCount ?? 1;
     const steerPositions = [];
     for (let i = 1; i <= steerAxles; i++) {
       const suffix = i === 1 ? '' : String(i - 1);
