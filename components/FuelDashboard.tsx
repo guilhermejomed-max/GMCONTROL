@@ -48,7 +48,7 @@ export const FuelDashboard: React.FC<Props> = ({
   onUpdateStation,
   onDeleteStation
 }) => {
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'STATIONS'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'STATIONS' | 'COMPARATIVO'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -162,6 +162,62 @@ export const FuelDashboard: React.FC<Props> = ({
     };
   }, [fuelEntries]);
 
+  const stationAverages = useMemo(() => {
+    const stationGroups: Record<string, { entries: FuelEntry[] }> = {};
+    
+    fuelEntries.forEach(e => {
+      const stationName = e.stationName || 'Não Identificado';
+      
+      if (!stationGroups[stationName]) {
+        stationGroups[stationName] = { entries: [] };
+      }
+      stationGroups[stationName].entries.push(e);
+    });
+
+    return Object.entries(stationGroups)
+      .filter(([stationName]) => fuelStations.some(s => s.name === stationName))
+      .map(([stationName, data]) => {
+      let totalSpent = 0;
+      let totalLiters = 0;
+      
+      data.entries.forEach(e => {
+        totalSpent += e.totalCost;
+        totalLiters += e.liters;
+      });
+      
+      const avgPrice = totalLiters > 0 ? (totalSpent / totalLiters) : 0;
+      
+      const getEfficiencyForEntry = (entry: FuelEntry) => {
+        const liters = Number(entry.liters);
+        if (entry.kmPerLiter && entry.kmPerLiter > 0) return entry.kmPerLiter;
+        
+        const vehicleEntries = allFuelEntries
+          .filter(e => e.vehicleId === entry.vehicleId)
+          .sort((a, b) => new Date(a.date).valueOf() - new Date(b.date).valueOf());
+        
+        const index = vehicleEntries.findIndex(e => e.id === entry.id);
+        if (index > 0 && liters > 0) {
+            const prev = vehicleEntries[index - 1];
+            const kmDiff = entry.odometer - prev.odometer;
+            if (kmDiff > 0) return kmDiff / liters;
+        }
+        return 0;
+      };
+
+      const entriesWithEfficiency = data.entries.map(getEfficiencyForEntry).filter(e => e > 0);
+      const avgEfficiency = entriesWithEfficiency.length > 0 
+        ? entriesWithEfficiency.reduce((acc, e) => acc + e, 0) / entriesWithEfficiency.length
+        : 0;
+
+      return {
+        stationName,
+        avgPrice,
+        avgEfficiency,
+        entriesCount: data.entries.length
+      };
+    }).sort((a, b) => a.avgPrice - b.avgPrice);
+  }, [fuelEntries]);
+
   const modelAverages = useMemo(() => {
     const modelGroups: Record<string, { vehicleIds: Set<string>, entries: FuelEntry[] }> = {};
     
@@ -243,6 +299,7 @@ export const FuelDashboard: React.FC<Props> = ({
       driverId: newEntry.driverId,
       driverName: driver?.name || '',
       branchId: defaultBranchId || vehicle?.branchId,
+      kmPerLiter: currentKmPerLiter,
       notes: newEntry.notes
     };
 
@@ -354,6 +411,16 @@ export const FuelDashboard: React.FC<Props> = ({
             }`}
           >
             <Store className="h-4 w-4" /> POSTOS DE ABASTECIMENTO
+          </button>
+          <button
+            onClick={() => setActiveTab('COMPARATIVO')}
+            className={`px-6 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+              activeTab === 'COMPARATIVO'
+                ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" /> COMPARATIVO
           </button>
         </div>
 
@@ -486,6 +553,22 @@ export const FuelDashboard: React.FC<Props> = ({
             </div>
           </div>
         </>
+      ) : activeTab === 'COMPARATIVO' ? (
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h2 className="text-lg font-black text-slate-800 dark:text-white mb-6">Comparativo de Postos</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {stationAverages.map(s => (
+              <div key={s.stationName} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                <h3 className="font-bold text-slate-800 dark:text-white mb-2">{s.stationName}</h3>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <p>Preço Médio: R$ {s.avgPrice.toFixed(2)}/L</p>
+                  <p>Eficiência Média: {s.avgEfficiency.toFixed(2)} km/L</p>
+                  <p>Abastecimentos: {s.entriesCount}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
         <FuelStationList 
           stations={fuelStations} 

@@ -343,7 +343,7 @@ export interface ServiceOrder {
   maintenanceBaseName?: string;
   arrivalAlertId?: string;
   isPreventiveMaintenance?: boolean;
-  serviceType?: 'INTERNAL' | 'EXTERNAL'; // New: Internal or External
+  serviceType?: 'INTERNAL' | 'EXTERNAL' | 'BOTH'; // Updated: Internal, External or Both
   providerName?: string; // New: Provider name
   externalServiceCost?: number; // New: External service cost
   date?: string; // Data da O.S. (pode ser diferente de createdAt)
@@ -496,7 +496,7 @@ export interface FuelEntry {
   kmPerLiter?: number; // Calculated
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'branches' | 'partners' | 'occurrences' | 'fuel';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'branches' | 'partners' | 'occurrences' | 'fuel';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

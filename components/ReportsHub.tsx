@@ -19,7 +19,7 @@ interface ReportsHubProps {
   vehicleTypes?: VehicleType[];
 }
 
-type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS' | 'MISSING_TIRES' | 'OCCURRENCES' | 'FUEL';
+type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS' | 'MISSING_TIRES' | 'OCCURRENCES' | 'FUEL' | 'DETAILED_COSTS';
 
 interface ColumnDef {
   id: string;
@@ -156,6 +156,12 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'odometer', label: 'KM', accessor: (e: any) => e.odometer.toLocaleString() },
       { id: 'station', label: 'Posto', accessor: (e: any) => e.stationName || '-' },
       { id: 'driver', label: 'Motorista', accessor: (e: any) => e.driverName || '-' },
+    ],
+    DETAILED_COSTS: [
+      { id: 'category', label: 'Categoria', accessor: (item: any) => item.category },
+      { id: 'value', label: 'Valor Total', accessor: (item: any) => item.value, format: money },
+      { id: 'percentage', label: '% do Total', accessor: (item: any) => `${item.percentage.toFixed(1)}%` },
+      { id: 'count', label: 'Qtd. Lançamentos', accessor: (item: any) => item.count },
     ]
 };
 
@@ -220,11 +226,11 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   useEffect(() => {
     const initialSource: ReportSource = 
       activeModule === 'TIRES' ? 'TIRES' : 
-      activeModule === 'MECHANICAL' ? 'MAINTENANCE' : 
+      activeModule === 'MECHANICAL' ? 'DETAILED_COSTS' : 
       activeModule === 'FUEL' ? 'FUEL' : 'VEHICLES';
     setSource(initialSource);
     setSelectedColumns(COLUMN_DEFINITIONS[initialSource].slice(0, 8).map(c => c.id));
-    if (initialSource === 'FUEL') {
+    if (initialSource === 'FUEL' || initialSource === 'DETAILED_COSTS') {
         const today = new Date().toISOString().split('T')[0];
         setStartDate(today);
         setEndDate(today);
@@ -258,7 +264,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
       setSelectedPlate('');
       setSelectedType('');
       
-      if (newSource === 'FUEL') {
+      if (newSource === 'FUEL' || newSource === 'DETAILED_COSTS') {
           const today = new Date().toISOString().split('T')[0];
           setStartDate(today);
           setEndDate(today);
@@ -385,6 +391,69 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
         }
       });
       rawData = missingTires;
+    } else if (source === 'DETAILED_COSTS') {
+        const costs = {
+            oil: { value: 0, count: 0 },
+            filters: { value: 0, count: 0 },
+            internalLabor: { value: 0, count: 0 },
+            externalLabor: { value: 0, count: 0 },
+            otherParts: { value: 0, count: 0 },
+            retreading: { value: 0, count: 0 }
+        };
+
+        // Filter and process Service Orders
+        serviceOrders.filter(o => o.status === 'CONCLUIDO').forEach(o => {
+            const date = new Date(o.date || o.completedAt || o.createdAt);
+            if (startDate && date < new Date(startDate)) return;
+            if (endDate && date > new Date(endDate)) return;
+
+            // Labor
+            if (o.serviceType === 'INTERNAL') {
+                costs.internalLabor.value += (o.laborCost || 0);
+                if (o.laborCost) costs.internalLabor.count++;
+            } else {
+                costs.externalLabor.value += (o.externalServiceCost || 0);
+                if (o.externalServiceCost) costs.externalLabor.count++;
+            }
+
+            // Parts
+            (o.parts || []).forEach(p => {
+                const name = p.name.toUpperCase();
+                const partCost = p.quantity * p.unitCost;
+                if (name.includes('ÓLEO') || name.includes('OLEO')) {
+                    costs.oil.value += partCost;
+                    costs.oil.count++;
+                } else if (name.includes('FILTRO')) {
+                    costs.filters.value += partCost;
+                    costs.filters.count++;
+                } else {
+                    costs.otherParts.value += partCost;
+                    costs.otherParts.count++;
+                }
+            });
+        });
+
+        // Filter and process Retread Orders
+        retreadOrders.filter(o => o.status === 'CONCLUIDO').forEach(o => {
+            const date = new Date(o.returnedDate || o.sentDate);
+            if (startDate && date < new Date(startDate)) return;
+            if (endDate && date > new Date(endDate)) return;
+
+            costs.retreading.value += (o.totalCost || 0);
+            costs.retreading.count++;
+        });
+
+        const total = Object.values(costs).reduce((acc, c) => acc + c.value, 0);
+
+        rawData = [
+            { category: 'Óleo', value: costs.oil.value, count: costs.oil.count, percentage: total > 0 ? (costs.oil.value / total) * 100 : 0 },
+            { category: 'Filtros', value: costs.filters.value, count: costs.filters.count, percentage: total > 0 ? (costs.filters.value / total) * 100 : 0 },
+            { category: 'Mão de Obra Interna', value: costs.internalLabor.value, count: costs.internalLabor.count, percentage: total > 0 ? (costs.internalLabor.value / total) * 100 : 0 },
+            { category: 'Mão de Obra Externa', value: costs.externalLabor.value, count: costs.externalLabor.count, percentage: total > 0 ? (costs.externalLabor.value / total) * 100 : 0 },
+            { category: 'Outras Peças', value: costs.otherParts.value, count: costs.otherParts.count, percentage: total > 0 ? (costs.otherParts.value / total) * 100 : 0 },
+            { category: 'Pneus (Reformas)', value: costs.retreading.value, count: costs.retreading.count, percentage: total > 0 ? (costs.retreading.value / total) * 100 : 0 },
+        ];
+        return rawData;
     } else if (source === 'SUMMARY') {
         // Cálculo do resumo
         const filteredTires = tires.filter(t => {
@@ -801,15 +870,16 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">1. Módulo de Dados</label>
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { id: 'TIRES', label: 'Inventário de Pneus', icon: Package },
-                    { id: 'MISSING_TIRES', label: 'Pneus Faltantes', icon: AlertCircle },
-                    { id: 'VEHICLES', label: 'Frota e KM', icon: Truck },
-                    { id: 'FUEL', label: 'Abastecimento', icon: Fuel },
-                    { id: 'OCCURRENCES', label: 'Ocorrências', icon: AlertCircle },
-                    { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package },
-                    { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench },
-                    { id: 'MODEL_COSTS', label: 'Custos por Modelo', icon: TrendingUp }
-                  ].map(opt => (
+                    { id: 'TIRES', label: 'Inventário de Pneus', icon: Package, modules: ['TIRES'] },
+                    { id: 'MISSING_TIRES', label: 'Pneus Faltantes', icon: AlertCircle, modules: ['TIRES'] },
+                    { id: 'VEHICLES', label: 'Frota e KM', icon: Truck, modules: ['VEHICLES'] },
+                    { id: 'FUEL', label: 'Abastecimento', icon: Fuel, modules: ['FUEL'] },
+                    { id: 'OCCURRENCES', label: 'Ocorrências', icon: AlertCircle, modules: ['VEHICLES'] },
+                    { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package, modules: ['VEHICLES'] },
+                    { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench, modules: ['MECHANICAL'] },
+                    { id: 'MODEL_COSTS', label: 'Custos por Modelo', icon: TrendingUp, modules: ['MECHANICAL'] },
+                    { id: 'DETAILED_COSTS', label: 'Custos Detalhados', icon: DollarSign, modules: ['MECHANICAL'] }
+                  ].filter(opt => !activeModule || opt.modules.includes(activeModule)).map(opt => (
                     <button
                       key={opt.id}
                       onClick={() => handleSourceChange(opt.id as ReportSource)}
@@ -939,15 +1009,17 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                     </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-5">
-                    <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-600">
-                      <TrendingUp className="h-7 w-7"/>
+                  {source !== 'DETAILED_COSTS' && (
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-5">
+                      <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-600">
+                        <TrendingUp className="h-7 w-7"/>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Média por Carro</p>
+                        <p className="text-2xl font-black text-slate-900 dark:text-white">{money(reportSummary.avgValue || 0)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Média por Carro</p>
-                      <p className="text-2xl font-black text-slate-900 dark:text-white">{money(reportSummary.avgValue || 0)}</p>
-                    </div>
-                  </div>
+                  )}
                 </>
               )}
             </div>

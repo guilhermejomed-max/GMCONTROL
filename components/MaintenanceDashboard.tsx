@@ -27,6 +27,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
   const vehicles = allVehicles;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OK' | 'WARNING' | 'OVERDUE'>('ALL');
+  const [fuelFilter, setFuelFilter] = useState<'ALL' | 'DIESEL' | 'GAS'>('ALL');
 
   const maintenanceSchedules = useMemo(() => {
     return defaultBranchId ? allMaintenanceSchedules.filter(s => s.branchId === defaultBranchId) : allMaintenanceSchedules;
@@ -91,9 +92,13 @@ export const MaintenanceDashboard: React.FC<Props> = ({
                            (item.lastLocation?.address || '').toLowerCase().includes(searchLower) ||
                            (item.lastLocation?.city || '').toLowerCase().includes(searchLower);
       const matchesStatus = filterStatus === 'ALL' || item.status === filterStatus;
-      return matchesSearch && matchesStatus;
+      const fuel = item.fuelType?.toUpperCase() || '';
+      const matchesFuel = fuelFilter === 'ALL' || 
+                         (fuelFilter === 'DIESEL' && fuel.includes('DIESEL')) ||
+                         (fuelFilter === 'GAS' && (fuel.includes('GAS') || fuel.includes('GÁS')));
+      return matchesSearch && matchesStatus && matchesFuel;
     });
-  }, [maintenanceData, searchTerm, filterStatus]);
+  }, [maintenanceData, searchTerm, filterStatus, fuelFilter]);
 
   const stats = useMemo(() => {
     const total = maintenanceData.length;
@@ -175,6 +180,29 @@ export const MaintenanceDashboard: React.FC<Props> = ({
           <button onClick={() => setFilterStatus('OK')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'OK' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>EM DIA</button>
           <button onClick={() => setFilterStatus('WARNING')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'WARNING' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}>PRÓXIMAS</button>
           <button onClick={() => setFilterStatus('OVERDUE')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'OVERDUE' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}>VENCIDAS</button>
+          
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2 hidden md:block"></div>
+          
+          <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button 
+              onClick={() => setFuelFilter('ALL')} 
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${fuelFilter === 'ALL' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              TODOS COMBUST.
+            </button>
+            <button 
+              onClick={() => setFuelFilter('DIESEL')} 
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${fuelFilter === 'DIESEL' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-600'}`}
+            >
+              DIESEL
+            </button>
+            <button 
+              onClick={() => setFuelFilter('GAS')} 
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${fuelFilter === 'GAS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-emerald-600'}`}
+            >
+              GÁS
+            </button>
+          </div>
         </div>
       </div>
 

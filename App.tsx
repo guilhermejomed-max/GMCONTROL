@@ -776,6 +776,10 @@ export const App = () => {
       case 'settings': return 'Configurações';
       case 'drivers': return 'Motoristas';
       case 'reports': return 'Relatórios';
+      case 'reports-tires': return 'Relatórios de Pneus';
+      case 'reports-vehicles': return 'Relatórios de Veículos';
+      case 'reports-maintenance': return 'Relatórios de Manutenção';
+      case 'reports-fuel': return 'Relatórios de Abastecimento';
       case 'branches': return 'Gestão de Filiais';
       case 'tracker': return 'Configurações do Rastreador';
       case 'occurrences': return 'Módulo de Ocorrências';
@@ -962,7 +966,7 @@ export const App = () => {
                               <select
                                   value={selectedBranchId || ''}
                                   onChange={(e) => setSelectedBranchId(e.target.value || undefined)}
-                                  disabled={!!userBranchId}
+                                  disabled={!!userBranchId && userRole !== 'CREATOR'}
                                   className="bg-transparent border-none text-xs font-bold text-slate-600 dark:text-slate-300 focus:ring-0 cursor-pointer outline-none disabled:cursor-not-allowed"
                               >
                                   <option value="">Todas as Filiais</option>
@@ -1160,7 +1164,7 @@ export const App = () => {
               />
             )}
             {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} />}
-            {currentTab === 'reports' && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
+            {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance' || currentTab === 'reports-fuel') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
               <ReportsHub 
                 tires={tires} 
                 vehicles={vehicles} 
@@ -1172,7 +1176,13 @@ export const App = () => {
                 defaultBranchId={selectedBranchId}
                 vehicleBrandModels={vehicleBrandModels} 
                 onFullScreenToggle={setIsReportsFullScreen} 
-                activeModule={activeModule}
+                activeModule={
+                  currentTab === 'reports-tires' ? 'TIRES' :
+                  currentTab === 'reports-vehicles' ? 'VEHICLES' :
+                  currentTab === 'reports-maintenance' ? 'MECHANICAL' :
+                  currentTab === 'reports-fuel' ? 'FUEL' :
+                  activeModule
+                }
                 vehicleTypes={vehicleTypes}
               />
             )}

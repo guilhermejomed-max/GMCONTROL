@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign } from 'lucide-react';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 
@@ -62,6 +62,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
+  const [fuelFilter, setFuelFilter] = useState<'ALL' | 'DIESEL' | 'GAS'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAllOrders, setShowAllOrders] = useState(false);
 
@@ -111,6 +112,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [newOrderDate, setNewOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [newOrderOdometer, setNewOrderOdometer] = useState<number | ''>('');
   const [isPreventiveMaintenance, setIsPreventiveMaintenance] = useState(false);
+  const [includeParts, setIncludeParts] = useState(false);
   const [newOrderCollaboratorId, setNewOrderCollaboratorId] = useState('');
   const [newOrderPartnerId, setNewOrderPartnerId] = useState('');
   const [newOrderServiceId, setNewOrderServiceId] = useState('');
@@ -119,7 +121,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [newOrderTireId, setNewOrderTireId] = useState('');
   const [editOrderTireId, setEditOrderTireId] = useState('');
   
-  const [newOrderServiceType, setNewOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
+  const [newOrderServiceType, setNewOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL' | 'BOTH'>('INTERNAL');
   const [newOrderProviderName, setNewOrderProviderName] = useState('');
   const [newOrderExternalServiceCost, setNewOrderExternalServiceCost] = useState<number | ''>('');
   
@@ -130,15 +132,18 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [editOrderDate, setEditOrderDate] = useState('');
   const [editOrderCollaboratorId, setEditOrderCollaboratorId] = useState('');
   const [editOrderLaborHours, setEditOrderLaborHours] = useState<number | ''>('');
-  const [editOrderServiceType, setEditOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
+  const [editOrderServiceType, setEditOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL' | 'BOTH'>('INTERNAL');
   const [editOrderProviderName, setEditOrderProviderName] = useState('');
   const [editOrderExternalServiceCost, setEditOrderExternalServiceCost] = useState<number | ''>('');
+  const [editOrderPartnerId, setEditOrderPartnerId] = useState('');
+  const [editOrderServiceId, setEditOrderServiceId] = useState('');
   const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
 
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [viewingOrderDetails, setViewingOrderDetails] = useState<ServiceOrder | null>(null);
 
   // Parts Selection State
   const [newOrderParts, setNewOrderParts] = useState<{ itemId: string; name: string; quantity: number; unitCost: number }[]>([]);
@@ -243,6 +248,15 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
     return serviceOrders
       .filter(order => {
         if (filter !== 'ALL' && order.status !== filter) return false;
+        
+        // Fuel Filter
+        if (fuelFilter !== 'ALL') {
+          const vehicle = vehicles.find(v => v.id === order.vehicleId);
+          const fuel = vehicle?.fuelType?.toUpperCase() || '';
+          if (fuelFilter === 'DIESEL' && !fuel.includes('DIESEL')) return false;
+          if (fuelFilter === 'GAS' && !fuel.includes('GAS') && !fuel.includes('GÁS')) return false;
+        }
+
         if (searchTerm && 
             !order.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase()) && 
             !order.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -251,7 +265,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         }
         return true;
       });
-  }, [serviceOrders, filter, searchTerm]);
+  }, [serviceOrders, filter, searchTerm, fuelFilter, vehicles]);
 
   // Derived state for available tires based on selected plate
   const availableTiresForSelection = useMemo(() => {
@@ -400,20 +414,20 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               details: newOrderDetails,
               date: newOrderDate,
               serviceType: newOrderServiceType,
-              providerName: newOrderServiceType === 'EXTERNAL' ? partner?.name : undefined,
-              externalServiceCost: newOrderServiceType === 'EXTERNAL' ? (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) : undefined,
-              services: newOrderServiceType === 'EXTERNAL' && service ? [{ id: service.id, name: service.name, cost: (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) }] : undefined,
+              providerName: (newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') ? partner?.name : undefined,
+              externalServiceCost: (newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') ? (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) : undefined,
+              services: (newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') && service ? [{ id: service.id, name: service.name, cost: (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) }] : undefined,
               maintenancePlanId: newOrderMaintenancePlanId || undefined,
               maintenanceBaseId: newOrderMaintenanceBaseId || undefined,
               maintenanceBaseName: settings?.savedPoints?.find(p => p.id === newOrderMaintenanceBaseId)?.name,
               arrivalAlertId,
               isPreventiveMaintenance,
               odometer: newOrderOdometer !== '' ? newOrderOdometer : undefined,
-              parts: newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
-              collaboratorId: newOrderCollaboratorId || undefined,
-              collaboratorName: collaborator?.name,
-              laborHours: newOrderLaborHours !== '' ? Number(newOrderLaborHours) : undefined,
-              laborCost: laborCost > 0 ? laborCost : undefined,
+              parts: includeParts && newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
+              collaboratorId: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? (newOrderCollaboratorId || undefined) : undefined,
+              collaboratorName: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? collaborator?.name : undefined,
+              laborHours: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? (newOrderLaborHours !== '' ? Number(newOrderLaborHours) : undefined) : undefined,
+              laborCost: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined,
               branchId: defaultBranchId,
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
@@ -456,6 +470,20 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       setEditOrderProviderName(order.providerName || '');
       setEditOrderExternalServiceCost(order.externalServiceCost || '');
       setEditOrderTireId(order.tireId || '');
+      
+      // Try to find partner and service ID for the dropdowns
+      if (order.providerName) {
+          const partner = partners.find(p => p.name === order.providerName);
+          if (partner) {
+              setEditOrderPartnerId(partner.id);
+              if (order.services && order.services.length > 0) {
+                  setEditOrderServiceId(order.services[0].id);
+              }
+          }
+      } else {
+          setEditOrderPartnerId('');
+          setEditOrderServiceId('');
+      }
   };
 
   const handleUpdateOrderDetails = async (e: React.FormEvent) => {
@@ -467,6 +495,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const collaborator = filteredCollaborators.find(c => c.id === editOrderCollaboratorId);
           const laborCost = (collaborator && editOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(editOrderLaborHours) : 0;
 
+          const partner = partners.find(p => p.id === editOrderPartnerId);
+          const service = partner?.services.find(s => s.id === editOrderServiceId);
           const tire = tires.find(t => t.id === editOrderTireId);
 
           await onUpdateOrder(editingOrder.id, {
@@ -476,13 +506,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               tireFireNumber: tire?.fireNumber,
               date: editOrderDate,
               serviceType: editOrderServiceType,
-              providerName: editOrderServiceType === 'EXTERNAL' ? editOrderProviderName : undefined,
-              externalServiceCost: editOrderServiceType === 'EXTERNAL' && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : undefined,
+              providerName: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') ? (partner?.name || editOrderProviderName) : undefined,
+              externalServiceCost: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : undefined,
+              services: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && service ? [{ id: service.id, name: service.name, cost: (editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : 0) }] : undefined,
               parts: editOrderParts.length > 0 ? editOrderParts : undefined,
-              collaboratorId: editOrderCollaboratorId || undefined,
-              collaboratorName: collaborator?.name,
-              laborHours: editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined,
-              laborCost: laborCost > 0 ? laborCost : undefined
+              collaboratorId: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderCollaboratorId || undefined) : undefined,
+              collaboratorName: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? collaborator?.name : undefined,
+              laborHours: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined) : undefined,
+              laborCost: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined
           });
           setEditingOrder(null);
       } catch (err) {
@@ -564,6 +595,45 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         </div>
       )}
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
+            <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                    <AlertTriangle className="h-5 w-5 text-orange-600" />
+                </div>
+                <span className="text-2xl font-black text-slate-800 dark:text-white">{serviceOrders.filter(o => o.status === 'PENDENTE').length}</span>
+            </div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Abertas</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
+            <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <Loader className="h-5 w-5 text-blue-600" />
+                </div>
+                <span className="text-2xl font-black text-slate-800 dark:text-white">{serviceOrders.filter(o => o.status === 'EM_ANDAMENTO').length}</span>
+            </div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Em Execução</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
+            <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                </div>
+                <span className="text-2xl font-black text-slate-800 dark:text-white">{serviceOrders.filter(o => o.status === 'CONCLUIDO').length}</span>
+            </div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Finalizadas</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
+            <div className="flex items-center justify-between mb-2">
+                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                    <Wrench className="h-5 w-5 text-slate-600" />
+                </div>
+                <span className="text-2xl font-black text-slate-800 dark:text-white">{serviceOrders.length}</span>
+            </div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Geral</p>
+        </div>
+      </div>
+
       {activeTab === 'PMJ' ? (
         <MaintenancePlanManager orgId={orgId} plans={filteredMaintenancePlans} schedules={filteredMaintenanceSchedules} vehicles={vehicles} stockItems={stockItems} defaultBranchId={defaultBranchId} userLevel={userLevel} />
       ) : activeTab === 'COLLABORATORS' ? (
@@ -577,136 +647,207 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         />
       ) : (
         <>
-          <div className="flex justify-end gap-2">
-            {onAddOrder && (
-                <button 
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all text-sm"
-                >
-                    <Plus className="h-4 w-4" /> Abrir O.S.
-                </button>
-            )}
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4">
-         <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Buscar por placa, título ou nº da O.S..." 
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 dark:text-white placeholder-slate-400"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-         </div>
-         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg overflow-x-auto">
-            <button onClick={() => setFilter('PENDENTE')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${filter === 'PENDENTE' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>Abertas</button>
-            <button onClick={() => setFilter('EM_ANDAMENTO')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${filter === 'EM_ANDAMENTO' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>Em Execução</button>
-            <button onClick={() => setFilter('CONCLUIDO')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${filter === 'CONCLUIDO' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>Finalizadas</button>
-            <button onClick={() => setFilter('ALL')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${filter === 'ALL' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>Todas</button>
-         </div>
-      </div>
-      
-      <div className="space-y-4">
-        {(showAllOrders ? filteredOrders : filteredOrders.slice(0, 10)).map(order => (
-          <div key={order.id} className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
-             <div className="flex flex-col md:flex-row justify-between items-start gap-3">
-                <div className="flex-1">
-                   <div className="flex items-center gap-2 mb-1">
-                     <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold px-1.5 py-0.5 rounded">#{String(order.orderNumber).padStart(4, '0')}</span>
-                     {getStatusPill(order.status)}
-                   </div>
-                   <h3 className="font-bold text-base text-slate-800 dark:text-white">{order.title}</h3>
-                   <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
-                      <span className="flex items-center gap-1"><Truck className="h-3 w-3"/> {order.vehiclePlate}</span>
-                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> {order.date ? `Data: ${new Date(order.date + 'T12:00:00').toLocaleDateString()}` : `Aberto em: ${new Date(order.createdAt).toLocaleString()}`}</span>
-                      
-                      {order.odometer && (
-                          <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded font-bold border border-slate-200 dark:border-slate-700">
-                              <Timer className="h-3 w-3"/> KM: {order.odometer.toLocaleString()}
-                          </span>
-                      )}
-
-                      {order.startTime && (
-                          <span className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 px-2 py-0.5 rounded font-bold">
-                              <Clock className="h-3 w-3"/> Início Serviço: {new Date(order.startTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                      )}
-
-                      {order.status === 'CONCLUIDO' && order.completedAt && (
-                          <>
-                              <span className="flex items-center gap-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-300 px-2 py-0.5 rounded font-bold">
-                                  <CheckCircle2 className="h-3 w-3"/> Fim: {new Date(order.completedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded font-bold border border-slate-200 dark:border-slate-700">
-                                  <Timer className="h-3 w-3"/> Execução: {getDuration(order.startTime || order.createdAt, order.completedAt)}
-                              </span>
-                          </>
-                      )}
-
-                      {order.collaboratorName && (
-                          <span className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded font-bold border border-blue-200 dark:border-blue-800">
-                              <UserCircle className="h-3 w-3"/> {order.collaboratorName} {order.laborHours ? `(${order.laborHours}h)` : ''}
-                          </span>
-                      )}
-
-                      {order.laborCost && order.laborCost > 0 && (
-                          <span className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 px-2 py-0.5 rounded font-bold border border-emerald-200 dark:border-emerald-800">
-                              <DollarSign className="h-3 w-3"/> Mão de Obra: R$ {order.laborCost.toFixed(2)}
-                          </span>
-                      )}
-                      {order.externalServiceCost && order.externalServiceCost > 0 && (
-                          <span className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300 px-2 py-0.5 rounded font-bold border border-amber-200 dark:border-amber-800">
-                              <DollarSign className="h-3 w-3"/> Serviço Externo: R$ {order.externalServiceCost.toFixed(2)}
-                          </span>
-                      )}
-                      {order.providerName && (
-                          <span className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded font-bold border border-purple-200 dark:border-purple-800">
-                              <Truck className="h-3 w-3"/> Prestador: {order.providerName}
-                          </span>
-                      )}
-                   </div>
-                   <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 border-l-2 border-slate-200 dark:border-slate-700 pl-3">{order.details}</p>
-                   
-                   {order.parts && order.parts.length > 0 && (
-                       <div className="mt-3 flex flex-wrap gap-2">
-                           {order.parts.map((part, idx) => (
-                               <span key={idx} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                                   <Package className="h-3 w-3 text-blue-500" /> {part.name} ({part.quantity})
-                               </span>
-                           ))}
-                       </div>
-                   )}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+            <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por placa, título ou nº da O.S..." 
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                    {(['ALL', 'PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDO'] as StatusFilter[]).map((f) => (
+                        <button
+                            key={f}
+                            onClick={() => setFilter(f)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all ${filter === f ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        >
+                            {f === 'ALL' ? 'Todos' : f === 'PENDENTE' ? 'Abertas' : f === 'EM_ANDAMENTO' ? 'Em Execução' : 'Finalizadas'}
+                        </button>
+                    ))}
                 </div>
 
-                {order.status !== 'CONCLUIDO' && (
-                  <div className="flex md:flex-col gap-1 shrink-0 self-start md:self-center">
-                    <button onClick={() => handleOpenEditModal(order)} className="w-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 p-1.5 rounded transition-colors flex items-center gap-1"><Wrench className="h-3 w-3"/> Editar</button>
-                    {order.status === 'PENDENTE' && <button onClick={() => handleStatusChange(order, 'EM_ANDAMENTO')} className="w-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 p-1.5 rounded transition-colors flex items-center gap-1"><Loader className="h-3 w-3"/> Iniciar</button>}
-                    {order.status === 'EM_ANDAMENTO' && <button onClick={() => handleStatusChange(order, 'CONCLUIDO')} className="w-full text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 p-1.5 rounded transition-colors flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/> Finalizar</button>}
-                  </div>
+                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden lg:block"></div>
+
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                    <button 
+                        onClick={() => setFuelFilter('ALL')} 
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all ${fuelFilter === 'ALL' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    >
+                        TODOS COMBUST.
+                    </button>
+                    <button 
+                        onClick={() => setFuelFilter('DIESEL')} 
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all ${fuelFilter === 'DIESEL' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-blue-600'}`}
+                    >
+                        DIESEL
+                    </button>
+                    <button 
+                        onClick={() => setFuelFilter('GAS')} 
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all ${fuelFilter === 'GAS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-600'}`}
+                    >
+                        GÁS
+                    </button>
+                </div>
+                {onAddOrder && (
+                    <button 
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all text-sm active:scale-95 ml-auto lg:ml-0"
+                    >
+                        <Plus className="h-4 w-4" /> Abrir O.S.
+                    </button>
                 )}
-             </div>
+            </div>
           </div>
-        ))}
 
-        {filteredOrders.length === 0 && (
-          <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400">
-             <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-50"/>
-             <p className="font-bold">Nenhuma Ordem de Serviço encontrada.</p>
-          </div>
-        )}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {(showAllOrders ? filteredOrders : filteredOrders.slice(0, 10)).map(order => (
+              <div key={order.id} className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-orange-500/30 transition-all duration-300 flex flex-col overflow-hidden">
+                 {/* Card Header */}
+                 <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex justify-between items-start">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black px-2 py-0.5 rounded-lg tracking-wider">
+                                #{String(order.orderNumber).padStart(4, '0')}
+                            </span>
+                            {getStatusPill(order.status)}
+                        </div>
+                        <h3 className="font-black text-slate-800 dark:text-white leading-tight mt-1 group-hover:text-orange-600 transition-colors">{order.title}</h3>
+                    </div>
+                    {/* License Plate Badge */}
+                    <div 
+                        onClick={() => order.status === 'CONCLUIDO' && setViewingOrderDetails(order)}
+                        className={`flex flex-col items-center bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-700 rounded-md px-2 py-0.5 shadow-sm ${order.status === 'CONCLUIDO' ? 'cursor-pointer hover:scale-105 transition-transform active:scale-95' : ''}`}
+                    >
+                        <div className="w-full h-1 bg-blue-600 rounded-t-sm mb-0.5"></div>
+                        <span className="text-[10px] font-black text-slate-800 dark:text-white tracking-widest uppercase">{order.vehiclePlate}</span>
+                    </div>
+                 </div>
 
-        {filteredOrders.length > 10 && (
-          <div className="flex justify-center pt-8">
-            <button 
-              onClick={() => setShowAllOrders(!showAllOrders)}
-              className="px-10 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-sm"
-            >
-              {showAllOrders ? 'VER MENOS' : `VER TODAS AS ORDENS DE SERVIÇO (${filteredOrders.length})`}
-            </button>
+                 {/* Card Body */}
+                 <div className="p-4 flex-1 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+                            <Calendar className="h-3 w-3 text-orange-500"/> 
+                            {order.date ? new Date(order.date + 'T12:00:00').toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
+                        </span>
+                        {order.odometer && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+                                <Timer className="h-3 w-3 text-blue-500"/> {order.odometer.toLocaleString()} KM
+                            </span>
+                        )}
+                        {order.collaboratorName && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                                <UserCircle className="h-3 w-3"/> {order.collaboratorName}
+                            </span>
+                        )}
+                    </div>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 italic leading-relaxed">
+                        "{order.details}"
+                    </p>
+
+                    {/* Costs Section */}
+                    {(order.laborCost || order.externalServiceCost) && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3">
+                            {order.laborCost && order.laborCost > 0 && (
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Mão de Obra</span>
+                                    <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">R$ {order.laborCost.toFixed(2)}</span>
+                                </div>
+                            )}
+                            {order.externalServiceCost && order.externalServiceCost > 0 && (
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Ext. / Peças</span>
+                                    <span className="text-[11px] font-black text-amber-600 dark:text-amber-400">R$ {order.externalServiceCost.toFixed(2)}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Parts Section */}
+                    {order.parts && order.parts.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                            {order.parts.slice(0, 3).map((part, idx) => (
+                                <span key={idx} className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-[9px] px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700/50 flex items-center gap-1">
+                                    <Package className="h-2.5 w-2.5 text-blue-400" /> {part.name}
+                                </span>
+                            ))}
+                            {order.parts.length > 3 && (
+                                <span className="text-[9px] font-bold text-slate-400">+{order.parts.length - 3} mais</span>
+                            )}
+                        </div>
+                    )}
+                 </div>
+
+                 {/* Card Footer / Actions */}
+                 <div className="p-3 bg-slate-50/50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        {order.status === 'EM_ANDAMENTO' && (
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 animate-pulse">
+                                <Clock className="h-3 w-3"/> {getDuration(order.startTime || order.createdAt, new Date().toISOString())}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex gap-1.5">
+                        <button 
+                            onClick={() => handleOpenEditModal(order)} 
+                            className="p-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 rounded-xl border border-slate-200 dark:border-slate-700 transition-all active:scale-90"
+                            title="Editar O.S."
+                        >
+                            <Wrench className="h-4 w-4"/>
+                        </button>
+                        {order.status === 'PENDENTE' && (
+                            <button 
+                                onClick={() => handleStatusChange(order, 'EM_ANDAMENTO')} 
+                                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/20"
+                            >
+                                <Loader className="h-3 w-3"/> Iniciar
+                            </button>
+                        )}
+                        {order.status === 'EM_ANDAMENTO' && (
+                            <button 
+                                onClick={() => handleStatusChange(order, 'CONCLUIDO')} 
+                                className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-green-600/20"
+                            >
+                                <CheckCircle2 className="h-3 w-3"/> Finalizar
+                            </button>
+                        )}
+                    </div>
+                 </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+
+          {filteredOrders.length === 0 && (
+            <div className="text-center p-16 bg-white dark:bg-slate-900 rounded-3xl border-2 border-dashed border-slate-100 dark:border-slate-800 text-slate-400 flex flex-col items-center justify-center gap-4">
+               <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full">
+                  <Wrench className="h-12 w-12 opacity-20"/>
+               </div>
+               <div className="space-y-1">
+                  <p className="font-black text-slate-800 dark:text-white">Nenhuma Ordem de Serviço encontrada</p>
+                  <p className="text-xs">Tente ajustar seus filtros ou buscar por outro termo.</p>
+               </div>
+            </div>
+          )}
+
+          {filteredOrders.length > 10 && (
+            <div className="flex justify-center pt-10">
+              <button 
+                onClick={() => setShowAllOrders(!showAllOrders)}
+                className="px-12 py-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-sm"
+              >
+                {showAllOrders ? 'MOSTRAR MENOS' : `VER TODAS AS ORDENS (${filteredOrders.length})`}
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAllOrders ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {/* CREATE ORDER MODAL */}
       {isCreateModalOpen && (
@@ -718,379 +859,326 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       </h3>
                       <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
                   </div>
-                  <form onSubmit={handleCreateOrder} className="p-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço</label>
-                              <select 
-                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                                  value={newOrderServiceType}
-                                  onChange={e => setNewOrderServiceType(e.target.value as 'INTERNAL' | 'EXTERNAL')}
-                              >
-                                  <option value="INTERNAL">Interno</option>
-                                  <option value="EXTERNAL">Externo</option>
-                              </select>
+                  <form onSubmit={handleCreateOrder} className="p-6 space-y-6">
+                      {/* Section: Basic Info */}
+                      <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <Truck className="h-4 w-4 text-orange-500"/>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Informações do Veículo</h4>
                           </div>
-                          {newOrderServiceType === 'EXTERNAL' && (
-                              <>
-                                  <div>
-                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Parceiro (Obrigatório)</label>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="md:col-span-2">
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Veículo (Obrigatório)</label>
+                                  <select 
+                                      required 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={newOrderVehicleId}
+                                      onChange={e => {
+                                          const vid = e.target.value;
+                                          setNewOrderVehicleId(vid);
+                                          const v = vehicles.find(veh => veh.id === vid);
+                                          if (v) {
+                                              setNewOrderOdometer(v.odometer);
+                                          }
+                                          setNewOrderTireId('');
+                                      }}
+                                  >
+                                      <option value="">Selecione um veículo...</option>
+                                      {vehicles.map(v => (
+                                          <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
+                                      ))}
+                                  </select>
+                              </div>
+
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Hodômetro Atual (KM)</label>
+                                  <input 
+                                      type="number"
+                                      required 
+                                      placeholder="KM atual"
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={newOrderOdometer}
+                                      onChange={e => setNewOrderOdometer(Number(e.target.value))}
+                                  />
+                              </div>
+
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Data da O.S.</label>
+                                  <input 
+                                      type="date"
+                                      required 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={newOrderDate}
+                                      onChange={e => setNewOrderDate(e.target.value)}
+                                  />
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Section: Service Details */}
+                      <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <Wrench className="h-4 w-4 text-orange-500"/>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Detalhes do Serviço</h4>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de Serviço</label>
+                                  <select 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={newOrderServiceType}
+                                      onChange={e => setNewOrderServiceType(e.target.value as 'INTERNAL' | 'EXTERNAL' | 'BOTH')}
+                                  >
+                                      <option value="INTERNAL">Interno</option>
+                                      <option value="EXTERNAL">Externo</option>
+                                      <option value="BOTH">Misto (Interno + Externo)</option>
+                                  </select>
+                              </div>
+                              
+                              {(newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') && (
+                                  <div className="animate-in slide-in-from-top-2">
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Colaborador Interno</label>
+                                      <select 
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          value={newOrderCollaboratorId}
+                                          onChange={e => setNewOrderCollaboratorId(e.target.value)}
+                                      >
+                                          <option value="">Selecionar...</option>
+                                          {filteredCollaborators.filter(c => c.isActive).map(c => (
+                                              <option key={c.id} value={c.id}>{c.name}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+                              )}
+
+                              {(newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') && (
+                                  <div className="animate-in slide-in-from-top-2">
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Parceiro Externo</label>
                                       <select 
                                           required 
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
                                           value={newOrderPartnerId}
                                           onChange={e => {
                                               setNewOrderPartnerId(e.target.value);
                                               setNewOrderServiceId('');
                                           }}
                                       >
-                                          <option value="">Selecione um parceiro...</option>
+                                          <option value="">Selecione...</option>
                                           {partners.map(p => (
                                               <option key={p.id} value={p.id}>{p.name}</option>
                                           ))}
                                       </select>
                                   </div>
-                                  {newOrderPartnerId && (
-                                      <div>
-                                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Serviço (Obrigatório)</label>
-                                          <select 
-                                              required 
-                                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                                              value={newOrderServiceId}
-                                              onChange={e => {
-                                                  const svcId = e.target.value;
-                                                  setNewOrderServiceId(svcId);
-                                                  const partner = partners.find(p => p.id === newOrderPartnerId);
-                                                  const service = partner?.services.find(s => s.id === svcId);
-                                                  if (service) {
-                                                      setNewOrderExternalServiceCost(service.cost);
-                                                  }
-                                              }}
-                                          >
-                                              <option value="">Selecione um serviço...</option>
-                                              {partners.find(p => p.id === newOrderPartnerId)?.services.map(s => (
-                                                  <option key={s.id} value={s.id}>{s.name} - R$ {s.cost.toFixed(2)}</option>
-                                              ))}
-                                          </select>
-                                      </div>
-                                  )}
-                                  {newOrderPartnerId && newOrderServiceId && (
-                                      <div>
-                                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Valor do Serviço (R$)</label>
-                                          <input 
-                                              type="number"
-                                              required 
-                                              placeholder="0.00"
-                                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                                              value={newOrderExternalServiceCost}
-                                              onChange={e => setNewOrderExternalServiceCost(e.target.value === '' ? '' : Number(e.target.value))}
-                                          />
-                                      </div>
-                                  )}
-                              </>
-                          )}
-                      </div>
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo (Obrigatório)</label>
-                          <select 
-                              required 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                              value={newOrderVehicleId}
-                              onChange={e => {
-                                  const vid = e.target.value;
-                                  setNewOrderVehicleId(vid);
-                                  const v = vehicles.find(veh => veh.id === vid);
-                                  if (v) {
-                                      setNewOrderOdometer(v.odometer);
-                                  }
-                                  setNewOrderTireId('');
-                              }}
-                          >
-                              <option value="">Selecione um veículo...</option>
-                              {vehicles.map(v => (
-                                  <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
-                              ))}
-                          </select>
-                      </div>
-
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pneu (Opcional)</label>
-                          <select 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                              value={newOrderTireId}
-                              onChange={e => setNewOrderTireId(e.target.value)}
-                          >
-                              <option value="">Nenhum pneu selecionado</option>
-                              {tires
-                                .filter(t => !newOrderVehicleId || t.vehicleId === newOrderVehicleId)
-                                .map(t => (
-                                  <option key={t.id} value={t.id}>#{t.fireNumber} - {t.brand} {t.model} ({t.status})</option>
-                              ))}
-                          </select>
-                      </div>
-
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data da O.S.</label>
-                          <input 
-                              type="date"
-                              required 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                              value={newOrderDate}
-                              onChange={e => setNewOrderDate(e.target.value)}
-                          />
-                      </div>
-
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Hodômetro Atual (KM)</label>
-                          <input 
-                              type="number"
-                              required 
-                              placeholder="KM do veículo no momento"
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                              value={newOrderOdometer}
-                              onChange={e => setNewOrderOdometer(Number(e.target.value))}
-                          />
-                      </div>
-                      
-                      {pendingAlertsForVehicle.length > 0 && (
-                          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
-                              <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
-                                  <Bell className="h-4 w-4"/> Agendamentos Pendentes
-                              </h4>
-                              <ul className="space-y-2">
-                                  {pendingAlertsForVehicle.map(alert => (
-                                      <li key={alert.id} className="text-xs text-blue-700 dark:text-blue-400 bg-white dark:bg-blue-950/50 p-2 rounded border border-blue-100 dark:border-blue-900">
-                                          <span className="font-bold">{alert.targetName}</span> - Criado em: {new Date(alert.createdAt).toLocaleDateString()}
-                                      </li>
-                                  ))}
-                              </ul>
+                              )}
                           </div>
-                      )}
 
-                      {vehicleMaintenancePlan && (
-                          <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                              <h4 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
-                                  <ClipboardList className="h-4 w-4"/> Plano Sugerido (PMJ)
-                              </h4>
-                              <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-3">
-                                  Este veículo possui o plano <strong>{vehicleMaintenancePlan.name}</strong> vinculado ao seu modelo.
-                              </p>
-                              <button 
-                                  type="button"
-                                  onClick={() => {
-                                      setNewOrderTitle(`PMJ: ${vehicleMaintenancePlan.name}`);
-                                      setNewOrderMaintenancePlanId(vehicleMaintenancePlan.id);
-                                      setNewOrderDetails(`PMJ: ${vehicleMaintenancePlan.name}\n\nObservações:\n`);
-                                      
-                                      // Auto-add parts from PMJ if available
-                                      if (vehicleMaintenancePlan.stockItemIds && vehicleMaintenancePlan.stockItemIds.length > 0) {
-                                          const pmjParts = vehicleMaintenancePlan.stockItemIds.map(id => {
-                                              const item = stockItems.find(i => i.id === id);
-                                              if (item) {
-                                                  return {
-                                                      itemId: item.id,
-                                                      name: item.name,
-                                                      quantity: 1,
-                                                      unitCost: item.averageCost
-                                                  };
+                          {(newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') && newOrderPartnerId && (
+                              <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Serviço Externo</label>
+                                      <select 
+                                          required 
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          value={newOrderServiceId}
+                                          onChange={e => {
+                                              const svcId = e.target.value;
+                                              setNewOrderServiceId(svcId);
+                                              const partner = partners.find(p => p.id === newOrderPartnerId);
+                                              const service = partner?.services.find(s => s.id === svcId);
+                                              if (service) {
+                                                  setNewOrderExternalServiceCost(service.cost);
                                               }
-                                              return null;
-                                          }).filter(p => p !== null) as any[];
-                                          setNewOrderParts(pmjParts);
-                                      }
-                                  }}
-                                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
-                              >
-                                  <CheckSquare className="h-4 w-4" /> Aplicar Plano Sugerido
-                              </button>
-                          </div>
-                      )}
+                                          }}
+                                      >
+                                          <option value="">Selecione...</option>
+                                          {partners.find(p => p.id === newOrderPartnerId)?.services.map(s => (
+                                              <option key={s.id} value={s.id}>{s.name}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Valor Externo (R$)</label>
+                                      <input 
+                                          type="number"
+                                          required 
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          value={newOrderExternalServiceCost}
+                                          onChange={e => setNewOrderExternalServiceCost(e.target.value === '' ? '' : Number(e.target.value))}
+                                      />
+                                  </div>
+                              </div>
+                          )}
 
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vincular PMJ (Opcional)</label>
-                          <select 
-                            className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                            value={newOrderMaintenancePlanId}
-                            onChange={(e) => {
-                                const planId = e.target.value;
-                                setNewOrderMaintenancePlanId(planId);
-                                if (planId) {
-                                    const plan = maintenancePlans.find(p => p.id === planId);
-                                    if (plan) {
-                                        setNewOrderTitle(`PMJ: ${plan.name}`);
-                                        setNewOrderDetails(`PMJ: ${plan.name}\n\nObservações:\n`);
-                                        
-                                        // Auto-add parts from PMJ if available
-                                        if (plan.stockItemIds && plan.stockItemIds.length > 0) {
-                                            const pmjParts = plan.stockItemIds.map(id => {
-                                                const item = stockItems.find(i => i.id === id);
-                                                if (item) {
-                                                    return {
-                                                        itemId: item.id,
-                                                        name: item.name,
-                                                        quantity: 1,
-                                                        unitCost: item.averageCost
-                                                    };
-                                                }
-                                                return null;
-                                            }).filter(p => p !== null) as any[];
-                                            setNewOrderParts(pmjParts);
-                                        }
-                                    }
-                                }
-                            }}
-                          >
-                              <option value="">Nenhum PMJ selecionado</option>
-                              {maintenancePlans.map(plan => (
-                                  <option key={plan.id} value={plan.id}>{plan.name}</option>
-                              ))}
-                          </select>
-                      </div>
-
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Base de Manutenção (Alerta de Chegada)</label>
-                          <select 
-                            className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                            value={newOrderMaintenanceBaseId}
-                            onChange={(e) => setNewOrderMaintenanceBaseId(e.target.value)}
-                          >
-                              <option value="">Nenhuma base selecionada</option>
-                              {settings?.savedPoints?.map(point => (
-                                  <option key={point.id} value={point.id}>{point.name}</option>
-                              ))}
-                          </select>
-                          <p className="text-[10px] text-slate-400 mt-1 italic">
-                            O sistema avisará quando o veículo chegar nesta base.
-                          </p>
-                      </div>
-                      
-                      <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                          <input 
-                              type="checkbox" 
-                              id="isPreventive"
-                              checked={isPreventiveMaintenance}
-                              onChange={(e) => setIsPreventiveMaintenance(e.target.checked)}
-                              className="mt-1 h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label htmlFor="isPreventive" className="text-sm font-bold text-blue-800 dark:text-blue-300 cursor-pointer">
-                              Esta é uma manutenção preventiva (Óleo e Filtros)
-                              <span className="block text-[10px] font-normal text-blue-600 dark:text-blue-400 mt-0.5">
-                                  Ao criar esta O.S., o KM atual do veículo será registrado como a última troca, calculando automaticamente a próxima revisão.
-                              </span>
-                          </label>
-                      </div>
-
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Detalhes do Serviço</label>
-                          <textarea 
-                              required 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm"
-                              placeholder="Descreva o que precisa ser feito..."
-                              value={newOrderDetails}
-                              onChange={e => setNewOrderDetails(e.target.value)}
-                          />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
                           <div>
-                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Colaborador / Mecânico</label>
-                              <select 
-                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold text-sm"
-                                  value={newOrderCollaboratorId}
-                                  onChange={e => setNewOrderCollaboratorId(e.target.value)}
-                              >
-                                  <option value="">Selecionar...</option>
-                                  {filteredCollaborators.filter(c => c.isActive).map(c => (
-                                      <option key={c.id} value={c.id}>{c.name}</option>
-                                  ))}
-                              </select>
-                          </div>
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Horas de Mão de Obra</label>
-                              <input 
-                                  type="number"
-                                  step="0.5"
-                                  min="0"
-                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold text-sm"
-                                  placeholder="Ex: 2.5"
-                                  value={newOrderLaborHours}
-                                  onChange={e => setNewOrderLaborHours(e.target.value === '' ? '' : Number(e.target.value))}
+                              <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descrição do Problema / Serviço</label>
+                              <textarea 
+                                  required 
+                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm transition-all"
+                                  placeholder="O que precisa ser feito?"
+                                  value={newOrderDetails}
+                                  onChange={e => setNewOrderDetails(e.target.value)}
                               />
                           </div>
                       </div>
 
-                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-2">
-                              <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
-                          </label>
-                          
-                          <div className="grid grid-cols-1 gap-2">
-                              <select 
-                                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
-                                value={selectedStockItemId}
-                                onChange={e => setSelectedStockItemId(e.target.value)}
-                              >
-                                  <option value="">Selecionar Peça...</option>
-                                  {stockItems.map(item => (
-                                      <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
-                                  ))}
-                              </select>
-                              <div className="flex gap-2">
-                                  <input 
-                                    type="number" 
-                                    min="1"
-                                    className="flex-1 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
-                                    value={selectedStockItemQty}
-                                    onChange={e => setSelectedStockItemQty(Number(e.target.value))}
-                                  />
-                                  <button 
-                                    type="button"
-                                    onClick={handleAddPart}
-                                    className="px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all flex items-center justify-center"
-                                  >
-                                      <Plus className="h-5 w-5" />
-                                  </button>
+                      {/* Section: Maintenance Plan & Alerts */}
+                      {(pendingAlertsForVehicle.length > 0 || vehicleMaintenancePlan) && (
+                          <div className="space-y-4">
+                              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                                  <Bell className="h-4 w-4 text-orange-500"/>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Alertas e Planos</h4>
                               </div>
+
+                              {pendingAlertsForVehicle.length > 0 && (
+                                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/50">
+                                      <h5 className="text-[10px] font-black text-blue-800 dark:text-blue-300 uppercase mb-2">Agendamentos Pendentes</h5>
+                                      <div className="flex flex-wrap gap-2">
+                                          {pendingAlertsForVehicle.map(alert => (
+                                              <span key={alert.id} className="text-[9px] font-bold text-blue-700 dark:text-blue-400 bg-white dark:bg-blue-950/50 px-2 py-1 rounded border border-blue-100 dark:border-blue-900">
+                                                  {alert.targetName}
+                                              </span>
+                                          ))}
+                                      </div>
+                                  </div>
+                              )}
+
+                              {vehicleMaintenancePlan && (
+                                  <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                                      <div className="flex items-center justify-between mb-2">
+                                          <h5 className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase">Plano Sugerido: {vehicleMaintenancePlan.name}</h5>
+                                      </div>
+                                      <button 
+                                          type="button"
+                                          onClick={() => {
+                                              setNewOrderTitle(`PMJ: ${vehicleMaintenancePlan.name}`);
+                                              setNewOrderMaintenancePlanId(vehicleMaintenancePlan.id);
+                                              setNewOrderDetails(`PMJ: ${vehicleMaintenancePlan.name}\n\nObservações:\n`);
+                                              if (vehicleMaintenancePlan.stockItemIds && vehicleMaintenancePlan.stockItemIds.length > 0) {
+                                                  const pmjParts = vehicleMaintenancePlan.stockItemIds.map(id => {
+                                                      const item = stockItems.find(i => i.id === id);
+                                                      if (item) return { itemId: item.id, name: item.name, quantity: 1, unitCost: item.averageCost };
+                                                      return null;
+                                                  }).filter(p => p !== null) as any[];
+                                                  setNewOrderParts(pmjParts);
+                                                  setIncludeParts(true);
+                                              }
+                                          }}
+                                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                                      >
+                                          <CheckSquare className="h-3.5 w-3.5" /> Aplicar PMJ
+                                      </button>
+                                  </div>
+                              )}
+                          </div>
+                      )}
+
+                      {/* Section: Parts */}
+                      <div className="space-y-4">
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-orange-500"/>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Peças e Materiais</h4>
+                              </div>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                  <input 
+                                      type="checkbox" 
+                                      checked={includeParts}
+                                      onChange={e => setIncludeParts(e.target.checked)}
+                                      className="h-4 w-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500"
+                                  />
+                                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Incluir Peças</span>
+                              </label>
                           </div>
 
-                          {newOrderParts.length > 0 && (
-                              <div className="space-y-2 mt-3">
-                                  {newOrderParts.map(part => (
-                                      <div key={part.itemId} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
-                                          <div className="flex flex-col flex-1">
-                                              <span className="font-bold text-slate-800 dark:text-white">{part.name}</span>
-                                              <span className="text-[10px] text-slate-500">Unit: R$ {part.unitCost.toFixed(2)}</span>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                              <input 
-                                                type="number" 
-                                                min="1"
-                                                className="w-12 p-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-white text-center"
-                                                value={part.quantity}
-                                                onChange={e => handleUpdatePartQty(part.itemId, Number(e.target.value))}
-                                              />
-                                              <button 
-                                                type="button"
-                                                onClick={() => handleRemovePart(part.itemId)}
-                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                              >
-                                                  <Trash2 className="h-4 w-4" />
-                                              </button>
+                          {includeParts && (
+                              <div className="space-y-3 animate-in slide-in-from-top-2">
+                                  <div className="flex gap-2 items-center">
+                                      <select 
+                                        className="w-[200px] h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
+                                        value={selectedStockItemId}
+                                        onChange={e => setSelectedStockItemId(e.target.value)}
+                                      >
+                                          <option value="">Selecionar Peça...</option>
+                                          {stockItems.map(item => (
+                                              <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
+                                          ))}
+                                      </select>
+                                      <input 
+                                        type="number" 
+                                        min="1"
+                                        className="w-20 h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold text-center transition-all"
+                                        value={selectedStockItemQty}
+                                        onChange={e => setSelectedStockItemQty(Number(e.target.value))}
+                                      />
+                                      <button 
+                                        type="button"
+                                        onClick={handleAddPart}
+                                        className="h-[45px] px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition-all active:scale-90 flex items-center justify-center shadow-lg shadow-orange-600/20"
+                                      >
+                                          <Plus className="h-5 w-5" />
+                                      </button>
+                                  </div>
+
+                                  {newOrderParts.length > 0 && (
+                                      <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                                          {newOrderParts.map(part => (
+                                              <div key={part.itemId} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                  <div className="flex flex-col">
+                                                      <span className="text-[10px] font-bold text-slate-800 dark:text-white">{part.name}</span>
+                                                      <span className="text-[9px] text-slate-500">R$ {part.unitCost.toFixed(2)} / un</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-3">
+                                                      <span className="text-[10px] font-black text-slate-800 dark:text-white">x{part.quantity}</span>
+                                                      <button 
+                                                        type="button"
+                                                        onClick={() => handleRemovePart(part.itemId)}
+                                                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                      >
+                                                          <Trash2 className="h-3.5 w-3.5" />
+                                                      </button>
+                                                  </div>
+                                              </div>
+                                          ))}
+                                          <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center px-1">
+                                              <span className="text-[10px] font-black text-slate-500 uppercase">Total Peças</span>
+                                              <span className="text-xs font-black text-slate-800 dark:text-white">R$ {newOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
                                           </div>
                                       </div>
-                                  ))}
-                                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-bold text-slate-800 dark:text-white">
-                                      <span>Total em Peças:</span>
-                                      <span>R$ {newOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
-                                  </div>
+                                  )}
                               </div>
                           )}
                       </div>
 
-                      <div className="pt-2 flex gap-3">
-                          <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancelar</button>
-                          <button type="submit" disabled={isCreating} className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50">
-                              {isCreating ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Abrir O.S.
+                      {/* Section: Advanced */}
+                      <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <Settings className="h-4 w-4 text-orange-500"/>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Configurações Avançadas</h4>
+                          </div>
+
+                          <div className="flex items-start gap-3 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-2xl border border-orange-100 dark:border-orange-800/50">
+                              <input 
+                                  type="checkbox" 
+                                  id="isPreventive"
+                                  checked={isPreventiveMaintenance}
+                                  onChange={(e) => setIsPreventiveMaintenance(e.target.checked)}
+                                  className="mt-1 h-5 w-5 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                              />
+                              <label htmlFor="isPreventive" className="text-xs font-bold text-orange-800 dark:text-orange-300 cursor-pointer select-none">
+                                  Manutenção Preventiva (Óleo / Filtros)
+                                  <span className="block text-[10px] font-normal text-orange-600 dark:text-orange-400 mt-1 leading-relaxed">
+                                      Registra o KM atual como última troca e recalcula a próxima revisão automaticamente.
+                                  </span>
+                              </label>
+                          </div>
+                      </div>
+
+                      <div className="pt-4 flex gap-3">
+                          <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">Cancelar</button>
+                          <button type="submit" disabled={isCreating} className="flex-2 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 active:scale-95">
+                              {isCreating ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Abrir Ordem de Serviço
                           </button>
                       </div>
                   </form>
@@ -1108,189 +1196,245 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       </h3>
                       <button onClick={() => setEditingOrder(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
                   </div>
-                  <form onSubmit={handleUpdateOrderDetails} className="p-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Tipo de Serviço</label>
-                              <select 
-                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                                  value={editOrderServiceType}
-                                  onChange={e => setEditOrderServiceType(e.target.value as 'INTERNAL' | 'EXTERNAL')}
-                              >
-                                  <option value="INTERNAL">Interno</option>
-                                  <option value="EXTERNAL">Externo</option>
-                              </select>
+                  <form onSubmit={handleUpdateOrderDetails} className="p-6 space-y-6">
+                      {/* Section: Basic Info */}
+                      <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <Truck className="h-4 w-4 text-blue-500"/>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Informações do Veículo</h4>
                           </div>
-                          {editOrderServiceType === 'EXTERNAL' && (
-                              <>
-                                  <div>
-                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Fornecedor (Obrigatório)</label>
-                                      <input 
-                                          type="text"
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                              <div className="col-span-2">
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Veículo</label>
+                                  <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white font-black text-sm">
+                                      {editingOrder.vehiclePlate}
+                                  </div>
+                              </div>
+
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Data da O.S.</label>
+                                  <input 
+                                      type="date"
+                                      required 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={editOrderDate}
+                                      onChange={e => setEditOrderDate(e.target.value)}
+                                  />
+                              </div>
+
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Pneu (Opcional)</label>
+                                  <select 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={editOrderTireId}
+                                      onChange={e => setEditOrderTireId(e.target.value)}
+                                  >
+                                      <option value="">Nenhum</option>
+                                      {tires
+                                        .filter(t => !editingOrder.vehicleId || t.vehicleId === editingOrder.vehicleId)
+                                        .map(t => (
+                                          <option key={t.id} value={t.id}>#{t.fireNumber} - {t.brand}</option>
+                                      ))}
+                                  </select>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Section: Service Details */}
+                      <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <Wrench className="h-4 w-4 text-blue-500"/>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Detalhes do Serviço</h4>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de Serviço</label>
+                                  <select 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={editOrderServiceType}
+                                      onChange={e => setEditOrderServiceType(e.target.value as 'INTERNAL' | 'EXTERNAL' | 'BOTH')}
+                                  >
+                                      <option value="INTERNAL">Interno</option>
+                                      <option value="EXTERNAL">Externo</option>
+                                      <option value="BOTH">Misto (Interno + Externo)</option>
+                                  </select>
+                              </div>
+                              
+                              {(editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') && (
+                                  <div className="animate-in slide-in-from-top-2">
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Colaborador Interno</label>
+                                      <select 
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          value={editOrderCollaboratorId}
+                                          onChange={e => setEditOrderCollaboratorId(e.target.value)}
+                                      >
+                                          <option value="">Selecionar...</option>
+                                          {filteredCollaborators.filter(c => c.isActive || c.id === editingOrder.collaboratorId).map(c => (
+                                              <option key={c.id} value={c.id}>{c.name}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+                              )}
+
+                              {(editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && (
+                                  <div className="animate-in slide-in-from-top-2">
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Parceiro Externo</label>
+                                      <select 
                                           required 
-                                          placeholder="Nome do fornecedor"
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
-                                          value={editOrderProviderName}
-                                          onChange={e => setEditOrderProviderName(e.target.value)}
-                                      />
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          value={editOrderPartnerId}
+                                          onChange={e => {
+                                              setEditOrderPartnerId(e.target.value);
+                                              setEditOrderServiceId('');
+                                          }}
+                                      >
+                                          <option value="">Selecione...</option>
+                                          {partners.map(p => (
+                                              <option key={p.id} value={p.id}>{p.name}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+                              )}
+                          </div>
+
+                          {(editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderPartnerId && (
+                              <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Serviço Externo</label>
+                                      <select 
+                                          required 
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          value={editOrderServiceId}
+                                          onChange={e => {
+                                              const svcId = e.target.value;
+                                              setEditOrderServiceId(svcId);
+                                              const partner = partners.find(p => p.id === editOrderPartnerId);
+                                              const service = partner?.services.find(s => s.id === svcId);
+                                              if (service) {
+                                                  setEditOrderExternalServiceCost(service.cost);
+                                              }
+                                          }}
+                                      >
+                                          <option value="">Selecione...</option>
+                                          {partners.find(p => p.id === editOrderPartnerId)?.services.map(s => (
+                                              <option key={s.id} value={s.id}>{s.name}</option>
+                                          ))}
+                                      </select>
                                   </div>
                                   <div>
-                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Valor do Serviço (R$)</label>
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Valor Externo (R$)</label>
                                       <input 
                                           type="number"
                                           required 
-                                          placeholder="0.00"
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                           value={editOrderExternalServiceCost}
                                           onChange={e => setEditOrderExternalServiceCost(e.target.value === '' ? '' : Number(e.target.value))}
                                       />
                                   </div>
-                              </>
+                              </div>
                           )}
-                      </div>
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Veículo</label>
-                          <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 font-bold text-sm">
-                              {editingOrder.vehiclePlate}
+
+                          {(editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && !editOrderPartnerId && editOrderProviderName && (
+                              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50">
+                                  <p className="text-[10px] font-bold text-blue-800 dark:text-blue-300">Fornecedor: {editOrderProviderName}</p>
+                                  <p className="text-[10px] font-bold text-blue-800 dark:text-blue-300">Valor: R$ {Number(editOrderExternalServiceCost).toFixed(2)}</p>
+                              </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-4">
+                              <div className="col-span-2">
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descrição do Serviço</label>
+                                  <textarea 
+                                      required 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm transition-all"
+                                      value={editOrderDetails}
+                                      onChange={e => setEditOrderDetails(e.target.value)}
+                                  />
+                              </div>
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Horas M.O.</label>
+                                  <input 
+                                      type="number"
+                                      step="0.5"
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={editOrderLaborHours}
+                                      onChange={e => setEditOrderLaborHours(e.target.value === '' ? '' : Number(e.target.value))}
+                                  />
+                              </div>
                           </div>
                       </div>
 
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pneu (Opcional)</label>
-                          <select 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
-                              value={editOrderTireId}
-                              onChange={e => setEditOrderTireId(e.target.value)}
-                          >
-                              <option value="">Nenhum pneu selecionado</option>
-                              {tires
-                                .filter(t => !editingOrder.vehicleId || t.vehicleId === editingOrder.vehicleId)
-                                .map(t => (
-                                  <option key={t.id} value={t.id}>#{t.fireNumber} - {t.brand} {t.model} ({t.status})</option>
-                              ))}
-                          </select>
-                      </div>
-                      
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Detalhes do Serviço</label>
-                          <textarea 
-                              required 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm"
-                              value={editOrderDetails}
-                              onChange={e => setEditOrderDetails(e.target.value)}
-                          />
-                      </div>
-
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data da O.S.</label>
-                          <input 
-                              type="date"
-                              required 
-                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
-                              value={editOrderDate}
-                              onChange={e => setEditOrderDate(e.target.value)}
-                          />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Colaborador / Mecânico</label>
-                              <select 
-                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold text-sm"
-                                  value={editOrderCollaboratorId}
-                                  onChange={e => setEditOrderCollaboratorId(e.target.value)}
-                              >
-                                  <option value="">Selecionar...</option>
-                                  {filteredCollaborators.filter(c => c.isActive || c.id === editingOrder.collaboratorId).map(c => (
-                                      <option key={c.id} value={c.id}>{c.name}</option>
-                                  ))}
-                              </select>
+                      {/* Section: Parts */}
+                      <div className="space-y-4">
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-blue-500"/>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Peças e Materiais</h4>
+                              </div>
                           </div>
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Horas de Mão de Obra</label>
-                              <input 
-                                  type="number"
-                                  step="0.5"
-                                  min="0"
-                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold text-sm"
-                                  placeholder="Ex: 2.5"
-                                  value={editOrderLaborHours}
-                                  onChange={e => setEditOrderLaborHours(e.target.value === '' ? '' : Number(e.target.value))}
-                              />
-                          </div>
-                      </div>
-
-                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 flex items-center gap-2">
-                              <Package className="h-4 w-4 text-blue-500"/> Peças do Almoxarifado
-                          </label>
                           
-                          <div className="grid grid-cols-1 gap-2">
-                              <select 
-                                className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
-                                value={editSelectedStockItemId}
-                                onChange={e => setEditSelectedStockItemId(e.target.value)}
-                              >
-                                  <option value="">Selecionar Peça...</option>
-                                  {stockItems.map(item => (
-                                      <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
-                                  ))}
-                              </select>
-                              <div className="flex gap-2">
+                          <div className="space-y-3">
+                              <div className="flex gap-2 items-center">
+                                  <select 
+                                    className="w-[200px] h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                    value={editSelectedStockItemId}
+                                    onChange={e => setEditSelectedStockItemId(e.target.value)}
+                                  >
+                                      <option value="">Selecionar Peça...</option>
+                                      {stockItems.map(item => (
+                                          <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
+                                      ))}
+                                  </select>
                                   <input 
                                     type="number" 
                                     min="1"
-                                    className="flex-1 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                                    className="w-20 h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold text-center transition-all"
                                     value={editSelectedStockItemQty}
                                     onChange={e => setEditSelectedStockItemQty(Number(e.target.value))}
                                   />
                                   <button 
                                     type="button"
                                     onClick={handleAddPartToEdit}
-                                    className="px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all flex items-center justify-center"
+                                    className="h-[45px] px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all active:scale-90 flex items-center justify-center shadow-lg shadow-blue-600/20"
                                   >
                                       <Plus className="h-5 w-5" />
                                   </button>
                               </div>
-                          </div>
 
-                          {editOrderParts.length > 0 && (
-                              <div className="space-y-2 mt-3">
-                                  {editOrderParts.map((part, index) => (
-                                      <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
-                                          <div className="flex flex-col flex-1">
-                                              <span className="font-bold text-slate-800 dark:text-white">{part.name}</span>
-                                              <span className="text-[10px] text-slate-500">Unit: R$ {part.unitCost.toFixed(2)}</span>
+                              {editOrderParts.length > 0 && (
+                                  <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                                      {editOrderParts.map((part, index) => (
+                                          <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                              <div className="flex flex-col">
+                                                  <span className="text-[10px] font-bold text-slate-800 dark:text-white">{part.name}</span>
+                                                  <span className="text-[9px] text-slate-500">R$ {part.unitCost.toFixed(2)} / un</span>
+                                              </div>
+                                              <div className="flex items-center gap-3">
+                                                  <span className="text-[10px] font-black text-slate-800 dark:text-white">x{part.quantity}</span>
+                                                  <button 
+                                                    type="button"
+                                                    onClick={() => handleRemovePartFromEdit(index)}
+                                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                  >
+                                                      <Trash2 className="h-3.5 w-3.5" />
+                                                  </button>
+                                              </div>
                                           </div>
-                                          <div className="flex items-center gap-2">
-                                              <input 
-                                                type="number" 
-                                                min="1"
-                                                className="w-12 p-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-[10px] outline-none focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-white text-center"
-                                                value={part.quantity}
-                                                onChange={e => handleEditUpdatePartQty(index, Number(e.target.value))}
-                                              />
-                                              <button 
-                                                type="button"
-                                                onClick={() => handleRemovePartFromEdit(index)}
-                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                              >
-                                                  <Trash2 className="h-4 w-4" />
-                                              </button>
-                                          </div>
+                                      ))}
+                                      <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center px-1">
+                                          <span className="text-[10px] font-black text-slate-500 uppercase">Total Peças</span>
+                                          <span className="text-xs font-black text-slate-800 dark:text-white">R$ {editOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
                                       </div>
-                                  ))}
-                                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-bold text-slate-800 dark:text-white">
-                                      <span>Total em Peças:</span>
-                                      <span>R$ {editOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
                                   </div>
-                              </div>
-                          )}
+                              )}
+                          </div>
                       </div>
 
-                      <div className="pt-2 flex gap-3">
-                          <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancelar</button>
-                          <button type="submit" disabled={isUpdating} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50">
+                      <div className="pt-4 flex gap-3">
+                          <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">Cancelar</button>
+                          <button type="submit" disabled={isUpdating} className="flex-2 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 active:scale-95">
                               {isUpdating ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Salvar Alterações
                           </button>
                       </div>
@@ -1298,7 +1442,134 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               </div>
           </div>
       )}
-      </>
+
+      {/* VIEW ORDER DETAILS MODAL */}
+      {viewingOrderDetails && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
+                  {/* Header */}
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+                      <div className="flex items-center gap-4">
+                          <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl">
+                              <CheckCircle2 className="h-6 w-6 text-emerald-600"/>
+                          </div>
+                          <div>
+                              <h3 className="font-black text-xl text-slate-800 dark:text-white">Ordem de Serviço Finalizada</h3>
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">#{String(viewingOrderDetails.orderNumber).padStart(4, '0')}</p>
+                          </div>
+                      </div>
+                      <button onClick={() => setViewingOrderDetails(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                          <X className="h-6 w-6 text-slate-500"/>
+                      </button>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-8 overflow-y-auto space-y-8">
+                      {/* Vehicle & Date Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                          <div className="space-y-1">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Veículo</span>
+                              <div className="flex flex-col items-center w-fit bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-700 rounded-md px-3 py-1 shadow-sm">
+                                  <div className="w-full h-1 bg-blue-600 rounded-t-sm mb-0.5"></div>
+                                  <span className="text-sm font-black text-slate-800 dark:text-white tracking-widest uppercase">{viewingOrderDetails.vehiclePlate}</span>
+                              </div>
+                          </div>
+                          <div className="space-y-1">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Data de Conclusão</span>
+                              <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-orange-500"/>
+                                  {viewingOrderDetails.completedAt ? new Date(viewingOrderDetails.completedAt).toLocaleDateString() : 'N/A'}
+                              </p>
+                          </div>
+                          <div className="space-y-1">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Hodômetro</span>
+                              <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                  <Timer className="h-4 w-4 text-blue-500"/>
+                                  {viewingOrderDetails.odometer?.toLocaleString()} KM
+                              </p>
+                          </div>
+                          <div className="space-y-1">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Responsável</span>
+                              <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                  <UserCircle className="h-4 w-4 text-purple-500"/>
+                                  {viewingOrderDetails.collaboratorName || viewingOrderDetails.providerName || 'N/A'}
+                              </p>
+                          </div>
+                      </div>
+
+                      {/* Service Title & Details */}
+                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
+                          <h4 className="font-black text-slate-800 dark:text-white text-lg">{viewingOrderDetails.title}</h4>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                              "{viewingOrderDetails.details}"
+                          </p>
+                      </div>
+
+                      {/* Financial Summary */}
+                      <div className="space-y-4">
+                          <h5 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                              <DollarSign className="h-4 w-4 text-emerald-500"/> Resumo Financeiro
+                          </h5>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
+                                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Mão de Obra</span>
+                                  <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">R$ {viewingOrderDetails.laborCost?.toFixed(2) || '0.00'}</p>
+                              </div>
+                              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-800/50">
+                                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase">Peças / Externo</span>
+                                  <p className="text-xl font-black text-amber-700 dark:text-amber-300">
+                                      R$ {((viewingOrderDetails.externalServiceCost || 0) + (viewingOrderDetails.parts?.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) || 0)).toFixed(2)}
+                                  </p>
+                              </div>
+                              <div className="p-4 bg-slate-800 dark:bg-slate-700 rounded-2xl shadow-lg">
+                                  <span className="text-[10px] font-black text-slate-400 uppercase">Total Geral</span>
+                                  <p className="text-xl font-black text-white">
+                                      R$ {((viewingOrderDetails.laborCost || 0) + (viewingOrderDetails.externalServiceCost || 0) + (viewingOrderDetails.parts?.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) || 0)).toFixed(2)}
+                                  </p>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Parts List */}
+                      {viewingOrderDetails.parts && viewingOrderDetails.parts.length > 0 && (
+                          <div className="space-y-4">
+                              <h5 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-blue-500"/> Peças Utilizadas
+                              </h5>
+                              <div className="grid grid-cols-1 gap-2">
+                                  {viewingOrderDetails.parts.map((part, idx) => (
+                                      <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                          <div className="flex items-center gap-3">
+                                              <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                                                  <Package className="h-4 w-4 text-slate-400"/>
+                                              </div>
+                                              <div>
+                                                  <p className="text-sm font-bold text-slate-800 dark:text-white">{part.name}</p>
+                                                  <p className="text-[10px] text-slate-500">Valor Unitário: R$ {part.unitCost.toFixed(2)}</p>
+                                              </div>
+                                          </div>
+                                          <div className="text-right">
+                                              <p className="text-sm font-black text-slate-800 dark:text-white">x{part.quantity}</p>
+                                              <p className="text-[10px] font-bold text-emerald-600">R$ {(part.quantity * part.unitCost).toFixed(2)}</p>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end">
+                      <button 
+                          onClick={() => setViewingOrderDetails(null)}
+                          className="px-8 py-3 bg-slate-800 dark:bg-slate-700 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 dark:hover:bg-slate-600 transition-all active:scale-95 shadow-lg"
+                      >
+                          Fechar Detalhes
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );

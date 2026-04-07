@@ -153,11 +153,10 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <select 
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none"
-                  value={newEntry.driverId}
+                  value={newEntry.driverId || ''}
                   onChange={e => setNewEntry(prev => ({ ...prev, driverId: e.target.value }))}
-                  required
                 >
-                  <option value="">Selecione um motorista</option>
+                  <option value="">Selecione um motorista (Opcional)</option>
                   {drivers.map(d => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}

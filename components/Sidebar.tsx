@@ -58,7 +58,10 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
     { id: 'occurrences', label: 'Ocorrências', icon: AlertTriangle, modules: ['VEHICLES'] },
-    { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES', 'TIRES'] },
+    { id: 'reports-tires', label: 'Relatórios de Pneus', icon: FileBarChart, modules: ['TIRES'] },
+    { id: 'reports-vehicles', label: 'Relatórios de Veículos', icon: FileBarChart, modules: ['VEHICLES'] },
+    { id: 'reports-maintenance', label: 'Relatórios de Manutenção', icon: FileBarChart, modules: ['MECHANICAL'] },
+    { id: 'reports-fuel', label: 'Relatórios de Abastecimento', icon: FileBarChart, modules: ['FUEL'] },
     { id: 'vehicle-types', label: 'Tipos de Veículos', icon: Layers, modules: ['VEHICLES'] },
 
     // --- MÓDULO OFICINA/PEÇAS ---
@@ -178,11 +181,11 @@ export const Sidebar: FC<SidebarProps> = ({
           
           <div className="bg-slate-900/80 rounded-2xl p-4 flex items-center justify-between border border-slate-800">
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">{userName}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{userLevel}</p>
-              </div>
+              <p className="text-sm font-bold text-white truncate">
+                {userName.includes('@') 
+                  ? userName.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                  : userName}
+              </p>
             </div>
             <button onClick={onLogout} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all" title="Sair">
               <LogOut className="h-5 w-5" />

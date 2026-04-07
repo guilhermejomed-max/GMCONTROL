@@ -264,7 +264,7 @@ const TireDetailModal: React.FC<{
                                 {tire.brand} {tire.model} 
                                 <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                                 {tire.width}/{tire.profile} R{tire.rim}
-                                {tire.branchId && (
+                                {tire.branchId && !tire.vehicleId && (
                                     <>
                                         <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                                         <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
@@ -623,7 +623,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
                         </p>
                     </div>
                 </div>
-                {tire.branchId && (
+                {tire.branchId && !tire.vehicleId && (
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
                             <Building2 className="h-4 w-4"/>
@@ -854,7 +854,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [showAllTires, setShowAllTires] = useState(false);
 
   const filteredByBranchTires = useMemo(() => {
-    return defaultBranchId ? tires.filter(t => t.branchId === defaultBranchId) : tires;
+    return defaultBranchId ? tires.filter(t => t.branchId === defaultBranchId || !!t.vehicleId) : tires;
   }, [tires, defaultBranchId]);
 
   const stats = useMemo(() => {
