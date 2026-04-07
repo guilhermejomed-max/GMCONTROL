@@ -23,9 +23,9 @@ export const ModelAveragesList: React.FC<ModelAveragesListProps> = React.memo(({
         <div 
           key={m.modelName} 
           onClick={() => onSelectModel(m)}
-          className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-300 dark:hover:border-blue-700 transition-all group cursor-pointer active:scale-[0.98]"
+          className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:border-blue-300 dark:hover:border-blue-700 transition-all group cursor-pointer active:scale-[0.98] flex flex-col h-full"
         >
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between items-start mb-4 flex-grow">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
                 <Truck className="h-5 w-5 text-slate-600 dark:text-slate-400" />

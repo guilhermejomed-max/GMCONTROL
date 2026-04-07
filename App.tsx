@@ -224,6 +224,7 @@ export const App = () => {
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
   const [userRole, setUserRole] = useState<UserLevel>('SENIOR'); 
+  const [allowedModules, setAllowedModules] = useState<ModuleType[]>(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
   const [activeModule, setActiveModule] = useState<ModuleType>('TIRES');
   const [trackerSettings, setTrackerSettings] = useState<TrackerSettings | null>(null);
   
@@ -245,6 +246,8 @@ export const App = () => {
             const profile = await storageService.getUserProfile(u.uid);
             if (profile) {
                 setUserRole(profile.role);
+                setAllowedModules(profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
+                setActiveModule(profile.allowedModules?.[0] || 'TIRES');
                 if (profile.branchId) {
                     setSelectedBranchId(profile.branchId);
                     setUserBranchId(profile.branchId);
@@ -257,11 +260,14 @@ export const App = () => {
                 }
             } else if (u.email && (u.email.toLowerCase().trim() === 'gui@gmail.com' || u.email.toLowerCase().trim() === 'guilherme.jomed@gmail.com')) {
                 setUserRole('CREATOR');
+                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
             } else if (u.email && u.email.toLowerCase().trim() === 'inspetor@gmcontrol.com') {
                 setUserRole('INSPECTOR');
+                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
                 setCurrentTab('movement');
             } else {
                 setUserRole('SENIOR');
+                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
             }
         } else {
             setSelectedBranchId(undefined);
@@ -910,7 +916,10 @@ export const App = () => {
           activeModule={activeModule}
           onChangeModule={() => {
             setActiveModule(prev => {
-              const next: ModuleType = prev === 'TIRES' ? 'VEHICLES' : prev === 'VEHICLES' ? 'MECHANICAL' : prev === 'MECHANICAL' ? 'FUEL' : 'TIRES';
+              const currentIndex = allowedModules.indexOf(prev);
+              const nextIndex = (currentIndex + 1) % allowedModules.length;
+              const next = allowedModules[nextIndex];
+              
               if (next === 'FUEL') setCurrentTab('fuel');
               if (next === 'TIRES') setCurrentTab('dashboard');
               if (next === 'VEHICLES') setCurrentTab('fleet');
@@ -1002,14 +1011,14 @@ export const App = () => {
                 }}
               />
             )}
-            {currentTab === 'partners' && <PartnerManager orgId={orgId} />}
-            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onRegister={() => setCurrentTab('register')} onNotification={addToast} userLevel={userRole} vehicleTypes={vehicleTypes} />}
-            {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
-            {currentTab === 'register' && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />}
-            {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
-            {currentTab === 'brand-models' && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} />}
-            {currentTab === 'vehicle-types' && <VehicleTypeManager orgId={orgId} />}
-            {currentTab === 'fleet' && <VehicleManager 
+            {currentTab === 'partners' && allowedModules.includes('MECHANICAL') && <PartnerManager orgId={orgId} />}
+            {currentTab === 'inventory' && allowedModules.includes('TIRES') && <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onRegister={() => setCurrentTab('register')} onNotification={addToast} userLevel={userRole} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'scrap' && allowedModules.includes('TIRES') && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
+            {currentTab === 'register' && allowedModules.includes('TIRES') && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />}
+            {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'brand-models' && allowedModules.includes('VEHICLES') && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'vehicle-types' && allowedModules.includes('VEHICLES') && <VehicleTypeManager orgId={orgId} />}
+            {currentTab === 'fleet' && allowedModules.includes('VEHICLES') && <VehicleManager 
               orgId={orgId}
               vehicles={vehicles} 
               vehicleBrandModels={vehicleBrandModels} 
@@ -1032,8 +1041,8 @@ export const App = () => {
               defaultBranchId={selectedBranchId}
               vehicleTypes={vehicleTypes}
             />}
-            {currentTab === 'inspection' && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} vehicleTypes={vehicleTypes} />}
-            {currentTab === 'retreading' && (
+            {currentTab === 'inspection' && allowedModules.includes('TIRES') && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'retreading' && allowedModules.includes('TIRES') && (
               <RetreadingHub 
                 orgId={orgId} 
                 tires={tires} 
@@ -1045,7 +1054,7 @@ export const App = () => {
                 settings={settings} 
               />
             )}
-            {currentTab === 'retreader-ranking' && (
+            {currentTab === 'retreader-ranking' && allowedModules.includes('TIRES') && (
               <RetreaderRanking 
                 tires={tires} 
                 retreadOrders={retreadOrders} 
@@ -1053,8 +1062,8 @@ export const App = () => {
                 defaultBranchId={selectedBranchId}
               />
             )}
-            {currentTab === 'strategic-analysis' && <StrategicAnalysis tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} settings={settings} vehicleTypes={vehicleTypes} />}
-            {currentTab === 'demand-forecast' && (
+            {currentTab === 'strategic-analysis' && allowedModules.includes('TIRES') && <StrategicAnalysis tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} settings={settings} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'demand-forecast' && allowedModules.includes('TIRES') && (
               <DemandForecast 
                 tires={tires} 
                 vehicles={vehicles} 
@@ -1063,7 +1072,7 @@ export const App = () => {
                 settings={settings} 
               />
             )}
-            {currentTab === 'financial' && (
+            {currentTab === 'financial' && allowedModules.includes('TIRES') && (
               <FinancialHub 
                 tires={tires} 
                 vehicles={vehicles} 
@@ -1072,7 +1081,7 @@ export const App = () => {
                 defaultBranchId={selectedBranchId}
               />
             )}
-            {currentTab === 'esg-panel' && (
+            {currentTab === 'esg-panel' && allowedModules.includes('TIRES') && (
               <EsgPanel 
                 tires={tires} 
                 retreadOrders={retreadOrders} 
@@ -1080,7 +1089,7 @@ export const App = () => {
                 defaultBranchId={selectedBranchId}
               />
             )}
-            {currentTab === 'maintenance' && (
+            {currentTab === 'maintenance' && allowedModules.includes('MECHANICAL') && (
               <MaintenanceDashboard 
                 vehicles={vehicles} 
                 branches={branches}
@@ -1096,7 +1105,7 @@ export const App = () => {
                 }}
               />
             )}
-            {currentTab === 'fuel' && (
+            {currentTab === 'fuel' && allowedModules.includes('FUEL') && (
               <FuelDashboard 
                 vehicles={vehicles}
                 fuelEntries={fuelEntries}
@@ -1111,7 +1120,7 @@ export const App = () => {
                 onDeleteStation={handleDeleteFuelStation}
               />
             )}
-            {currentTab === 'location' && (
+            {currentTab === 'location' && allowedModules.includes('VEHICLES') && (
               <LocationMap 
                 vehicles={vehicles} 
                 tires={tires} 
@@ -1122,7 +1131,7 @@ export const App = () => {
                 onUpdateSettings={(newSettings) => storageService.saveSettings(orgId, newSettings)}
               />
             )}
-            {currentTab === 'service-orders' && (
+            {currentTab === 'service-orders' && allowedModules.includes('MECHANICAL') && (
               <ServiceOrderHub 
                 orgId={orgId}
                 serviceOrders={serviceOrders} 
@@ -1150,8 +1159,8 @@ export const App = () => {
                 userLevel={userRole}
               />
             )}
-            {currentTab === 'service' && <ServiceManager orgId={orgId} userLevel={userRole} />}
-            {currentTab === 'reports' && (
+            {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} />}
+            {currentTab === 'reports' && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
               <ReportsHub 
                 tires={tires} 
                 vehicles={vehicles} 

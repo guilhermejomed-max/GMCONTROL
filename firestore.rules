@@ -642,7 +642,7 @@ service cloud.firestore {
     }
 
     match /branches/{id} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAdmin() && isValidBranch(request.resource.data);
       allow update: if isAdmin() && isValidBranch(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
