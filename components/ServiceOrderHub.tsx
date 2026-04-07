@@ -115,6 +115,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [newOrderServiceId, setNewOrderServiceId] = useState('');
   const [newOrderLaborHours, setNewOrderLaborHours] = useState<number | ''>(1);
   
+  const [newOrderTireId, setNewOrderTireId] = useState('');
+  const [editOrderTireId, setEditOrderTireId] = useState('');
+  
   const [newOrderServiceType, setNewOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL');
   const [newOrderProviderName, setNewOrderProviderName] = useState('');
   const [newOrderExternalServiceCost, setNewOrderExternalServiceCost] = useState<number | ''>('');
@@ -385,10 +388,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           
           const partner = partners.find(p => p.id === newOrderPartnerId);
           const service = partner?.services.find(s => s.id === newOrderServiceId);
+          const tire = tires.find(t => t.id === newOrderTireId);
 
-              await onAddOrder({
+          await onAddOrder({
               vehicleId: vehicle.id,
               vehiclePlate: vehicle.plate,
+              tireId: newOrderTireId || undefined,
+              tireFireNumber: tire?.fireNumber,
               title: newOrderTitle || (newOrderDetails.length > 40 ? newOrderDetails.substring(0, 40) + '...' : newOrderDetails) || 'Manutenção',
               details: newOrderDetails,
               date: newOrderDate,
@@ -411,6 +417,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
               status: 'PENDENTE'
           });
+          setNewOrderTireId('');
           setIsCreateModalOpen(false);
           setNewOrderVehicleId('');
           setNewOrderTitle('');
@@ -447,6 +454,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       setEditOrderServiceType(order.serviceType || 'INTERNAL');
       setEditOrderProviderName(order.providerName || '');
       setEditOrderExternalServiceCost(order.externalServiceCost || '');
+      setEditOrderTireId(order.tireId || '');
   };
 
   const handleUpdateOrderDetails = async (e: React.FormEvent) => {
@@ -458,9 +466,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const collaborator = filteredCollaborators.find(c => c.id === editOrderCollaboratorId);
           const laborCost = (collaborator && editOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(editOrderLaborHours) : 0;
 
+          const tire = tires.find(t => t.id === editOrderTireId);
+
           await onUpdateOrder(editingOrder.id, {
               title: editOrderTitle,
               details: editOrderDetails,
+              tireId: editOrderTireId || undefined,
+              tireFireNumber: tire?.fireNumber,
               date: editOrderDate,
               serviceType: editOrderServiceType,
               providerName: editOrderServiceType === 'EXTERNAL' ? editOrderProviderName : undefined,
@@ -779,11 +791,28 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                   if (v) {
                                       setNewOrderOdometer(v.odometer);
                                   }
+                                  setNewOrderTireId('');
                               }}
                           >
                               <option value="">Selecione um veículo...</option>
                               {vehicles.map(v => (
                                   <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
+                              ))}
+                          </select>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pneu (Opcional)</label>
+                          <select 
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold"
+                              value={newOrderTireId}
+                              onChange={e => setNewOrderTireId(e.target.value)}
+                          >
+                              <option value="">Nenhum pneu selecionado</option>
+                              {tires
+                                .filter(t => !newOrderVehicleId || t.vehicleId === newOrderVehicleId)
+                                .map(t => (
+                                  <option key={t.id} value={t.id}>#{t.fireNumber} - {t.brand} {t.model} ({t.status})</option>
                               ))}
                           </select>
                       </div>
@@ -1112,6 +1141,22 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 font-bold text-sm">
                               {editingOrder.vehiclePlate}
                           </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Pneu (Opcional)</label>
+                          <select 
+                              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                              value={editOrderTireId}
+                              onChange={e => setEditOrderTireId(e.target.value)}
+                          >
+                              <option value="">Nenhum pneu selecionado</option>
+                              {tires
+                                .filter(t => !editingOrder.vehicleId || t.vehicleId === editingOrder.vehicleId)
+                                .map(t => (
+                                  <option key={t.id} value={t.id}>#{t.fireNumber} - {t.brand} {t.model} ({t.status})</option>
+                              ))}
+                          </select>
                       </div>
                       
                       <div>

@@ -8,7 +8,8 @@ import {
   LayoutGrid, List, Gauge, ArrowRight, DollarSign, Package,
   Layers, Disc, Truck, Calendar, Activity, MapPin, TrendingDown,
   Milestone, RefreshCw, Star, QrCode, Printer, ScanLine, CheckSquare,
-  Building2, ChevronDown, FileSpreadsheet, ClipboardList
+  Building2, ChevronDown, FileSpreadsheet, ClipboardList,
+  CircleDot, Grid3X3, ChevronRight
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Scanner } from './Scanner';
@@ -24,6 +25,7 @@ interface InventoryListProps {
   maintenanceSchedules?: MaintenanceSchedule[];
   onDelete: (id: string) => Promise<void>;
   onUpdateTire: (tire: Tire) => Promise<void>;
+  onUpdateServiceOrder?: (id: string, updates: Partial<ServiceOrder>) => Promise<void>;
   onRegister?: () => void;
   onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
   userLevel: UserLevel;
@@ -31,12 +33,183 @@ interface InventoryListProps {
   vehicleTypes?: VehicleType[];
 }
 
+const TransferModal: React.FC<{
+  selectedTires: Tire[];
+  branches: Branch[];
+  onClose: () => void;
+  onTransfer: (branchId: string) => Promise<void>;
+}> = ({ selectedTires, branches, onClose, onTransfer }) => {
+  const [targetBranchId, setTargetBranchId] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const handleTransfer = async () => {
+    if (!targetBranchId) return;
+    setIsTransferring(true);
+    await onTransfer(targetBranchId);
+    setIsTransferring(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
+        <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
+                <ArrowRight className="h-6 w-6" />
+            </div>
+            <div>
+                <h3 className="font-black text-xl text-slate-800 dark:text-white tracking-tight">Transferir Filial</h3>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimentação de Estoque</p>
+            </div>
+        </div>
+
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+          Você está transferindo <span className="font-black text-slate-800 dark:text-white">{selectedTires.length}</span> pneu(s) para uma nova filial. Esta ação será registrada no histórico de cada pneu.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5 ml-1">Filial de Destino</label>
+            <select 
+              value={targetBranchId} 
+              onChange={e => setTargetBranchId(e.target.value)}
+              className="w-full p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            >
+              <option value="">Selecione uma filial...</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-3 mt-8">
+            <button 
+              onClick={handleTransfer}
+              disabled={!targetBranchId || isTransferring}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2"
+            >
+              {isTransferring ? (
+                  <>
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                    Processando...
+                  </>
+              ) : (
+                  <>
+                    <CheckCircle2 className="h-5 w-5" />
+                    Confirmar Transferência
+                  </>
+              )}
+            </button>
+            <button 
+                onClick={onClose} 
+                disabled={isTransferring}
+                className="w-full py-4 text-slate-500 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-colors"
+            >
+                Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const getHealthColor = (depth: number) => {
     if (depth <= 3) return 'bg-red-500';
     if (depth <= 5) return 'bg-amber-500';
     return 'bg-emerald-500';
+};
+
+const LinkOSModal: React.FC<{
+  tire: Tire;
+  serviceOrders: ServiceOrder[];
+  onClose: () => void;
+  onLink: (orderId: string) => Promise<void>;
+}> = ({ tire, serviceOrders, onClose, onLink }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLinking, setIsLinking] = useState(false);
+
+  const filteredOrders = useMemo(() => {
+    return serviceOrders
+      .filter(so => 
+        (so.tireId !== tire.id) && 
+        (
+          so.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          so.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          so.id.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10);
+  }, [serviceOrders, searchTerm, tire.id]);
+
+  const handleLink = async (orderId: string) => {
+    setIsLinking(true);
+    await onLink(orderId);
+    setIsLinking(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-2xl max-w-lg w-full border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 flex flex-col max-h-[80vh]">
+        <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
+                <ClipboardList className="h-6 w-6" />
+            </div>
+            <div>
+                <h3 className="font-black text-xl text-slate-800 dark:text-white tracking-tight">Vincular O.S. ao Pneu</h3>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pneu: {tire.fireNumber}</p>
+            </div>
+        </div>
+
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="Buscar por título, placa ou ID..."
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+          {filteredOrders.length === 0 ? (
+            <p className="text-center py-8 text-slate-400 text-sm italic">Nenhuma ordem de serviço encontrada.</p>
+          ) : (
+            filteredOrders.map(so => (
+              <button 
+                key={so.id}
+                onClick={() => handleLink(so.id)}
+                disabled={isLinking}
+                className="w-full p-4 text-left bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-200 dark:border-slate-700 rounded-xl transition-all group"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors">{so.title}</p>
+                    <p className="text-xs text-slate-500">Veículo: {so.vehiclePlate} • {new Date(so.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <Plus className="h-4 w-4 text-slate-400 group-hover:text-blue-600" />
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+          <button 
+            onClick={onClose}
+            className="w-full py-3 text-slate-500 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // --- MODAL DE DETALHES DO PNEU (CICLO DE VIDA) ---
@@ -49,8 +222,10 @@ const TireDetailModal: React.FC<{
   maintenanceSchedules?: MaintenanceSchedule[];
   onClose: () => void;
   vehicleTypes?: VehicleType[];
-}> = ({ tire, vehicles, branches = [], serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose, vehicleTypes = [] }) => {
+  onUpdateServiceOrder?: (id: string, updates: Partial<ServiceOrder>) => Promise<void>;
+}> = ({ tire, vehicles, branches = [], serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose, vehicleTypes = [], onUpdateServiceOrder }) => {
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
+    const [showLinkOS, setShowLinkOS] = useState(false);
     
     // Cálculo de CPK Individual
     // Se o pneu estiver rodando agora, somamos a km atual ao histórico
@@ -279,23 +454,53 @@ const TireDetailModal: React.FC<{
 
                                         {/* Serviços Realizados */}
                                         <div className="space-y-3">
-                                            <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                                                <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
-                                            </h4>
-                                            {serviceOrders.filter(so => so.vehicleId === vehicle.id).length === 0 ? (
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                                                    <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
+                                                </h4>
+                                                {onUpdateServiceOrder && (
+                                                    <button 
+                                                        onClick={() => setShowLinkOS(true)}
+                                                        className="text-[10px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-700 flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg transition-colors"
+                                                    >
+                                                        <Plus className="h-3 w-3" /> Vincular O.S.
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {showLinkOS && onUpdateServiceOrder && (
+                                                <LinkOSModal 
+                                                    tire={tire}
+                                                    serviceOrders={serviceOrders}
+                                                    onClose={() => setShowLinkOS(false)}
+                                                    onLink={async (orderId) => {
+                                                        await onUpdateServiceOrder(orderId, { 
+                                                            tireId: tire.id,
+                                                            tireFireNumber: tire.fireNumber
+                                                        });
+                                                    }}
+                                                />
+                                            )}
+
+                                            {serviceOrders.filter(so => so.tireId === tire.id || (vehicle && so.vehicleId === vehicle.id && !so.tireId)).length === 0 ? (
                                                 <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                                                    Nenhuma ordem de serviço registrada para este veículo.
+                                                    Nenhuma ordem de serviço vinculada a este pneu.
                                                 </p>
                                             ) : (
                                                 <div className="space-y-2">
                                                     {serviceOrders
-                                                        .filter(so => so.vehicleId === vehicle.id)
+                                                        .filter(so => so.tireId === tire.id || (vehicle && so.vehicleId === vehicle.id && !so.tireId))
                                                         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                                                         .map(so => (
-                                                            <div key={so.id} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                                            <div key={so.id} className={`p-4 bg-white dark:bg-slate-800 rounded-xl border shadow-sm ${so.tireId === tire.id ? 'border-blue-200 dark:border-blue-800 ring-1 ring-blue-100 dark:ring-blue-900/20' : 'border-slate-200 dark:border-slate-700'}`}>
                                                                 <div className="flex justify-between items-start mb-2">
                                                                     <div>
-                                                                        <p className="font-bold text-sm text-slate-800 dark:text-white">{so.title}</p>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <p className="font-bold text-sm text-slate-800 dark:text-white">{so.title}</p>
+                                                                            {so.tireId === tire.id && (
+                                                                                <span className="text-[8px] font-black uppercase tracking-tighter bg-blue-100 text-blue-700 px-1 rounded">Vinculado</span>
+                                                                            )}
+                                                                        </div>
                                                                         <p className="text-xs text-slate-500">{new Date(so.createdAt).toLocaleDateString('pt-BR')} • OS #{so.id.slice(-5).toUpperCase()}</p>
                                                                     </div>
                                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${
@@ -352,10 +557,11 @@ interface TireCardProps {
   onDelete: (id: string) => void;
   onClick: (tire: Tire) => void;
   onPrintQr: (tire: Tire) => void;
+  onTransfer?: (tire: Tire) => void;
   detailed?: boolean;
 }
 
-const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], userLevel, onDelete, onClick, onPrintQr, detailed = false }) => {
+const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], userLevel, onDelete, onClick, onPrintQr, onTransfer, detailed = false }) => {
     const depthPercent = Math.min(100, (tire.currentTreadDepth / (tire.originalTreadDepth || 18)) * 100);
     const healthColor = getHealthColor(tire.currentTreadDepth);
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
@@ -386,7 +592,14 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
             {/* Tread Depth Visual */}
             <div className="mb-4 bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between items-end mb-1">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Sulco</span>
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-400 uppercase">Sulco</span>
+                        {tire.lastInspectionDate && (
+                            <span className="text-[10px] text-slate-400 font-medium">
+                                Insp: {new Date(tire.lastInspectionDate).toLocaleDateString('pt-BR')}
+                            </span>
+                        )}
+                    </div>
                     <span className={`text-sm font-black ${tire.currentTreadDepth <= 3 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
                         {Number(tire.currentTreadDepth || 0).toFixed(1)} <span className="text-xs">mm</span>
                     </span>
@@ -442,6 +655,15 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
             <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto">
                 <span className="text-xs font-mono font-bold text-slate-400">{money(tire.price)}</span>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onTransfer && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onTransfer(tire); }} 
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Transferir Filial"
+                        >
+                            <ArrowRight className="h-4 w-4"/>
+                        </button>
+                    )}
                     <button 
                         onClick={(e) => { e.stopPropagation(); onPrintQr(tire); }} 
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -601,6 +823,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   maintenanceSchedules = [],
   onDelete, 
   onUpdateTire, 
+  onUpdateServiceOrder,
   onRegister, 
   onNotification,
   userLevel, 
@@ -608,10 +831,12 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   vehicleTypes = []
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP'>(viewMode === 'scrap' ? 'SCRAP' : 'NEW');
+  const [showDashboard, setShowDashboard] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<'ALL' | 'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP' | 'LISO' | 'BORRACHUDO'>(viewMode === 'scrap' ? 'SCRAP' : 'ALL');
   const [layoutMode, setLayoutMode] = useState<'GRID' | 'LIST'>('LIST');
   const [detailedView, setDetailedView] = useState(false);
   const [selectedTire, setSelectedTire] = useState<Tire | null>(null);
+  const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
 
   // Novos estados para QR Code e Inventário
   const [qrTireToPrint, setQrTireToPrint] = useState<Tire | null>(null);
@@ -620,6 +845,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [isInventoryMode, setIsInventoryMode] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedTireIds, setScannedTireIds] = useState<Set<string>>(new Set());
+  const [tiresBeingTransferred, setTiresBeingTransferred] = useState<Tire[] | null>(null);
   
   const [showReportsModal, setShowReportsModal] = useState(false);
   const [showMissingTiresReport, setShowMissingTiresReport] = useState(false);
@@ -632,16 +858,34 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
   const stats = useMemo(() => {
     const stockTires = filteredByBranchTires.filter(t => !t.vehicleId && t.status !== TireStatus.DAMAGED);
-    const total = stockTires.length;
+    const runningTires = filteredByBranchTires.filter(t => !!t.vehicleId);
+    const totalInStock = stockTires.length;
+    const totalRunning = runningTires.length;
     const totalValue = filteredByBranchTires.reduce((sum, t) => sum + (t.price || 0), 0);
     const byStatus = filteredByBranchTires.reduce((acc, t) => {
-      acc[t.status] = (acc[t.status] || 0) + 1;
+      let status = t.status as string;
+      if (t.currentTreadDepth < 3 && t.status !== TireStatus.DAMAGED) {
+        status = 'RECAPAGEM';
+      }
+      acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
-    const lowTread = filteredByBranchTires.filter(t => t.currentTreadDepth <= 3).length;
+    const lowTread = filteredByBranchTires.filter(t => t.currentTreadDepth < 3).length;
+
+    const byBrand = filteredByBranchTires.reduce((acc, t) => {
+      const brand = t.brand.toUpperCase();
+      acc[brand] = (acc[brand] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const byTreadType = filteredByBranchTires.reduce((acc, t) => {
+      const type = t.treadType || 'N/A';
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
     
-    return { total, totalValue, byStatus, lowTread };
+    return { totalInStock, totalRunning, totalValue, byStatus, lowTread, byBrand, byTreadType };
   }, [filteredByBranchTires]);
 
   const handleSort = (key: keyof Tire | 'health' | 'cpk') => {
@@ -659,6 +903,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       'Modelo': t.model,
       'Medida': `${t.width}/${t.profile} R${t.rim}`,
       'Sulco Atual (mm)': t.currentTreadDepth,
+      'Última Inspeção': t.lastInspectionDate ? new Date(t.lastInspectionDate).toLocaleDateString('pt-BR') : '-',
       'Status': t.status,
       'Localização': t.location,
       'Preço': t.price
@@ -747,13 +992,18 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
       const isMounted = !!t.vehicleId;
       const isDamaged = t.status === TireStatus.DAMAGED;
+      const isLowTread = t.currentTreadDepth < 3;
+      const isRecapagem = isLowTread && !isDamaged;
 
       switch (activeCategory) {
-          case 'NEW': return !isMounted && !isDamaged && t.status === TireStatus.NEW;
-          case 'RETREADED': return !isMounted && !isDamaged && t.status === TireStatus.RETREADED;
-          case 'USED': return !isMounted && !isDamaged && t.status === TireStatus.USED;
+          case 'ALL': return !isMounted && !isDamaged && !isLowTread;
+          case 'NEW': return !isMounted && !isDamaged && !isLowTread && t.status === TireStatus.NEW;
+          case 'RETREADED': return !isMounted && !isDamaged && (t.status === TireStatus.RETREADED || isRecapagem);
+          case 'USED': return !isMounted && !isDamaged && !isLowTread && t.status === TireStatus.USED;
           case 'MOUNTED': return isMounted && !isDamaged;
           case 'SCRAP': return isDamaged;
+          case 'LISO': return t.treadType === 'LISO';
+          case 'BORRACHUDO': return t.treadType === 'BORRACHUDO';
           default: return true;
       }
     });
@@ -769,6 +1019,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         } else if (sortConfig.key === 'cpk') {
           aValue = getTireCPK(a);
           bValue = getTireCPK(b);
+        } else if (sortConfig.key === 'branchId') {
+          aValue = branches.find(br => br.id === a.branchId)?.name || '';
+          bValue = branches.find(br => br.id === b.branchId)?.name || '';
         } else {
           aValue = a[sortConfig.key as keyof Tire];
           bValue = b[sortConfig.key as keyof Tire];
@@ -837,101 +1090,383 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       }
   };
 
-  return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+  const handleTransfer = async (branchId: string) => {
+    if (!onUpdateTire || !tiresBeingTransferred) return;
+
+    try {
+      const branchName = branches.find(b => b.id === branchId)?.name || 'Nova Filial';
       
-      {/* SUMMARY STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total em Estoque</p>
-              <p className="text-3xl font-black text-slate-800 dark:text-white">{stats.total}</p>
+      for (const tire of tiresBeingTransferred) {
+        const updatedTire: Tire = {
+          ...tire,
+          branchId,
+          // Se o pneu estava em um veículo, ele continua no veículo (mas a filial do pneu muda)
+          // Se estava em estoque, garantimos que a localização reflita o estoque da nova filial
+          location: tire.vehicleId ? tire.location : 'Estoque',
+          history: [
+            ...(tire.history || []),
+            {
+              date: new Date().toISOString(),
+              action: 'TRANSFERENCIA',
+              details: `Transferido para a filial ${branchName}`,
+              treadDepth: tire.currentTreadDepth
+            }
+          ]
+        };
+        await onUpdateTire(updatedTire);
+      }
+      
+      onNotification?.('Sucesso', `${tiresBeingTransferred.length} pneu(s) transferido(s) com sucesso.`, 'success');
+      setSelectedTireIds(new Set());
+      setTiresBeingTransferred(null);
+    } catch (error) {
+      onNotification?.('Erro', 'Falha ao transferir pneus.', 'error');
+    }
+  };
+
+  const handleBatchTransfer = () => {
+    const selectedTires = tires.filter(t => selectedTireIds.has(t.id));
+    if (selectedTires.length > 0) {
+      setTiresBeingTransferred(selectedTires);
+    }
+  };
+
+  const handleSingleTransfer = (tire: Tire) => {
+    setTiresBeingTransferred([tire]);
+  };
+
+  const handleTransferAll = () => {
+    if (filteredTires.length > 0) {
+      setTiresBeingTransferred(filteredTires);
+    }
+  };
+
+  return (
+    <div className="space-y-12 animate-in fade-in duration-500 pb-20">
+      
+      {/* HERO HEADER SECTION */}
+      <div className="relative overflow-hidden bg-slate-900 dark:bg-slate-950 rounded-[3rem] p-8 md:p-12 text-white shadow-2xl shadow-slate-900/20">
+        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"></div>
+        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-indigo-600/10 rounded-full blur-[80px]"></div>
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+              <Activity className="h-3 w-3" /> Gestão de Ativos
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none mb-4">
+              Estoque de <span className="text-blue-500">Pneus</span>
+            </h1>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white/10 rounded-lg">
+                  <Package className="h-5 w-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Geral</p>
+                  <p className="text-xl font-black font-mono">{filteredByBranchTires.length}</p>
+                </div>
+              </div>
+              <div className="w-px h-8 bg-white/10 hidden sm:block"></div>
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white/10 rounded-lg">
+                  <Truck className="h-5 w-5 text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Em Operação</p>
+                  <p className="text-xl font-black font-mono">{stats.totalRunning}</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Valor Patrimonial</p>
-              <p className="text-3xl font-black text-blue-600">{money(stats.totalValue)}</p>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <button 
+              onClick={() => setShowDashboard(!showDashboard)}
+              className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 ${showDashboard ? 'bg-white text-slate-900 border-white shadow-xl shadow-white/10' : 'bg-transparent border-white/20 text-white hover:bg-white/5'}`}
+            >
+              {showDashboard ? <TrendingDown className="h-4 w-4" /> : <Activity className="h-4 w-4" />}
+              {showDashboard ? 'Ocultar Painel' : 'Ver Estatísticas'}
+            </button>
+            {onRegister && (
+              <button onClick={onRegister} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/40 flex items-center gap-3 transition-all hover:scale-105 active:scale-95">
+                <Plus className="h-5 w-5"/> <span>Novo Pneu</span>
+              </button>
+            )}
           </div>
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Pneus em Uso</p>
-              <p className="text-3xl font-black text-emerald-600">{stats.byStatus[TireStatus.USED] || 0}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Abaixo do Limite (3mm)</p>
-              <p className="text-3xl font-black text-red-500">{stats.lowTread}</p>
-          </div>
+        </div>
       </div>
 
-      {/* BARRA DE NAVEGAÇÃO E FILTROS */}
-      <div className="flex flex-col lg:flex-row flex-wrap justify-between items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+      {showDashboard && (
+        <div className="bg-slate-50 dark:bg-slate-900/30 rounded-[3.5rem] p-8 md:p-10 border border-slate-200 dark:border-slate-800/50 space-y-10 animate-in slide-in-from-top-8 duration-500">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="h-1 w-12 bg-blue-600 rounded-full"></div>
+            <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Painel de Controle</h2>
+          </div>
           
-          <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl w-full lg:w-auto overflow-x-auto no-scrollbar">
-              <button onClick={() => setActiveCategory('NEW')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'NEW' ? 'bg-white dark:bg-slate-800 shadow text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}>
-                  <Disc className="h-4 w-4"/> Novos
-              </button>
-              <button onClick={() => setActiveCategory('RETREADED')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'RETREADED' ? 'bg-white dark:bg-slate-800 shadow text-purple-600 dark:text-purple-400' : 'text-slate-500 hover:text-slate-700'}`}>
-                  <Layers className="h-4 w-4"/> Recapados
-              </button>
-              <button onClick={() => setActiveCategory('USED')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'USED' ? 'bg-white dark:bg-slate-800 shadow text-orange-600 dark:text-orange-400' : 'text-slate-500 hover:text-slate-700'}`}>
-                  <Activity className="h-4 w-4"/> Usados
-              </button>
-              <button onClick={() => setActiveCategory('MOUNTED')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'MOUNTED' ? 'bg-white dark:bg-slate-800 shadow text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700'}`}>
-                  <Truck className="h-4 w-4"/> Em Uso
-              </button>
-              <button onClick={() => setActiveCategory('SCRAP')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'SCRAP' ? 'bg-white dark:bg-slate-800 shadow text-red-600 dark:text-red-400' : 'text-slate-500 hover:text-slate-700'}`}>
-                  <Trash2 className="h-4 w-4"/> Sucata
-              </button>
+          {/* SUMMARY STATS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div 
+                  className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'ALL' ? 'ring-2 ring-blue-500' : ''}`}
+                  onClick={() => setActiveCategory('ALL')}
+              >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl">
+                      <Package className="h-5 w-5" />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total em Estoque</p>
+                  </div>
+                  <p className="text-4xl font-black text-slate-800 dark:text-white tracking-tight font-mono">{stats.totalInStock}</p>
+              </div>
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl">
+                      <DollarSign className="h-5 w-5" />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Patrimonial</p>
+                  </div>
+                  <p className="text-2xl font-black text-emerald-600 tracking-tight font-mono break-all">{money(stats.totalValue)}</p>
+              </div>
+              <div 
+                  className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'MOUNTED' ? 'ring-2 ring-indigo-500' : ''}`}
+                  onClick={() => setActiveCategory('MOUNTED')}
+              >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-xl">
+                      <Truck className="h-5 w-5" />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pneus em Operação</p>
+                  </div>
+                  <p className="text-4xl font-black text-indigo-600 tracking-tight font-mono">{stats.totalRunning}</p>
+              </div>
+              <div 
+                  className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'RETREADED' ? 'ring-2 ring-purple-500' : ''}`}
+                  onClick={() => setActiveCategory('RETREADED')}
+              >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-xl">
+                      <Layers className="h-5 w-5" />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recapagem</p>
+                  </div>
+                  <p className="text-4xl font-black text-purple-600 tracking-tight font-mono">{(stats.byStatus['RECAPAGEM'] || 0) + (stats.byStatus[TireStatus.RETREADED] || 0)}</p>
+              </div>
           </div>
 
-          <div className="flex items-center flex-wrap gap-2 w-full lg:w-auto justify-center lg:justify-end">
-              <div className="relative flex-1 min-w-[140px] max-w-full lg:max-w-[240px]">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input 
-                      type="text" 
-                      placeholder="Buscar pneu..." 
-                      className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                  />
+          {/* BRAND SUMMARY TABLE */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/20">
+                    <Disc className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight text-lg">Resumo por Marca</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Distribuição do Inventário</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-slate-800 dark:text-white">{Object.keys(stats.byBrand).length}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Marcas</p>
+                </div>
               </div>
-              
-              <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg shrink-0">
-                  <button onClick={() => setLayoutMode('GRID')} className={`p-2 rounded-md ${layoutMode === 'GRID' ? 'bg-white dark:bg-slate-800 shadow text-blue-600' : 'text-slate-400'}`}><LayoutGrid className="h-4 w-4"/></button>
-                  <button onClick={() => setLayoutMode('LIST')} className={`p-2 rounded-md ${layoutMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow text-blue-600' : 'text-slate-400'}`}><List className="h-4 w-4"/></button>
-                  {layoutMode === 'GRID' && (
-                    <button onClick={() => setDetailedView(!detailedView)} className={`p-2 rounded-md ${detailedView ? 'bg-white dark:bg-slate-800 shadow text-blue-600' : 'text-slate-400'}`}><FileText className="h-4 w-4"/></button>
-                  )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {Object.entries(stats.byBrand).sort((a, b) => b[1] - a[1]).map(([brand, count]) => (
+                  <div key={brand} className="flex flex-col">
+                    <button 
+                      onClick={() => setExpandedBrand(expandedBrand === brand ? null : brand)}
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${expandedBrand === brand ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 dark:bg-slate-950 dark:border-slate-800 hover:border-blue-300'}`}
+                    >
+                      <span className="font-black text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tight">{brand}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">{count}</span>
+                        {expandedBrand === brand ? <ChevronDown className="h-4 w-4 text-blue-400" /> : <ChevronRight className="h-4 w-4 text-slate-300" />}
+                      </div>
+                    </button>
+                    
+                    {expandedBrand === brand && (
+                      <div className="mt-2 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-inner max-h-48 overflow-y-auto animate-in slide-in-from-top-2 custom-scrollbar">
+                        <div className="grid grid-cols-1 gap-1.5">
+                          {tires
+                            .filter(t => t.brand.toUpperCase() === brand && (defaultBranchId ? t.branchId === defaultBranchId : true))
+                            .map(t => (
+                              <button
+                                key={t.id}
+                                onClick={() => setSelectedTire(t)}
+                                className="text-[11px] font-bold p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl text-left flex items-center justify-between group transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                  <span className="text-slate-600 dark:text-slate-400 group-hover:text-blue-600">#{t.fireNumber}</span>
+                                </div>
+                                <ChevronRight className="h-3 w-3 text-slate-300 group-hover:text-blue-400" />
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
+            </div>
 
-              <button 
-                  onClick={handleBatchPrint}
-                  className={`p-2 lg:px-4 lg:py-2 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 shrink-0 transition-all ${selectedTireIds.size > 0 ? 'bg-blue-600 text-white shadow-blue-600/20' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed'}`}
-                  disabled={selectedTireIds.size === 0}
-              >
-                  <Printer className="h-5 w-5"/> <span className="hidden lg:inline text-xs">Imprimir Selecionados ({selectedTireIds.size})</span>
-              </button>
-
-              <button 
-                  onClick={() => setShowReportsModal(true)}
-                  className="p-2 lg:px-4 lg:py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors flex items-center gap-2"
-                  title="Relatórios"
-              >
-                  <FileSpreadsheet className="h-5 w-5"/>
-                  <span className="hidden lg:inline text-xs font-bold">Relatórios</span>
-              </button>
-
-              <button 
-                  onClick={() => setIsInventoryMode(!isInventoryMode)} 
-                  className={`p-2 lg:px-4 lg:py-2 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 shrink-0 transition-all ${isInventoryMode ? 'bg-indigo-600 text-white shadow-indigo-600/20' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}
-              >
-                  <CheckSquare className="h-5 w-5"/> <span className="hidden lg:inline text-xs">{isInventoryMode ? 'Sair do Inventário' : 'Inventário'}</span>
-              </button>
-
-              {onRegister && (
-                  <button onClick={onRegister} className="bg-blue-600 hover:bg-blue-700 text-white p-2 lg:px-4 lg:py-2 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 shrink-0">
-                      <Plus className="h-5 w-5"/> <span className="hidden lg:inline text-xs">Cadastrar</span>
-                  </button>
-              )}
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-600/20">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight text-lg">Tipo de Banda</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categorização Técnica</p>
+                </div>
+              </div>
+              <div className="space-y-4 flex-1 flex flex-col justify-center">
+                <div className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                      <CircleDot className="h-6 w-6 text-slate-600" />
+                    </div>
+                    <div>
+                      <span className="font-black text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tight">Liso</span>
+                      <p className="text-[10px] font-bold text-slate-400">Pneus Direcionais</p>
+                    </div>
+                  </div>
+                  <span className="text-3xl font-black text-slate-800 dark:text-white">{stats.byTreadType['LISO'] || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                      <Grid3X3 className="h-6 w-6 text-slate-600" />
+                    </div>
+                    <div>
+                      <span className="font-black text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tight">Borrachudo</span>
+                      <p className="text-[10px] font-bold text-slate-400">Pneus de Tração</p>
+                    </div>
+                  </div>
+                  <span className="text-3xl font-black text-slate-800 dark:text-white">{stats.byTreadType['BORRACHUDO'] || 0}</span>
+                </div>
+              </div>
+            </div>
           </div>
-      </div>
+        </div>
+      )}
+
+      {/* LIST SECTION */}
+      <div className="space-y-8">
+        <div className="flex items-center gap-4 mb-2">
+          <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
+          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Listagem e Filtros</h2>
+        </div>
+
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">
+            
+            <div className="flex bg-slate-100 dark:bg-slate-950 p-2 rounded-2xl w-full lg:w-auto overflow-x-auto no-scrollbar">
+                <button onClick={() => setActiveCategory('ALL')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'ALL' ? 'bg-white dark:bg-slate-800 shadow-md text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Package className="h-4 w-4"/> Estoque
+                </button>
+                <button onClick={() => setActiveCategory('NEW')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'NEW' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Disc className="h-4 w-4"/> Novos
+                </button>
+                <button onClick={() => setActiveCategory('RETREADED')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'RETREADED' ? 'bg-white dark:bg-slate-800 shadow-md text-purple-600 dark:text-purple-400' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Layers className="h-4 w-4"/> Recapagem
+                </button>
+                <button onClick={() => setActiveCategory('USED')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'USED' ? 'bg-white dark:bg-slate-800 shadow-md text-orange-600 dark:text-orange-400' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Activity className="h-4 w-4"/> Usados
+                </button>
+                <button onClick={() => setActiveCategory('MOUNTED')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'MOUNTED' ? 'bg-white dark:bg-slate-800 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Truck className="h-4 w-4"/> Em Uso
+                </button>
+                <button onClick={() => setActiveCategory('SCRAP')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'SCRAP' ? 'bg-white dark:bg-slate-800 shadow-md text-red-600 dark:text-red-400' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Trash2 className="h-4 w-4"/> Sucata
+                </button>
+                <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 self-center mx-3"></div>
+                <button onClick={() => setActiveCategory('LISO')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'LISO' ? 'bg-white dark:bg-slate-800 shadow-md text-slate-700 dark:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <CircleDot className="h-4 w-4"/> Liso
+                </button>
+                <button onClick={() => setActiveCategory('BORRACHUDO')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'BORRACHUDO' ? 'bg-white dark:bg-slate-800 shadow-md text-slate-700 dark:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <Grid3X3 className="h-4 w-4"/> Borrachudo
+                </button>
+                <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 self-center mx-3"></div>
+                <button 
+                    onClick={() => { setActiveCategory('ALL'); setSearchTerm(''); setSortConfig(null); }} 
+                    className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-widest flex items-center gap-2"
+                >
+                    <RefreshCw className="h-3 w-3"/> Limpar
+                </button>
+            </div>
+
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+                <div className="relative flex-1 lg:w-64">
+                    <Search className="absolute left-4 top-3 h-4 w-4 text-slate-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar por fogo, marca ou modelo..." 
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border-none rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                
+                <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl shrink-0">
+                    <button onClick={() => setLayoutMode('GRID')} className={`p-2.5 rounded-xl transition-all ${layoutMode === 'GRID' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualização em Grade"><LayoutGrid className="h-5 w-5"/></button>
+                    <button onClick={() => setLayoutMode('LIST')} className={`p-2.5 rounded-xl transition-all ${layoutMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualização em Lista"><List className="h-5 w-5"/></button>
+                </div>
+            </div>
+        </div>
+
+        {/* BATCH ACTIONS TOOLBAR */}
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-3xl border border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={toggleAllSelection} 
+              className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${selectedTireIds.size === filteredTires.length && filteredTires.length > 0 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-blue-300'}`}
+            >
+              <CheckSquare className="h-4 w-4" />
+              {selectedTireIds.size === filteredTires.length ? "Desmarcar Todos" : "Selecionar Tudo"}
+            </button>
+            {selectedTireIds.size > 0 && (
+              <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest animate-pulse">
+                {selectedTireIds.size} Selecionado(s)
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {selectedTireIds.size > 0 ? (
+              <>
+                <button 
+                    onClick={handleBatchTransfer}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 flex items-center gap-2 hover:bg-blue-700 transition-all"
+                >
+                    <ArrowRight className="h-4 w-4"/> Transferir
+                </button>
+                <button 
+                    onClick={handleBatchPrint}
+                    className="px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-slate-900 transition-all"
+                >
+                    <Printer className="h-4 w-4"/> Imprimir
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                    onClick={() => setShowReportsModal(true)}
+                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-emerald-300 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all"
+                >
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600"/> Relatórios
+                </button>
+                <button 
+                    onClick={() => setIsInventoryMode(!isInventoryMode)} 
+                    className={`px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all border ${isInventoryMode ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg shadow-indigo-600/20' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300'}`}
+                >
+                    <CheckSquare className="h-4 w-4"/> {isInventoryMode ? 'Sair' : 'Inventário'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
 
       {/* PAINEL DE INVENTÁRIO (QUANDO ATIVO) */}
       {isInventoryMode && (
@@ -990,6 +1525,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                   onDelete={handleDelete}
                                   onClick={setSelectedTire}
                                   onPrintQr={handleSinglePrint}
+                                  onTransfer={handleSingleTransfer}
                                   detailed={detailedView}
                               />
                           </div>
@@ -1008,32 +1544,85 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           onChange={toggleAllSelection}
                                       />
                                   </th>
-                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('fireNumber')}>
+                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('fireNumber')}>
                                       <div className="flex items-center gap-1">
-                                          Fogo / ID {sortConfig?.key === 'fireNumber' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                          Fogo / ID 
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'fireNumber' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'fireNumber' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
                                       </div>
                                   </th>
-                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('brand')}>
+                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('brand')}>
                                       <div className="flex items-center gap-1">
-                                          Marca & Modelo {sortConfig?.key === 'brand' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                          Marca & Modelo 
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'brand' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'brand' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
                                       </div>
                                   </th>
-                                  <th className="p-5 text-center cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('health')}>
+                                  <th className="p-5 text-center cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('health')}>
                                       <div className="flex items-center gap-1 justify-center">
-                                          Sulco {sortConfig?.key === 'health' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                          Sulco 
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'health' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'health' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
                                       </div>
                                   </th>
-                                  <th className="p-5">Localização</th>
-                                  <th className="p-5">Filial</th>
-                                  <th className="p-5 text-center">Status</th>
-                                  <th className="p-5 text-right cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('price')}>
-                                      <div className="flex items-center gap-1 justify-end">
-                                          Valor {sortConfig?.key === 'price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                  <th className="p-5 text-center cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('lastInspectionDate')}>
+                                      <div className="flex items-center gap-1 justify-center">
+                                          Última Insp. 
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'lastInspectionDate' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'lastInspectionDate' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
                                       </div>
                                   </th>
-                                  <th className="p-5 text-right cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('cpk')}>
+                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('location')}>
+                                      <div className="flex items-center gap-1">
+                                          Localização
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'location' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'location' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
+                                      </div>
+                                  </th>
+                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('branchId')}>
+                                      <div className="flex items-center gap-1">
+                                          Filial
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'branchId' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'branchId' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
+                                      </div>
+                                  </th>
+                                  <th className="p-5 text-center cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('status')}>
+                                      <div className="flex items-center gap-1 justify-center">
+                                          Status
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'status' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'status' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
+                                      </div>
+                                  </th>
+                                  <th className="p-5 text-right cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('price')}>
                                       <div className="flex items-center gap-1 justify-end">
-                                          CPK {sortConfig?.key === 'cpk' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                          Valor 
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'price' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'price' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
+                                      </div>
+                                  </th>
+                                  <th className="p-5 text-right cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('cpk')}>
+                                      <div className="flex items-center gap-1 justify-end">
+                                          CPK 
+                                          <div className="flex flex-col">
+                                              <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'cpk' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                              <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'cpk' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                          </div>
                                       </div>
                                   </th>
                                   <th className="p-5 text-right">Ações</th>
@@ -1063,6 +1652,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                               {t.currentTreadDepth}mm
                                           </span>
                                       </td>
+                                      <td className="p-5 text-center text-xs text-slate-500 font-medium">
+                                          {t.lastInspectionDate ? new Date(t.lastInspectionDate).toLocaleDateString('pt-BR') : '-'}
+                                      </td>
                                       <td className="p-5 text-slate-600 dark:text-slate-400 font-medium">
                                           {t.vehicleId ? (
                                               <span className="flex items-center gap-1 text-blue-600"><CheckCircle2 className="h-3 w-3"/> {t.location}</span>
@@ -1077,7 +1669,20 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           ) : 'N/A'}
                                       </td>
                                       <td className="p-5 text-center">
-                                          <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded uppercase text-slate-500">{t.status}</span>
+                                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                              t.status === TireStatus.DAMAGED ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                              t.currentTreadDepth < 3 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                                              t.status === TireStatus.NEW ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                              t.status === TireStatus.RETREADED ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                                              t.status === TireStatus.USED ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                                              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                          }`}>
+                                              {t.status === TireStatus.DAMAGED ? 'Sucata' :
+                                               t.currentTreadDepth < 3 ? 'Recapagem' :
+                                               t.status === TireStatus.NEW ? 'Novo' :
+                                               t.status === TireStatus.RETREADED ? 'Recapado' :
+                                               t.status === TireStatus.USED ? 'Usado' : t.status}
+                                          </span>
                                       </td>
                                       <td className="p-5 text-right font-mono text-slate-600 dark:text-slate-400">{money(t.price)}</td>
                                       <td className="p-5 text-right font-mono font-bold text-blue-600 dark:text-blue-400">
@@ -1085,6 +1690,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                       </td>
                                       <td className="p-5 text-right">
                                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <button 
+                                                  onClick={(e) => { e.stopPropagation(); handleSingleTransfer(t); }} 
+                                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                  title="Transferir Filial"
+                                              >
+                                                  <ArrowRight className="h-4 w-4"/>
+                                              </button>
                                               <button 
                                                   onClick={(e) => { e.stopPropagation(); handleSinglePrint(t); }} 
                                                   className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -1105,6 +1717,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               )}
           </>
       )}
+      </div>
 
       {selectedTire && (
           <TireDetailModal 
@@ -1115,7 +1728,18 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               maintenancePlans={maintenancePlans}
               maintenanceSchedules={maintenanceSchedules}
               onClose={() => setSelectedTire(null)} 
+              onUpdateServiceOrder={onUpdateServiceOrder}
               vehicleTypes={vehicleTypes}
+          />
+      )}
+
+      {/* MODAL DE TRANSFERÊNCIA DE FILIAL */}
+      {tiresBeingTransferred && (
+          <TransferModal 
+              selectedTires={tiresBeingTransferred}
+              branches={branches}
+              onClose={() => setTiresBeingTransferred(null)}
+              onTransfer={handleTransfer}
           />
       )}
 
@@ -1343,6 +1967,16 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               placeholder="Digite o número de fogo..."
               mode="QR"
           />
+      )}
+
+      {/* MODAL DE TRANSFERÊNCIA DE FILIAL */}
+      {tiresBeingTransferred && (
+        <TransferModal 
+          selectedTires={tiresBeingTransferred}
+          branches={branches || []}
+          onClose={() => setTiresBeingTransferred(null)}
+          onTransfer={handleTransfer}
+        />
       )}
     </div>
   );

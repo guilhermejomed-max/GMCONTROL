@@ -18,12 +18,13 @@ export enum TireStatus {
 
 export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR' | 'INSPECTOR';
 
-export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES';
+export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL';
 
 export interface TireHistoryLog {
   date: string;
-  action: 'CADASTRADO' | 'MONTADO' | 'DESMONTADO' | 'EDITADO' | 'INSPECAO' | 'REPARO' | 'ENVIADO_RECAPAGEM' | 'RETORNO_RECAPAGEM' | 'CONFERENCIA' | 'DESCARTE';
+  action: 'CADASTRADO' | 'MONTADO' | 'DESMONTADO' | 'EDITADO' | 'INSPECAO' | 'REPARO' | 'ENVIADO_RECAPAGEM' | 'RETORNO_RECAPAGEM' | 'CONFERENCIA' | 'DESCARTE' | 'TRANSFERENCIA';
   details: string;
+  treadDepth?: number;
 }
 
 export interface SystemLog {
@@ -325,6 +326,8 @@ export interface ServiceOrder {
   vehicleId: string;
   vehiclePlate: string;
   maintenancePlanId?: string; // Added maintenancePlanId, removed tireId/tireFireNumber
+  tireId?: string; // Re-added for linking O.S. to specific tire
+  tireFireNumber?: string; // Re-added for linking O.S. to specific tire
   title: string;
   details: string;
   startTime?: string; // New field for start time
@@ -414,6 +417,7 @@ export interface TrackerSettings {
   user: string;
   pass: string;
   active: boolean;
+  lastSyncAt?: string;
 }
 
 export interface MaintenancePlan {
@@ -440,7 +444,59 @@ export interface MaintenanceSchedule {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'branches' | 'partners';
+export interface OccurrenceReason {
+  id: string;
+  name: string;
+  description?: string;
+  branchId?: string;
+}
+
+export interface Occurrence {
+  id: string;
+  vehicleId: string;
+  vehiclePlate: string;
+  reasonId: string;
+  reasonName: string;
+  description?: string;
+  status: 'OPEN' | 'RESOLVED';
+  createdAt: string;
+  resolvedAt?: string;
+  userId: string;
+  userName: string;
+  branchId?: string;
+}
+
+export interface FuelStation {
+  id: string;
+  name: string;
+  cnpj: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  branchId?: string;
+  createdAt: string;
+}
+
+export interface FuelEntry {
+  id: string;
+  vehicleId: string;
+  vehiclePlate: string;
+  date: string;
+  odometer: number;
+  liters: number;
+  unitPrice: number;
+  totalCost: number;
+  fuelType: string;
+  stationName?: string;
+  stationCnpj?: string;
+  driverId?: string;
+  driverName?: string;
+  branchId?: string;
+  notes?: string;
+  kmPerLiter?: number; // Calculated
+}
+
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'branches' | 'partners' | 'occurrences' | 'fuel';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

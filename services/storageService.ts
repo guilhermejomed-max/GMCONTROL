@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -35,8 +35,24 @@ interface FirestoreErrorInfo {
 }
 
 const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Gracefully handle "benign" Firestore errors like idle stream timeouts
+  // These often happen in iframes or when the tab is idle, and Firestore usually auto-reconnects.
+  const isIdleTimeout = 
+    errorMessage.includes('CANCELLED') || 
+    errorMessage.includes('Disconnecting idle stream') ||
+    errorMessage.includes('Timed out waiting for new targets') ||
+    (error && typeof error === 'object' && (error as any).code === 1); // Code 1 is CANCELLED in gRPC
+
+  if (isIdleTimeout) {
+    // Log as info/debug rather than warn to reduce noise
+    console.debug(`[Firestore] Idle stream cleanup (benign): ${errorMessage}`);
+    return; // Don't throw for benign timeouts
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth?.currentUser?.uid,
       email: auth?.currentUser?.email,
@@ -1261,6 +1277,80 @@ export const storageService = {
     }
   },
 
+  // --- OCCURRENCES ---
+  subscribeToOccurrenceReasons: (orgId: string, callback: (reasons: OccurrenceReason[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`occurrence_reasons`, callback, []);
+    return db.collection("occurrence_reasons").orderBy("name").onSnapshot((snapshot) => {
+      const reasons: OccurrenceReason[] = [];
+      snapshot.forEach((doc) => reasons.push(doc.data() as OccurrenceReason));
+      callback(reasons);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "occurrence_reasons"));
+  },
+
+  addOccurrenceReason: async (orgId: string, reason: OccurrenceReason) => {
+    if (mockUser || !db) { LocalDB.add(`occurrence_reasons`, reason); return; }
+    try {
+      await db.collection("occurrence_reasons").doc(reason.id).set(sanitize(reason));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `occurrence_reasons/${reason.id}`);
+    }
+  },
+
+  updateOccurrenceReason: async (orgId: string, id: string, updates: Partial<OccurrenceReason>) => {
+    if (mockUser || !db) { LocalDB.update(`occurrence_reasons`, id, updates); return; }
+    try {
+      await db.collection("occurrence_reasons").doc(id).update(sanitize(updates));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `occurrence_reasons/${id}`);
+    }
+  },
+
+  deleteOccurrenceReason: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`occurrence_reasons`, id); return; }
+    try {
+      await db.collection("occurrence_reasons").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `occurrence_reasons/${id}`);
+    }
+  },
+
+  subscribeToOccurrences: (orgId: string, callback: (occurrences: Occurrence[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`occurrences`, (data) => callback(data.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())), []);
+    return db.collection("occurrences").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+      const occurrences: Occurrence[] = [];
+      snapshot.forEach((doc) => occurrences.push(doc.data() as Occurrence));
+      callback(occurrences);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "occurrences"));
+  },
+
+  addOccurrence: async (orgId: string, occurrence: Occurrence) => {
+    if (mockUser || !db) { LocalDB.add(`occurrences`, occurrence); logActivity(orgId, "Nova Ocorrência", `Veículo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES'); return; }
+    try {
+      await db.collection("occurrences").doc(occurrence.id).set(sanitize(occurrence));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `occurrences/${occurrence.id}`);
+    }
+    logActivity(orgId, "Nova Ocorrência", `Veículo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES');
+  },
+
+  updateOccurrence: async (orgId: string, id: string, updates: Partial<Occurrence>) => {
+    if (mockUser || !db) { LocalDB.update(`occurrences`, id, updates); return; }
+    try {
+      await db.collection("occurrences").doc(id).update(sanitize(updates));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `occurrences/${id}`);
+    }
+  },
+
+  deleteOccurrence: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`occurrences`, id); return; }
+    try {
+      await db.collection("occurrences").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `occurrences/${id}`);
+    }
+  },
+
   logActivity,
 
   subscribeToArrivalAlerts: (orgId: string, callback: (alerts: ArrivalAlert[]) => void) => {
@@ -1333,8 +1423,17 @@ export const storageService = {
          return logs.filter(l => l.userId === userId).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
      }
      try {
-       const snapshot = await db.collection("system_logs").where("userId", "==", userId).orderBy("timestamp", "desc").limit(limit).get();
-       return snapshot.docs.map(doc => doc.data() as SystemLog);
+       try {
+         const snapshot = await db.collection("system_logs").where("userId", "==", userId).orderBy("timestamp", "desc").limit(limit).get();
+         return snapshot.docs.map(doc => doc.data() as SystemLog);
+       } catch (e: any) {
+         if (e.message && (e.message.includes("index") || e.message.includes("INDEX"))) {
+           const snapshot = await db.collection("system_logs").where("userId", "==", userId).limit(limit).get();
+           return snapshot.docs.map(doc => doc.data() as SystemLog)
+             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+         }
+         throw e;
+       }
      } catch (error) { 
        handleFirestoreError(error, OperationType.LIST, "system_logs_by_user");
        return []; 
@@ -1347,8 +1446,19 @@ export const storageService = {
         return logs.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
     }
     try {
-      const snapshot = await db.collection("system_logs").orderBy("timestamp", "desc").limit(limit).get();
-      return snapshot.docs.map(doc => doc.data() as SystemLog);
+      try {
+        const snapshot = await db.collection("system_logs").orderBy("timestamp", "desc").limit(limit).get();
+        return snapshot.docs.map(doc => doc.data() as SystemLog);
+      } catch (e: any) {
+        // Fallback if index is missing
+        if (e.message && (e.message.includes("index") || e.message.includes("INDEX"))) {
+           console.warn("Firestore index missing for global system_logs. Falling back to in-memory sort.");
+           const snapshot = await db.collection("system_logs").limit(limit).get();
+           return snapshot.docs.map(doc => doc.data() as SystemLog)
+             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        }
+        throw e;
+      }
     } catch (error) { 
       handleFirestoreError(error, OperationType.LIST, "system_logs_global");
       return []; 
@@ -1392,6 +1502,82 @@ export const storageService = {
       }
   },
 
+  // --- FUEL MANAGEMENT ---
+  subscribeToFuelEntries: (orgId: string, callback: (entries: FuelEntry[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`fuel_entries`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())), []);
+    return db.collection("fuel_entries").orderBy("date", "desc").onSnapshot((snapshot) => {
+      const entries: FuelEntry[] = [];
+      snapshot.forEach((doc) => entries.push(doc.data() as FuelEntry));
+      callback(entries);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "fuel_entries"));
+  },
+
+  addFuelEntry: async (orgId: string, entry: FuelEntry) => {
+    if (mockUser || !db) { LocalDB.add(`fuel_entries`, entry); logActivity(orgId, "Novo Abastecimento", `Veículo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES'); return; }
+    try {
+      await db.collection("fuel_entries").doc(entry.id).set(sanitize(entry));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `fuel_entries/${entry.id}`);
+    }
+    logActivity(orgId, "Novo Abastecimento", `Veículo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES');
+  },
+
+  updateFuelEntry: async (orgId: string, id: string, updates: Partial<FuelEntry>) => {
+    if (mockUser || !db) { LocalDB.update(`fuel_entries`, id, updates); return; }
+    try {
+      await db.collection("fuel_entries").doc(id).update(sanitize(updates));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `fuel_entries/${id}`);
+    }
+  },
+
+  deleteFuelEntry: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`fuel_entries`, id); return; }
+    try {
+      await db.collection("fuel_entries").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `fuel_entries/${id}`);
+    }
+  },
+
+  // --- FUEL STATION MANAGEMENT ---
+  subscribeToFuelStations: (callback: (stations: FuelStation[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`fuel_stations`, (data) => callback(data.sort((a:any,b:any) => a.name.localeCompare(b.name))), []);
+    return db.collection("fuel_stations").orderBy("name").onSnapshot((snapshot) => {
+      const stations: FuelStation[] = [];
+      snapshot.forEach((doc) => stations.push(doc.data() as FuelStation));
+      callback(stations);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "fuel_stations"));
+  },
+
+  addFuelStation: async (orgId: string, station: FuelStation) => {
+    if (mockUser || !db) { LocalDB.add(`fuel_stations`, station); logActivity(orgId, "Novo Posto", `Posto: ${station.name} - CNPJ: ${station.cnpj}`, 'VEHICLES'); return; }
+    try {
+      await db.collection("fuel_stations").doc(station.id).set(sanitize(station));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `fuel_stations/${station.id}`);
+    }
+    logActivity(orgId, "Novo Posto", `Posto: ${station.name} - CNPJ: ${station.cnpj}`, 'VEHICLES');
+  },
+
+  updateFuelStation: async (orgId: string, id: string, updates: Partial<FuelStation>) => {
+    if (mockUser || !db) { LocalDB.update(`fuel_stations`, id, updates); return; }
+    try {
+      await db.collection("fuel_stations").doc(id).update(sanitize(updates));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `fuel_stations/${id}`);
+    }
+  },
+
+  deleteFuelStation: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`fuel_stations`, id); return; }
+    try {
+      await db.collection("fuel_stations").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `fuel_stations/${id}`);
+    }
+  },
+
   resetData: async (orgId: string) => {
     console.log("Iniciando resetData...");
     
@@ -1399,7 +1585,7 @@ export const storageService = {
     // Clear all relevant keys
     const keysToClear = [
         `vehicles`, `tires`, `logs`, `retreaders`, `tread_patterns`, 
-        `service_orders`, `retread_orders`, `stock_items`, `stock_movements`, `drivers`
+        `service_orders`, `retread_orders`, `stock_items`, `stock_movements`, `drivers`, `fuel_entries`
     ];
     
     // Reset vehicles odometer specifically
@@ -1423,7 +1609,7 @@ export const storageService = {
         const collectionsToClear = [
             'tires', 'system_logs', 'retreaders', 'tread_patterns', 
             'service_orders', 'retread_orders', 'stock_items', 
-            'stock_movements', 'drivers'
+            'stock_movements', 'drivers', 'fuel_entries'
         ];
 
         for (const col of collectionsToClear) {

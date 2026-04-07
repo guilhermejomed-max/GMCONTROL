@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus, ModuleType, VehicleType } from '../types';
-import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package, Truck, Wrench, Maximize, Minimize } from 'lucide-react';
+import { Tire, Vehicle, ServiceOrder, RetreadOrder, TireStatus, ModuleType, VehicleType, Occurrence } from '../types';
+import { FileText, Filter, Printer, Columns, Calendar, Search, Check, FileBarChart, RefreshCw, AlertCircle, Download, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, DollarSign, Package, Truck, Wrench, Maximize, Minimize, Fuel } from 'lucide-react';
 import { isSteerAxle } from '../lib/vehicleUtils';
 
 interface ReportsHubProps {
@@ -9,6 +9,8 @@ interface ReportsHubProps {
   vehicles: Vehicle[];
   serviceOrders: ServiceOrder[];
   retreadOrders: RetreadOrder[];
+  occurrences: Occurrence[];
+  fuelEntries?: any[];
   branches?: any[];
   defaultBranchId?: string;
   vehicleBrandModels?: any[];
@@ -17,7 +19,7 @@ interface ReportsHubProps {
   vehicleTypes?: VehicleType[];
 }
 
-type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS' | 'MISSING_TIRES';
+type ReportSource = 'TIRES' | 'VEHICLES' | 'MOVEMENTS' | 'COSTS' | 'SUMMARY' | 'MAINTENANCE' | 'BRAND_MODELS' | 'MODEL_COSTS' | 'MISSING_TIRES' | 'OCCURRENCES' | 'FUEL';
 
 interface ColumnDef {
   id: string;
@@ -135,6 +137,25 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'date', label: 'Data', accessor: (item: any) => formatDate(item.date) },
       { id: 'service', label: 'Serviço/Manutenção', accessor: (item: any) => item.service },
       { id: 'cost', label: 'Custo', accessor: (item: any) => item.cost, format: money },
+    ],
+    OCCURRENCES: [
+      { id: 'date', label: 'Data', accessor: (o: Occurrence) => formatDate(o.createdAt) },
+      { id: 'vehicle', label: 'Veículo', accessor: (o: Occurrence) => o.vehiclePlate },
+      { id: 'reason', label: 'Motivo', accessor: (o: Occurrence) => o.reasonName },
+      { id: 'description', label: 'Descrição', accessor: (o: Occurrence) => o.description || '-' },
+      { id: 'status', label: 'Status', accessor: (o: Occurrence) => o.status === 'OPEN' ? 'Pendente' : 'Resolvido' },
+      { id: 'user', label: 'Relatado por', accessor: (o: Occurrence) => o.userName },
+      { id: 'resolvedAt', label: 'Resolvido em', accessor: (o: Occurrence) => o.resolvedAt ? formatDate(o.resolvedAt) : '-' },
+    ],
+    FUEL: [
+      { id: 'date', label: 'Data', accessor: (e: any) => formatDate(e.date) },
+      { id: 'vehicle', label: 'Veículo', accessor: (e: any) => e.vehiclePlate },
+      { id: 'liters', label: 'Litros', accessor: (e: any) => e.liters.toLocaleString() },
+      { id: 'unitPrice', label: 'Preço Unit.', accessor: (e: any) => e.unitPrice, format: money },
+      { id: 'totalCost', label: 'Total', accessor: (e: any) => e.totalCost, format: money },
+      { id: 'odometer', label: 'KM', accessor: (e: any) => e.odometer.toLocaleString() },
+      { id: 'station', label: 'Posto', accessor: (e: any) => e.stationName || '-' },
+      { id: 'driver', label: 'Motorista', accessor: (e: any) => e.driverName || '-' },
     ]
 };
 
@@ -143,6 +164,8 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   vehicles: allVehicles = [], 
   serviceOrders: allServiceOrders = [], 
   retreadOrders: allRetreadOrders = [], 
+  occurrences: allOccurrences = [],
+  fuelEntries: allFuelEntries = [],
   branches = [],
   defaultBranchId,
   vehicleBrandModels = [],
@@ -169,6 +192,14 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   const retreadOrders = useMemo(() => {
     return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
   }, [allRetreadOrders, defaultBranchId]);
+
+  const occurrences = useMemo(() => {
+    return defaultBranchId ? allOccurrences.filter(o => o.branchId === defaultBranchId) : allOccurrences;
+  }, [allOccurrences, defaultBranchId]);
+
+  const fuelEntries = useMemo(() => {
+    return defaultBranchId ? allFuelEntries.filter(e => e.branchId === defaultBranchId) : allFuelEntries;
+  }, [allFuelEntries, defaultBranchId]);
   
   // Inicializa com as colunas padrão
   const [selectedColumns, setSelectedColumns] = useState<string[]>(
@@ -308,6 +339,12 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
         }
       });
       rawData = costs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } else if (source === 'OCCURRENCES') {
+      rawData = [...occurrences];
+      rawData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (source === 'FUEL') {
+      rawData = [...fuelEntries];
+      rawData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } else if (source === 'MISSING_TIRES') {
       const missingTires: any[] = [];
       vehicles.forEach(vehicle => {
@@ -635,7 +672,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
               </div>
             </div>
             <div class="report-meta">
-              <h2>${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Relatório de Manutenção' : source === 'COSTS' ? 'Análise Financeira' : source === 'MODEL_COSTS' ? 'Custos por Modelo' : 'Relatório Operacional'}</h2>
+              <h2>${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Relatório de Manutenção' : source === 'COSTS' ? 'Análise Financeira' : source === 'MODEL_COSTS' ? 'Custos por Modelo' : source === 'OCCURRENCES' ? 'Relatório de Ocorrências' : 'Relatório Operacional'}</h2>
               <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
               <p>Período: ${startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Início'} — ${endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'}</p>
             </div>
@@ -752,6 +789,8 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                     { id: 'TIRES', label: 'Inventário de Pneus', icon: Package },
                     { id: 'MISSING_TIRES', label: 'Pneus Faltantes', icon: AlertCircle },
                     { id: 'VEHICLES', label: 'Frota e KM', icon: Truck },
+                    { id: 'FUEL', label: 'Abastecimento', icon: Fuel },
+                    { id: 'OCCURRENCES', label: 'Ocorrências', icon: AlertCircle },
                     { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package },
                     { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench },
                     { id: 'MODEL_COSTS', label: 'Custos por Modelo', icon: TrendingUp }

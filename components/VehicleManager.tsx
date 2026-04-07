@@ -1,8 +1,8 @@
 
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
-import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType } from '../types';
+import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType, FuelEntry } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, ChevronRight, LayoutGrid, Printer, Building2 } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2 } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 
@@ -528,6 +528,7 @@ interface VehicleManagerProps {
   trackerSettings: TrackerSettings | null;
   onSyncSascar?: (showModal?: boolean) => Promise<number>;
   vehicleTypes?: VehicleType[];
+  fuelEntries?: FuelEntry[];
 }
 
 export const VehicleManager: FC<VehicleManagerProps> = ({ 
@@ -550,7 +551,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   settings, 
   trackerSettings, 
   onSyncSascar,
-  vehicleTypes: propVehicleTypes = []
+  vehicleTypes: propVehicleTypes = [],
+  fuelEntries = []
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -560,7 +562,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   const [updatingLocationId, setUpdatingLocationId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVehicleRG, setSelectedVehicleRG] = useState<Vehicle | null>(null);
-  const [activeRGTab, setActiveRGTab] = useState<'geral' | 'manutencao' | 'pneus'>('geral');
+  const [activeRGTab, setActiveRGTab] = useState<'geral' | 'manutencao' | 'pneus' | 'combustivel'>('geral');
+  const [selectedAxle, setSelectedAxle] = useState<number | 'ALL'>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'EMPTY' | 'MAINTENANCE'>('ALL');
   
   // Scheduling State
@@ -581,6 +584,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         setVehicleAlerts(alerts.filter(a => a.vehiclePlate === selectedVehicleRG.plate));
       });
       setActiveRGTab('geral');
+      setSelectedAxle('ALL');
       return () => unsub();
     }
   }, [selectedVehicleRG, orgId]);
@@ -601,6 +605,32 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     return serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'PENDENTE');
   }, [serviceOrders, selectedVehicleRG]);
 
+  const vehicleFuelEntries = useMemo(() => {
+    if (!selectedVehicleRG) return [];
+    return fuelEntries.filter(fe => fe.vehicleId === selectedVehicleRG.id);
+  }, [fuelEntries, selectedVehicleRG]);
+
+  const vehicleMaintenanceOrders = useMemo(() => {
+    if (!selectedVehicleRG) return [];
+    return serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO');
+  }, [serviceOrders, selectedVehicleRG]);
+
+  const rgStats = useMemo(() => {
+    const totalLiters = vehicleFuelEntries.reduce((sum, fe) => sum + (fe.liters || 0), 0);
+    const fuelCost = vehicleFuelEntries.reduce((sum, fe) => sum + (fe.totalCost || 0), 0);
+    const maintenanceCost = vehicleMaintenanceOrders.reduce((sum, so) => {
+      const partsCost = so.parts ? so.parts.reduce((pSum, p) => pSum + (p.quantity * p.unitCost), 0) : 0;
+      return sum + (so.totalCost || (partsCost + (so.laborCost || 0) + (so.externalServiceCost || 0)));
+    }, 0);
+    
+    return {
+      totalLiters,
+      fuelCost,
+      maintenanceCost,
+      totalCost: fuelCost + maintenanceCost
+    };
+  }, [vehicleFuelEntries, vehicleMaintenanceOrders]);
+
   const handlePrintMaintenanceReport = () => {
     if (!selectedVehicleRG) return;
 
@@ -608,7 +638,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       .filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const totalSpent = vehicleOrders.reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0) + (so.laborCost || 0) + (so.externalServiceCost || 0)), 0);
+    const vehicleFuel = fuelEntries.filter(fe => fe.vehicleId === selectedVehicleRG.id);
+
+    const totalMaintenanceSpent = vehicleOrders.reduce((acc, so) => acc + (so.totalCost || (so.parts ? so.parts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) : 0) + (so.laborCost || 0) + (so.externalServiceCost || 0)), 0);
+    const totalFuelSpent = vehicleFuel.reduce((acc, fe) => acc + (fe.totalCost || 0), 0);
+    const totalSpent = totalMaintenanceSpent + totalFuelSpent;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -655,9 +689,19 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             </div>
           </div>
 
-          <div class="summary">
-            <div class="summary-label">INVESTIMENTO TOTAL EM MANUTENÇÃO</div>
-            <div class="summary-value">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSpent)}</div>
+          <div className="summary" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div>
+              <div class="summary-label">MANUTENÇÃO</div>
+              <div class="summary-value" style="font-size: 18px;">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMaintenanceSpent)}</div>
+            </div>
+            <div>
+              <div class="summary-label">COMBUSTÍVEL</div>
+              <div class="summary-value" style="font-size: 18px;">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalFuelSpent)}</div>
+            </div>
+            <div style="border-left: 2px solid #c7d2fe; padding-left: 15px;">
+              <div class="summary-label">INVESTIMENTO TOTAL</div>
+              <div class="summary-value">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSpent)}</div>
+            </div>
           </div>
 
           <table>
@@ -693,6 +737,32 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
               `).join('')}
             </tbody>
           </table>
+
+          <div style="margin-top: 30px;">
+            <h2 style="font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Histórico de Abastecimento</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>KM</th>
+                  <th>Litros</th>
+                  <th>Preço Unit.</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${vehicleFuel.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(fe => `
+                  <tr>
+                    <td>${new Date(fe.date).toLocaleDateString('pt-BR')}</td>
+                    <td>${fe.odometer.toLocaleString()}</td>
+                    <td>${fe.liters.toLocaleString()} L</td>
+                    <td>${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fe.unitPrice)}</td>
+                    <td style="font-weight: bold">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fe.totalCost)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
 
           <div class="footer">
             GM Control Pro - Sistema de Gestão de Frotas
@@ -1850,6 +1920,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
               >
                 Pneus
               </button>
+              <button 
+                onClick={() => setActiveRGTab('combustivel')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'combustivel' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                Combustível
+              </button>
             </div>
 
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
@@ -2060,6 +2136,33 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-800">
+                            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 mb-1">
+                                <Activity className="h-4 w-4" />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Consumo Diesel</span>
+                            </div>
+                            <p className="text-2xl font-black text-slate-800 dark:text-white">{rgStats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-500">L</span></p>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1">Investimento: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.fuelCost)}</p>
+                        </div>
+                        <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-800">
+                            <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 mb-1">
+                                <Wrench className="h-4 w-4" />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Manutenção</span>
+                            </div>
+                            <p className="text-2xl font-black text-slate-800 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.maintenanceCost)}</p>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1">Total acumulado</p>
+                        </div>
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-800">
+                            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-1">
+                                <LayoutGrid className="h-4 w-4" />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Resumo Geral</span>
+                            </div>
+                            <p className="text-2xl font-black text-slate-800 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.totalCost)}</p>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1">Diesel + Manutenção</p>
+                        </div>
+                    </div>
+
                 {(vehicleAlerts.length > 0 || pendingServiceOrders.length > 0) && (
                   <div>
                     <h4 className="font-bold text-slate-800 dark:text-white mb-3 text-sm flex items-center gap-2">
@@ -2146,6 +2249,59 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     />
                 </div>
                   </>
+                )}
+
+                {activeRGTab === 'combustivel' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-600" /> Histórico de Abastecimento
+                      </h3>
+                      <div className="flex gap-4">
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Total Litros</p>
+                          <p className="text-sm font-black text-slate-800 dark:text-white">{rgStats.totalLiters.toLocaleString()} L</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Total Gasto</p>
+                          <p className="text-sm font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.fuelCost)}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {vehicleFuelEntries.length > 0 ? (
+                        vehicleFuelEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
+                          <div key={entry.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                              <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                                <Fuel className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-800 dark:text-white">{new Date(entry.date).toLocaleDateString('pt-BR')}</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase">{entry.stationName || 'Posto não informado'}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-black text-slate-800 dark:text-white">{entry.liters.toLocaleString()} L</p>
+                              <p className="text-[10px] font-bold text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(entry.totalCost)}</p>
+                            </div>
+                            <div className="text-right ml-4 pl-4 border-l border-slate-100 dark:border-slate-800">
+                              <p className="text-xs font-black text-slate-800 dark:text-white">{entry.odometer.toLocaleString()} KM</p>
+                              {entry.kmPerLiter && (
+                                <p className="text-[10px] font-bold text-orange-600">{entry.kmPerLiter.toFixed(2)} KM/L</p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-12 text-center bg-slate-50 dark:bg-slate-900/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                          <Fuel className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                          <p className="text-slate-500 font-bold">Nenhum abastecimento registrado para este veículo.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {activeRGTab === 'manutencao' && (
@@ -2340,16 +2496,46 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     </div>
 
                     <div className="space-y-3">
-                      <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                        <Disc className="h-4 w-4 text-blue-600" /> Detalhes dos Pneus Atuais
-                      </h4>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                          <Disc className="h-4 w-4 text-blue-600" /> Detalhes dos Pneus Atuais
+                        </h4>
+                        
+                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl overflow-x-auto no-scrollbar">
+                          <button 
+                            onClick={() => setSelectedAxle('ALL')}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all whitespace-nowrap ${selectedAxle === 'ALL' ? 'bg-white dark:bg-slate-800 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                            Todos
+                          </button>
+                          {Array.from({ length: selectedVehicleRG.axles || 0 }).map((_, i) => (
+                            <button 
+                              key={i}
+                              onClick={() => setSelectedAxle(i + 1)}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all whitespace-nowrap ${selectedAxle === i + 1 ? 'bg-white dark:bg-slate-800 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              Eixo {i + 1}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 gap-3">
-                        {tires.filter(t => t.vehicleId === selectedVehicleRG.id).length === 0 ? (
-                          <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                            Nenhum pneu montado neste veículo.
-                          </p>
-                        ) : (
-                          tires.filter(t => t.vehicleId === selectedVehicleRG.id).map(tire => (
+                        {(() => {
+                          const vehicleTires = tires.filter(t => t.vehicleId === selectedVehicleRG.id);
+                          const filteredTires = selectedAxle === 'ALL' 
+                            ? vehicleTires 
+                            : vehicleTires.filter(t => t.position?.startsWith(selectedAxle.toString()));
+
+                          if (filteredTires.length === 0) {
+                            return (
+                              <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                                {selectedAxle === 'ALL' ? 'Nenhum pneu montado neste veículo.' : `Nenhum pneu montado no Eixo ${selectedAxle}.`}
+                              </p>
+                            );
+                          }
+
+                          return filteredTires.map(tire => (
                             <div key={tire.id} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
                               <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center shrink-0">
                                 <Disc className="h-6 w-6 text-slate-400" />
@@ -2404,8 +2590,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 )}
                               </div>
                             </div>
-                          ))
-                        )}
+                          ));
+                        })()}
                       </div>
                     </div>
                   </div>

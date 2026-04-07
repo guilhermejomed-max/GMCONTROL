@@ -1,6 +1,6 @@
 
 import { FC, ChangeEvent } from 'react';
-import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2 } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel } from 'lucide-react';
 import { TabView, UserLevel, SystemSettings, ModuleType } from '../types';
 
 interface SidebarProps {
@@ -50,12 +50,14 @@ export const Sidebar: FC<SidebarProps> = ({
     
     // --- MÓDULO VEÍCULOS ---
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
+    { id: 'fuel', label: 'Abastecimento', icon: Fuel, modules: ['FUEL'] },
     { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
     { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
+    { id: 'occurrences', label: 'Ocorrências', icon: AlertTriangle, modules: ['VEHICLES'] },
     { id: 'reports', label: 'Relatórios', icon: FileBarChart, modules: ['VEHICLES', 'TIRES'] },
     { id: 'vehicle-types', label: 'Tipos de Veículos', icon: Layers, modules: ['VEHICLES'] },
 
@@ -80,24 +82,28 @@ export const Sidebar: FC<SidebarProps> = ({
   const getModuleIcon = () => {
     if (activeModule === 'TIRES') return <Disc className="h-4 w-4 text-white" />;
     if (activeModule === 'VEHICLES') return <Truck className="h-4 w-4 text-white" />;
+    if (activeModule === 'FUEL') return <Fuel className="h-4 w-4 text-white" />;
     return <Package className="h-4 w-4 text-white" />;
   };
 
   const getModuleLabel = () => {
     if (activeModule === 'TIRES') return 'Pneus';
     if (activeModule === 'VEHICLES') return 'Veículos';
+    if (activeModule === 'FUEL') return 'Abastecimento';
     return 'Oficina';
   };
 
   const getModuleColor = () => {
     if (activeModule === 'TIRES') return 'bg-blue-600';
     if (activeModule === 'VEHICLES') return 'bg-emerald-600';
+    if (activeModule === 'FUEL') return 'bg-amber-600';
     return 'bg-orange-600';
   };
 
   const getActiveColorClass = () => {
     if (activeModule === 'TIRES') return 'bg-blue-600 shadow-blue-600/20';
     if (activeModule === 'VEHICLES') return 'bg-emerald-600 shadow-emerald-600/20';
+    if (activeModule === 'FUEL') return 'bg-amber-600 shadow-amber-600/20';
     return 'bg-orange-600 shadow-orange-600/20';
   };
 

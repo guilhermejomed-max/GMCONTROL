@@ -51,7 +51,7 @@ export const Dashboard: FC<DashboardProps> = ({
   const serviceOrders = useMemo(() => {
     return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
   }, [allServiceOrders, defaultBranchId]);
-  const [period, setPeriod] = useState<'30D' | 'YTD'>('YTD');
+  const [period, setPeriod] = useState<'30D' | 'YTD' | '12M'>('YTD');
   const [opFilter, setOpFilter] = useState<OperationFilter>('ALL');
   
   const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);

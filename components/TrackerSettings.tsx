@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Shield, Globe, User, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, Shield, Globe, User, Lock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 import { TrackerSettings } from '../types';
 import { storageService } from '../services/storageService';
 
@@ -67,6 +67,18 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
       </div>
 
       <form onSubmit={handleSave} className="p-8 space-y-6">
+        {settings.lastSyncAt && (
+          <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-2 text-blue-700">
+              <Calendar size={18} />
+              <span className="text-sm font-bold uppercase tracking-tight">Última Sincronização Automática</span>
+            </div>
+            <span className="text-sm font-black text-blue-900">
+              {new Date(settings.lastSyncAt).toLocaleString('pt-BR')}
+            </span>
+          </div>
+        )}
+
         {message && (
           <div className={`p-4 rounded-xl flex items-center gap-3 ${
             message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'

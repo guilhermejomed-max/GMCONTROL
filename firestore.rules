@@ -46,6 +46,51 @@ service cloud.firestore {
     //   - module: string (required)
     //   - timestamp: string (required, ISO 8601)
     //
+    // Collection: occurrence_reasons
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, max 100 chars)
+    //   - description: string (optional, max 500 chars)
+    //
+    // Collection: occurrences
+    // Fields:
+    //   - id: string (required)
+    //   - vehicleId: string (required)
+    //   - reasonId: string (required)
+    //   - description: string (optional, max 1000 chars)
+    //   - status: string (required, OPEN|RESOLVED)
+    //   - createdAt: string (required, ISO 8601)
+    //   - resolvedAt: string (optional, ISO 8601)
+    //   - userId: string (required)
+    //
+    // Collection: fuel_entries
+    // Fields:
+    //   - id: string (required)
+    //   - vehicleId: string (required)
+    //   - vehiclePlate: string (required)
+    //   - date: string (required, ISO 8601)
+    //   - odometer: number (required, >= 0)
+    //   - liters: number (required, > 0)
+    //   - unitPrice: number (required, > 0)
+    //   - totalCost: number (required, > 0)
+    //   - fuelType: string (optional)
+    //   - stationName: string (optional)
+    //   - stationCnpj: string (optional)
+    //   - driverId: string (optional)
+    //   - driverName: string (optional)
+    //   - branchId: string (optional)
+    //
+    // Collection: fuel_stations
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - cnpj: string (required)
+    //   - address: string (optional)
+    //   - city: string (optional)
+    //   - state: string (optional)
+    //   - branchId: string (optional)
+    //   - createdAt: string (required, ISO 8601)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -297,6 +342,51 @@ service cloud.firestore {
              (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
     }
 
+    function isValidOccurrenceReason(data) {
+      return hasRequiredFields(['id', 'name']) &&
+             hasOnlyAllowedFields(['id', 'name', 'description', 'branchId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
+    function isValidOccurrence(data) {
+      return hasRequiredFields(['id', 'vehicleId', 'reasonId', 'status', 'createdAt', 'userId']) &&
+             hasOnlyAllowedFields(['id', 'vehicleId', 'reasonId', 'description', 'status', 'createdAt', 'resolvedAt', 'userId', 'branchId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.vehicleId is string && data.vehicleId.size() > 0 && data.vehicleId.size() <= 50 &&
+             data.reasonId is string && data.reasonId.size() > 0 && data.reasonId.size() <= 50 &&
+             data.status in ["OPEN", "RESOLVED"] &&
+             isValidDateString(data.createdAt) &&
+             (!('resolvedAt' in data) || isValidDateString(data.resolvedAt)) &&
+             data.userId == request.auth.uid &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
+    function isValidFuelEntry(data) {
+      return hasRequiredFields(['id', 'vehicleId', 'date', 'odometer', 'liters', 'unitPrice', 'totalCost']) &&
+             hasOnlyAllowedFields(['id', 'vehicleId', 'vehiclePlate', 'date', 'odometer', 'liters', 'unitPrice', 'totalCost', 'fuelType', 'stationName', 'stationCnpj', 'driverId', 'driverName', 'branchId', 'notes']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.vehicleId is string && data.vehicleId.size() > 0 && data.vehicleId.size() <= 50 &&
+             isValidDateString(data.date) &&
+             data.odometer is number && data.odometer >= 0 &&
+             data.liters is number && data.liters > 0 &&
+             data.unitPrice is number && data.unitPrice > 0 &&
+             data.totalCost is number && data.totalCost > 0 &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
+    function isValidFuelStation(data) {
+      return hasRequiredFields(['id', 'name', 'cnpj', 'createdAt']) &&
+             hasOnlyAllowedFields(['id', 'name', 'cnpj', 'address', 'city', 'state', 'branchId', 'createdAt']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.cnpj is string && data.cnpj.size() > 0 && data.cnpj.size() <= 20 &&
+             isValidDateString(data.createdAt) &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
     function isValidVehicleBrandModel(data) {
       return hasRequiredFields(['brand', 'model']) &&
              hasOnlyAllowedFields(['id', 'brand', 'model', 'type', 'axles', 'oilChangeInterval', 'oilLiters']) &&
@@ -504,6 +594,43 @@ service cloud.firestore {
                     request.resource.data.id == resource.data.id &&
                     request.resource.data.tireId == resource.data.tireId &&
                     request.resource.data.loanDate == resource.data.loanDate;
+      allow delete: if isAdmin();
+    }
+
+    match /occurrence_reasons/{id} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior()) && isValidOccurrenceReason(request.resource.data);
+      allow update: if (isAdmin() || isSenior()) && isValidOccurrenceReason(request.resource.data) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
+    match /occurrences/{id} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidOccurrence(request.resource.data) && isRecent(request.resource.data.createdAt);
+      allow update: if (isAdmin() || isSenior() || isPleno()) && 
+                    isValidOccurrence(request.resource.data) && 
+                    request.resource.data.id == resource.data.id &&
+                    request.resource.data.vehicleId == resource.data.vehicleId &&
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    request.resource.data.userId == resource.data.userId;
+      allow delete: if isAdmin();
+    }
+
+    match /fuel_entries/{id} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidFuelEntry(request.resource.data);
+      allow update: if (isAdmin() || isSenior() || isPleno()) && 
+                    isValidFuelEntry(request.resource.data) && 
+                    request.resource.data.id == resource.data.id &&
+                    request.resource.data.vehicleId == resource.data.vehicleId &&
+                    request.resource.data.date == resource.data.date;
+      allow delete: if isAdmin();
+    }
+
+    match /fuel_stations/{id} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidFuelStation(request.resource.data);
+      allow update: if (isAdmin() || isSenior() || isPleno()) && isValidFuelStation(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 

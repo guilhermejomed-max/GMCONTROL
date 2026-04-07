@@ -298,6 +298,74 @@
         "branchId": { "type": "string" }
       },
       "required": ["id", "tireId", "borrowerId", "status", "loanDate"]
+    },
+    "OccurrenceReason": {
+      "title": "OccurrenceReason",
+      "description": "Reasons for vehicle occurrences (e.g., breakdown, accident)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Occurrence": {
+      "title": "Occurrence",
+      "description": "Vehicle occurrences/incidents",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "reasonId": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "RESOLVED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "resolvedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "reasonId", "status", "createdAt", "userId"]
+    },
+    "FuelEntry": {
+      "title": "FuelEntry",
+      "description": "Vehicle fuel transaction records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "vehiclePlate": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "odometer": { "type": "number" },
+        "liters": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "fuelType": { "type": "string" },
+        "stationName": { "type": "string" },
+        "stationCnpj": { "type": "string" },
+        "driverId": { "type": "string" },
+        "driverName": { "type": "string" },
+        "branchId": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "date", "odometer", "liters", "unitPrice", "totalCost"]
+    },
+    "FuelStation": {
+      "title": "FuelStation",
+      "description": "Registered fueling stations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "branchId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "cnpj", "createdAt"]
     }
   },
   "firestore": {
@@ -376,6 +444,22 @@
     "/tire_loans/{id}": {
       "schema": "TireLoan",
       "description": "Tire loans"
+    },
+    "/occurrence_reasons/{id}": {
+      "schema": "OccurrenceReason",
+      "description": "Occurrence reasons"
+    },
+    "/occurrences/{id}": {
+      "schema": "Occurrence",
+      "description": "Vehicle occurrences"
+    },
+    "/fuel_entries/{id}": {
+      "schema": "FuelEntry",
+      "description": "Fuel transaction records"
+    },
+    "/fuel_stations/{id}": {
+      "schema": "FuelStation",
+      "description": "Registered fueling stations"
     },
     "/branches/{id}": {
       "schema": "Branch",

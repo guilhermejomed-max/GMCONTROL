@@ -20,9 +20,11 @@ import { VehicleTypeManager } from './components/VehicleTypeManager';
 import { LocationMap } from './components/LocationMap';
 import { ServiceOrderHub } from './components/ServiceOrderHub';
 import { MaintenanceDashboard } from './components/MaintenanceDashboard';
+import { FuelDashboard } from './components/FuelDashboard';
 import { ServiceManager } from './components/ServiceManager';
 import { Settings } from './components/Settings';
 import { DriversHub } from './components/DriversHub';
+import { Occurrences } from './components/Occurrences';
 import { ReportsHub } from './components/ReportsHub';
 import TrackerSettingsComponent from './components/TrackerSettings';
 import { NotificationsPanel } from './components/NotificationsPanel';
@@ -31,7 +33,7 @@ import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { calculatePredictedTreadDepth } from './src/utils';
-import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType } from './types';
+import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2 } from 'lucide-react';
 
 const LoginScreen = ({ 
@@ -212,9 +214,12 @@ export const App = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [collaborators, setCollaborators] = useState<import('./types').Collaborator[]>([]);
   const [arrivalAlerts, setArrivalAlerts] = useState<ArrivalAlert[]>([]);
+  const [occurrences, setOccurrences] = useState<import('./types').Occurrence[]>([]);
   const [stockItems, setStockItems] = useState<import('./types').StockItem[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+  const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
+  const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
@@ -288,8 +293,11 @@ export const App = () => {
     const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
     const unsubTracker = storageService.subscribeToTrackerSettings(orgId, setTrackerSettings);
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
+    const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
     const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
     const unsubVehicleTypes = storageService.subscribeToVehicleTypes(orgId, setVehicleTypes);
+    const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries);
+    const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
     
     return () => {
         unsubTires();
@@ -305,8 +313,11 @@ export const App = () => {
         unsubCollaborators();
         unsubTracker();
         unsubArrivalAlerts();
+        unsubOccurrences();
         unsubStockItems();
         unsubVehicleTypes();
+        unsubFuelEntries();
+        unsubFuelStations();
     };
   }, [user]);
 
@@ -751,6 +762,7 @@ export const App = () => {
       case 'esg-panel': return 'Painel ESG';
       case 'fleet': return 'Frota de Veículos';
       case 'maintenance': return 'Gestão de Preventivas';
+      case 'fuel': return 'Controle de Abastecimento';
       case 'brand-models': return 'Marcas e Modelos';
       case 'location': return 'Rastreamento';
       case 'service-orders': return 'Oficina';
@@ -760,6 +772,7 @@ export const App = () => {
       case 'reports': return 'Relatórios';
       case 'branches': return 'Gestão de Filiais';
       case 'tracker': return 'Configurações do Rastreador';
+      case 'occurrences': return 'Módulo de Ocorrências';
       default: return 'GM Control';
     }
   };
@@ -829,6 +842,57 @@ export const App = () => {
     );
   }
 
+  const handleAddFuelEntry = async (entry: FuelEntry) => {
+    try {
+      await storageService.addFuelEntry(orgId, entry);
+      addToast('success', 'Abastecimento Registrado', `Lançamento para o veículo ${entry.vehiclePlate} realizado com sucesso.`);
+      
+      // Update vehicle odometer if entry odometer is higher
+      const vehicle = vehicles.find(v => v.id === entry.vehicleId);
+      if (vehicle && entry.odometer > (vehicle.odometer || 0)) {
+        await storageService.updateVehicle(orgId, { ...vehicle, odometer: entry.odometer });
+      }
+    } catch (error) {
+      addToast('error', 'Erro ao registrar', 'Não foi possível salvar o abastecimento.');
+    }
+  };
+
+  const handleDeleteFuelEntry = async (id: string) => {
+    try {
+      await storageService.deleteFuelEntry(orgId, id);
+      addToast('success', 'Registro Removido', 'O abastecimento foi excluído com sucesso.');
+    } catch (error) {
+      addToast('error', 'Erro ao remover', 'Não foi possível excluir o registro.');
+    }
+  };
+
+  const handleAddFuelStation = async (station: FuelStation) => {
+    try {
+      await storageService.addFuelStation(orgId, station);
+      addToast('success', 'Posto Cadastrado', `O posto ${station.name} foi cadastrado com sucesso.`);
+    } catch (error) {
+      addToast('error', 'Erro ao cadastrar', 'Não foi possível cadastrar o posto.');
+    }
+  };
+
+  const handleUpdateFuelStation = async (id: string, data: Partial<FuelStation>) => {
+    try {
+      await storageService.updateFuelStation(orgId, id, data);
+      addToast('success', 'Posto Atualizado', 'Os dados do posto foram atualizados com sucesso.');
+    } catch (error) {
+      addToast('error', 'Erro ao atualizar', 'Não foi possível atualizar os dados do posto.');
+    }
+  };
+
+  const handleDeleteFuelStation = async (id: string) => {
+    try {
+      await storageService.deleteFuelStation(orgId, id);
+      addToast('success', 'Posto Removido', 'O posto foi excluído com sucesso.');
+    } catch (error) {
+      addToast('error', 'Erro ao remover', 'Não foi possível excluir o posto.');
+    }
+  };
+
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-300 ${darkMode ? 'dark' : ''}`}>
       {!isReportsFullScreen && (
@@ -844,7 +908,16 @@ export const App = () => {
           userName={user.displayName || user.email || 'Usuário'}
           settings={settings}
           activeModule={activeModule}
-          onChangeModule={() => setActiveModule(prev => prev === 'TIRES' ? 'VEHICLES' : prev === 'VEHICLES' ? 'MECHANICAL' : 'TIRES')}
+          onChangeModule={() => {
+            setActiveModule(prev => {
+              const next: ModuleType = prev === 'TIRES' ? 'VEHICLES' : prev === 'VEHICLES' ? 'MECHANICAL' : prev === 'MECHANICAL' ? 'FUEL' : 'TIRES';
+              if (next === 'FUEL') setCurrentTab('fuel');
+              if (next === 'TIRES') setCurrentTab('dashboard');
+              if (next === 'VEHICLES') setCurrentTab('fleet');
+              if (next === 'MECHANICAL') setCurrentTab('maintenance');
+              return next;
+            });
+          }}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
         />
@@ -930,7 +1003,7 @@ export const App = () => {
               />
             )}
             {currentTab === 'partners' && <PartnerManager orgId={orgId} />}
-            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onRegister={() => setCurrentTab('register')} onNotification={addToast} userLevel={userRole} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'inventory' && <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onRegister={() => setCurrentTab('register')} onNotification={addToast} userLevel={userRole} vehicleTypes={vehicleTypes} />}
             {currentTab === 'scrap' && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
             {currentTab === 'register' && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />}
             {currentTab === 'movement' && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
@@ -942,6 +1015,7 @@ export const App = () => {
               vehicleBrandModels={vehicleBrandModels} 
               tires={tires} 
               serviceOrders={serviceOrders}
+              fuelEntries={fuelEntries}
               maintenancePlans={maintenancePlans}
               maintenanceSchedules={maintenanceSchedules}
               onAddVehicle={(v) => storageService.addVehicle(orgId, v)} 
@@ -1014,11 +1088,27 @@ export const App = () => {
                 maintenanceSchedules={maintenanceSchedules} 
                 maintenancePlans={maintenancePlans} 
                 vehicleBrandModels={vehicleBrandModels}
+                serviceOrders={serviceOrders}
                 onOpenServiceOrder={(vehicleId) => {
                   setPreselectedVehicleId(vehicleId);
                   setShouldOpenOSModal(true);
                   setCurrentTab('service-orders');
                 }}
+              />
+            )}
+            {currentTab === 'fuel' && (
+              <FuelDashboard 
+                vehicles={vehicles}
+                fuelEntries={fuelEntries}
+                fuelStations={fuelStations}
+                drivers={drivers}
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                onAddEntry={handleAddFuelEntry}
+                onDeleteEntry={handleDeleteFuelEntry}
+                onAddStation={handleAddFuelStation}
+                onUpdateStation={handleUpdateFuelStation}
+                onDeleteStation={handleDeleteFuelStation}
               />
             )}
             {currentTab === 'location' && (
@@ -1067,6 +1157,8 @@ export const App = () => {
                 vehicles={vehicles} 
                 serviceOrders={serviceOrders} 
                 retreadOrders={retreadOrders} 
+                occurrences={occurrences}
+                fuelEntries={fuelEntries}
                 branches={branches}
                 defaultBranchId={selectedBranchId}
                 vehicleBrandModels={vehicleBrandModels} 
@@ -1089,6 +1181,7 @@ export const App = () => {
                 onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} 
               />
             )}
+            {currentTab === 'occurrences' && <Occurrences user={user} />}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
         </div>
       </main>

@@ -289,10 +289,16 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
             <span className="text-[10px] font-bold text-slate-400 uppercase">{tire.brand} {tire.model}</span>
         </div>
         <h2 className="text-4xl font-black text-slate-800 dark:text-white leading-none">{tire.fireNumber}</h2>
-        <div className="mt-4 flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-tight bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-            <span>Km Total: <span className="text-slate-800 dark:text-white">{liveTotalKm.toLocaleString()}</span></span>
-            <span className="w-px h-3 bg-slate-200 dark:bg-slate-700"></span>
-            <span>Média Sulco: <span className="text-slate-800 dark:text-white font-black">{data.depth?.toFixed(1) || tire.currentTreadDepth.toFixed(1)}mm</span></span>
+        <div className="mt-4 flex flex-col gap-2 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                <span>Km Total: <span className="text-slate-800 dark:text-white">{liveTotalKm.toLocaleString()}</span></span>
+                <span className="w-px h-3 bg-slate-200 dark:bg-slate-700"></span>
+                <span>Média Atual: <span className="text-slate-800 dark:text-white font-black">{data.depth?.toFixed(1) || tire.currentTreadDepth.toFixed(1)}mm</span></span>
+            </div>
+            <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase border-t border-slate-50 dark:border-slate-800 pt-2">
+                <span>Última Inspeção: <span className="text-slate-600 dark:text-slate-300">{tire.lastInspectionDate ? new Date(tire.lastInspectionDate).toLocaleDateString() : 'N/A'}</span></span>
+                <span className="bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded text-blue-600 dark:text-blue-400">Última Média: <span className="font-black">{tire.currentTreadDepth.toFixed(1)}mm</span></span>
+            </div>
         </div>
       </div>
 
@@ -333,18 +339,24 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
             />
 
             <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="flex flex-col gap-1">
-                        <label className="text-[8px] font-bold text-slate-400 text-center uppercase">{i === 1 ? 'Ext' : i === 2 ? 'C1' : i === 3 ? 'C2' : 'Int'}</label>
-                        <input 
-                            type="number" step="0.1"
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-lg font-black text-center focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
-                            placeholder="0.0"
-                            value={(data as any)[`depth${i}`] !== undefined ? (data as any)[`depth${i}`] : ''}
-                            onChange={(e) => onChange(tire.id, `depth${i}`, e.target.value)}
-                        />
-                    </div>
-                ))}
+                {[1, 2, 3, 4].map(i => {
+                    const lastVal = (tire.treadReadings as any)?.[`depth${i}`] || tire.currentTreadDepth;
+                    return (
+                        <div key={i} className="flex flex-col gap-1">
+                            <label className="text-[8px] font-bold text-slate-400 text-center uppercase">{i === 1 ? 'Ext' : i === 2 ? 'C1' : i === 3 ? 'C2' : 'Int'}</label>
+                            <input 
+                                type="number" step="0.1"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-lg font-black text-center focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 dark:text-white"
+                                placeholder="0.0"
+                                value={(data as any)[`depth${i}`] !== undefined ? (data as any)[`depth${i}`] : ''}
+                                onChange={(e) => onChange(tire.id, `depth${i}`, e.target.value)}
+                            />
+                            <div className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center bg-slate-100 dark:bg-slate-800 py-0.5 rounded mt-0.5">
+                                Ant: {lastVal.toFixed(1)}mm
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
 
