@@ -33,6 +33,7 @@ export const MaintenanceHub: FC<MaintenanceHubProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [showAllVehicles, setShowAllVehicles] = useState(false);
   
   // Inspection Buffer
   const [inspectionData, setInspectionData] = useState<Record<string, InspectionEntry>>({});
@@ -294,7 +295,7 @@ export const MaintenanceHub: FC<MaintenanceHubProps> = ({
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredVehicles.length > 0 ? filteredVehicles.map(vehicle => (
+                {filteredVehicles.length > 0 ? (showAllVehicles ? filteredVehicles : filteredVehicles.slice(0, 9)).map(vehicle => (
                    <div 
                       key={vehicle.id} 
                       onClick={() => setSelectedVehicle(vehicle)}
@@ -325,6 +326,17 @@ export const MaintenanceHub: FC<MaintenanceHubProps> = ({
                    </div>
                 )}
              </div>
+
+             {filteredVehicles.length > 9 && (
+                <div className="flex justify-center pt-8">
+                   <button 
+                      onClick={() => setShowAllVehicles(!showAllVehicles)}
+                      className="px-10 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-sm"
+                   >
+                      {showAllVehicles ? 'VER MENOS' : `VER TODOS OS VEÍCULOS (${filteredVehicles.length})`}
+                   </button>
+                </div>
+             )}
           </div>
        )}
     </div>

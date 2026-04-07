@@ -31,6 +31,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user }) => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
+  const [showAllOccurrences, setShowAllOccurrences] = useState(false);
+  const [showAllReasons, setShowAllReasons] = useState(false);
   
   const [isOccurrenceModalOpen, setIsOccurrenceModalOpen] = useState(false);
   const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
@@ -252,7 +254,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredOccurrences.map((occ) => (
+                  {(showAllOccurrences ? filteredOccurrences : filteredOccurrences.slice(0, 10)).map((occ) => (
                     <tr key={occ.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -331,13 +333,24 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user }) => {
                 </tbody>
               </table>
             </div>
+            {filteredOccurrences.length > 10 && (
+              <div className="flex justify-center p-6 border-t border-gray-100">
+                <button 
+                  onClick={() => setShowAllOccurrences(!showAllOccurrences)}
+                  className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2"
+                >
+                  {showAllOccurrences ? 'Ver Menos' : `Ver Todas as Ocorrências (${filteredOccurrences.length})`}
+                </button>
+              </div>
+            )}
           </div>
         </>
       ) : (
         /* Reasons List */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reasons.map((reason) => (
-            <div key={reason.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(showAllReasons ? reasons : reasons.slice(0, 9)).map((reason) => (
+              <div key={reason.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
                   <FileText className="w-6 h-6 text-blue-600" />
@@ -374,7 +387,18 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user }) => {
             </div>
           )}
         </div>
-      )}
+        {reasons.length > 9 && (
+          <div className="flex justify-center">
+            <button 
+              onClick={() => setShowAllReasons(!showAllReasons)}
+              className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2"
+            >
+              {showAllReasons ? 'Ver Menos' : `Ver Todos os Motivos (${reasons.length})`}
+            </button>
+          </div>
+        )}
+      </div>
+    )}
 
       {/* Occurrence Modal */}
       <AnimatePresence>

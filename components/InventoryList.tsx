@@ -851,6 +851,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [showMissingTiresReport, setShowMissingTiresReport] = useState(false);
   
   const [sortConfig, setSortConfig] = useState<{ key: keyof Tire | 'health' | 'cpk'; direction: 'asc' | 'desc' } | null>(null);
+  const [showAllTires, setShowAllTires] = useState(false);
 
   const filteredByBranchTires = useMemo(() => {
     return defaultBranchId ? tires.filter(t => t.branchId === defaultBranchId) : tires;
@@ -1510,7 +1511,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           <>
               {layoutMode === 'GRID' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in slide-in-from-bottom-4">
-                      {filteredTires.map(tire => (
+                      {(showAllTires ? filteredTires : filteredTires.slice(0, 12)).map(tire => (
                           <div key={tire.id} className={`relative ${isInventoryMode && scannedTireIds.has(tire.id) ? 'ring-4 ring-emerald-500 rounded-3xl' : ''}`}>
                               {isInventoryMode && scannedTireIds.has(tire.id) && (
                                   <div className="absolute -top-3 -right-3 z-10 bg-emerald-500 text-white p-2 rounded-full shadow-lg">
@@ -1629,7 +1630,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                              {filteredTires.map(t => (
+                              {(showAllTires ? filteredTires : filteredTires.slice(0, 20)).map(t => (
                                   <tr key={t.id} onClick={() => setSelectedTire(t)} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer ${isInventoryMode && scannedTireIds.has(t.id) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''} ${selectedTireIds.has(t.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
                                       <td className="p-5" onClick={(e) => e.stopPropagation()}>
                                           <input 
@@ -1713,6 +1714,17 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                               ))}
                           </tbody>
                       </table>
+                  </div>
+              )}
+
+              {filteredTires.length > (layoutMode === 'GRID' ? 12 : 20) && (
+                  <div className="flex justify-center pt-8">
+                      <button 
+                          onClick={() => setShowAllTires(!showAllTires)}
+                          className="px-10 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                          {showAllTires ? 'VER MENOS' : `VER TODOS OS PNEUS (${filteredTires.length})`}
+                      </button>
                   </div>
               )}
           </>

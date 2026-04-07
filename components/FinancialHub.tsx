@@ -41,6 +41,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
+  const [showAllEfficiency, setShowAllEfficiency] = useState(false);
 
   const filteredTires = useMemo(() => {
     if (treadFilter === 'ALL') return tires;
@@ -331,7 +332,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                   </tr>
                </thead>
                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                  {stats.efficiencyData.map((brand, idx) => (
+                  {(showAllEfficiency ? stats.efficiencyData : stats.efficiencyData.slice(0, 5)).map((brand, idx) => (
                      <tr key={brand.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                         <td className="p-6">
                            <div className="flex items-center gap-3">
@@ -375,6 +376,16 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                </tbody>
             </table>
          </div>
+         {stats.efficiencyData.length > 5 && (
+            <div className="flex justify-center p-6 border-t border-slate-100 dark:border-slate-800">
+               <button 
+                  onClick={() => setShowAllEfficiency(!showAllEfficiency)}
+                  className="px-8 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-xs font-black transition-all active:scale-95 flex items-center gap-2"
+               >
+                  {showAllEfficiency ? 'VER MENOS' : `VER RANK COMPLETO (${stats.efficiencyData.length})`}
+               </button>
+            </div>
+         )}
       </div>
 
       {/* CUSTOM REPORT SECTION */}

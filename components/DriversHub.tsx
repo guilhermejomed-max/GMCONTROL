@@ -39,6 +39,7 @@ export const DriversHub: FC<DriversHubProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showAllDrivers, setShowAllDrivers] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Driver>>({
     name: '',
@@ -180,7 +181,7 @@ export const DriversHub: FC<DriversHubProps> = ({
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDrivers.map(driver => {
+          {(showAllDrivers ? filteredDrivers : filteredDrivers.slice(0, 9)).map(driver => {
              const assignedVehicle = vehicles.find(v => v.currentDriverId === driver.id);
              return (
                 <div key={driver.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
@@ -220,6 +221,17 @@ export const DriversHub: FC<DriversHubProps> = ({
              );
           })}
        </div>
+
+       {filteredDrivers.length > 9 && (
+          <div className="flex justify-center pt-4">
+             <button 
+                onClick={() => setShowAllDrivers(!showAllDrivers)}
+                className="px-8 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-xs font-black transition-all active:scale-95 flex items-center gap-2"
+             >
+                {showAllDrivers ? 'VER MENOS' : `VER TODOS (${filteredDrivers.length})`}
+             </button>
+          </div>
+       )}
 
        {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
