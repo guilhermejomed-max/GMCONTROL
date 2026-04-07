@@ -565,6 +565,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   const [activeRGTab, setActiveRGTab] = useState<'geral' | 'manutencao' | 'pneus' | 'combustivel'>('geral');
   const [selectedAxle, setSelectedAxle] = useState<number | 'ALL'>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'EMPTY' | 'MAINTENANCE'>('ALL');
+  const [showAllVehicles, setShowAllVehicles] = useState(false);
   
   // Scheduling State
   const [isScheduling, setIsScheduling] = useState(false);
@@ -1731,7 +1732,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVehicles.map(vehicle => {
+        {(showAllVehicles ? filteredVehicles : filteredVehicles.slice(0, 12)).map(vehicle => {
           const status = getVehicleStatus(vehicle);
           const isSelected = selectedIds.has(vehicle.id);
           
@@ -1879,6 +1880,17 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           );
         })}
       </div>
+
+      {filteredVehicles.length > 12 && (
+        <div className="flex justify-center pt-8">
+          <button 
+            onClick={() => setShowAllVehicles(!showAllVehicles)}
+            className="px-10 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-sm"
+          >
+            {showAllVehicles ? 'VER MENOS' : `VER TODOS OS VEÍCULOS (${filteredVehicles.length})`}
+          </button>
+        </div>
+      )}
 
       {selectedVehicleRG && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">

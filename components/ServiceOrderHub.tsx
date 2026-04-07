@@ -63,6 +63,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAllOrders, setShowAllOrders] = useState(false);
 
   const serviceOrders = useMemo(() => {
     return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
@@ -606,7 +607,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       </div>
       
       <div className="space-y-4">
-        {filteredOrders.map(order => (
+        {(showAllOrders ? filteredOrders : filteredOrders.slice(0, 10)).map(order => (
           <div key={order.id} className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
              <div className="flex flex-col md:flex-row justify-between items-start gap-3">
                 <div className="flex-1">
@@ -692,6 +693,17 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           <div className="text-center p-12 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400">
              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-50"/>
              <p className="font-bold">Nenhuma Ordem de Serviço encontrada.</p>
+          </div>
+        )}
+
+        {filteredOrders.length > 10 && (
+          <div className="flex justify-center pt-8">
+            <button 
+              onClick={() => setShowAllOrders(!showAllOrders)}
+              className="px-10 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-sm"
+            >
+              {showAllOrders ? 'VER MENOS' : `VER TODAS AS ORDENS DE SERVIÇO (${filteredOrders.length})`}
+            </button>
           </div>
         )}
       </div>
