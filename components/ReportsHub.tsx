@@ -220,9 +220,15 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   useEffect(() => {
     const initialSource: ReportSource = 
       activeModule === 'TIRES' ? 'TIRES' : 
-      activeModule === 'MECHANICAL' ? 'MAINTENANCE' : 'VEHICLES';
+      activeModule === 'MECHANICAL' ? 'MAINTENANCE' : 
+      activeModule === 'FUEL' ? 'FUEL' : 'VEHICLES';
     setSource(initialSource);
     setSelectedColumns(COLUMN_DEFINITIONS[initialSource].slice(0, 8).map(c => c.id));
+    if (initialSource === 'FUEL') {
+        const today = new Date().toISOString().split('T')[0];
+        setStartDate(today);
+        setEndDate(today);
+    }
   }, [activeModule]);
 
   // --- PRESETS DE DATA ---
@@ -251,6 +257,15 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
       setSelectedModel('');
       setSelectedPlate('');
       setSelectedType('');
+      
+      if (newSource === 'FUEL') {
+          const today = new Date().toISOString().split('T')[0];
+          setStartDate(today);
+          setEndDate(today);
+      } else {
+          setStartDate('');
+          setEndDate('');
+      }
   };
 
   // --- PROCESSAMENTO DE DADOS ---
