@@ -20,7 +20,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           </div>
           Investimento Total
         </div>
-        <h3 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
+        <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight truncate">
           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalCost)}
         </h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
@@ -35,7 +35,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           </div>
           Volume Total
         </div>
-        <h3 className="text-3xl font-black text-blue-600 tracking-tight">
+        <h3 className="text-2xl font-black text-blue-600 tracking-tight truncate">
           {stats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-400">L</span>
         </h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
@@ -50,7 +50,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           </div>
           Média Global
         </div>
-        <h3 className="text-3xl font-black text-orange-600 tracking-tight">
+        <h3 className="text-2xl font-black text-orange-600 tracking-tight truncate">
           {stats.globalAvg.toFixed(2)} <span className="text-sm font-bold text-slate-400">km/l</span>
         </h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
@@ -65,7 +65,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           </div>
           Abastecimentos
         </div>
-        <h3 className="text-3xl font-black text-purple-600 tracking-tight">{stats.count}</h3>
+        <h3 className="text-2xl font-black text-purple-600 tracking-tight truncate">{stats.count}</h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
           <Plus className="h-3 w-3" /> Registros efetuados
         </div>

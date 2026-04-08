@@ -17,6 +17,7 @@ import ScrapHub from './components/ScrapHub';
 import { VehicleManager } from './components/VehicleManager';
 import { BrandModelManager } from './components/BrandModelManager';
 import { VehicleTypeManager } from './components/VehicleTypeManager';
+import { FuelTypeManager } from './components/FuelTypeManager';
 import { LocationMap } from './components/LocationMap';
 import { ServiceOrderHub } from './components/ServiceOrderHub';
 import { MaintenanceDashboard } from './components/MaintenanceDashboard';
@@ -33,7 +34,7 @@ import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { calculatePredictedTreadDepth } from './src/utils';
-import { TabView, Tire, Vehicle, VehicleBrandModel, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation } from './types';
+import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2 } from 'lucide-react';
 
 const LoginScreen = ({ 
@@ -218,6 +219,7 @@ export const App = () => {
   const [stockItems, setStockItems] = useState<import('./types').StockItem[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+  const [fuelTypes, setFuelTypes] = useState<FuelType[]>([]);
   const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
   const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
@@ -302,6 +304,7 @@ export const App = () => {
     const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
     const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
     const unsubVehicleTypes = storageService.subscribeToVehicleTypes(orgId, setVehicleTypes);
+    const unsubFuelTypes = storageService.subscribeToFuelTypes(orgId, setFuelTypes);
     const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries);
     const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
     
@@ -322,6 +325,7 @@ export const App = () => {
         unsubOccurrences();
         unsubStockItems();
         unsubVehicleTypes();
+        unsubFuelTypes();
         unsubFuelEntries();
         unsubFuelStations();
     };
@@ -514,7 +518,7 @@ export const App = () => {
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} veículos...`);
       storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${plates.length} veículos`, 'VEHICLES');
       
-      const CHUNK_SIZE = 20;
+      const CHUNK_SIZE = 100;
       const chunks: string[][] = [];
       
       if (plates.length === 0) {
@@ -533,6 +537,10 @@ export const App = () => {
         const totalChunks = chunks.length;
         
         try {
+          if (i > 0) {
+            // Pequeno atraso entre lotes para não sobrecarregar o servidor
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
           console.log(`[Sascar Sync] Solicitando lote ${chunkId}/${totalChunks}...`);
           const result = await sascarService.getVehicles(
             chunk.length > 0 ? chunk : undefined, 
@@ -586,6 +594,13 @@ export const App = () => {
           const finalOdo = Math.round(Number(rawOdo));
           const lat = Number(sv.latitude || sv.lat || 0);
           const lng = Number(sv.longitude || sv.lng || 0);
+
+          const rawLitrometro = sv.litrometro || sv.liters || 0;
+          const finalLitrometro = Number(rawLitrometro);
+          let exactKmPerLiter = undefined;
+          if (finalLitrometro > 0 && finalOdo > 0) {
+            exactKmPerLiter = finalOdo / finalLitrometro;
+          }
 
           updatesBatch.push({
             id: localVehicle.id,
@@ -857,10 +872,20 @@ export const App = () => {
       await storageService.addFuelEntry(orgId, entry);
       addToast('success', 'Abastecimento Registrado', `Lançamento para o veículo ${entry.vehiclePlate} realizado com sucesso.`);
       
-      // Update vehicle odometer if entry odometer is higher
+      // Update vehicle odometer and litrometro if entry values are higher
       const vehicle = vehicles.find(v => v.id === entry.vehicleId);
-      if (vehicle && entry.odometer > (vehicle.odometer || 0)) {
-        await storageService.updateVehicle(orgId, { ...vehicle, odometer: entry.odometer });
+      if (vehicle) {
+        let needsUpdate = false;
+        const updatedVehicle = { ...vehicle };
+
+        if (entry.odometer > (vehicle.odometer || 0)) {
+          updatedVehicle.odometer = entry.odometer;
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          await storageService.updateVehicle(orgId, updatedVehicle);
+        }
       }
     } catch (error) {
       addToast('error', 'Erro ao registrar', 'Não foi possível salvar o abastecimento.');
@@ -1022,6 +1047,7 @@ export const App = () => {
             {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
             {currentTab === 'brand-models' && allowedModules.includes('VEHICLES') && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} />}
             {currentTab === 'vehicle-types' && allowedModules.includes('VEHICLES') && <VehicleTypeManager orgId={orgId} />}
+            {currentTab === 'fuel-types' && allowedModules.includes('FUEL') && <FuelTypeManager orgId={orgId} />}
             {currentTab === 'fleet' && allowedModules.includes('VEHICLES') && <VehicleManager 
               orgId={orgId}
               vehicles={vehicles} 
@@ -1044,6 +1070,7 @@ export const App = () => {
               branches={branches}
               defaultBranchId={selectedBranchId}
               vehicleTypes={vehicleTypes}
+              fuelTypes={fuelTypes}
             />}
             {currentTab === 'inspection' && allowedModules.includes('TIRES') && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} vehicleTypes={vehicleTypes} />}
             {currentTab === 'retreading' && allowedModules.includes('TIRES') && (
@@ -1122,6 +1149,7 @@ export const App = () => {
                 onAddStation={handleAddFuelStation}
                 onUpdateStation={handleUpdateFuelStation}
                 onDeleteStation={handleDeleteFuelStation}
+                fuelTypes={fuelTypes}
               />
             )}
             {currentTab === 'location' && allowedModules.includes('VEHICLES') && (

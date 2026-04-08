@@ -2,6 +2,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    match /branches/{id} {
+      allow get, list: if true;
+      allow create: if isAdmin() && isValidBranch(request.resource.data);
+      allow update: if isAdmin() && isValidBranch(request.resource.data) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
     // ===============================================================
     // Assumed Data Model
     // ===============================================================
@@ -639,13 +646,6 @@ service cloud.firestore {
       allow create: if (isAdmin() || isSenior()) && isValidVehicleType(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidVehicleType(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin() || isSenior();
-    }
-
-    match /branches/{id} {
-      allow read: if true;
-      allow create: if isAdmin() && isValidBranch(request.resource.data);
-      allow update: if isAdmin() && isValidBranch(request.resource.data) && request.resource.data.id == resource.data.id;
-      allow delete: if isAdmin();
     }
   }
 }

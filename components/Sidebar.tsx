@@ -1,6 +1,6 @@
 
 import { FC, ChangeEvent } from 'react';
-import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel, Droplets } from 'lucide-react';
 import { TabView, UserLevel, SystemSettings, ModuleType } from '../types';
 
 interface SidebarProps {
@@ -63,6 +63,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'reports-maintenance', label: 'Relatórios de Manutenção', icon: FileBarChart, modules: ['MECHANICAL'] },
     { id: 'reports-fuel', label: 'Relatórios de Abastecimento', icon: FileBarChart, modules: ['FUEL'] },
     { id: 'vehicle-types', label: 'Tipos de Veículos', icon: Layers, modules: ['VEHICLES'] },
+    { id: 'fuel-types', label: 'Tipos de Combustíveis', icon: Droplets, modules: ['FUEL'] },
 
     // --- MÓDULO OFICINA/PEÇAS ---
     { id: 'service', label: 'Almoxarifado (Peças)', icon: Package, modules: ['MECHANICAL'] },

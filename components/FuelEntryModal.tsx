@@ -93,8 +93,21 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                   <option value="DIESEL S10">DIESEL S10</option>
                   <option value="DIESEL S500">DIESEL S500</option>
                   <option value="ARLA 32">ARLA 32</option>
+                  {newEntry.fuelType && !['DIESEL S10', 'DIESEL S500', 'ARLA 32'].includes(newEntry.fuelType) && (
+                    <option value={newEntry.fuelType}>{newEntry.fuelType}</option>
+                  )}
+                  <option value="OUTRO">OUTRO...</option>
                 </select>
               </div>
+              {newEntry.fuelType === 'OUTRO' && (
+                <input 
+                  type="text"
+                  className="mt-2 w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white uppercase"
+                  placeholder="DIGITE O TIPO DE COMBUSTÍVEL"
+                  onChange={e => setNewEntry(prev => ({ ...prev, fuelType: e.target.value.toUpperCase() }))}
+                  autoFocus
+                />
+              )}
             </div>
 
             <div>

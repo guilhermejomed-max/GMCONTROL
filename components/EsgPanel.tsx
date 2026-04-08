@@ -128,7 +128,7 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                       <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
                           <Droplet className="h-8 w-8" />
                       </div>
-                      <h4 className="text-5xl font-black text-slate-800 dark:text-white mb-2 relative z-10">
+                      <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
                           {stats.oilSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">L</span>
                       </h4>
                       <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Petróleo Economizado</p>
@@ -143,7 +143,7 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                       <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
                           <Wind className="h-8 w-8" />
                       </div>
-                      <h4 className="text-5xl font-black text-slate-800 dark:text-white mb-2 relative z-10">
+                      <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
                           {(stats.co2Reduced / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-lg text-slate-400 font-bold">Ton</span>
                       </h4>
                       <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">CO₂ Reduzido</p>
@@ -158,7 +158,7 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                       <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
                           <Recycle className="h-8 w-8" />
                       </div>
-                      <h4 className="text-5xl font-black text-slate-800 dark:text-white mb-2 relative z-10">
+                      <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
                           {stats.carcassesSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">un</span>
                       </h4>
                       <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Carcaças Salvas</p>

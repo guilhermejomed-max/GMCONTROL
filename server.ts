@@ -42,10 +42,10 @@ let sascarCache = {
 };
 
 let activeSascarCalls = 0;
-const MAX_CONCURRENT_SASCAR_CALLS = 1; // Sascar is very sensitive to concurrent calls
+const MAX_CONCURRENT_SASCAR_CALLS = 2; // Aumentado para 2 para melhor vazão
 const sascarCallQueue: ((value: void | PromiseLike<void>) => void)[] = [];
 
-async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, queueTimeout = 25000): Promise<T> {
+async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, queueTimeout = 45000): Promise<T> {
   if (activeSascarCalls >= MAX_CONCURRENT_SASCAR_CALLS) {
     const timeoutPromise = new Promise<void>((_, reject) => 
       setTimeout(() => reject(new Error('Timeout na fila de sincronização Sascar')), queueTimeout)
@@ -172,6 +172,20 @@ function parseSascarDate(dateStr: any): Date {
     const withOffset = normalized.includes('-03:00') ? normalized : normalized + '-03:00';
     const d = new Date(withOffset);
     return isNaN(d.getTime()) ? new Date(0) : d;
+}
+
+function parseSascarNumber(val: any): number {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).trim();
+  if (!s) return 0;
+  
+  // Se for hexadecimal (contém A-F ou é explicitamente hex)
+  if (/^[0-9A-Fa-f]+$/.test(s) && (/[A-Fa-f]/.test(s) || s.length > 6)) {
+    return parseInt(s, 16);
+  }
+  
+  return parseFloat(s) || 0;
 }
 
 function parseSascarVehicle(item: any): any {
@@ -444,14 +458,21 @@ async function runSascarAutomation() {
             if (docId) {
                 const rawLat = pos.latitude ?? 0;
                 const rawLng = pos.longitude ?? 0;
-                const rawOdometer = pos.odometroExato ?? pos.odometro ?? 0;
+                
+                const odometerKm = pos.odometroExato ? parseSascarNumber(pos.odometroExato) / 1000 : parseSascarNumber(pos.odometro ?? 0);
+                const litrometroLiters = pos.consumoTotal ? parseSascarNumber(pos.consumoTotal) / 1000 : parseSascarNumber(pos.litrometro ?? 0);
+                const rawInstantaneo = parseSascarNumber(pos.consumoInstantaneo || 0);
+                
                 const speed = pos.velocidade ?? 0;
                 const ignition = pos.ignicao === 'S' || pos.ignicao === true || pos.ignicao === '1';
 
                 const updateData: any = {
-                    odometer: Number(rawOdometer),
+                    odometer: odometerKm,
+                    litrometro: litrometroLiters,
+                    exactKmPerLiter: litrometroLiters > 0 ? odometerKm / litrometroLiters : undefined,
                     speed: Number(speed),
                     ignition: ignition,
+                    consumoInstantaneo: rawInstantaneo,
                     lastLocation: {
                         lat: Number(rawLat),
                         lng: Number(rawLng),
@@ -599,7 +620,7 @@ async function startServer() {
 
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
-      const MAX_REQUEST_TIME = 30000; // Reduzido para 30s para garantir resposta antes do Nginx (60s)
+      const MAX_REQUEST_TIME = 55000; // Aumentado para 55s (limite de proxy Cloud Run costuma ser 60s)
       const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
@@ -729,7 +750,7 @@ async function startServer() {
               // Espera pelo fetch global, mas com um timeout de segurança para não travar a requisição do usuário
               const fetchPromiseWithTimeout = Promise.race([
                   sascarCache.fetchPromise,
-                  new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout aguardando fetch global')), 25000))
+                  new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout aguardando fetch global')), 30000))
               ]);
               await fetchPromiseWithTimeout;
           } catch (e: any) {
@@ -787,10 +808,10 @@ async function startServer() {
                   const dataFinal = formatDateBRT(now);
 
                   // Processa em lotes paralelos maiores para velocidade
-                  const BATCH_SIZE = 10;
+                  const BATCH_SIZE = 5; // Reduzido para diminuir pressão no lock e evitar timeouts
                   for (let i = 0; i < platesToFetch.length; i += BATCH_SIZE) {
                       // No foreground, paramos mais cedo para garantir que o histórico tenha tempo de rodar
-                      const bufferTime = process.env.VERCEL ? 2000 : 10000;
+                      const bufferTime = 12000; // Aumentado para 12s de margem
                       if (!isBackground && i > 0 && Date.now() - startTime >= MAX_REQUEST_TIME - bufferTime) {
                           logToFile(`[Sascar] Tempo esgotado para histórico no foreground. Interrompendo no lote ${i}/${platesToFetch.length}`);
                           break;
@@ -946,13 +967,24 @@ async function startServer() {
       });
       // ----------------------------------------
 
-      const processedVehicles = rawValues.map((v: any) => {
+      const processedVehicles = rawValues.map((v: any, index: number) => {
           // Extração com fallback para 0 caso o valor venha nulo/undefined
           const rawLat = v.latitude ?? 0;
           const rawLng = v.longitude ?? 0;
           
-          // Prioriza odometroExato, com fallback para odometro
-          const rawOdometer = v.odometroExato ?? v.odometro ?? 0;
+          // Log raw values for debugging fuel consumption issues
+          if (index < 5) {
+            logToFile(`[Sascar Debug] Veículo ${v.placa || v.idVeiculo} | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoTotal=${v.consumoTotal}, litrometro=${v.litrometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
+          }
+
+          // Sascar: odometroExato is in meters, odometro is in km.
+          // consumoTotal is usually in milliliters.
+          const odometerKm = v.odometroExato ? parseSascarNumber(v.odometroExato) / 1000 : parseSascarNumber(v.odometro ?? 0);
+          const litrometroLiters = v.consumoTotal ? parseSascarNumber(v.consumoTotal) / 1000 : parseSascarNumber(v.litrometro ?? 0);
+          const rawInstantaneo = parseSascarNumber(v.consumoInstantaneo || 0);
+
+          const speed = Number(v.velocidade ?? 0);
+          const ignition = v.ignicao === 'S' || v.ignicao === true || v.ignicao === 'true' || v.ignicao === 1;
 
           return {
               idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
@@ -962,7 +994,12 @@ async function startServer() {
               // Regra estrita: Envolver em Number()
               latitude: Number(rawLat),
               longitude: Number(rawLng),
-              odometer: Number(rawOdometer),
+              odometer: odometerKm,
+              litrometro: litrometroLiters,
+              exactKmPerLiter: litrometroLiters > 0 ? odometerKm / litrometroLiters : undefined,
+              speed: speed,
+              ignition: ignition,
+              consumoInstantaneo: rawInstantaneo,
               
               lastLocation: {
                   lat: Number(rawLat),

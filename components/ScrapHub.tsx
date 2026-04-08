@@ -192,7 +192,7 @@ const ScrapHub: React.FC<ScrapHubProps> = ({ tires, vehicles, branches = [], def
                 filteredScrapped.map(t => {
                   const discardLog = t.history?.find(h => h.action === 'DESCARTE');
                   const reason = discardLog ? discardLog.details.replace('Motivo: ', '') : '-';
-                  const date = discardLog ? new Date(discardLog.date).toLocaleDateString('pt-BR') : '-';
+                  const date = discardLog ? new Date(discardLog.date + (discardLog.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : '-';
                   
                   return (
                     <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">

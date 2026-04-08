@@ -370,39 +370,39 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
         <>
           {/* 2. KPI CARDS */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
-                <div>
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CPK Médio da Frota</p>
-                   <h3 className="text-2xl font-black text-slate-800 dark:text-white">R$ {globalAvgCpk.toFixed(5)}</h3>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400 group-hover:text-indigo-500 transition-colors"><Activity className="h-6 w-6"/></div>
-             </div>
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
+                 <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CPK Médio da Frota</p>
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white truncate">R$ {globalAvgCpk.toFixed(5)}</h3>
+                 </div>
+                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400 group-hover:text-indigo-500 transition-colors"><Activity className="h-6 w-6"/></div>
+              </div>
 
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
-                <div>
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Economia Projetada</p>
-                   <h3 className="text-2xl font-black text-green-600 dark:text-green-400">{money(annualPotentialSavings)}</h3>
-                   <span className="text-[10px] text-green-600 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded font-bold mt-1 inline-block">Anual Estimado</span>
-                </div>
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-green-500"><TrendingDown className="h-6 w-6"/></div>
-             </div>
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
+                 <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Economia Projetada</p>
+                    <h3 className="text-xl font-black text-green-600 dark:text-green-400 truncate">{money(annualPotentialSavings)}</h3>
+                    <span className="text-[10px] text-green-600 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded font-bold mt-1 inline-block">Anual Estimado</span>
+                 </div>
+                 <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-green-500"><TrendingDown className="h-6 w-6"/></div>
+              </div>
 
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
-                <div>
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Volume Analisado</p>
-                   <h3 className="text-2xl font-black text-slate-800 dark:text-white">{strategicData.reduce((a,b)=>a+b.count,0)} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400"><Layers className="h-6 w-6"/></div>
-             </div>
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
+                 <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Volume Analisado</p>
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white truncate">{strategicData.reduce((a,b)=>a+b.count,0)} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
+                 </div>
+                 <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400"><Layers className="h-6 w-6"/></div>
+              </div>
 
-             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
-                <div>
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Perda Prematura</p>
-                   <h3 className={`text-2xl font-black ${scrapAnalysis.prematureRate > 20 ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{Math.round(scrapAnalysis.prematureRate)}%</h3>
-                   <span className="text-[10px] text-slate-400 font-bold mt-1 inline-block">de Sucata Acidental</span>
-                </div>
-                <div className={`p-3 rounded-xl ${scrapAnalysis.prematureRate > 20 ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}><Skull className="h-6 w-6"/></div>
-             </div>
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
+                 <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Perda Prematura</p>
+                    <h3 className={`text-xl font-black ${scrapAnalysis.prematureRate > 20 ? 'text-red-600' : 'text-slate-800 dark:text-white'} truncate`}>{Math.round(scrapAnalysis.prematureRate)}%</h3>
+                    <span className="text-[10px] text-slate-400 font-bold mt-1 inline-block">de Sucata Acidental</span>
+                 </div>
+                 <div className={`p-3 rounded-xl ${scrapAnalysis.prematureRate > 20 ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'}`}><Skull className="h-6 w-6"/></div>
+              </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -420,18 +420,18 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                             <span className="bg-yellow-400 text-indigo-900 text-xs font-black px-3 py-1 rounded-full uppercase flex items-center gap-1"><Trophy className="h-3 w-3"/> Melhor ROI</span>
                             <span className="text-indigo-200 text-xs font-bold uppercase tracking-wider">Eficiência {strategicData[0].efficiencyScore}/100</span>
                          </div>
-                         <h3 className="text-4xl font-black tracking-tight mb-1">{strategicData[0].brand}</h3>
-                         <p className="text-xl text-indigo-200 font-medium">{strategicData[0].model}</p>
+                         <h3 className="text-3xl font-black tracking-tight mb-1 truncate">{strategicData[0].brand}</h3>
+                         <p className="text-lg text-indigo-200 font-medium truncate">{strategicData[0].model}</p>
                       </div>
                       
                       <div className="flex gap-8 text-right">
                          <div>
                             <p className="text-xs font-bold text-indigo-300 uppercase mb-1">CPK Real</p>
-                            <p className="text-3xl font-black font-mono text-green-400">R$ {strategicData[0].avgRealCpk.toFixed(5)}</p>
+                            <p className="text-2xl font-black font-mono text-green-400 truncate">R$ {strategicData[0].avgRealCpk.toFixed(5)}</p>
                          </div>
                          <div>
                             <p className="text-xs font-bold text-indigo-300 uppercase mb-1">Vida Útil Est.</p>
-                            <p className="text-3xl font-black">{Math.round(strategicData[0].avgProjectedLife).toLocaleString()} km</p>
+                            <p className="text-2xl font-black truncate">{Math.round(strategicData[0].avgProjectedLife).toLocaleString()} km</p>
                          </div>
                       </div>
                    </div>

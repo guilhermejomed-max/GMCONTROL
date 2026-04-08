@@ -239,7 +239,7 @@ const TireDetailModal: React.FC<{
 
     // Processamento do Histórico para Linha do Tempo de Vidas
     const timelineEvents = useMemo(() => {
-        const events = [...(tire.history || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const events = [...(tire.history || [])].sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
         return events;
     }, [tire.history]);
 
@@ -390,7 +390,7 @@ const TireDetailModal: React.FC<{
                                                             {log.action.replace(/_/g, ' ')}
                                                         </span>
                                                         <span className="text-xs font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded">
-                                                            {new Date(log.date).toLocaleDateString()}
+                                                            {new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}
                                                         </span>
                                                     </div>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -1217,7 +1217,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total em Estoque</p>
                   </div>
-                  <p className="text-4xl font-black text-slate-800 dark:text-white tracking-tight font-mono">{stats.totalInStock}</p>
+                  <p className="text-2xl font-black text-slate-800 dark:text-white tracking-tight font-mono truncate">{stats.totalInStock}</p>
               </div>
               <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3 mb-3">
@@ -1226,7 +1226,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Patrimonial</p>
                   </div>
-                  <p className="text-2xl font-black text-emerald-600 tracking-tight font-mono break-all">{money(stats.totalValue)}</p>
+                  <p className="text-xl font-black text-emerald-600 tracking-tight font-mono break-all truncate">{money(stats.totalValue)}</p>
               </div>
               <div 
                   className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'MOUNTED' ? 'ring-2 ring-indigo-500' : ''}`}
@@ -1238,7 +1238,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pneus em Operação</p>
                   </div>
-                  <p className="text-4xl font-black text-indigo-600 tracking-tight font-mono">{stats.totalRunning}</p>
+                  <p className="text-2xl font-black text-indigo-600 tracking-tight font-mono truncate">{stats.totalRunning}</p>
               </div>
               <div 
                   className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'RETREADED' ? 'ring-2 ring-purple-500' : ''}`}
@@ -1250,7 +1250,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recapagem</p>
                   </div>
-                  <p className="text-4xl font-black text-purple-600 tracking-tight font-mono">{(stats.byStatus['RECAPAGEM'] || 0) + (stats.byStatus[TireStatus.RETREADED] || 0)}</p>
+                  <p className="text-2xl font-black text-purple-600 tracking-tight font-mono truncate">{(stats.byStatus['RECAPAGEM'] || 0) + (stats.byStatus[TireStatus.RETREADED] || 0)}</p>
               </div>
           </div>
 
@@ -1268,7 +1268,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-black text-slate-800 dark:text-white">{Object.keys(stats.byBrand).length}</p>
+                  <p className="text-xl font-black text-slate-800 dark:text-white truncate">{Object.keys(stats.byBrand).length}</p>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Marcas</p>
                 </div>
               </div>
@@ -1333,7 +1333,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                       <p className="text-[10px] font-bold text-slate-400">Pneus Direcionais</p>
                     </div>
                   </div>
-                  <span className="text-3xl font-black text-slate-800 dark:text-white">{stats.byTreadType['LISO'] || 0}</span>
+                  <span className="text-xl font-black text-slate-800 dark:text-white truncate">{stats.byTreadType['LISO'] || 0}</span>
                 </div>
                 <div className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 transition-all group">
                   <div className="flex items-center gap-4">
@@ -1345,7 +1345,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                       <p className="text-[10px] font-bold text-slate-400">Pneus de Tração</p>
                     </div>
                   </div>
-                  <span className="text-3xl font-black text-slate-800 dark:text-white">{stats.byTreadType['BORRACHUDO'] || 0}</span>
+                  <span className="text-xl font-black text-slate-800 dark:text-white truncate">{stats.byTreadType['BORRACHUDO'] || 0}</span>
                 </div>
               </div>
             </div>

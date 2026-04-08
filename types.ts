@@ -121,6 +121,13 @@ export interface Driver {
   branchId?: string;
 }
 
+export interface FuelType {
+  id: string;
+  name: string;
+  description?: string;
+  branchId?: string;
+}
+
 export interface VehicleType {
   id: string;
   name: string;
@@ -140,6 +147,7 @@ export interface VehicleBrandModel {
   maintenancePlanId?: string;
   oilChangeInterval?: number;
   oilLiters?: number;
+  fuelType?: string;
   branchId?: string;
 }
 
@@ -156,6 +164,7 @@ export interface Vehicle {
   currentDriverId?: string; // Added currentDriverId property
   lastAutoUpdateDate?: string; // Data da última atualização automática de KM (para carretas)
   sascarCode?: string; // Cód. Sascar para integração
+  averageKmPerLiter?: number; // Média calculada
   brandModelId?: string; // Reference to VehicleBrandModel
   branchId?: string; // Filial vinculada
   
@@ -167,6 +176,7 @@ export interface Vehicle {
   fleetNumber?: string; // Prefixo
   speed?: number;
   ignition?: boolean;
+  consumoInstantaneo?: number;
   brand?: string;
   engine?: string;
   transmission?: string;
@@ -483,6 +493,7 @@ export interface FuelEntry {
   vehiclePlate: string;
   date: string;
   odometer: number;
+  litrometro?: number; // Litrômetro no momento do abastecimento
   liters: number;
   unitPrice: number;
   totalCost: number;
@@ -496,7 +507,7 @@ export interface FuelEntry {
   kmPerLiter?: number; // Calculated
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'branches' | 'partners' | 'occurrences' | 'fuel';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

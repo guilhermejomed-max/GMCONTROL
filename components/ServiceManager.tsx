@@ -66,7 +66,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
     }
 
     movements.forEach(m => {
-        const d = new Date(m.date);
+        const d = new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00'));
         const key = d.toLocaleString('pt-BR', { month: 'short' });
         if (movementsByMonth[key]) {
             if (m.type === 'ENTRY') movementsByMonth[key].entry += m.totalValue;
@@ -664,7 +664,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                      {movements.map(m => (
                         <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                           <td className="p-4 text-slate-500 dark:text-slate-400">{new Date(m.date).toLocaleDateString()} {new Date(m.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                           <td className="p-4 text-slate-500 dark:text-slate-400">{new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()} {new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                            <td className="p-4">
                               <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${m.type === 'ENTRY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
                                  {m.type === 'ENTRY' ? 'Entrada' : 'Saída'}

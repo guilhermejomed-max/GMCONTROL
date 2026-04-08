@@ -35,7 +35,7 @@ export const sascarService = {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ plates, trackerSettings })
-        }, 150000); // 150s timeout no frontend
+        }, 180000); // Aumentado para 180s (3 min)
         
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {

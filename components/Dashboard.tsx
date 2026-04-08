@@ -140,13 +140,13 @@ export const Dashboard: FC<DashboardProps> = ({
     // 5. LIVE OPERATIONS FEED (Global History)
     const recentActivity = branchTiresForStats
         .flatMap(t => (t.history || []).map(h => ({ ...h, tire: t.fireNumber, id: t.id + h.date })))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())
         .slice(0, 5);
 
     // 6. STOCK VELOCITY (Most mounted models last 30 days)
     const velocityMap: Record<string, number> = {};
     branchTiresForStats.forEach(t => {
-        const recentMounts = t.history?.filter(h => h.action === 'MONTADO' && new Date(h.date) > thirtyDaysAgo);
+        const recentMounts = t.history?.filter(h => h.action === 'MONTADO' && new Date(h.date + (h.date.includes('T') ? '' : 'T12:00:00')) > thirtyDaysAgo);
         if(recentMounts?.length) {
             const key = `${t.brand} ${t.model}`;
             velocityMap[key] = (velocityMap[key] || 0) + recentMounts.length;
@@ -413,7 +413,7 @@ export const Dashboard: FC<DashboardProps> = ({
             <div className="flex justify-between items-start z-10">
                 <div>
                     <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde da Frota</p>
-                    <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.totalTires > 0 ? stats.healthScore : '---'} <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">{stats.totalTires > 0 ? '/100' : ''}</span></h3>
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white">{stats.totalTires > 0 ? stats.healthScore : '---'} <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">{stats.totalTires > 0 ? '/100' : ''}</span></h3>
                 </div>
             </div>
             <div className="absolute right-[-10px] bottom-[-20px] w-24 h-24 opacity-20">
@@ -431,10 +431,10 @@ export const Dashboard: FC<DashboardProps> = ({
          </div>
 
          {/* CPK METRIC */}
-         <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between group">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between group">
             <div>
                 <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Médio Global</p>
-                <h3 className="text-3xl font-black text-slate-800 dark:text-white font-mono">{stats.totalTires > 0 ? `R$ ${stats.avgCpk.toFixed(4)}` : '---'}</h3>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white font-mono truncate">{stats.totalTires > 0 ? `R$ ${stats.avgCpk.toFixed(4)}` : '---'}</h3>
             </div>
             
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -466,11 +466,11 @@ export const Dashboard: FC<DashboardProps> = ({
          </div>
 
          {/* UTILIZATION RATE (OCCUPANCY) */}
-         <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5"><Percent className="h-16 w-16"/></div>
             <div>
                 <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Truck className="h-3 w-3 text-blue-500"/> Ocupação (Rodando)</p>
-                <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.utilizationRate.toFixed(0)}%</h3>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white">{stats.utilizationRate.toFixed(0)}%</h3>
             </div>
             <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl w-fit">
                 {stats.totalTires} Pneus Ativos
@@ -478,11 +478,11 @@ export const Dashboard: FC<DashboardProps> = ({
          </div>
 
          {/* RETREAD SAVINGS */}
-         <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden group">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><Leaf className="h-16 w-16 text-emerald-500"/></div>
             <div>
                 <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Leaf className="h-3 w-3 text-emerald-500"/> Economia (Recap)</p>
-                <h3 className="text-3xl font-black text-slate-800 dark:text-white">{money(stats.totalRetreadSavings)}</h3>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white truncate">{money(stats.totalRetreadSavings)}</h3>
             </div>
             <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl w-fit">
                 Evitado em pneus novos
@@ -608,13 +608,13 @@ export const Dashboard: FC<DashboardProps> = ({
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Estimativa de reposição (Pneus &lt; 5mm)</p>
                   
                   <div className="flex items-end gap-2 mb-2">
-                      <span className="text-4xl font-black text-indigo-600 dark:text-indigo-400">{stats.warningTiresCount}</span>
+                      <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{stats.warningTiresCount}</span>
                       <span className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">pneus vencerão em breve</span>
                   </div>
                   
                   <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
                       <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Custo Estimado de Reposição</p>
-                      <p className="text-2xl font-black text-slate-800 dark:text-white">{money(stats.projectedCost)}</p>
+                      <p className="text-xl font-black text-slate-800 dark:text-white truncate">{money(stats.projectedCost)}</p>
                   </div>
               </div>
           </div>
@@ -674,7 +674,7 @@ export const Dashboard: FC<DashboardProps> = ({
                                           {log.action.replace('_', ' ')} • Pneu {log.tire}
                                       </p>
                                       <span className="text-[10px] text-slate-400 whitespace-nowrap">
-                                          {new Date(log.date).toLocaleDateString()} {new Date(log.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                          {new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()} {new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                                       </span>
                                   </div>
                                   <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">{log.details}</p>

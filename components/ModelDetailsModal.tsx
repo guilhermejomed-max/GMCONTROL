@@ -64,6 +64,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                 const vEntries = data.entries.filter((e: FuelEntry) => e.vehicleId === v.id);
                 const sorted = [...vEntries].sort((a, b) => a.odometer - b.odometer);
                 let vAvg = 0;
+
                 if (sorted.length >= 2) {
                   const kmDiff = sorted[sorted.length - 1].odometer - sorted[0].odometer;
                   const litersSum = sorted.slice(1).reduce((acc: number, e: FuelEntry) => acc + e.liters, 0);
@@ -74,11 +75,19 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                   <div key={v.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
                     <div className="flex justify-between items-start mb-2">
                       <p className="text-sm font-black text-slate-800 dark:text-white">{v.plate}</p>
-                      <span className="text-[10px] font-black px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
-                        {vAvg > 0 ? `${vAvg.toFixed(2)} km/l` : 'S/ média'}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        {vAvg > 0 ? (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200" title="Média do Período">
+                            {vAvg.toFixed(2)} km/l
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black px-2 py-0.5 bg-slate-50 text-slate-400 rounded-full border border-slate-100">
+                            S/ média
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                    <div className="flex justify-between text-[10px] font-bold text-slate-500 mt-2">
                       <span>{vEntries.length} Abastecimentos</span>
                       <span>{v.odometer?.toLocaleString()} km</span>
                     </div>
@@ -106,9 +115,9 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                  {data.entries.slice(0, 10).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((e: FuelEntry) => (
+                  {data.entries.slice(0, 10).sort((a: any, b: any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime()).map((e: FuelEntry) => (
                     <tr key={e.id} className="text-xs">
-                      <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{new Date(e.date).toLocaleDateString('pt-BR')}</td>
+                      <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{new Date(e.date + (e.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</td>
                       <td className="py-3 font-black text-slate-800 dark:text-white">{e.vehiclePlate}</td>
                       <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{e.liters.toLocaleString()}L</td>
                       <td className="py-3 font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(e.totalCost)}</td>

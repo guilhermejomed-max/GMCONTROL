@@ -16,18 +16,20 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
   onDeleteEntry 
 }) => {
   return (
-    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+    <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar w-full h-full min-h-[400px]">
       {entries.map((entry) => {
         // Try to calculate KM/L for this specific entry if possible
         const vehicleEntries = allFuelEntries
           .filter(e => e.vehicleId === entry.vehicleId)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .sort((a, b) => new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime());
         
         const entryIndex = vehicleEntries.findIndex(e => e.id === entry.id);
         let entryAvg = 0;
+
         if (entryIndex > 0) {
           const prevEntry = vehicleEntries[entryIndex - 1];
           const kmDiff = entry.odometer - prevEntry.odometer;
+          
           if (kmDiff > 0 && entry.liters > 0) {
             entryAvg = kmDiff / entry.liters;
           }
@@ -53,9 +55,9 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-slate-400">{new Date(entry.date).toLocaleDateString('pt-BR')}</p>
+                <p className="text-[10px] font-bold text-slate-400">{new Date(entry.date + (entry.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</p>
                 {entryAvg > 0 && (
-                  <span className="inline-block mt-1 px-2 py-0.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-[9px] font-black rounded-full border border-orange-100 dark:border-orange-800">
+                  <span className="inline-block mt-1 px-2 py-0.5 text-[9px] font-black rounded-full border bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800">
                     {entryAvg.toFixed(2)} KM/L
                   </span>
                 )}

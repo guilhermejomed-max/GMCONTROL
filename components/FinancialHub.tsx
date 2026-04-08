@@ -186,7 +186,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
     tires.forEach(tire => {
         // Check history for 'MONTADO' events within range
         const mountedEvents = tire.history.filter(h => {
-            const d = new Date(h.date);
+            const d = new Date(h.date + (h.date.includes('T') ? '' : 'T12:00:00'));
             return h.action === 'MONTADO' && d >= start && d <= end;
         });
         
@@ -199,7 +199,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
 
         // 3. Pneus Descartados
         const discardEvents = tire.history.filter(h => {
-            const d = new Date(h.date);
+            const d = new Date(h.date + (h.date.includes('T') ? '' : 'T12:00:00'));
             return (h.action === 'DESCARTE' || (h.action === 'EDITADO' && h.details.includes('Status alterado para: Danificado/Descarte'))) && d >= start && d <= end;
         });
 
@@ -272,7 +272,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Patrimônio Líquido (Equity)</p>
-           <h3 className="text-2xl font-black text-slate-800 dark:text-white">{money(stats.currentEquity)}</h3>
+           <h3 className="text-xl font-black text-slate-800 dark:text-white truncate">{money(stats.currentEquity)}</h3>
            <div className="mt-4 flex items-center gap-2">
               <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                  <div className="h-full bg-indigo-500" style={{ width: `${(stats.currentEquity / (stats.totalInvested || 1)) * 100}%` }}></div>
@@ -284,7 +284,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
         <div className="bg-emerald-600 p-6 rounded-3xl shadow-xl shadow-emerald-600/20 text-white relative overflow-hidden group">
            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:rotate-12 transition-transform"><PiggyBank className="h-16 w-16" /></div>
            <p className="text-[10px] font-black text-emerald-100 uppercase tracking-widest mb-1">Economia em Recapagem</p>
-           <h3 className="text-2xl font-black">{money(stats.totalRetreadSavings)}</h3>
+           <h3 className="text-xl font-black truncate">{money(stats.totalRetreadSavings)}</h3>
            <p className="text-[10px] text-emerald-100 mt-4 flex items-center gap-1 font-bold">
               <ShieldCheck className="h-3 w-3" /> ROI Positivo Detectado
            </p>
@@ -292,7 +292,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
 
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm group">
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Custo por KM (Global)</p>
-           <h3 className="text-2xl font-black text-slate-800 dark:text-white">R$ {stats.avgCpk.toFixed(5)}</h3>
+           <h3 className="text-xl font-black text-slate-800 dark:text-white truncate">R$ {stats.avgCpk.toFixed(5)}</h3>
            <div className="mt-4 flex items-center gap-2">
               <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-0.5 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
                  <TrendingDown className="h-3 w-3" /> Eficiente
@@ -302,7 +302,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
 
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-red-500">
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Perda Real (Sucata)</p>
-           <h3 className="text-2xl font-black text-red-600">{money(stats.totalScrapLoss)}</h3>
+           <h3 className="text-xl font-black text-red-600 truncate">{money(stats.totalScrapLoss)}</h3>
            <p className="text-[10px] text-slate-400 mt-4 font-medium">Investimento não recuperado</p>
         </div>
       </div>
@@ -442,7 +442,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                           <div className="flex justify-between items-start mb-4">
                               <div>
                                   <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Pneus Montados (Uso)</p>
-                                  <h4 className="text-3xl font-black text-slate-800 dark:text-white mt-2">{reportData.mountedCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
+                                  <h4 className="text-xl font-black text-slate-800 dark:text-white mt-2 truncate">{reportData.mountedCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
                               </div>
                               <div className="p-3 bg-blue-100 dark:bg-blue-800/30 rounded-xl">
                                   <Layers className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -459,7 +459,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                           <div className="flex justify-between items-start mb-4">
                               <div>
                                   <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Recapagens Feitas</p>
-                                  <h4 className="text-3xl font-black text-slate-800 dark:text-white mt-2">{reportData.retreadCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
+                                  <h4 className="text-xl font-black text-slate-800 dark:text-white mt-2 truncate">{reportData.retreadCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
                               </div>
                               <div className="p-3 bg-emerald-100 dark:bg-emerald-800/30 rounded-xl">
                                   <Recycle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
@@ -476,7 +476,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                           <div className="flex justify-between items-start mb-4">
                               <div>
                                   <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest">Pneus Descartados</p>
-                                  <h4 className="text-3xl font-black text-slate-800 dark:text-white mt-2">{reportData.discardedCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
+                                  <h4 className="text-xl font-black text-slate-800 dark:text-white mt-2 truncate">{reportData.discardedCount} <span className="text-sm font-bold text-slate-400">un</span></h4>
                               </div>
                               <div className="p-3 bg-red-100 dark:bg-red-800/30 rounded-xl">
                                   <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />

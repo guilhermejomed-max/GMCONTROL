@@ -1,0 +1,199 @@
+components/FuelImportModal.tsx:      if (!val) return new Date().toISOString().split('T')[0];
+components/FuelImportModal.tsx:        const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+components/FuelImportModal.tsx:      if (!str) return new Date().toISOString().split('T')[0];
+components/FuelImportModal.tsx:        date: dateStr || new Date().toISOString().split('T')[0],
+components/ServiceOrderHub.tsx:  const [newOrderDate, setNewOrderDate] = useState(new Date().toISOString().split('T')[0]);
+components/ServiceOrderHub.tsx:          updates.startTime = new Date().toISOString();
+components/ServiceOrderHub.tsx:          updates.completedAt = new Date().toISOString();
+components/ServiceOrderHub.tsx:                          lastPerformedDate: new Date().toISOString(),
+components/ServiceOrderHub.tsx:                          lastPerformedDate: new Date().toISOString(),
+components/ServiceOrderHub.tsx:                              createdAt: new Date().toISOString(),
+components/ServiceOrderHub.tsx:                createdAt: new Date().toISOString(),
+components/ServiceOrderHub.tsx:          setNewOrderDate(new Date().toISOString().split('T')[0]);
+components/ServiceOrderHub.tsx:      const diff = new Date(end).getTime() - new Date(start).getTime();
+components/ServiceOrderHub.tsx:                            {order.date ? new Date(order.date + (order.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
+components/ServiceOrderHub.tsx:                                <Clock className="h-3 w-3"/> {getDuration(order.startTime || order.createdAt, new Date().toISOString())}
+components/ServiceOrderHub.tsx:                                  {viewingOrderDetails.completedAt ? new Date(viewingOrderDetails.completedAt).toLocaleDateString() : 'N/A'}
+components/ServiceOrderHub.tsx:  const [hiredDate, setHiredDate] = useState(new Date().toISOString().split('T')[0]);
+components/ServiceOrderHub.tsx:    setHiredDate(new Date().toISOString().split('T')[0]);
+components/ServiceOrderHub.tsx:                <span className="font-bold text-slate-700 dark:text-slate-300">{new Date(c.hiredDate + 'T12:00:00').toLocaleDateString()}</span>
+components/TireComparison.tsx:      const dateStr = new Date().toLocaleDateString('pt-BR');
+components/ModelDetailsModal.tsx:                  {data.entries.slice(0, 10).sort((a: any, b: any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime()).map((e: FuelEntry) => (
+components/ModelDetailsModal.tsx:                      <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{new Date(e.date + (e.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</td>
+components/ReportsHub.tsx:        const d = new Date(val);
+components/ReportsHub.tsx:        const today = new Date().toISOString().split('T')[0];
+components/ReportsHub.tsx:      const end = new Date();
+components/ReportsHub.tsx:      const start = new Date();
+components/ReportsHub.tsx:          const today = new Date().toISOString().split('T')[0];
+components/ReportsHub.tsx:      rawData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+components/ReportsHub.tsx:      rawData.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/ReportsHub.tsx:        date: t.purchaseDate || (t.history?.find(h => h.action === 'CADASTRADO')?.date) || new Date().toISOString(),
+components/ReportsHub.tsx:      rawData.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/ReportsHub.tsx:      rawData = costs.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/ReportsHub.tsx:      rawData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+components/ReportsHub.tsx:      rawData.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/ReportsHub.tsx:            const date = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'));
+components/ReportsHub.tsx:            if (startDate && date < new Date(startDate)) return;
+components/ReportsHub.tsx:            if (endDate && date > new Date(endDate)) return;
+components/ReportsHub.tsx:            const date = new Date(o.returnedDate || o.sentDate);
+components/ReportsHub.tsx:            if (startDate && date < new Date(startDate)) return;
+components/ReportsHub.tsx:            if (endDate && date > new Date(endDate)) return;
+components/ReportsHub.tsx:            const d = new Date(t.purchaseDate || new Date());
+components/ReportsHub.tsx:            if (startDate && d < new Date(startDate)) return false;
+components/ReportsHub.tsx:            if (endDate && d > new Date(endDate)) return false;
+components/ReportsHub.tsx:          const itemDate = new Date(itemDateStr);
+components/ReportsHub.tsx:              const start = new Date(startDate);
+components/ReportsHub.tsx:              const end = new Date(endDate);
+components/ReportsHub.tsx:    link.setAttribute('download', `relatorio_${source.toLowerCase()}_${new Date().toISOString().split('T')[0]}.csv`);
+components/ReportsHub.tsx:              <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+components/ReportsHub.tsx:              <p>Período: ${startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Início'} — ${endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'}</p>
+components/ReportsHub.tsx:            <div>GM Control &copy; ${new Date().getFullYear()} • Sistema de Gestão</div>
+components/TireMovement.tsx:  const [mountDate, setMountDate] = useState(new Date().toISOString().split('T')[0]); // Added Date State
+components/TireMovement.tsx:          setMountDate(new Date().toISOString().split('T')[0]); // Reset date to today
+components/TireMovement.tsx:          const dateObj = new Date(mountDate);
+components/TireMovement.tsx:          const now = new Date();
+components/TireMovement.tsx:                  date: new Date().toISOString(),
+components/TireMovement.tsx:          const now = new Date().toISOString();
+components/TireMovement.tsx:          const now = new Date().toISOString();
+components/TireForm.tsx:    purchaseDate: new Date().toISOString().split('T')[0],
+components/TireForm.tsx:        history: [{ date: new Date().toISOString(), action: 'CADASTRADO', details: formData.vehicleId ? `Novo pneu registrado e montado no veículo ${selectedVehicle?.plate || ''}.` : 'Novo pneu registrado no estoque.' }],
+components/TireForm.tsx:        installDate: formData.vehicleId ? new Date().toISOString() : undefined,
+components/TrackerSettings.tsx:              {new Date(settings.lastSyncAt).toLocaleString('pt-BR')}
+components/RetreadingHub.tsx:    const now = new Date();
+components/RetreadingHub.tsx:    const sentDate = new Date(order.sentDate);
+components/RetreadingHub.tsx:    const returnDate = order.returnedDate ? new Date(order.returnedDate) : null;
+components/RetreadingHub.tsx:      const d = new Date();
+components/RetreadingHub.tsx:        if (sortBy === 'DATE_DESC') return new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime();
+components/RetreadingHub.tsx:        if (sortBy === 'DATE_ASC') return new Date(a.sentDate).getTime() - new Date(b.sentDate).getTime();
+components/RetreadingHub.tsx:    const now = new Date();
+components/RetreadingHub.tsx:      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+components/RetreadingHub.tsx:      const d = new Date(o.returnedDate!);
+components/RetreadingHub.tsx:      const sent = new Date(o.sentDate).getTime();
+components/RetreadingHub.tsx:      const returned = new Date(o.returnedDate!).getTime();
+components/RetreadingHub.tsx:    const expectedDate = new Date(returnDate);
+components/RetreadingHub.tsx:        sentDate: new Date().toISOString(),
+components/RetreadingHub.tsx:                    date: new Date().toISOString(),
+components/RetreadingHub.tsx:                    date: new Date().toISOString(),
+components/RetreadingHub.tsx:                    date: new Date().toISOString(),
+components/RetreadingHub.tsx:        returnedDate: new Date().toISOString(),
+components/RetreadingHub.tsx:    const start = new Date(order.sentDate).getTime();
+components/RetreadingHub.tsx:    const end = order.expectedReturnDate ? new Date(order.expectedReturnDate).getTime() : start + (15 * 24 * 60 * 60 * 1000);
+components/RetreadingHub.tsx:    const now = order.status === 'CONCLUIDO' && order.returnedDate ? new Date(order.returnedDate).getTime() : Date.now();
+components/RetreadingHub.tsx:                  <p><strong>Data de Envio:</strong> ${new Date(order.sentDate).toLocaleDateString()}</p>
+components/RetreadingHub.tsx:                  <p><strong>Previsão de Retorno:</strong> ${new Date(order.expectedReturnDate || '').toLocaleDateString()}</p>
+components/RetreadingHub.tsx:                  <p>Gerado pelo sistema GM Control Pro em ${new Date().toLocaleString()}</p>
+components/RetreadingHub.tsx:                                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> Enviado: {new Date(order.sentDate).toLocaleDateString()}</span>
+components/RetreadingHub.tsx:                                            <CheckCircle2 className="h-5 w-5"/> Finalizado em {new Date(order.returnedDate || '').toLocaleDateString()}
+components/RetreadingHub.tsx:                                                Retorno em: {new Date(order.expectedReturnDate || new Date()).toLocaleDateString()}
+components/InventoryList.tsx:      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+components/InventoryList.tsx:                    <p className="text-xs text-slate-500">Veículo: {so.vehiclePlate} • {new Date(so.createdAt).toLocaleDateString()}</p>
+components/InventoryList.tsx:        const events = [...(tire.history || [])].sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/InventoryList.tsx:                                        <p className="text-xs text-slate-400 mt-1">Montado em: {new Date(tire.installDate || '').toLocaleDateString()}</p>
+components/InventoryList.tsx:                                                            {new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}
+components/InventoryList.tsx:                                                                                    <Calendar className="h-3 w-3" /> Vencimento: {new Date(schedule.nextDueDate).toLocaleDateString('pt-BR')}
+components/InventoryList.tsx:                                                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+components/InventoryList.tsx:                                                                        <p className="text-xs text-slate-500">{new Date(so.createdAt).toLocaleDateString('pt-BR')} • OS #{so.id.slice(-5).toUpperCase()}</p>
+components/InventoryList.tsx:                                Insp: {new Date(tire.lastInspectionDate).toLocaleDateString('pt-BR')}
+components/InventoryList.tsx:      'Última Inspeção': t.lastInspectionDate ? new Date(t.lastInspectionDate).toLocaleDateString('pt-BR') : '-',
+components/InventoryList.tsx:    XLSX.writeFile(wb, `Estoque_Pneus_${new Date().toISOString().split('T')[0]}.xlsx`);
+components/InventoryList.tsx:    XLSX.writeFile(wb, `Relatorio_Pneus_Faltantes_${new Date().toISOString().split('T')[0]}.xlsx`);
+components/InventoryList.tsx:              date: new Date().toISOString(),
+components/InventoryList.tsx:                                          {t.lastInspectionDate ? new Date(t.lastInspectionDate).toLocaleDateString('pt-BR') : '-'}
+components/DemandForecast.tsx:    const today = new Date();
+components/DemandForecast.tsx:      const replacementDate = new Date();
+components/DemandForecast.tsx:    const today = new Date();
+components/DemandForecast.tsx:    const next30 = new Date(); next30.setDate(today.getDate() + 30);
+components/DemandForecast.tsx:    const next90 = new Date(); next90.setDate(today.getDate() + 90);
+components/DemandForecast.tsx:        const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+components/EsgPanel.tsx:        const currentYear = new Date().getFullYear();
+components/EsgPanel.tsx:            new Date(o.returnedDate).getFullYear() === currentYear
+components/EsgPanel.tsx:                      Período: {period === 'YTD' ? `Ano de ${new Date().getFullYear()}` : 'Histórico Completo'}
+components/DriversHub.tsx:    hiredDate: new Date().toISOString().slice(0, 10),
+components/DriversHub.tsx:            hiredDate: new Date().toISOString().slice(0, 10),
+components/DriversHub.tsx:                      <Calendar className="h-3 w-3" /> Admissão: {new Date(driver.hiredDate).toLocaleDateString()}
+components/OnboardingWizard.tsx:        history: [{ date: new Date().toISOString(), action: 'CADASTRADO', details: 'Primeiro pneu do sistema (Onboarding)' }]
+components/FuelDashboard.tsx:    date: new Date().toISOString().split('T')[0],
+components/FuelDashboard.tsx:      .sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/FuelDashboard.tsx:      const now = new Date();
+components/FuelDashboard.tsx:      let filterDate = new Date();
+components/FuelDashboard.tsx:          const sDate = new Date(startDate + 'T12:00:00');
+components/FuelDashboard.tsx:          filtered = filtered.filter(e => new Date(e.date + (e.date.includes('T') ? '' : 'T12:00:00')) >= sDate);
+components/FuelDashboard.tsx:          const eDate = new Date(endDate + (endDate.includes('T') ? '' : 'T12:00:00'));
+components/FuelDashboard.tsx:          filtered = filtered.filter(e => new Date(e.date + (e.date.includes('T') ? '' : 'T12:00:00')) <= eDate);
+components/FuelDashboard.tsx:        filtered = filtered.filter(e => new Date(e.date + (e.date.includes('T') ? '' : 'T12:00:00')) >= filterDate);
+components/FuelDashboard.tsx:    return filtered.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/FuelDashboard.tsx:          .sort((a, b) => new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).valueOf() - new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).valueOf());
+components/FuelDashboard.tsx:      date: newEntry.date || new Date().toISOString().split('T')[0],
+components/FuelDashboard.tsx:      date: new Date().toISOString().split('T')[0],
+components/FuelDashboard.tsx:        createdAt: new Date().toISOString()
+components/Dashboard.tsx:    const now = new Date();
+components/Dashboard.tsx:    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(now.getDate() - 30);
+components/Dashboard.tsx:        const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
+components/Dashboard.tsx:        .sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())
+components/Dashboard.tsx:        const recentMounts = t.history?.filter(h => h.action === 'MONTADO' && new Date(h.date + (h.date.includes('T') ? '' : 'T12:00:00')) > thirtyDaysAgo);
+components/Dashboard.tsx:            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+components/Dashboard.tsx:            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+components/Dashboard.tsx:            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+components/Dashboard.tsx:    let startDate = new Date();
+components/Dashboard.tsx:        startDate = new Date(now.getFullYear(), 0, 1);
+components/Dashboard.tsx:        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+components/Dashboard.tsx:        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+components/Dashboard.tsx:            const d = new Date(t.purchaseDate.includes('T') ? t.purchaseDate : t.purchaseDate + 'T12:00:00');
+components/Dashboard.tsx:                    const d = new Date(ev.date.includes('T') ? ev.date : ev.date + 'T12:00:00');
+components/Dashboard.tsx:                                          {new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()} {new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+components/FinancialHub.tsx:    const start = new Date(reportStartDate);
+components/FinancialHub.tsx:    const end = new Date(reportEndDate);
+components/FinancialHub.tsx:            const d = new Date(h.date + (h.date.includes('T') ? '' : 'T12:00:00'));
+components/FinancialHub.tsx:            const d = new Date(h.date + (h.date.includes('T') ? '' : 'T12:00:00'));
+components/FinancialHub.tsx:            const d = new Date(order.returnedDate);
+components/FinancialHub.tsx:                      Período: {reportStartDate ? new Date(reportStartDate).toLocaleDateString() : 'Início'} até {reportEndDate ? new Date(reportEndDate).toLocaleDateString() : 'Fim'}
+components/BranchManagement.tsx:          createdAt: new Date().toISOString()
+components/InspectionHub.tsx:                <span>Última Inspeção: <span className="text-slate-600 dark:text-slate-300">{tire.lastInspectionDate ? new Date(tire.lastInspectionDate).toLocaleDateString() : 'N/A'}</span></span>
+components/InspectionHub.tsx:        lastInspectionDate: new Date().toISOString(),
+components/InspectionHub.tsx:            date: new Date().toISOString(),
+components/Occurrences.tsx:        createdAt: new Date().toISOString(),
+components/Occurrences.tsx:      resolvedAt: new Date().toISOString()
+components/Occurrences.tsx:                        <div className="text-sm text-gray-900">{new Date(occ.createdAt).toLocaleDateString('pt-BR')}</div>
+components/Occurrences.tsx:                        <div className="text-xs text-gray-500">{new Date(occ.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+components/VehicleManager.tsx:      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+components/VehicleManager.tsx:            <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+components/VehicleManager.tsx:                  <td>${so.date ? new Date(so.date).toLocaleDateString('pt-BR') : new Date(so.createdAt).toLocaleDateString('pt-BR')}</td>
+components/VehicleManager.tsx:                ${vehicleFuel.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime()).map(fe => `
+components/VehicleManager.tsx:                    <td>${new Date(fe.date + (fe.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</td>
+components/VehicleManager.tsx:        createdAt: new Date().toISOString(),
+components/VehicleManager.tsx:            lat: latitude, lng: longitude, address: address, city: city, state: state, updatedAt: new Date().toISOString()
+components/VehicleManager.tsx:          await onUpdateVehicle({ ...vehicle, lastLocation: { lat: latitude, lng: longitude, address: 'Coordenadas GPS (Manual)', city: 'Desconhecida', state: '', updatedAt: new Date().toISOString() } });
+components/VehicleManager.tsx:                                updates.lastLocation = { lat, lng, address: String(finalAddress), city: city || 'Desconhecida', state: state || '', updatedAt: new Date().toISOString() };
+components/VehicleManager.tsx:                                newVehicle.lastLocation = { lat, lng, address: String(finalAddress), city: city || '', state: state || '', updatedAt: new Date().toISOString() };
+components/VehicleManager.tsx:                      const dataPosicaoNova = new Date(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date()).getTime();
+components/VehicleManager.tsx:                                      updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || new Date().toISOString()
+components/VehicleManager.tsx:                                  lastAutoUpdateDate: new Date().toISOString()
+components/VehicleManager.tsx:                             ? `Atualizado: ${new Date(vehicle.lastLocation.updatedAt).toLocaleDateString()} ${new Date(vehicle.lastLocation.updatedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}` 
+components/VehicleManager.tsx:                                            ? `Última atualização: ${new Date(selectedVehicleRG.lastLocation.updatedAt).toLocaleString()}` 
+components/VehicleManager.tsx:                            <p className="text-[10px] text-slate-400 mt-1">Criada em: {new Date(so.createdAt).toLocaleDateString('pt-BR')}</p>
+components/VehicleManager.tsx:                        vehicleFuelEntries.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime()).map(entry => (
+components/VehicleManager.tsx:                                <p className="text-sm font-black text-slate-800 dark:text-white">{new Date(entry.date + (entry.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</p>
+components/VehicleManager.tsx:                                            <Calendar className="h-3 w-3" /> Vencimento: {new Date(schedule.nextDueDate).toLocaleDateString('pt-BR')}
+components/VehicleManager.tsx:                              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+components/VehicleManager.tsx:                                      <p className="text-[10px] text-slate-500">{new Date(so.createdAt).toLocaleDateString('pt-BR')} • OS #{so.id.slice(-5).toUpperCase()}</p>
+components/VehicleManager.tsx:                                            <p className="font-bold text-slate-700 dark:text-slate-300 leading-none">{new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')} - {log.action}</p>
+components/Settings.tsx:        const dateStr = new Date(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+components/Settings.tsx:                           const logTime = new Date(log.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+components/Settings.tsx:                                          {new Date(log.timestamp).toLocaleDateString()} {logTime}
+components/Settings.tsx:                                    {new Date(member.lastLogin).toLocaleDateString()}
+components/ScrapHub.tsx:          date: new Date().toISOString(),
+components/ScrapHub.tsx:                  const date = discardLog ? new Date(discardLog.date + (discardLog.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : '-';
+components/MaintenanceHub.tsx:                 lastInspectionDate: new Date().toISOString(),
+components/MaintenanceHub.tsx:                    date: new Date().toISOString(),
+components/LocationMap.tsx:      const diff = Date.now() - new Date(dateStr).getTime();
+components/LocationMap.tsx:      return new Date(dateStr).toLocaleDateString();
+components/ServiceManager.tsx:    const today = new Date();
+components/ServiceManager.tsx:        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+components/ServiceManager.tsx:        const d = new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00'));
+components/ServiceManager.tsx:        const newItem: StockItem = { id: Date.now().toString(), updatedAt: new Date().toISOString(), ...itemFormData as any };
+components/ServiceManager.tsx:        date: new Date().toISOString(),
+components/ServiceManager.tsx:               Data: ${new Date().toLocaleDateString()} &bull; Hora: ${new Date().toLocaleTimeString()}<br>
+components/ServiceManager.tsx:                      date: new Date().toISOString(),
+components/ServiceManager.tsx:                           <td className="p-4 text-slate-500 dark:text-slate-400">{new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()} {new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+components/RecentEntriesList.tsx:          .sort((a, b) => new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime());
+components/RecentEntriesList.tsx:                <p className="text-[10px] font-bold text-slate-400">{new Date(entry.date + (entry.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</p>

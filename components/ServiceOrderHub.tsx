@@ -733,7 +733,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                     <div className="flex flex-wrap gap-2">
                         <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
                             <Calendar className="h-3 w-3 text-orange-500"/> 
-                            {order.date ? new Date(order.date + 'T12:00:00').toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
+                            {order.date ? new Date(order.date + (order.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
                         </span>
                         {order.odometer && (
                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">

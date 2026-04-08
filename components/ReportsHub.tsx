@@ -292,7 +292,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
     } else if (source === 'MOVEMENTS') {
       rawData = tires.flatMap(t => (t.history || []).map(h => ({ ...h, tireId: t.id })));
       // Ordenar por data decrescente
-      rawData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      rawData.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
     } else if (source === 'COSTS') {
       const purchases = tires.map(t => ({
         date: t.purchaseDate || (t.history?.find(h => h.action === 'CADASTRADO')?.date) || new Date().toISOString(),
@@ -323,7 +323,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
       });
 
       rawData = [...purchases, ...retreads, ...services];
-      rawData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      rawData.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
     } else if (source === 'BRAND_MODELS') {
       const brandModelStats = vehicleBrandModels.map(bm => {
         const bmVehicles = vehicles.filter(v => v.brandModelId === bm.id);
@@ -359,13 +359,13 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
           });
         }
       });
-      rawData = costs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      rawData = costs.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
     } else if (source === 'OCCURRENCES') {
       rawData = [...occurrences];
       rawData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else if (source === 'FUEL') {
       rawData = [...fuelEntries];
-      rawData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      rawData.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
     } else if (source === 'MISSING_TIRES') {
       const missingTires: any[] = [];
       vehicles.forEach(vehicle => {
@@ -403,9 +403,10 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
 
         // Filter and process Service Orders
         serviceOrders.filter(o => o.status === 'CONCLUIDO').forEach(o => {
-            const date = new Date(o.date || o.completedAt || o.createdAt);
-            if (startDate && date < new Date(startDate)) return;
-            if (endDate && date > new Date(endDate)) return;
+            const dateStr = o.date || o.completedAt || o.createdAt;
+            const date = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'));
+            if (startDate && date < new Date(startDate + 'T12:00:00')) return;
+            if (endDate && date > new Date(endDate + 'T12:00:00')) return;
 
             // Labor
             if (o.serviceType === 'INTERNAL') {
@@ -436,8 +437,8 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
         // Filter and process Retread Orders
         retreadOrders.filter(o => o.status === 'CONCLUIDO').forEach(o => {
             const date = new Date(o.returnedDate || o.sentDate);
-            if (startDate && date < new Date(startDate)) return;
-            if (endDate && date > new Date(endDate)) return;
+            if (startDate && date < new Date(startDate + 'T12:00:00')) return;
+            if (endDate && date > new Date(endDate + 'T12:00:00')) return;
 
             costs.retreading.value += (o.totalCost || 0);
             costs.retreading.count++;
@@ -457,9 +458,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
     } else if (source === 'SUMMARY') {
         // Cálculo do resumo
         const filteredTires = tires.filter(t => {
-            const d = new Date(t.purchaseDate || new Date());
-            if (startDate && d < new Date(startDate)) return false;
-            if (endDate && d > new Date(endDate)) return false;
+            const d = new Date(t.purchaseDate ? t.purchaseDate + (t.purchaseDate.includes('T') ? '' : 'T12:00:00') : new Date());
+            if (startDate && d < new Date(startDate + 'T12:00:00')) return false;
+            if (endDate && d > new Date(endDate + 'T12:00:00')) return false;
             return true;
         });
 
@@ -482,14 +483,14 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
       if (startDate || endDate) {
         const itemDateStr = item.date || item.purchaseDate || item.createdAt || item.lastLocation?.updatedAt;
         if (itemDateStr) {
-          const itemDate = new Date(itemDateStr);
+          const itemDate = new Date(itemDateStr + (itemDateStr.includes('T') ? '' : 'T12:00:00'));
           if (startDate) {
-              const start = new Date(startDate);
+              const start = new Date(startDate + 'T12:00:00');
               start.setHours(0,0,0,0);
               if (itemDate < start) return false;
           }
           if (endDate) {
-              const end = new Date(endDate);
+              const end = new Date(endDate + 'T12:00:00');
               end.setHours(23, 59, 59, 999);
               if (itemDate > end) return false;
           }
@@ -993,7 +994,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                 </div>
                 <div>
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Registros</p>
-                  <p className="text-2xl font-black text-slate-900 dark:text-white">{reportSummary.totalRecords}</p>
+                  <p className="text-xl font-black text-slate-900 dark:text-white truncate">{reportSummary.totalRecords}</p>
                 </div>
               </div>
 
@@ -1005,7 +1006,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                     </div>
                     <div>
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Custo Acumulado</p>
-                      <p className="text-2xl font-black text-emerald-600">{money(reportSummary.totalValue)}</p>
+                      <p className="text-xl font-black text-emerald-600 truncate">{money(reportSummary.totalValue)}</p>
                     </div>
                   </div>
 
@@ -1016,7 +1017,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Média por Carro</p>
-                        <p className="text-2xl font-black text-slate-900 dark:text-white">{money(reportSummary.avgValue || 0)}</p>
+                        <p className="text-xl font-black text-slate-900 dark:text-white truncate">{money(reportSummary.avgValue || 0)}</p>
                       </div>
                     </div>
                   )}

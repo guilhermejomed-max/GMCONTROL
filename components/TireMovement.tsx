@@ -278,7 +278,7 @@ export const TireMovement: FC<TireMovementProps> = ({
       setIsProcessing(true);
       try {
           // Construct the date with current time to preserve order but respect selected date
-          const dateObj = new Date(mountDate);
+          const dateObj = new Date(mountDate + 'T12:00:00');
           const now = new Date();
           dateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
           const finalDate = dateObj.toISOString();

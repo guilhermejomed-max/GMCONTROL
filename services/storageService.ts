@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -757,6 +757,72 @@ export const storageService = {
     logActivity(orgId, "Excluiu Tipo de Veículo", `ID: ${id}`, 'TIRES');
   },
 
+  // --- FUEL TYPES ---
+  subscribeToFuelTypes: (orgId: string, callback: (types: FuelType[]) => void) => {
+    const seedIfEmpty = async (types: FuelType[]) => {
+      if (types.length === 0) {
+        const defaults: FuelType[] = [
+          { id: 'diesel-s10', name: 'Diesel S10', description: 'Diesel com baixo teor de enxofre' },
+          { id: 'diesel-s500', name: 'Diesel S500', description: 'Diesel comum' },
+          { id: 'gasolina', name: 'Gasolina', description: 'Gasolina comum' },
+          { id: 'etanol', name: 'Etanol', description: 'Álcool combustível' },
+          { id: 'arla-32', name: 'ARLA 32', description: 'Agente Redutor Líquido Automotivo' }
+        ];
+        for (const t of defaults) {
+          if (mockUser || !db) {
+            LocalDB.add(`fuelTypes`, t);
+          } else {
+            await db.collection("fuelTypes").doc(t.id).set(sanitize(t));
+          }
+        }
+      }
+    };
+
+    if (mockUser || !db) {
+      return LocalDB.subscribe(`fuelTypes`, (data) => {
+        seedIfEmpty(data);
+        callback(data);
+      });
+    }
+
+    return db.collection("fuelTypes").onSnapshot((snapshot) => {
+      const types: FuelType[] = [];
+      snapshot.forEach((doc) => types.push(doc.data() as FuelType));
+      seedIfEmpty(types);
+      callback(types);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `fuelTypes`));
+  },
+
+  addFuelType: async (orgId: string, type: FuelType) => {
+    if (mockUser || !db) { LocalDB.add(`fuelTypes`, type); logActivity(orgId, "Adicionou Tipo de Combustível", `${type.name}`, 'FUEL'); return; }
+    try {
+      await db.collection("fuelTypes").doc(type.id).set(sanitize(type));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `fuelTypes/${type.id}`);
+    }
+    logActivity(orgId, "Adicionou Tipo de Combustível", `${type.name}`, 'FUEL');
+  },
+
+  updateFuelType: async (orgId: string, type: FuelType) => {
+    if (mockUser || !db) { LocalDB.update(`fuelTypes`, type.id, type); logActivity(orgId, "Editou Tipo de Combustível", `${type.name}`, 'FUEL'); return; }
+    try {
+      await db.collection("fuelTypes").doc(type.id).update(sanitize(type));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `fuelTypes/${type.id}`);
+    }
+    logActivity(orgId, "Editou Tipo de Combustível", `${type.name}`, 'FUEL');
+  },
+
+  deleteFuelType: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`fuelTypes`, id); logActivity(orgId, "Excluiu Tipo de Combustível", `ID: ${id}`, 'FUEL'); return; }
+    try {
+      await db.collection("fuelTypes").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `fuelTypes/${id}`);
+    }
+    logActivity(orgId, "Excluiu Tipo de Combustível", `ID: ${id}`, 'FUEL');
+  },
+
   updateVehicleBatch: async (orgId: string, updates: any[]) => {
     if (mockUser || !db) {
         updates.forEach(u => { if(u.id) LocalDB.update(`vehicles`, u.id, u); });
@@ -1102,7 +1168,7 @@ export const storageService = {
   },
 
   subscribeToStockMovements: (orgId: string, callback: (movements: StockMovement[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`stock_movements`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())));
+    if (mockUser || !db) return LocalDB.subscribe(`stock_movements`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())));
     return db.collection("stock_movements").orderBy('date', 'desc').limit(100).onSnapshot((snapshot) => {
       const movements: StockMovement[] = [];
       snapshot.forEach((doc) => movements.push(doc.data() as StockMovement));
@@ -1504,7 +1570,7 @@ export const storageService = {
 
   // --- FUEL MANAGEMENT ---
   subscribeToFuelEntries: (orgId: string, callback: (entries: FuelEntry[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`fuel_entries`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())), []);
+    if (mockUser || !db) return LocalDB.subscribe(`fuel_entries`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())), []);
     return db.collection("fuel_entries").orderBy("date", "desc").onSnapshot((snapshot) => {
       const entries: FuelEntry[] = [];
       snapshot.forEach((doc) => entries.push(doc.data() as FuelEntry));

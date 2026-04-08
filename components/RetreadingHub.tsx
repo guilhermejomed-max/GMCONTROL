@@ -27,8 +27,8 @@ const OrderTimeline: React.FC<{ order: RetreadOrder }> = ({ order }) => {
     // Determine current step based on dates
     let currentStepIndex = 0;
     const now = new Date();
-    const sentDate = new Date(order.sentDate);
-    const returnDate = order.returnedDate ? new Date(order.returnedDate) : null;
+    const sentDate = new Date(order.sentDate + (order.sentDate.includes('T') ? '' : 'T12:00:00'));
+    const returnDate = order.returnedDate ? new Date(order.returnedDate + (order.returnedDate.includes('T') ? '' : 'T12:00:00')) : null;
     
     if (order.status === 'CONCLUIDO' || returnDate) {
         currentStepIndex = 2;
@@ -200,8 +200,8 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
         return matchesPartner && matchesStatus && matchesSearch;
       })
       .sort((a, b) => {
-        if (sortBy === 'DATE_DESC') return new Date(b.sentDate).getTime() - new Date(a.sentDate).getTime();
-        if (sortBy === 'DATE_ASC') return new Date(a.sentDate).getTime() - new Date(b.sentDate).getTime();
+        if (sortBy === 'DATE_DESC') return new Date(b.sentDate + (b.sentDate.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.sentDate + (a.sentDate.includes('T') ? '' : 'T12:00:00')).getTime();
+        if (sortBy === 'DATE_ASC') return new Date(a.sentDate + (a.sentDate.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(b.sentDate + (b.sentDate.includes('T') ? '' : 'T12:00:00')).getTime();
         if (sortBy === 'ORDER_NUM') return b.orderNumber - a.orderNumber;
         return 0;
       });
@@ -232,7 +232,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
     }
 
     retreadOrders.filter(o => o.status === 'CONCLUIDO' && o.returnedDate).forEach(o => {
-      const d = new Date(o.returnedDate!);
+      const d = new Date(o.returnedDate + (o.returnedDate.includes('T') ? '' : 'T12:00:00'));
       const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
       if (monthlySavings[key] !== undefined) {
         // Calculate savings for this order
@@ -254,8 +254,8 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
   const partnerPerformance = useMemo(() => {
     const perf: Record<string, { totalDays: number, count: number }> = {};
     retreadOrders.filter(o => o.status === 'CONCLUIDO' && o.returnedDate).forEach(o => {
-      const sent = new Date(o.sentDate).getTime();
-      const returned = new Date(o.returnedDate!).getTime();
+      const sent = new Date(o.sentDate + (o.sentDate.includes('T') ? '' : 'T12:00:00')).getTime();
+      const returned = new Date(o.returnedDate + (o.returnedDate.includes('T') ? '' : 'T12:00:00')).getTime();
       const days = (returned - sent) / (1000 * 60 * 60 * 24);
       
       if (!perf[o.retreaderName]) perf[o.retreaderName] = { totalDays: 0, count: 0 };
@@ -378,7 +378,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
     const orderNumber = (retreadOrders.reduce((max, o) => Math.max(max, o.orderNumber), 0) || 0) + 1;
     
     // Usar data selecionada
-    const expectedDate = new Date(returnDate);
+    const expectedDate = new Date(returnDate + (returnDate.includes('T') ? '' : 'T12:00:00'));
     const expectedDateStr = expectedDate.toISOString();
 
     const distinctPatterns = Array.from(new Set(stagedItems.map(i => i.pattern))) as string[];
@@ -592,9 +592,9 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
   };
 
   const calculateTimeline = (order: RetreadOrder) => {
-    const start = new Date(order.sentDate).getTime();
-    const end = order.expectedReturnDate ? new Date(order.expectedReturnDate).getTime() : start + (15 * 24 * 60 * 60 * 1000);
-    const now = order.status === 'CONCLUIDO' && order.returnedDate ? new Date(order.returnedDate).getTime() : Date.now();
+    const start = new Date(order.sentDate + (order.sentDate.includes('T') ? '' : 'T12:00:00')).getTime();
+    const end = order.expectedReturnDate ? new Date(order.expectedReturnDate + (order.expectedReturnDate.includes('T') ? '' : 'T12:00:00')).getTime() : start + (15 * 24 * 60 * 60 * 1000);
+    const now = order.status === 'CONCLUIDO' && order.returnedDate ? new Date(order.returnedDate + (order.returnedDate.includes('T') ? '' : 'T12:00:00')).getTime() : Date.now();
     
     const total = end - start;
     const elapsed = now - start;
@@ -632,8 +632,8 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
               <div class="header">
                   <p><strong>Ordem:</strong> #${String(order.orderNumber).padStart(4, '0')}</p>
                   <p><strong>Parceiro (Recapadora):</strong> ${order.retreaderName}</p>
-                  <p><strong>Data de Envio:</strong> ${new Date(order.sentDate).toLocaleDateString()}</p>
-                  <p><strong>Previsão de Retorno:</strong> ${new Date(order.expectedReturnDate || '').toLocaleDateString()}</p>
+                  <p><strong>Data de Envio:</strong> ${new Date(order.sentDate + (order.sentDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}</p>
+                  <p><strong>Previsão de Retorno:</strong> ${new Date((order.expectedReturnDate || '') + ((order.expectedReturnDate || '').includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}</p>
                   <p><strong>Total de Pneus:</strong> ${order.tireIds.length}</p>
               </div>
               
@@ -1005,7 +1005,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                                             <h3 className="font-black text-xl text-slate-800 dark:text-white leading-none">{order.retreaderName}</h3>
                                         </div>
                                         <div className="flex items-center gap-3 mt-2 text-xs font-bold text-slate-400">
-                                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> Enviado: {new Date(order.sentDate).toLocaleDateString()}</span>
+                                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> Enviado: {new Date(order.sentDate + (order.sentDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}</span>
                                             <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
                                             <span className="flex items-center gap-1 font-black text-purple-600 uppercase tracking-tighter">
                                                 {Object.entries(summary).map(([pat, count]) => `${count}x ${pat}`).join(', ')}

@@ -1,6 +1,6 @@
 
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
-import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType, FuelEntry } from '../types';
+import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType, FuelType, FuelEntry } from '../types';
 import { storageService } from '../services/storageService';
 import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2 } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
@@ -528,6 +528,7 @@ interface VehicleManagerProps {
   trackerSettings: TrackerSettings | null;
   onSyncSascar?: (showModal?: boolean) => Promise<number>;
   vehicleTypes?: VehicleType[];
+  fuelTypes?: FuelType[];
   fuelEntries?: FuelEntry[];
 }
 
@@ -552,6 +553,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   trackerSettings, 
   onSyncSascar,
   vehicleTypes: propVehicleTypes = [],
+  fuelTypes = [],
   fuelEntries = []
 }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -718,7 +720,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             <tbody>
               ${vehicleOrders.map(so => `
                 <tr>
-                  <td>${so.date ? new Date(so.date).toLocaleDateString('pt-BR') : new Date(so.createdAt).toLocaleDateString('pt-BR')}</td>
+                  <td>${so.date ? new Date(so.date + (so.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : new Date(so.createdAt).toLocaleDateString('pt-BR')}</td>
                   <td>${so.odometer?.toLocaleString() || '-'}</td>
                   <td>
                     <strong>${so.title}</strong>
@@ -752,9 +754,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 </tr>
               </thead>
               <tbody>
-                ${vehicleFuel.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(fe => `
+                ${vehicleFuel.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime()).map(fe => `
                   <tr>
-                    <td>${new Date(fe.date).toLocaleDateString('pt-BR')}</td>
+                    <td>${new Date(fe.date + (fe.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</td>
                     <td>${fe.odometer.toLocaleString()}</td>
                     <td>${fe.liters.toLocaleString()} L</td>
                     <td>${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fe.unitPrice)}</td>
@@ -1545,6 +1547,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                           const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
                           const latVal = Number(sv.latitude || sv.lat || 0);
                           const lngVal = Number(sv.longitude || sv.lng || 0);
+                          
                           console.log(`[Sascar Sync Debug] Atualizando dados: Odo=${rawOdo}, Lat=${latVal}, Lng=${lngVal}`);
 
                           bestUpdates.set(matchKey, {
@@ -1772,6 +1775,16 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             })()
                           : vehicle.model}
                       </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 uppercase">
+                          {vehicle.type}
+                        </span>
+                        {vehicle.fuelType && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 uppercase">
+                            {vehicle.fuelType}
+                          </span>
+                        )}
+                      </div>
                       {vehicle.branchId ? (
                         <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase flex items-center gap-1">
                           <Building2 className="h-3 w-3" />
@@ -1852,6 +1865,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium">
                     <Gauge className="h-4 w-4" /> {vehicle.odometer.toLocaleString()} km
                   </div>
+                  {vehicle.averageKmPerLiter ? (
+                    <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                      <Fuel className="h-3 w-3" /> {vehicle.averageKmPerLiter.toFixed(2)} km/L <span className="text-[8px] uppercase opacity-70">(Abast.)</span>
+                    </div>
+                  ) : null}
                   {vehicle.sascarCode && (
                     <div className="text-[10px] text-slate-400 font-medium">
                       Cód. Sascar: {vehicle.sascarCode}
@@ -2154,7 +2172,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 <Activity className="h-4 w-4" />
                                 <span className="text-[10px] font-black uppercase tracking-wider">Consumo Diesel</span>
                             </div>
-                            <p className="text-2xl font-black text-slate-800 dark:text-white">{rgStats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-500">L</span></p>
+                            <p className="text-xl font-black text-slate-800 dark:text-white truncate">{rgStats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-500">L</span></p>
                             <p className="text-[10px] font-bold text-slate-500 mt-1">Investimento: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.fuelCost)}</p>
                         </div>
                         <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-800">
@@ -2162,7 +2180,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 <Wrench className="h-4 w-4" />
                                 <span className="text-[10px] font-black uppercase tracking-wider">Manutenção</span>
                             </div>
-                            <p className="text-2xl font-black text-slate-800 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.maintenanceCost)}</p>
+                            <p className="text-xl font-black text-slate-800 dark:text-white truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.maintenanceCost)}</p>
                             <p className="text-[10px] font-bold text-slate-500 mt-1">Total acumulado</p>
                         </div>
                         <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-800">
@@ -2170,7 +2188,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 <LayoutGrid className="h-4 w-4" />
                                 <span className="text-[10px] font-black uppercase tracking-wider">Resumo Geral</span>
                             </div>
-                            <p className="text-2xl font-black text-slate-800 dark:text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.totalCost)}</p>
+                            <p className="text-xl font-black text-slate-800 dark:text-white truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.totalCost)}</p>
                             <p className="text-[10px] font-bold text-slate-500 mt-1">Diesel + Manutenção</p>
                         </div>
                     </div>
@@ -2283,14 +2301,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
                     <div className="space-y-3">
                       {vehicleFuelEntries.length > 0 ? (
-                        vehicleFuelEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => (
+                        vehicleFuelEntries.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime()).map(entry => (
                           <div key={entry.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex justify-between items-center">
                             <div className="flex items-center gap-4">
                               <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
                                 <Fuel className="h-5 w-5 text-blue-600" />
                               </div>
                               <div>
-                                <p className="text-sm font-black text-slate-800 dark:text-white">{new Date(entry.date).toLocaleDateString('pt-BR')}</p>
+                                <p className="text-sm font-black text-slate-800 dark:text-white">{new Date(entry.date + (entry.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</p>
                                 <p className="text-[10px] font-bold text-slate-500 uppercase">{entry.stationName || 'Posto não informado'}</p>
                               </div>
                             </div>
@@ -2592,7 +2610,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                         <div key={idx} className="flex gap-2 items-start text-[9px]">
                                           <div className="w-1 h-1 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
                                           <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-slate-700 dark:text-slate-300 leading-none">{new Date(log.date).toLocaleDateString('pt-BR')} - {log.action}</p>
+                                            <p className="font-bold text-slate-700 dark:text-slate-300 leading-none">{new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')} - {log.action}</p>
                                             <p className="text-slate-500 italic truncate">{log.details}</p>
                                           </div>
                                         </div>
@@ -2682,7 +2700,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                           : formData.revisionIntervalKm,
                         oilLiters: (selectedBM?.oilLiters && selectedBM.oilLiters > 0)
                           ? selectedBM.oilLiters
-                          : formData.oilLiters
+                          : formData.oilLiters,
+                        fuelType: selectedBM?.fuelType || formData.fuelType
                       });
                     }}
                   >
@@ -2710,24 +2729,26 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ANO</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.year || ''} onChange={e => setFormData({...formData, year: e.target.value})} placeholder="Ex: 2022" />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COR</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.color || ''} onChange={e => setFormData({...formData, color: e.target.value})} placeholder="Ex: Branco" />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FROTA #</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fleetNumber || ''} onChange={e => setFormData({...formData, fleetNumber: e.target.value})} placeholder="Ex: 1020" />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RENAVAM</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.renavam || ''} onChange={e => setFormData({...formData, renavam: e.target.value})} placeholder="Renavam" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CHASSI (VIN)</label>
-                <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin || ''} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CHASSI (VIN)</label>
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin || ''} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
+                </div>
               </div>
               {!isCarreta && (
                 <div className="grid grid-cols-2 gap-4">
@@ -2745,7 +2766,16 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 {!isCarreta && (
                   <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COMBUSTÍVEL</label>
-                    <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.fuelType || ''} onChange={e => setFormData({...formData, fuelType: e.target.value})} placeholder="Ex: Diesel" />
+                    <select 
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
+                      value={formData.fuelType || ''} 
+                      onChange={e => setFormData({...formData, fuelType: e.target.value})}
+                    >
+                      <option value="">Selecione o combustível</option>
+                      {fuelTypes.map(ft => (
+                        <option key={ft.id} value={ft.name}>{ft.name}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
                 <div className={isCarreta ? "col-span-2" : ""}>
