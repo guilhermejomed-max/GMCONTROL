@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem } from '../types';
+import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel } from '../types';
 import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
+import { ServiceOrderOpening } from './ServiceOrderOpening';
 
 interface ServiceOrderHubProps {
   orgId: string;
@@ -23,12 +24,13 @@ interface ServiceOrderHubProps {
   initialVehicleId?: string;
   initialModalOpen?: boolean;
   onCloseInitialModal?: () => void;
-  collaborators?: import('../types').Collaborator[];
-  partners?: import('../types').Partner[];
-  onAddCollaborator?: (collaborator: import('../types').Collaborator) => Promise<void>;
-  onUpdateCollaborator?: (id: string, updates: Partial<import('../types').Collaborator>) => Promise<void>;
+  collaborators?: Collaborator[];
+  partners?: Partner[];
+  drivers?: Driver[];
+  onAddCollaborator?: (collaborator: Collaborator) => Promise<void>;
+  onUpdateCollaborator?: (id: string, updates: Partial<Collaborator>) => Promise<void>;
   onDeleteCollaborator?: (id: string) => Promise<void>;
-  userLevel: import('../types').UserLevel;
+  userLevel: UserLevel;
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
@@ -58,7 +60,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   onAddCollaborator,
   onUpdateCollaborator,
   onDeleteCollaborator,
-  userLevel
+  userLevel,
+  drivers = []
 }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
@@ -94,36 +97,17 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
   // Create Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newOrderVehicleId, setNewOrderVehicleId] = useState('');
 
   React.useEffect(() => {
     if (initialModalOpen) {
       setIsCreateModalOpen(true);
-      if (initialVehicleId) {
-        setNewOrderVehicleId(initialVehicleId);
-      }
       onCloseInitialModal?.();
     }
   }, [initialModalOpen, initialVehicleId, onCloseInitialModal]);
-  const [newOrderTitle, setNewOrderTitle] = useState('');
-  const [newOrderMaintenancePlanId, setNewOrderMaintenancePlanId] = useState('');
-  const [newOrderDetails, setNewOrderDetails] = useState('');
-  const [newOrderMaintenanceBaseId, setNewOrderMaintenanceBaseId] = useState('');
-  const [newOrderDate, setNewOrderDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newOrderOdometer, setNewOrderOdometer] = useState<number | ''>('');
+
   const [isPreventiveMaintenance, setIsPreventiveMaintenance] = useState(false);
-  const [includeParts, setIncludeParts] = useState(false);
-  const [newOrderCollaboratorId, setNewOrderCollaboratorId] = useState('');
-  const [newOrderPartnerId, setNewOrderPartnerId] = useState('');
-  const [newOrderServiceId, setNewOrderServiceId] = useState('');
-  const [newOrderLaborHours, setNewOrderLaborHours] = useState<number | ''>(1);
   
-  const [newOrderTireId, setNewOrderTireId] = useState('');
   const [editOrderTireId, setEditOrderTireId] = useState('');
-  
-  const [newOrderServiceType, setNewOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL' | 'BOTH'>('INTERNAL');
-  const [newOrderProviderName, setNewOrderProviderName] = useState('');
-  const [newOrderExternalServiceCost, setNewOrderExternalServiceCost] = useState<number | ''>('');
   
   // Edit Modal State
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
@@ -141,21 +125,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
 
-  const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [viewingOrderDetails, setViewingOrderDetails] = useState<ServiceOrder | null>(null);
-
-  // Parts Selection State
-  const [newOrderParts, setNewOrderParts] = useState<{ itemId: string; name: string; quantity: number; unitCost: number }[]>([]);
-  const [selectedStockItemId, setSelectedStockItemId] = useState('');
-  const [selectedStockItemQty, setSelectedStockItemQty] = useState(1);
-
-  const handleUpdatePartQty = (itemId: string, newQty: number) => {
-      if (newQty < 1) return;
-      setNewOrderParts(newOrderParts.map(p => 
-          p.itemId === itemId ? { ...p, quantity: newQty } : p
-      ));
-  };
 
   const handleEditUpdatePartQty = (index: number, newQty: number) => {
       if (newQty < 1) return;
@@ -189,32 +160,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       setEditOrderParts(editOrderParts.filter((_, i) => i !== index));
   };
 
-  const handleAddPart = () => {
-      if (!selectedStockItemId) return;
-      const item = stockItems.find(i => i.id === selectedStockItemId);
-      if (!item) return;
-
-      const existing = newOrderParts.find(p => p.itemId === selectedStockItemId);
-      if (existing) {
-          setNewOrderParts(newOrderParts.map(p => 
-              p.itemId === selectedStockItemId ? { ...p, quantity: p.quantity + selectedStockItemQty } : p
-          ));
-      } else {
-          setNewOrderParts([...newOrderParts, {
-              itemId: item.id,
-              name: item.name,
-              quantity: selectedStockItemQty,
-              unitCost: item.averageCost
-          }]);
-      }
-      setSelectedStockItemId('');
-      setSelectedStockItemQty(1);
-  };
-
-  const handleRemovePart = (itemId: string) => {
-      setNewOrderParts(newOrderParts.filter(p => p.itemId !== itemId));
-  };
-
   const maintenanceAlerts = useMemo(() => {
     return maintenanceSchedules.filter(s => {
       const vehicle = vehicles.find(v => v.id === s.vehicleId);
@@ -222,27 +167,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       return vehicle.odometer >= s.nextDueKm;
     });
   }, [maintenanceSchedules, vehicles]);
-
-  const pendingAlertsForVehicle = useMemo(() => {
-      if (!newOrderVehicleId) return [];
-      const vehicle = vehicles.find(v => v.id === newOrderVehicleId);
-      if (!vehicle) return [];
-      return arrivalAlerts.filter(a => 
-          a.status === 'PENDING' && 
-          a.vehiclePlate.toUpperCase().replace(/[^A-Z0-9]/g, '') === vehicle.plate.toUpperCase().replace(/[^A-Z0-9]/g, '')
-      );
-  }, [arrivalAlerts, newOrderVehicleId, vehicles]);
-
-  const vehicleMaintenancePlan = useMemo(() => {
-    if (!newOrderVehicleId) return null;
-    const vehicle = vehicles.find(v => v.id === newOrderVehicleId);
-    if (!vehicle || !vehicle.brandModelId) return null;
-    
-    const brandModel = vehicleBrandModels.find(bm => bm.id === vehicle.brandModelId);
-    if (!brandModel || !brandModel.maintenancePlanId) return null;
-
-    return maintenancePlans.find(p => p.id === brandModel.maintenancePlanId) || null;
-  }, [newOrderVehicleId, vehicles, vehicleBrandModels, maintenancePlans]);
 
   const filteredOrders = useMemo(() => {
     return serviceOrders
@@ -267,16 +191,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       });
   }, [serviceOrders, filter, searchTerm, fuelFilter, vehicles]);
 
-  // Derived state for available tires based on selected plate
-  const availableTiresForSelection = useMemo(() => {
-      const selectedVehicle = vehicles.find(v => v.id === newOrderVehicleId);
-      
-      const mountedTires = selectedVehicle ? tires.filter(t => t.vehicleId === selectedVehicle.id) : [];
-      const retreadingTires = tires.filter(t => t.status === TireStatus.RETREADING);
-      
-      return { mountedTires, retreadingTires };
-  }, [tires, newOrderVehicleId, vehicles]);
-  
   const handleStatusChange = async (order: ServiceOrder, newStatus: ServiceOrder['status']) => {
       const updates: Partial<ServiceOrder> = { status: newStatus };
       
@@ -354,108 +268,6 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       }
       }
       await onUpdateOrder(order.id, updates);
-  };
-
-  const handleCreateOrder = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!onAddOrder) return;
-
-      const vehicle = vehicles.find(v => v.id === newOrderVehicleId);
-      if (!vehicle) {
-          alert("Por favor, selecione um veículo.");
-          return;
-      }
-
-      if (!newOrderDetails) {
-          alert("Preencha os detalhes do serviço.");
-          return;
-      }
-
-
-      setIsCreating(true);
-      try {
-          let arrivalAlertId: string | undefined = undefined;
-          
-          // Create Arrival Alert if a base is selected
-          if (newOrderMaintenanceBaseId && settings?.savedPoints) {
-            const base = settings.savedPoints.find(p => p.id === newOrderMaintenanceBaseId);
-            if (base) {
-              const newAlert: ArrivalAlert = {
-                id: Date.now().toString(),
-                vehiclePlate: vehicle.plate,
-                targetName: base.name,
-                targetLat: base.lat,
-                targetLng: base.lng,
-                radius: base.radius || settings.alertRadius || 500,
-                services: `O.S.: ${newOrderTitle || 'Manutenção'}`,
-                status: 'PENDING',
-                createdAt: new Date().toISOString(),
-                createdBy: 'Sistema (O.S.)',
-                branchId: defaultBranchId
-              };
-              await storageService.addArrivalAlert(orgId, newAlert);
-              arrivalAlertId = newAlert.id;
-            }
-          }
-
-          const collaborator = filteredCollaborators.find(c => c.id === newOrderCollaboratorId);
-          const laborCost = (collaborator && newOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(newOrderLaborHours) : 0;
-          
-          const partner = partners.find(p => p.id === newOrderPartnerId);
-          const service = partner?.services.find(s => s.id === newOrderServiceId);
-          const tire = tires.find(t => t.id === newOrderTireId);
-
-          await onAddOrder({
-              vehicleId: vehicle.id,
-              vehiclePlate: vehicle.plate,
-              tireId: newOrderTireId || undefined,
-              tireFireNumber: tire?.fireNumber,
-              title: newOrderTitle || (newOrderDetails.length > 40 ? newOrderDetails.substring(0, 40) + '...' : newOrderDetails) || 'Manutenção',
-              details: newOrderDetails,
-              date: newOrderDate,
-              serviceType: newOrderServiceType,
-              providerName: (newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') ? partner?.name : undefined,
-              externalServiceCost: (newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') ? (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) : undefined,
-              services: (newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') && service ? [{ id: service.id, name: service.name, cost: (newOrderExternalServiceCost !== '' ? Number(newOrderExternalServiceCost) : 0) }] : undefined,
-              maintenancePlanId: newOrderMaintenancePlanId || undefined,
-              maintenanceBaseId: newOrderMaintenanceBaseId || undefined,
-              maintenanceBaseName: settings?.savedPoints?.find(p => p.id === newOrderMaintenanceBaseId)?.name,
-              arrivalAlertId,
-              isPreventiveMaintenance,
-              odometer: newOrderOdometer !== '' ? newOrderOdometer : undefined,
-              parts: includeParts && newOrderParts.length > 0 ? newOrderParts.map(p => ({ name: p.name, quantity: p.quantity, unitCost: p.unitCost })) : undefined,
-              collaboratorId: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? (newOrderCollaboratorId || undefined) : undefined,
-              collaboratorName: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? collaborator?.name : undefined,
-              laborHours: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? (newOrderLaborHours !== '' ? Number(newOrderLaborHours) : undefined) : undefined,
-              laborCost: (newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined,
-              branchId: defaultBranchId,
-              // startTime is undefined on creation. It is set when "Iniciar Serviço" is clicked.
-              status: 'PENDENTE'
-          });
-          setNewOrderTireId('');
-          setIsCreateModalOpen(false);
-          setNewOrderVehicleId('');
-          setNewOrderTitle('');
-          setNewOrderDetails('');
-          setNewOrderDate(new Date().toISOString().split('T')[0]);
-          setNewOrderMaintenancePlanId('');
-          setNewOrderMaintenanceBaseId('');
-          setNewOrderOdometer('');
-          setIsPreventiveMaintenance(false);
-          setNewOrderParts([]);
-          setNewOrderCollaboratorId('');
-          setNewOrderLaborHours('');
-          setNewOrderServiceType('INTERNAL');
-          setNewOrderPartnerId('');
-          setNewOrderServiceId('');
-          setNewOrderProviderName('');
-          setNewOrderExternalServiceCost('');
-      } catch (err) {
-          console.error(err);
-          alert("Erro ao criar Ordem de Serviço.");
-      } finally {
-          setIsCreating(false);
-      }
   };
 
   const handleOpenEditModal = (order: ServiceOrder) => {
@@ -849,342 +661,47 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         </>
       )}
 
-      {/* CREATE ORDER MODAL */}
-      {isCreateModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-                  <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
-                      <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
-                          <Plus className="h-5 w-5 text-orange-600"/> Nova Ordem de Serviço
-                      </h3>
-                      <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
-                  </div>
-                  <form onSubmit={handleCreateOrder} className="p-6 space-y-6">
-                      {/* Section: Basic Info */}
-                      <div className="space-y-4">
-                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                              <Truck className="h-4 w-4 text-orange-500"/>
-                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Informações do Veículo</h4>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="md:col-span-2">
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Veículo (Obrigatório)</label>
-                                  <select 
-                                      required 
-                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                      value={newOrderVehicleId}
-                                      onChange={e => {
-                                          const vid = e.target.value;
-                                          setNewOrderVehicleId(vid);
-                                          const v = vehicles.find(veh => veh.id === vid);
-                                          if (v) {
-                                              setNewOrderOdometer(v.odometer);
-                                          }
-                                          setNewOrderTireId('');
-                                      }}
-                                  >
-                                      <option value="">Selecione um veículo...</option>
-                                      {vehicles.map(v => (
-                                          <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>
-                                      ))}
-                                  </select>
-                              </div>
-
-                              <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Hodômetro Atual (KM)</label>
-                                  <input 
-                                      type="number"
-                                      required 
-                                      placeholder="KM atual"
-                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                      value={newOrderOdometer}
-                                      onChange={e => setNewOrderOdometer(Number(e.target.value))}
-                                  />
-                              </div>
-
-                              <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Data da O.S.</label>
-                                  <input 
-                                      type="date"
-                                      required 
-                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                      value={newOrderDate}
-                                      onChange={e => setNewOrderDate(e.target.value)}
-                                  />
-                              </div>
-                          </div>
-                      </div>
-
-                      {/* Section: Service Details */}
-                      <div className="space-y-4">
-                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                              <Wrench className="h-4 w-4 text-orange-500"/>
-                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Detalhes do Serviço</h4>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de Serviço</label>
-                                  <select 
-                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                      value={newOrderServiceType}
-                                      onChange={e => setNewOrderServiceType(e.target.value as 'INTERNAL' | 'EXTERNAL' | 'BOTH')}
-                                  >
-                                      <option value="INTERNAL">Interno</option>
-                                      <option value="EXTERNAL">Externo</option>
-                                      <option value="BOTH">Misto (Interno + Externo)</option>
-                                  </select>
-                              </div>
-                              
-                              {(newOrderServiceType === 'INTERNAL' || newOrderServiceType === 'BOTH') && (
-                                  <div className="animate-in slide-in-from-top-2">
-                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Colaborador Interno</label>
-                                      <select 
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                          value={newOrderCollaboratorId}
-                                          onChange={e => setNewOrderCollaboratorId(e.target.value)}
-                                      >
-                                          <option value="">Selecionar...</option>
-                                          {filteredCollaborators.filter(c => c.isActive).map(c => (
-                                              <option key={c.id} value={c.id}>{c.name}</option>
-                                          ))}
-                                      </select>
-                                  </div>
-                              )}
-
-                              {(newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') && (
-                                  <div className="animate-in slide-in-from-top-2">
-                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Parceiro Externo</label>
-                                      <select 
-                                          required 
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                          value={newOrderPartnerId}
-                                          onChange={e => {
-                                              setNewOrderPartnerId(e.target.value);
-                                              setNewOrderServiceId('');
-                                          }}
-                                      >
-                                          <option value="">Selecione...</option>
-                                          {partners.map(p => (
-                                              <option key={p.id} value={p.id}>{p.name}</option>
-                                          ))}
-                                      </select>
-                                  </div>
-                              )}
-                          </div>
-
-                          {(newOrderServiceType === 'EXTERNAL' || newOrderServiceType === 'BOTH') && newOrderPartnerId && (
-                              <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
-                                  <div>
-                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Serviço Externo</label>
-                                      <select 
-                                          required 
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                          value={newOrderServiceId}
-                                          onChange={e => {
-                                              const svcId = e.target.value;
-                                              setNewOrderServiceId(svcId);
-                                              const partner = partners.find(p => p.id === newOrderPartnerId);
-                                              const service = partner?.services.find(s => s.id === svcId);
-                                              if (service) {
-                                                  setNewOrderExternalServiceCost(service.cost);
-                                              }
-                                          }}
-                                      >
-                                          <option value="">Selecione...</option>
-                                          {partners.find(p => p.id === newOrderPartnerId)?.services.map(s => (
-                                              <option key={s.id} value={s.id}>{s.name}</option>
-                                          ))}
-                                      </select>
-                                  </div>
-                                  <div>
-                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Valor Externo (R$)</label>
-                                      <input 
-                                          type="number"
-                                          required 
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                          value={newOrderExternalServiceCost}
-                                          onChange={e => setNewOrderExternalServiceCost(e.target.value === '' ? '' : Number(e.target.value))}
-                                      />
-                                  </div>
-                              </div>
-                          )}
-
-                          <div>
-                              <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descrição do Problema / Serviço</label>
-                              <textarea 
-                                  required 
-                                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm transition-all"
-                                  placeholder="O que precisa ser feito?"
-                                  value={newOrderDetails}
-                                  onChange={e => setNewOrderDetails(e.target.value)}
-                              />
-                          </div>
-                      </div>
-
-                      {/* Section: Maintenance Plan & Alerts */}
-                      {(pendingAlertsForVehicle.length > 0 || vehicleMaintenancePlan) && (
-                          <div className="space-y-4">
-                              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                                  <Bell className="h-4 w-4 text-orange-500"/>
-                                  <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Alertas e Planos</h4>
-                              </div>
-
-                              {pendingAlertsForVehicle.length > 0 && (
-                                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/50">
-                                      <h5 className="text-[10px] font-black text-blue-800 dark:text-blue-300 uppercase mb-2">Agendamentos Pendentes</h5>
-                                      <div className="flex flex-wrap gap-2">
-                                          {pendingAlertsForVehicle.map(alert => (
-                                              <span key={alert.id} className="text-[9px] font-bold text-blue-700 dark:text-blue-400 bg-white dark:bg-blue-950/50 px-2 py-1 rounded border border-blue-100 dark:border-blue-900">
-                                                  {alert.targetName}
-                                              </span>
-                                          ))}
-                                      </div>
-                                  </div>
-                              )}
-
-                              {vehicleMaintenancePlan && (
-                                  <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
-                                      <div className="flex items-center justify-between mb-2">
-                                          <h5 className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase">Plano Sugerido: {vehicleMaintenancePlan.name}</h5>
-                                      </div>
-                                      <button 
-                                          type="button"
-                                          onClick={() => {
-                                              setNewOrderTitle(`PMJ: ${vehicleMaintenancePlan.name}`);
-                                              setNewOrderMaintenancePlanId(vehicleMaintenancePlan.id);
-                                              setNewOrderDetails(`PMJ: ${vehicleMaintenancePlan.name}\n\nObservações:\n`);
-                                              if (vehicleMaintenancePlan.stockItemIds && vehicleMaintenancePlan.stockItemIds.length > 0) {
-                                                  const pmjParts = vehicleMaintenancePlan.stockItemIds.map(id => {
-                                                      const item = stockItems.find(i => i.id === id);
-                                                      if (item) return { itemId: item.id, name: item.name, quantity: 1, unitCost: item.averageCost };
-                                                      return null;
-                                                  }).filter(p => p !== null) as any[];
-                                                  setNewOrderParts(pmjParts);
-                                                  setIncludeParts(true);
-                                              }
-                                          }}
-                                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
-                                      >
-                                          <CheckSquare className="h-3.5 w-3.5" /> Aplicar PMJ
-                                      </button>
-                                  </div>
-                              )}
-                          </div>
-                      )}
-
-                      {/* Section: Parts */}
-                      <div className="space-y-4">
-                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                              <div className="flex items-center gap-2">
-                                  <Package className="h-4 w-4 text-orange-500"/>
-                                  <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Peças e Materiais</h4>
-                              </div>
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                  <input 
-                                      type="checkbox" 
-                                      checked={includeParts}
-                                      onChange={e => setIncludeParts(e.target.checked)}
-                                      className="h-4 w-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500"
-                                  />
-                                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Incluir Peças</span>
-                              </label>
-                          </div>
-
-                          {includeParts && (
-                              <div className="space-y-3 animate-in slide-in-from-top-2">
-                                  <div className="flex gap-2 items-center">
-                                      <select 
-                                        className="w-[200px] h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold transition-all"
-                                        value={selectedStockItemId}
-                                        onChange={e => setSelectedStockItemId(e.target.value)}
-                                      >
-                                          <option value="">Selecionar Peça...</option>
-                                          {stockItems.map(item => (
-                                              <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
-                                          ))}
-                                      </select>
-                                      <input 
-                                        type="number" 
-                                        min="1"
-                                        className="w-20 h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold text-center transition-all"
-                                        value={selectedStockItemQty}
-                                        onChange={e => setSelectedStockItemQty(Number(e.target.value))}
-                                      />
-                                      <button 
-                                        type="button"
-                                        onClick={handleAddPart}
-                                        className="h-[45px] px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition-all active:scale-90 flex items-center justify-center shadow-lg shadow-orange-600/20"
-                                      >
-                                          <Plus className="h-5 w-5" />
-                                      </button>
-                                  </div>
-
-                                  {newOrderParts.length > 0 && (
-                                      <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
-                                          {newOrderParts.map(part => (
-                                              <div key={part.itemId} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-                                                  <div className="flex flex-col">
-                                                      <span className="text-[10px] font-bold text-slate-800 dark:text-white">{part.name}</span>
-                                                      <span className="text-[9px] text-slate-500">R$ {part.unitCost.toFixed(2)} / un</span>
-                                                  </div>
-                                                  <div className="flex items-center gap-3">
-                                                      <span className="text-[10px] font-black text-slate-800 dark:text-white">x{part.quantity}</span>
-                                                      <button 
-                                                        type="button"
-                                                        onClick={() => handleRemovePart(part.itemId)}
-                                                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                      >
-                                                          <Trash2 className="h-3.5 w-3.5" />
-                                                      </button>
-                                                  </div>
-                                              </div>
-                                          ))}
-                                          <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center px-1">
-                                              <span className="text-[10px] font-black text-slate-500 uppercase">Total Peças</span>
-                                              <span className="text-xs font-black text-slate-800 dark:text-white">R$ {newOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
-                                          </div>
-                                      </div>
-                                  )}
-                              </div>
-                          )}
-                      </div>
-
-                      {/* Section: Advanced */}
-                      <div className="space-y-4">
-                          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                              <Settings className="h-4 w-4 text-orange-500"/>
-                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Configurações Avançadas</h4>
-                          </div>
-
-                          <div className="flex items-start gap-3 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-2xl border border-orange-100 dark:border-orange-800/50">
-                              <input 
-                                  type="checkbox" 
-                                  id="isPreventive"
-                                  checked={isPreventiveMaintenance}
-                                  onChange={(e) => setIsPreventiveMaintenance(e.target.checked)}
-                                  className="mt-1 h-5 w-5 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
-                              />
-                              <label htmlFor="isPreventive" className="text-xs font-bold text-orange-800 dark:text-orange-300 cursor-pointer select-none">
-                                  Manutenção Preventiva (Óleo / Filtros)
-                                  <span className="block text-[10px] font-normal text-orange-600 dark:text-orange-400 mt-1 leading-relaxed">
-                                      Registra o KM atual como última troca e recalcula a próxima revisão automaticamente.
-                                  </span>
-                              </label>
-                          </div>
-                      </div>
-
-                      <div className="pt-4 flex gap-3">
-                          <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">Cancelar</button>
-                          <button type="submit" disabled={isCreating} className="flex-2 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 active:scale-95">
-                              {isCreating ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Abrir Ordem de Serviço
-                          </button>
-                      </div>
-                  </form>
-              </div>
-          </div>
-      )}
+      {/* NEW CREATE ORDER MODAL */}
+      <ServiceOrderOpening 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={async (orderData) => {
+          if (onAddOrder) {
+            // Create Arrival Alert if a base is selected
+            if (orderData.maintenanceBaseId && settings?.savedPoints) {
+              const base = settings.savedPoints.find(p => p.id === orderData.maintenanceBaseId);
+              if (base) {
+                const newAlert: ArrivalAlert = {
+                  id: Date.now().toString() + Math.random().toString(36).substring(7),
+                  vehiclePlate: orderData.vehiclePlate || '',
+                  targetName: base.name,
+                  targetLat: base.lat,
+                  targetLng: base.lng,
+                  radius: base.radius || settings.alertRadius || 500,
+                  services: `O.S.: ${orderData.title || 'Manutenção'}`,
+                  status: 'PENDING',
+                  createdAt: new Date().toISOString(),
+                  createdBy: 'Sistema (O.S.)',
+                  branchId: defaultBranchId
+                };
+                await storageService.addArrivalAlert(orgId, newAlert);
+                orderData.arrivalAlertId = newAlert.id;
+              }
+            }
+            await onAddOrder(orderData as any);
+            setIsCreateModalOpen(false);
+          }
+        }}
+        vehicles={vehicles || []}
+        branches={branches || []}
+        collaborators={collaborators || []}
+        partners={partners || []}
+        drivers={drivers || []}
+        stockItems={stockItems || []}
+        settings={settings}
+        defaultBranchId={defaultBranchId}
+        nextOrderNumber={serviceOrders.length > 0 ? Math.max(...serviceOrders.map(o => o.orderNumber)) + 1 : 1}
+      />
 
       {/* EDIT ORDER MODAL */}
       {editingOrder && (

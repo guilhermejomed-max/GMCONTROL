@@ -363,6 +363,43 @@ export interface ServiceOrder {
   completedAt?: string;
   odometer?: number;
   branchId?: string;
+  // Extended fields for the new form layout
+  contactName?: string;
+  isAuthorized?: boolean;
+  isIssued?: boolean;
+  waitingInvoice?: boolean;
+  indisponibilidade?: string;
+  paymentTerm?: string;
+  documentType?: string;
+  estimatedDelivery?: string;
+  deliveryLimit?: string;
+  supplierId?: string;
+  supplierName?: string;
+  customerId?: string;
+  customerName?: string;
+  box?: string;
+  prisma?: string;
+  plate2?: string;
+  plate3?: string;
+  plate4?: string;
+  exitOdometer?: number;
+  driverId?: string;
+  driverName?: string;
+  setId?: string;
+  setDescription?: string;
+  employeeId?: string;
+  employeeName?: string;
+  line?: string;
+  sectorId?: string;
+  sectorName?: string;
+  checklistImported?: string;
+  classificationId?: string;
+  classificationName?: string;
+  preOrderNumber?: string;
+  maintenanceContract?: string;
+  decontamination?: boolean;
+  tagLocator?: string;
+  partsCost?: number;
 }
 
 export interface RetreadOrderItem {

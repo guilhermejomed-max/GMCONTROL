@@ -1189,6 +1189,7 @@ export const App = () => {
                 onUpdateCollaborator={(id, updates) => storageService.updateCollaborator(orgId, id, updates)}
                 onDeleteCollaborator={(id) => storageService.deleteCollaborator(orgId, id)}
                 userLevel={userRole}
+                drivers={drivers}
               />
             )}
             {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} />}
