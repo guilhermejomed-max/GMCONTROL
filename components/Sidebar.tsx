@@ -67,6 +67,7 @@ export const Sidebar: FC<SidebarProps> = ({
 
     // --- MÓDULO OFICINA/PEÇAS ---
     { id: 'service', label: 'Almoxarifado (Peças)', icon: Package, modules: ['MECHANICAL'] },
+    { id: 'classification-sector', label: 'Classificação e Setor', icon: Grid, modules: ['MECHANICAL'] },
     { id: 'partners', label: 'Parceiros/Fornecedores', icon: Users, modules: ['MECHANICAL', 'TIRES'] },
 
     // --- COMPARTILHADOS ---

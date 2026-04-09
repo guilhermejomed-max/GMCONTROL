@@ -31,6 +31,8 @@ interface ServiceOrderHubProps {
   onUpdateCollaborator?: (id: string, updates: Partial<Collaborator>) => Promise<void>;
   onDeleteCollaborator?: (id: string) => Promise<void>;
   userLevel: UserLevel;
+  classifications?: any[];
+  sectors?: any[];
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
@@ -61,7 +63,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   onUpdateCollaborator,
   onDeleteCollaborator,
   userLevel,
-  drivers = []
+  drivers = [],
+  classifications = [],
+  sectors = []
 }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
@@ -701,6 +705,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         settings={settings}
         defaultBranchId={defaultBranchId}
         nextOrderNumber={serviceOrders.length > 0 ? Math.max(...serviceOrders.map(o => o.orderNumber)) + 1 : 1}
+        classifications={classifications}
+        sectors={sectors}
       />
 
       {/* EDIT ORDER MODAL */}

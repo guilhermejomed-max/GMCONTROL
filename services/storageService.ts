@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -1642,6 +1642,114 @@ export const storageService = {
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `fuel_stations/${id}`);
     }
+  },
+
+  // --- SERVICE CLASSIFICATION ---
+  getClassifications: async (orgId: string): Promise<ServiceClassification[]> => {
+    if (mockUser || !db) return LocalDB.get(`classifications`, []);
+    try {
+      const snapshot = await db.collection("classifications").get();
+      return snapshot.docs.map(doc => doc.data() as ServiceClassification);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "classifications");
+      return [];
+    }
+  },
+
+  addClassification: async (orgId: string, data: Omit<ServiceClassification, 'id'>) => {
+    const id = Date.now().toString();
+    const item = { ...data, id };
+    if (mockUser || !db) { LocalDB.add(`classifications`, item); return; }
+    try {
+      await db.collection("classifications").doc(id).set(sanitize(item));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `classifications/${id}`);
+    }
+  },
+
+  updateClassification: async (orgId: string, id: string, data: Partial<ServiceClassification>) => {
+    if (mockUser || !db) { LocalDB.update(`classifications`, id, data); return; }
+    try {
+      await db.collection("classifications").doc(id).update(sanitize(data));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `classifications/${id}`);
+    }
+  },
+
+  deleteClassification: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`classifications`, id); return; }
+    try {
+      await db.collection("classifications").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `classifications/${id}`);
+    }
+  },
+
+  // --- SERVICE SECTOR ---
+  getSectors: async (orgId: string): Promise<ServiceSector[]> => {
+    if (mockUser || !db) return LocalDB.get(`sectors`, []);
+    try {
+      const snapshot = await db.collection("sectors").get();
+      return snapshot.docs.map(doc => doc.data() as ServiceSector);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "sectors");
+      return [];
+    }
+  },
+
+  addSector: async (orgId: string, data: Omit<ServiceSector, 'id'>) => {
+    const id = Date.now().toString();
+    const item = { ...data, id };
+    if (mockUser || !db) { LocalDB.add(`sectors`, item); return; }
+    try {
+      await db.collection("sectors").doc(id).set(sanitize(item));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `sectors/${id}`);
+    }
+  },
+
+  updateSector: async (orgId: string, id: string, data: Partial<ServiceSector>) => {
+    if (mockUser || !db) { LocalDB.update(`sectors`, id, data); return; }
+    try {
+      await db.collection("sectors").doc(id).update(sanitize(data));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `sectors/${id}`);
+    }
+  },
+
+  deleteSector: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`sectors`, id); return; }
+    try {
+      await db.collection("sectors").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `sectors/${id}`);
+    }
+  },
+
+  subscribeToClassifications: (onUpdate: (data: ServiceClassification[]) => void) => {
+    if (mockUser || !db) {
+        const interval = setInterval(() => {
+            onUpdate(LocalDB.get(`classifications`, []));
+        }, 1000);
+        return () => clearInterval(interval);
+    }
+    return db.collection("classifications").onSnapshot(
+        (snapshot) => onUpdate(snapshot.docs.map(doc => doc.data() as ServiceClassification)),
+        (error) => handleFirestoreError(error, OperationType.LIST, "classifications")
+    );
+  },
+
+  subscribeToSectors: (onUpdate: (data: ServiceSector[]) => void) => {
+    if (mockUser || !db) {
+        const interval = setInterval(() => {
+            onUpdate(LocalDB.get(`sectors`, []));
+        }, 1000);
+        return () => clearInterval(interval);
+    }
+    return db.collection("sectors").onSnapshot(
+        (snapshot) => onUpdate(snapshot.docs.map(doc => doc.data() as ServiceSector)),
+        (error) => handleFirestoreError(error, OperationType.LIST, "sectors")
+    );
   },
 
   resetData: async (orgId: string) => {

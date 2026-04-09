@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, Save, Truck, User, Building2, Calendar, Clock, 
   Search, ClipboardList, Wrench, CheckCircle2, AlertTriangle,
-  Package, DollarSign, UserCircle, Tag, Box, Info
+  Package, DollarSign, UserCircle, Tag, Box, Info, ScanLine
 } from 'lucide-react';
+import { Scanner } from './Scanner';
 import { ServiceOrder, Vehicle, Branch, Collaborator, Partner, Driver, StockItem } from '../types';
 
 interface ServiceOrderOpeningProps {
@@ -20,6 +21,8 @@ interface ServiceOrderOpeningProps {
   settings?: any;
   defaultBranchId?: string;
   nextOrderNumber: number;
+  classifications?: any[];
+  sectors?: any[];
 }
 
 export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
@@ -34,7 +37,9 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
   stockItems,
   settings,
   defaultBranchId,
-  nextOrderNumber
+  nextOrderNumber,
+  classifications = [],
+  sectors = []
 }) => {
   const [formData, setFormData] = useState<Partial<ServiceOrder>>({
     branchId: defaultBranchId || '',
@@ -53,8 +58,48 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
     parts: [],
   });
 
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [showVehicleList, setShowVehicleList] = useState(false);
+  const vehicleDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (vehicleDropdownRef.current && !vehicleDropdownRef.current.contains(event.target as Node)) {
+        setShowVehicleList(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredVehicles = vehicles.filter(v => 
+    v.plate.toLowerCase().includes(vehicleSearch.toLowerCase())
+  );
+
+  const selectVehicle = (vehicle: Vehicle) => {
+    setFormData(prev => ({
+      ...prev,
+      vehicleId: vehicle.id,
+      vehiclePlate: vehicle.plate,
+      odometer: vehicle.odometer,
+    }));
+    setVehicleSearch(vehicle.plate);
+    setShowVehicleList(false);
+  };
+
   const [selectedPartId, setSelectedPartId] = useState('');
   const [selectedPartQty, setSelectedPartQty] = useState(1);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const handleScanPart = (code: string) => {
+    const item = stockItems.find(i => i.code === code);
+    if (item) {
+      setSelectedPartId(item.id);
+      setIsScannerOpen(false);
+    } else {
+      alert(`Peça com código ${code} não encontrada no estoque.`);
+    }
+  };
 
   const handleAddPart = () => {
     if (!selectedPartId) return;
@@ -110,19 +155,6 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
     setFormData(prev => ({ ...prev, [name]: val }));
   };
 
-  const handleVehicleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const vehicleId = e.target.value;
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    if (vehicle) {
-      setFormData(prev => ({
-        ...prev,
-        vehicleId,
-        vehiclePlate: vehicle.plate,
-        odometer: vehicle.odometer,
-      }));
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
@@ -134,9 +166,9 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-2 md:p-4 overflow-y-auto">
-      <div className="bg-[#EBEBEB] w-full max-w-5xl rounded-lg shadow-2xl border border-slate-400 overflow-hidden flex flex-col max-h-[98vh] md:max-h-[95vh]">
+      <div className="bg-white w-full max-w-5xl rounded-lg shadow-2xl border border-slate-400 overflow-hidden flex flex-col max-h-[98vh] md:max-h-[95vh]">
         {/* Header */}
-        <div className="bg-slate-200 px-4 py-2 border-b border-slate-400 flex justify-between items-center">
+        <div className="px-4 py-2 border-b border-slate-400 flex justify-between items-center bg-white">
           <div className="flex items-center gap-3">
             <div className="p-1.5 bg-blue-600 rounded">
               <Wrench className="h-4 w-4 text-white" />
@@ -184,17 +216,9 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 1: Manutenção, Tipo */}
+          {/* Row 1: Tipo */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-6">
-              <label className={labelClass}>Manutenção :</label>
-              <select name="maintenanceType" className={inputClass} onChange={handleChange}>
-                <option value="Veículo">Veículo</option>
-                <option value="Pneu">Pneu</option>
-                <option value="Outros">Outros</option>
-              </select>
-            </div>
-            <div className="col-span-1 md:col-span-6">
+            <div className="col-span-1 md:col-span-12">
               <label className={labelClass}>Tipo :</label>
               <select name="serviceType" value={formData.serviceType} className={inputClass} onChange={handleChange}>
                 <option value="INTERNAL">Serviços Interno</option>
@@ -258,20 +282,39 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
 
           {/* Row 7: Veículo, Box */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-5">
+            <div className="col-span-1 md:col-span-5 relative" ref={vehicleDropdownRef}>
               <label className={labelClass}>Placa do Veículo :</label>
               <div className="flex gap-1">
-                <select 
-                  name="vehicleId" 
-                  className={inputClass} 
-                  value={formData.vehicleId} 
-                  onChange={handleVehicleChange}
-                >
-                  <option value="">Selecione...</option>
-                  {vehicles.map(v => (
-                    <option key={v.id} value={v.id}>{v.plate}</option>
-                  ))}
-                </select>
+                <div className="relative flex-1">
+                  <input 
+                    type="text"
+                    className={inputClass}
+                    placeholder="Digite a placa..."
+                    value={vehicleSearch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setVehicleSearch(val);
+                      setShowVehicleList(true);
+                      if (val === '') {
+                        setFormData(prev => ({ ...prev, vehicleId: '', vehiclePlate: '', odometer: 0 }));
+                      }
+                    }}
+                    onFocus={() => setShowVehicleList(true)}
+                  />
+                  {showVehicleList && filteredVehicles.length > 0 && (
+                    <div className="absolute z-[200] w-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto">
+                      {filteredVehicles.map(v => (
+                        <div 
+                          key={v.id}
+                          className="px-2 py-1.5 hover:bg-blue-50 cursor-pointer text-xs font-bold text-slate-700 border-b border-slate-100 last:border-0"
+                          onClick={() => selectVehicle(v)}
+                        >
+                          {v.plate} - {v.brand} {v.model}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button type="button" className="p-1 bg-slate-300 rounded border border-slate-400"><Calendar className="h-3 w-3" /></button>
               </div>
             </div>
@@ -284,17 +327,13 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 9: KM Entrada / Saída */}
+          {/* Row 9: KM Entrada */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-3">
+            <div className="col-span-1 md:col-span-4">
               <label className={labelClass}>Km/Horimetro Entrada :</label>
               <input type="number" name="odometer" value={formData.odometer} className={inputClass} onChange={handleChange} />
             </div>
-            <div className="col-span-1 md:col-span-3">
-              <label className={labelClass}>Km/Horimetro Saída :</label>
-              <input type="number" name="exitOdometer" className={inputClass} onChange={handleChange} />
-            </div>
-            <div className="col-span-1 md:col-span-6">
+            <div className="col-span-1 md:col-span-8">
               <div className="bg-slate-200 border border-slate-300 rounded px-2 py-1 text-[9px] text-slate-500">
                 Ultima OS encerrada : 12609 / Km saída : 307225 / Data : 09/03/26 09:48
               </div>
@@ -303,11 +342,8 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
 
           {/* Row 11: Funcionário */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-4">
+            <div className="col-span-1 md:col-span-12">
               <label className={labelClass}>Funcionário :</label>
-              <input type="text" name="employeeId" className={inputClass} onChange={handleChange} />
-            </div>
-            <div className="col-span-1 md:col-span-8">
               <select 
                 name="employeeId" 
                 className={inputClass} 
@@ -326,26 +362,43 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
 
           {/* Row 12: Setor */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-4">
+            <div className="col-span-1 md:col-span-12">
               <label className={labelClass}>Setor :</label>
-              <input type="text" name="sectorId" className={inputClass} value="1" readOnly />
-            </div>
-            <div className="col-span-1 md:col-span-8">
-              <input type="text" name="sectorName" className={`${inputClass} bg-slate-200`} value="MANUTENCAO" readOnly />
+              <select 
+                name="sectorId" 
+                className={inputClass} 
+                value={formData.sectorId || ''} 
+                onChange={(e) => {
+                  const sector = sectors.find(s => s.id === e.target.value);
+                  setFormData(prev => ({ ...prev, sectorId: e.target.value, sectorName: sector?.name }));
+                }}
+              >
+                <option value="">Selecione o Setor...</option>
+                {sectors.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 
           {/* Row 13: Classificação */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-4">
+            <div className="col-span-1 md:col-span-12">
               <label className={labelClass}>Classificação :</label>
-              <div className="flex gap-1">
-                <input type="text" name="classificationId" className={inputClass} value="37" onChange={handleChange} />
-                <button type="button" className="p-1 bg-slate-300 rounded border border-slate-400"><Calendar className="h-3 w-3" /></button>
-              </div>
-            </div>
-            <div className="col-span-1 md:col-span-8">
-              <input type="text" name="classificationName" className={`${inputClass} bg-yellow-100`} value="PREVENTIVA" readOnly />
+              <select 
+                name="classificationId" 
+                className={inputClass} 
+                value={formData.classificationId || ''} 
+                onChange={(e) => {
+                  const classification = classifications.find(c => c.id === e.target.value);
+                  setFormData(prev => ({ ...prev, classificationId: e.target.value, classificationName: classification?.name }));
+                }}
+              >
+                <option value="">Selecione a Classificação...</option>
+                {classifications.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -406,18 +459,28 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
               <Package className="h-3 w-3" /> Peças e Materiais
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-              <div className="col-span-1 md:col-span-8">
+              <div className="col-span-1 md:col-span-7">
                 <label className={labelClass}>Selecionar Peça :</label>
-                <select 
-                  className={inputClass}
-                  value={selectedPartId}
-                  onChange={(e) => setSelectedPartId(e.target.value)}
-                >
-                  <option value="">Selecione uma peça do estoque...</option>
-                  {stockItems.map(item => (
-                    <option key={item.id} value={item.id}>{item.name} (R$ {item.averageCost.toFixed(2)})</option>
-                  ))}
-                </select>
+                <div className="flex gap-1">
+                  <select 
+                    className={inputClass}
+                    value={selectedPartId}
+                    onChange={(e) => setSelectedPartId(e.target.value)}
+                  >
+                    <option value="">Selecione uma peça do estoque...</option>
+                    {stockItems.map(item => (
+                      <option key={item.id} value={item.id}>{item.name} (R$ {item.averageCost.toFixed(2)})</option>
+                    ))}
+                  </select>
+                  <button 
+                    type="button"
+                    onClick={() => setIsScannerOpen(true)}
+                    className="p-1 bg-blue-100 text-blue-600 rounded border border-blue-200 hover:bg-blue-200"
+                    title="Escanear Código"
+                  >
+                    <ScanLine className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <div className="col-span-1 md:col-span-2">
                 <label className={labelClass}>Qtd :</label>
@@ -551,6 +614,15 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
           </div>
         </form>
       </div>
+
+      {isScannerOpen && (
+        <Scanner 
+          onScan={handleScanPart} 
+          onClose={() => setIsScannerOpen(false)} 
+          title="Escanear Peça"
+          placeholder="Código de barras..."
+        />
+      )}
     </div>
   );
 };

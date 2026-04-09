@@ -28,6 +28,9 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
   const [auditCounts, setAuditCounts] = useState<Record<string, number>>({});
   const [auditFilter, setAuditFilter] = useState('');
 
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannedCode, setScannedCode] = useState('');
+
   useEffect(() => {
     const unsubStock = storageService.subscribeToStock(orgId, setItems);
     const unsubMovements = storageService.subscribeToStockMovements(orgId, setMovements);
@@ -94,6 +97,28 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
       setItemFormData({ name: '', code: '', category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0 });
     }
     setIsItemModalOpen(true);
+  };
+
+  const handleScanSuccess = (code: string) => {
+    setScannedCode(code);
+    setIsScannerOpen(false);
+    
+    const existingItem = items.find(i => i.code === code);
+    if (existingItem) {
+      handleOpenMovement(existingItem, 'ENTRY');
+    } else {
+      setEditingItem(null);
+      setItemFormData({ 
+        name: '', 
+        code: code, 
+        category: 'PECA', 
+        quantity: 0, 
+        minQuantity: 5, 
+        unit: 'UN', 
+        averageCost: 0 
+      });
+      setIsItemModalOpen(true);
+    }
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
@@ -461,13 +486,13 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Gestão inteligente de peças e insumos.</p>
         </div>
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg overflow-x-auto w-full md:w-auto">
-          <button onClick={() => setActiveTab('DASHBOARD')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'DASHBOARD' ? 'bg-white dark:bg-slate-700 shadow text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><LayoutDashboard className="h-4 w-4"/> Visão Geral</button>
-          <button onClick={() => setActiveTab('STOCK')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'STOCK' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><Package className="h-4 w-4"/> Estoque</button>
-          <button onClick={() => setActiveTab('MOVEMENTS')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'MOVEMENTS' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><History className="h-4 w-4"/> Movimentações</button>
-          <button onClick={() => setActiveTab('AUDIT')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'AUDIT' ? 'bg-white dark:bg-slate-700 shadow text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><ClipboardList className="h-4 w-4"/> Inventário</button>
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg overflow-x-auto w-full md:w-auto">
+            <button onClick={() => setActiveTab('DASHBOARD')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'DASHBOARD' ? 'bg-white dark:bg-slate-700 shadow text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><LayoutDashboard className="h-4 w-4"/> Visão Geral</button>
+            <button onClick={() => setActiveTab('STOCK')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'STOCK' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><Package className="h-4 w-4"/> Estoque</button>
+            <button onClick={() => setActiveTab('MOVEMENTS')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'MOVEMENTS' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><History className="h-4 w-4"/> Movimentações</button>
+            <button onClick={() => setActiveTab('AUDIT')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'AUDIT' ? 'bg-white dark:bg-slate-700 shadow text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><ClipboardList className="h-4 w-4"/> Inventário</button>
+          </div>
         </div>
-      </div>
 
       {activeTab === 'DASHBOARD' && (
          <div className="space-y-6 animate-in slide-in-from-bottom-4">
@@ -567,6 +592,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
           </div>
           {activeTab === 'STOCK' && (
              <>
+                <button onClick={() => setIsScannerOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-xl shadow-sm transition-colors flex items-center gap-2 font-bold" title="Entrada via Scanner"><ScanLine className="h-5 w-5" /> <span className="hidden md:inline">Entrada de Peça</span></button>
                 <button onClick={handlePrintStockReport} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-4 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 font-bold" title="Imprimir Relatório"><Printer className="h-5 w-5" /> <span className="hidden md:inline">Relatório</span></button>
                 <button onClick={() => handleOpenItemModal()} className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-xl shadow-lg transition-colors"><Plus className="h-6 w-6" /></button>
              </>
@@ -768,6 +794,37 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
                 </table>
             </div>
          </div>
+      )}
+
+      {isScannerOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <ScanLine className="h-6 w-6 text-blue-600" /> Escanear Código de Barras
+              </h3>
+              <button onClick={() => setIsScannerOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                <X className="h-6 w-6 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 text-center">
+                Aponte a câmera para o código de barras do item para realizar a entrada.
+              </p>
+              <div className="aspect-video bg-slate-100 dark:bg-slate-950 rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 dark:border-slate-800 relative">
+                <Scanner onScan={handleScanSuccess} onClose={() => setIsScannerOpen(false)} />
+                <div className="absolute inset-0 border-2 border-blue-500/30 pointer-events-none flex items-center justify-center">
+                  <div className="w-64 h-32 border-2 border-blue-500 rounded-lg animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 bg-slate-50 dark:bg-slate-950 flex justify-center">
+              <button onClick={() => setIsScannerOpen(false)} className="px-8 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {isItemModalOpen && (

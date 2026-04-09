@@ -20,6 +20,7 @@ import { VehicleTypeManager } from './components/VehicleTypeManager';
 import { FuelTypeManager } from './components/FuelTypeManager';
 import { LocationMap } from './components/LocationMap';
 import { ServiceOrderHub } from './components/ServiceOrderHub';
+import { ClassificationSectorManager } from './components/ClassificationSectorManager';
 import { MaintenanceDashboard } from './components/MaintenanceDashboard';
 import { FuelDashboard } from './components/FuelDashboard';
 import { ServiceManager } from './components/ServiceManager';
@@ -34,7 +35,7 @@ import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { calculatePredictedTreadDepth } from './src/utils';
-import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation } from './types';
+import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2 } from 'lucide-react';
 
 const LoginScreen = ({ 
@@ -221,6 +222,8 @@ export const App = () => {
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [fuelTypes, setFuelTypes] = useState<FuelType[]>([]);
   const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
+  const [classifications, setClassifications] = useState<ServiceClassification[]>([]);
+  const [sectors, setSectors] = useState<ServiceSector[]>([]);
   const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
@@ -306,6 +309,8 @@ export const App = () => {
     const unsubVehicleTypes = storageService.subscribeToVehicleTypes(orgId, setVehicleTypes);
     const unsubFuelTypes = storageService.subscribeToFuelTypes(orgId, setFuelTypes);
     const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries);
+    const unsubClassifications = storageService.subscribeToClassifications(setClassifications);
+    const unsubSectors = storageService.subscribeToSectors(setSectors);
     const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
     
     return () => {
@@ -327,6 +332,8 @@ export const App = () => {
         unsubVehicleTypes();
         unsubFuelTypes();
         unsubFuelEntries();
+        unsubClassifications();
+        unsubSectors();
         unsubFuelStations();
     };
   }, [user]);
@@ -797,6 +804,7 @@ export const App = () => {
       case 'reports-fuel': return 'Relatórios de Abastecimento';
       case 'branches': return 'Gestão de Filiais';
       case 'tracker': return 'Configurações do Rastreador';
+      case 'classification-sector': return 'Classificação e Setor';
       case 'occurrences': return 'Módulo de Ocorrências';
       default: return 'GM Control';
     }
@@ -1190,7 +1198,12 @@ export const App = () => {
                 onDeleteCollaborator={(id) => storageService.deleteCollaborator(orgId, id)}
                 userLevel={userRole}
                 drivers={drivers}
+                classifications={classifications}
+                sectors={sectors}
               />
+            )}
+            {currentTab === 'classification-sector' && allowedModules.includes('MECHANICAL') && (
+              <ClassificationSectorManager orgId={orgId} branches={branches} />
             )}
             {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} />}
             {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance' || currentTab === 'reports-fuel') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
