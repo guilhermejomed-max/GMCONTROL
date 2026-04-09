@@ -836,7 +836,7 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
             </div>
             <form onSubmit={handleSaveItem} className="space-y-4">
               <div>
-                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Nome do Item</label>
+                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Marca / Modelo</label>
                  <input required className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold" value={itemFormData.name} onChange={e => setItemFormData({ ...itemFormData, name: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -862,8 +862,8 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
                    <input type="number" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white" value={itemFormData.minQuantity} onChange={e => setItemFormData({ ...itemFormData, minQuantity: Number(e.target.value) })} />
                 </div>
                 <div>
-                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Custo Médio (R$)</label>
-                   <input type="number" step="0.01" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white" value={itemFormData.averageCost} onChange={e => setItemFormData({ ...itemFormData, averageCost: Number(e.target.value) })} />
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Unidade</label>
+                   <input className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold" value={itemFormData.unit} onChange={e => setItemFormData({ ...itemFormData, unit: e.target.value })} />
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
@@ -891,6 +891,20 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
                     <button type="button" onClick={() => setMovementFormData(p => ({...p, quantity: p.quantity + 1}))} className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center font-bold text-lg">+</button>
                  </div>
               </div>
+
+              {movementType === 'ENTRY' && (
+                <div>
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Valor Unitário (R$)</label>
+                   <input 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold" 
+                    value={movementFormData.unitCost} 
+                    onChange={e => setMovementFormData({ ...movementFormData, unitCost: Number(e.target.value) })} 
+                   />
+                </div>
+              )}
               
               <div>
                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Observações</label>

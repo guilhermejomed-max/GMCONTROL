@@ -1209,8 +1209,23 @@ export const storageService = {
         const items = LocalDB.get(`stock_items`) as StockItem[];
         const item = items.find(i => i.id === movement.itemId);
         if (item) {
-            const newQty = movement.type === 'ENTRY' ? item.quantity + movement.quantity : item.quantity - movement.quantity;
-            LocalDB.update(`stock_items`, item.id, { quantity: newQty, updatedAt: new Date().toISOString() });
+            let newQty = item.quantity;
+            let newAvgCost = item.averageCost;
+
+            if (movement.type === 'ENTRY') {
+                const currentTotalValue = item.quantity * item.averageCost;
+                const entryTotalValue = movement.quantity * (movement.unitCost || 0);
+                newQty = item.quantity + movement.quantity;
+                newAvgCost = newQty > 0 ? (currentTotalValue + entryTotalValue) / newQty : 0;
+            } else {
+                newQty = item.quantity - movement.quantity;
+            }
+
+            LocalDB.update(`stock_items`, item.id, { 
+                quantity: newQty, 
+                averageCost: newAvgCost,
+                updatedAt: new Date().toISOString() 
+            });
         }
         return;
     }
@@ -1221,8 +1236,23 @@ export const storageService = {
       const itemDoc = await itemRef.get();
       if (itemDoc.exists) {
           const item = itemDoc.data() as StockItem;
-          const newQty = movement.type === 'ENTRY' ? item.quantity + movement.quantity : item.quantity - movement.quantity;
-          await itemRef.update({ quantity: newQty, updatedAt: new Date().toISOString() });
+          let newQty = item.quantity;
+          let newAvgCost = item.averageCost;
+
+          if (movement.type === 'ENTRY') {
+              const currentTotalValue = item.quantity * item.averageCost;
+              const entryTotalValue = movement.quantity * (movement.unitCost || 0);
+              newQty = item.quantity + movement.quantity;
+              newAvgCost = newQty > 0 ? (currentTotalValue + entryTotalValue) / newQty : 0;
+          } else {
+              newQty = item.quantity - movement.quantity;
+          }
+
+          await itemRef.update({ 
+              quantity: newQty, 
+              averageCost: newAvgCost,
+              updatedAt: new Date().toISOString() 
+          });
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `stock_movements`);
