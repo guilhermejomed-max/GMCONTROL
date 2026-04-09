@@ -367,7 +367,7 @@ export const Dashboard: FC<DashboardProps> = ({
   const scoreColor = stats.healthScore > 80 ? '#10b981' : stats.healthScore > 60 ? '#f59e0b' : '#ef4444';
 
   return (
-    <div className="space-y-6 pb-28 animate-in fade-in duration-700">
+    <div className="space-y-6 pb-10 animate-in fade-in duration-700">
       
       {/* 1. TOP BAR */}
       <div className="flex flex-col xl:flex-row justify-between items-end gap-6">
