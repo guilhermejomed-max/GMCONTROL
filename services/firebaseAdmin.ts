@@ -2,9 +2,13 @@ import admin from "firebase-admin";
 import { firebaseConfig } from "./firebaseConfig";
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
+  try {
+    admin.initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+  } catch (error) {
+    console.error("Error initializing Firebase Admin:", error);
+  }
 }
 
 export const db = admin.firestore();

@@ -45,7 +45,12 @@ let activeSascarCalls = 0;
 const MAX_CONCURRENT_SASCAR_CALLS = 1; // Limitado a 1 para respeitar o limite estrito da Sascar por conta/gerenciadora
 const sascarCallQueue: ((value: void | PromiseLike<void>) => void)[] = [];
 
-async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, queueTimeout = 120000): Promise<T> {
+const QUEUE_TIMEOUT_FOREGROUND = 15000; // 15s para foreground
+const QUEUE_TIMEOUT_BACKGROUND = 180000; // 3 min para background
+
+async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, isBackground = false): Promise<T> {
+  const queueTimeout = isBackground ? QUEUE_TIMEOUT_BACKGROUND : QUEUE_TIMEOUT_FOREGROUND;
+  
   if (activeSascarCalls >= MAX_CONCURRENT_SASCAR_CALLS) {
     const timeoutPromise = new Promise<void>((_, reject) => 
       setTimeout(() => reject(new Error('Timeout na fila de sincronização Sascar')), queueTimeout)
@@ -256,7 +261,7 @@ async function drainSascarQueue(
                     senha: pass,
                     quantidade: 5000
                 }, { timeout: Math.min(60000, remainingTime) }).then(([res]: any) => res);
-            }) as any;
+            }, 2, isBackground) as any;
             
             if (!result) {
                 hasMore = false;
@@ -420,7 +425,7 @@ async function runSascarAutomation() {
                 senha: pass,
                 quantidade: 5000
             }, { timeout: 60000 }).then(([res]: any) => res);
-        }) as any;
+        }, 2, true) as any;
 
         if (vehicleListResult) {
             const veiculosEmTexto = vehicleListResult.return || vehicleListResult.retornar;
@@ -586,7 +591,8 @@ async function startServer() {
           usuario: SASCAR_USER,
           senha: SASCAR_PASS,
           quantidade: 10
-        }, { timeout: 60000 }).then(([res]: any) => res)
+        }, { timeout: 60000 }).then(([res]: any) => res),
+        2, false
       );
       
       res.json(result);
@@ -620,7 +626,7 @@ async function startServer() {
 
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
-      const MAX_REQUEST_TIME = 50000; // Reduzido para 50s para dar margem de segurança ao proxy
+      const MAX_REQUEST_TIME = 45000; // Reduzido para 45s para garantir resposta antes do proxy (60s)
       const CACHE_TTL = 1 * 60 * 1000; // 1 minuto (reduzido de 5 para ser mais ágil)
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
@@ -652,7 +658,7 @@ async function startServer() {
                           senha: pass,
                           quantidade: 5000
                       }, { timeout: 60000 }).then(([res]: any) => res);
-                  }) as any;
+                  }, 2, isBackground) as any;
                   
                   if (!result) return;
                   
@@ -826,7 +832,7 @@ async function startServer() {
                                       dataInicio: dataInicio,
                                       dataFinal: dataFinal
                                   }, { timeout: 60000 }).then(([res]: any) => res);
-                              }) as any;
+                              }, 2, isBackground) as any;
 
                               if (!result) return;
 
@@ -875,9 +881,9 @@ async function startServer() {
                   }
               };
 
-              // Tenta buscar o histórico para no máximo 20 ausentes por vez no foreground
-              const foregroundPlates = missingPlates.slice(0, 20);
-              const backgroundPlates = missingPlates.slice(20);
+              // Tenta buscar o histórico para no máximo 5 ausentes por vez no foreground (reduzido de 20 para evitar timeouts)
+              const foregroundPlates = missingPlates.slice(0, 5);
+              const backgroundPlates = missingPlates.slice(5);
 
               // Race foreground fetch against the remaining time
               const timeRemaining = MAX_REQUEST_TIME - (Date.now() - startTime);

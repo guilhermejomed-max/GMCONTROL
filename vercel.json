@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/proxy-sascar/:path*",
-      "destination": "https://api.sascar.com.br/:path*"
+      "destination": "/api/sascar/:path*"
     },
     {
       "source": "/((?!api/.*).*)",

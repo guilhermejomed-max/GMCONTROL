@@ -30,12 +30,12 @@ export const sascarService = {
     for (let i = 0; i <= maxRetries; i++) {
       try {
         const response = await fetchWithTimeout(`/proxy-sascar/vehicles`, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ plates, trackerSettings })
-}, 180000);
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ plates, trackerSettings })
+        }, 180000); // Aumentado para 180s (3 min)
         
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
