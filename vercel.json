@@ -1,17 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/proxy-sascar/:path*",
-      "destination": "/api/sascar/:path*"
+      "source": "/proxy-sascar",
+      "destination": "https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService"
     },
     {
       "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
-  ],
-  "functions": {
-    "api/**/*": {
-      "includeFiles": "api/sascar-wsdl.xml"
-    }
-  }
+  ]
 }
