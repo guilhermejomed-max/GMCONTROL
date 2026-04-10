@@ -42,10 +42,10 @@ let sascarCache = {
 };
 
 let activeSascarCalls = 0;
-const MAX_CONCURRENT_SASCAR_CALLS = 2; // Aumentado para 2 para melhor vazão
+const MAX_CONCURRENT_SASCAR_CALLS = 1; // Limitado a 1 para respeitar o limite estrito da Sascar por conta/gerenciadora
 const sascarCallQueue: ((value: void | PromiseLike<void>) => void)[] = [];
 
-async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, queueTimeout = 45000): Promise<T> {
+async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, queueTimeout = 120000): Promise<T> {
   if (activeSascarCalls >= MAX_CONCURRENT_SASCAR_CALLS) {
     const timeoutPromise = new Promise<void>((_, reject) => 
       setTimeout(() => reject(new Error('Timeout na fila de sincronização Sascar')), queueTimeout)
@@ -74,8 +74,6 @@ async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, queu
     let attempt = 0;
     while (true) {
       try {
-        // Add a small delay between any two Sascar calls to be safe
-        await new Promise(resolve => setTimeout(resolve, 100));
         return await fn();
       } catch (error: any) {
         attempt++;
@@ -306,9 +304,11 @@ async function drainSascarQueue(
                     reachedNow = true;
                 }
 
-                // Se já chegamos no "agora" e não somos um fetch de background, podemos parar para economizar tempo
-                if (reachedNow && !isBackground && iterations >= 20) {
-                    logToFile(`[Sascar Drenagem] Alcançamos o tempo atual e já fizemos ${iterations} iterações. Parando por aqui.`);
+                // Se já chegamos no "agora", podemos parar para economizar tempo e liberar a fila
+                // No background, permitimos um pouco mais de iterações para garantir que limpamos bem, mas não 1500 se já estamos no real-time
+                const stopThreshold = isBackground ? 50 : 20;
+                if (reachedNow && iterations >= stopThreshold) {
+                    logToFile(`[Sascar Drenagem] Alcançamos o tempo atual e já fizemos ${iterations} iterações. Parando para liberar a fila.`);
                     hasMore = false;
                 }
                 
@@ -364,7 +364,7 @@ async function runSascarAutomation() {
     if (isAutomatedSyncing) return;
     isAutomatedSyncing = true;
     
-    logToFile("[Automation] Iniciando tarefa agendada de sincronização Sascar (3h)...");
+    logToFile("[Automation] Iniciando tarefa agendada de sincronização Sascar (15 min)...");
     
     try {
         if (!db) {
@@ -620,8 +620,8 @@ async function startServer() {
 
       // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
-      const MAX_REQUEST_TIME = 55000; // Aumentado para 55s (limite de proxy Cloud Run costuma ser 60s)
-      const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+      const MAX_REQUEST_TIME = 50000; // Reduzido para 50s para dar margem de segurança ao proxy
+      const CACHE_TTL = 1 * 60 * 1000; // 1 minuto (reduzido de 5 para ser mais ágil)
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
       const formatDateBRT = (d: Date) => {
@@ -687,10 +687,10 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.latestPositions.size === 0 ? 1 : 0); 
+      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.latestPositions.size === 0 || (Date.now() - sascarCache.lastFetchTime > 15000) ? 5 : 0); 
           
           if (!isBackground) {
-              logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar alcançar o tempo real.`);
+              logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar encontrar veículos no buffer.`);
           } else {
               logToFile(`[Sascar] Background request: Limpeza de fila profunda (${MAX_QUEUE_ITERATIONS} iterações) para limpar backlog.`);
           }
@@ -794,21 +794,13 @@ async function startServer() {
                   logToFile(`[Sascar] Buscando histórico para ${platesToFetch.length} veículos (Background: ${isBackground})...`);
                   
                   const now = new Date();
-                  // Busca desde o início de hoje (BRT) para garantir dados atuais
-                  const brtFormatter = new Intl.DateTimeFormat('en-GB', {
-                      timeZone: "America/Sao_Paulo",
-                      year: 'numeric', month: '2-digit', day: '2-digit'
-                  });
-                  const brtParts = brtFormatter.formatToParts(now);
-                  const brtYear = brtParts.find(p => p.type === 'year')?.value;
-                  const brtMonth = brtParts.find(p => p.type === 'month')?.value;
-                  const brtDay = brtParts.find(p => p.type === 'day')?.value;
-                  
-                  const dataInicio = `${brtYear}-${brtMonth}-${brtDay} 00:00:00`;
+                  // Busca apenas as últimas 4 horas para ser mais ágil e evitar payloads gigantes
+                  const fourHoursAgo = new Date(now.getTime() - (4 * 60 * 60 * 1000));
+                  const dataInicio = formatDateBRT(fourHoursAgo);
                   const dataFinal = formatDateBRT(now);
 
-                  // Processa em lotes paralelos maiores para velocidade
-                  const BATCH_SIZE = 5; // Reduzido para diminuir pressão no lock e evitar timeouts
+                  // Processa em lotes paralelos menores para velocidade
+                  const BATCH_SIZE = 3; // Reduzido para diminuir pressão no lock e evitar timeouts
                   for (let i = 0; i < platesToFetch.length; i += BATCH_SIZE) {
                       // No foreground, paramos mais cedo para garantir que o histórico tenha tempo de rodar
                       const bufferTime = 12000; // Aumentado para 12s de margem
@@ -1045,10 +1037,10 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
     
-    // Iniciar automação Sascar a cada 3 horas
-    const THREE_HOURS = 3 * 60 * 60 * 1000;
-    setInterval(runSascarAutomation, THREE_HOURS);
-    logToFile("[Server] Automação Sascar agendada para cada 3 horas.");
+    // Iniciar automação Sascar a cada 15 minutos para ser mais ágil sem sobrecarregar
+    const FIFTEEN_MINUTES = 15 * 60 * 1000;
+    setInterval(runSascarAutomation, FIFTEEN_MINUTES);
+    logToFile("[Server] Automação Sascar agendada para cada 15 minutos.");
     
     // Executar uma vez após 10 segundos do boot para garantir que os dados estejam frescos
     setTimeout(runSascarAutomation, 10000);

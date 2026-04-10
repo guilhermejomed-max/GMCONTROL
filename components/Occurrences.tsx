@@ -22,13 +22,15 @@ import { SearchableSelect } from './ui/SearchableSelect';
 
 interface OccurrencesProps {
   user: TeamMember;
+  occurrences: Occurrence[];
+  vehicles: Vehicle[];
 }
 
-export const Occurrences: React.FC<OccurrencesProps> = ({ user }) => {
+export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: initialOccurrences, vehicles: initialVehicles }) => {
   const [activeTab, setActiveTab] = useState<'list' | 'reasons'>('list');
-  const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
+  const [occurrences, setOccurrences] = useState<Occurrence[]>(initialOccurrences);
   const [reasons, setReasons] = useState<OccurrenceReason[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
   const [showAllOccurrences, setShowAllOccurrences] = useState(false);
@@ -52,14 +54,18 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user }) => {
   });
 
   useEffect(() => {
-    const unsubOccurrences = storageService.subscribeToOccurrences('', setOccurrences);
+    setOccurrences(initialOccurrences);
+  }, [initialOccurrences]);
+
+  useEffect(() => {
+    setVehicles(initialVehicles);
+  }, [initialVehicles]);
+
+  useEffect(() => {
     const unsubReasons = storageService.subscribeToOccurrenceReasons('', setReasons);
-    const unsubVehicles = storageService.subscribeToVehicles('', setVehicles);
 
     return () => {
-      unsubOccurrences();
       unsubReasons();
-      unsubVehicles();
     };
   }, []);
 

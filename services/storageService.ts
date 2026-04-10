@@ -690,6 +690,17 @@ export const storageService = {
     logActivity(orgId, "Excluiu Marca/Modelo", `ID: ${id}`, 'TIRES');
   },
 
+  getVehicleTypes: async (orgId: string): Promise<VehicleType[]> => {
+    if (mockUser || !db) return LocalDB.get(`vehicleTypes`, []);
+    try {
+      const snapshot = await db.collection("vehicleTypes").get();
+      return snapshot.docs.map(doc => doc.data() as VehicleType);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "vehicleTypes");
+      return [];
+    }
+  },
+
   subscribeToVehicleTypes: (orgId: string, callback: (types: VehicleType[]) => void) => {
     const seedIfEmpty = async (types: VehicleType[]) => {
       if (types.length === 0) {
@@ -758,6 +769,17 @@ export const storageService = {
   },
 
   // --- FUEL TYPES ---
+  getFuelTypes: async (orgId: string): Promise<FuelType[]> => {
+    if (mockUser || !db) return LocalDB.get(`fuelTypes`, []);
+    try {
+      const snapshot = await db.collection("fuelTypes").get();
+      return snapshot.docs.map(doc => doc.data() as FuelType);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "fuelTypes");
+      return [];
+    }
+  },
+
   subscribeToFuelTypes: (orgId: string, callback: (types: FuelType[]) => void) => {
     const seedIfEmpty = async (types: FuelType[]) => {
       if (types.length === 0) {
@@ -1419,6 +1441,17 @@ export const storageService = {
     }, (error) => handleFirestoreError(error, OperationType.LIST, "occurrences"));
   },
 
+  getOccurrences: async (orgId: string): Promise<Occurrence[]> => {
+    if (mockUser || !db) return LocalDB.get(`occurrences`, []);
+    try {
+      const snapshot = await db.collection("occurrences").orderBy("createdAt", "desc").get();
+      return snapshot.docs.map(doc => doc.data() as Occurrence);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "occurrences");
+      return [];
+    }
+  },
+
   addOccurrence: async (orgId: string, occurrence: Occurrence) => {
     if (mockUser || !db) { LocalDB.add(`occurrences`, occurrence); logActivity(orgId, "Nova Ocorrência", `Veículo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES'); return; }
     try {
@@ -1606,6 +1639,17 @@ export const storageService = {
       snapshot.forEach((doc) => entries.push(doc.data() as FuelEntry));
       callback(entries);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "fuel_entries"));
+  },
+
+  getFuelEntries: async (orgId: string): Promise<FuelEntry[]> => {
+    if (mockUser || !db) return LocalDB.get(`fuel_entries`, []);
+    try {
+      const snapshot = await db.collection("fuel_entries").orderBy("date", "desc").get();
+      return snapshot.docs.map(doc => doc.data() as FuelEntry);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "fuel_entries");
+      return [];
+    }
   },
 
   addFuelEntry: async (orgId: string, entry: FuelEntry) => {

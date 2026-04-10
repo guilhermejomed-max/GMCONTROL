@@ -1,3 +1,4 @@
+// Last updated: 2026-04-10T13:51:00Z
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -112,31 +113,24 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.email_verified == true;
     }
 
-    function getRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
-    function isInspector() {
-      return isAuthenticated() && getRole() == "INSPECTOR";
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "guilherme.jomed@gmail.com" ||
+        request.auth.token.email == "gui@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "CREATOR")
+      );
     }
 
     function isSenior() {
-      return isAuthenticated() && getRole() == "SENIOR";
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "SENIOR";
     }
 
     function isPleno() {
-      return isAuthenticated() && getRole() == "PLENO";
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "PLENO";
     }
 
-    function isCreator() {
-      return isAuthenticated() && getRole() == "CREATOR";
-    }
-
-    function isAdmin() {
-      return isEmailVerified() && (
-        request.auth.token.email == "guilherme.jomed@gmail.com" ||
-        isCreator()
-      );
+    function isInspector() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "INSPECTOR";
     }
 
     function isRecent(timestampStr) {
@@ -434,19 +428,45 @@ service cloud.firestore {
              data.active is bool;
     }
 
+    function isValidFuelType(data) {
+      return hasRequiredFields(['id', 'name']) &&
+             hasOnlyAllowedFields(['id', 'name', 'description', 'branchId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
+    function isValidPartner(data) {
+      return hasRequiredFields(['id', 'name']) &&
+             hasOnlyAllowedFields(['id', 'name', 'services', 'branchId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
+    function isValidServiceSector(data) {
+      return hasRequiredFields(['id', 'name']) &&
+             hasOnlyAllowedFields(['id', 'name', 'branchId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
+    function isValidServiceClassification(data) {
+      return hasRequiredFields(['id', 'name']) &&
+             hasOnlyAllowedFields(['id', 'name', 'branchId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('branchId' in data) || (data.branchId is string && data.branchId.size() <= 50));
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
 
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      
-      allow create: if isAdmin() && isValidUser(request.resource.data) && request.resource.data.id == userId;
+      allow read: if request.auth != null;
+      allow create: if (isAdmin() || request.auth.uid == userId) && isValidUser(request.resource.data);
       
       allow update: if isAuthenticated() && (
         (request.auth.uid == userId && 
@@ -461,7 +481,7 @@ service cloud.firestore {
     }
 
     match /tires/{tireId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidTire(request.resource.data);
       allow update: if (isAdmin() || isSenior() || isPleno() || isInspector()) && 
                     isValidTire(request.resource.data) &&
@@ -471,7 +491,7 @@ service cloud.firestore {
     }
 
     match /vehicles/{vehicleId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidVehicle(request.resource.data);
       allow update: if (isAdmin() || isSenior() || isPleno() || isInspector()) && 
                     isValidVehicle(request.resource.data) &&
@@ -481,34 +501,34 @@ service cloud.firestore {
     }
 
     match /system_logs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated() && isValidLog(request.resource.data) && isRecent(request.resource.data.timestamp);
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && isValidLog(request.resource.data);
       allow update, delete: if false;
     }
 
     match /vehicleBrandModels/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidVehicleBrandModel(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidVehicleBrandModel(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
     match /retreaders/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidRetreader(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidRetreader(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /tread_patterns/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidTreadPattern(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidTreadPattern(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /service_orders/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidServiceOrder(request.resource.data) && isRecent(request.resource.data.createdAt);
       allow update: if (isAdmin() || isSenior() || isPleno()) && 
                     isValidServiceOrder(request.resource.data) && 
@@ -519,14 +539,14 @@ service cloud.firestore {
     }
 
     match /maintenance_plans/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidMaintenancePlan(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidMaintenancePlan(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
     match /maintenance_schedules/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidMaintenanceSchedule(request.resource.data);
       allow update: if (isAdmin() || isSenior() || isPleno()) && 
                     isValidMaintenanceSchedule(request.resource.data) && 
@@ -537,7 +557,7 @@ service cloud.firestore {
     }
 
     match /retread_orders/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidRetreadOrder(request.resource.data) && isRecent(request.resource.data.sentDate);
       allow update: if (isAdmin() || isSenior() || isPleno()) && 
                     isValidRetreadOrder(request.resource.data) && 
@@ -548,34 +568,34 @@ service cloud.firestore {
     }
 
     match /stock_items/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidStockItem(request.resource.data);
       allow update: if (isAdmin() || isSenior() || isPleno()) && isValidStockItem(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
     match /stock_movements/{id} {
-      allow read: if isAuthenticated();
+      allow get, list: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidStockMovement(request.resource.data) && isRecent(request.resource.data.date);
       allow update, delete: if false;
     }
 
     match /drivers/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidDriver(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidDriver(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
     match /collaborators/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidCollaborator(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidCollaborator(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
     match /settings/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow write: if isAdmin() && (
         (id == "global" && isValidSystemSettings(request.resource.data)) ||
         (id == "tracker" && isValidTrackerSettings(request.resource.data))
@@ -583,7 +603,7 @@ service cloud.firestore {
     }
 
     match /arrival_alerts/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidArrivalAlert(request.resource.data) && isRecent(request.resource.data.createdAt);
       allow update: if (isAdmin() || isSenior() || isPleno()) && 
                     isValidArrivalAlert(request.resource.data) && 
@@ -594,7 +614,7 @@ service cloud.firestore {
     }
 
     match /tire_loans/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidTireLoan(request.resource.data) && isRecent(request.resource.data.loanDate);
       allow update: if (isAdmin() || isSenior() || isPleno()) && 
                     isValidTireLoan(request.resource.data) && 
@@ -605,14 +625,14 @@ service cloud.firestore {
     }
 
     match /occurrence_reasons/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidOccurrenceReason(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidOccurrenceReason(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
     match /occurrences/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidOccurrence(request.resource.data) && isRecent(request.resource.data.createdAt);
       allow update: if (isAdmin() || isSenior() || isPleno()) && 
                     isValidOccurrence(request.resource.data) && 
@@ -624,7 +644,7 @@ service cloud.firestore {
     }
 
     match /fuel_entries/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidFuelEntry(request.resource.data);
       allow update: if (isAdmin() || isSenior() || isPleno()) && 
                     isValidFuelEntry(request.resource.data) && 
@@ -635,14 +655,42 @@ service cloud.firestore {
     }
 
     match /fuel_stations/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior() || isPleno()) && isValidFuelStation(request.resource.data);
       allow update: if (isAdmin() || isSenior() || isPleno()) && isValidFuelStation(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin();
     }
 
+    match /fuelTypes/{id} {
+      allow read: if request.auth != null;
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidFuelType(request.resource.data);
+      allow update: if (isAdmin() || isSenior() || isPleno()) && isValidFuelType(request.resource.data) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
+    match /partners/{id} {
+      allow read: if request.auth != null;
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidPartner(request.resource.data);
+      allow update: if (isAdmin() || isSenior() || isPleno()) && isValidPartner(request.resource.data) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
+    match /sectors/{id} {
+      allow read: if request.auth != null;
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidServiceSector(request.resource.data);
+      allow update: if (isAdmin() || isSenior() || isPleno()) && isValidServiceSector(request.resource.data) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
+    match /classifications/{id} {
+      allow read: if request.auth != null;
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidServiceClassification(request.resource.data);
+      allow update: if (isAdmin() || isSenior() || isPleno()) && isValidServiceClassification(request.resource.data) && request.resource.data.id == resource.data.id;
+      allow delete: if isAdmin();
+    }
+
     match /vehicleTypes/{id} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
       allow create: if (isAdmin() || isSenior()) && isValidVehicleType(request.resource.data);
       allow update: if (isAdmin() || isSenior()) && isValidVehicleType(request.resource.data) && request.resource.data.id == resource.data.id;
       allow delete: if isAdmin() || isSenior();

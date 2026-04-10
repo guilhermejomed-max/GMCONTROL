@@ -236,6 +236,7 @@ export const App = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [syncModal, setSyncModal] = useState<{ isOpen: boolean, updatedPlates: string[] }>({ isOpen: false, updatedPlates: [] });
+  const migrationDone = useRef(false);
   const [preselectedVehicleId, setPreselectedVehicleId] = useState<string | null>(null);
   const [shouldOpenOSModal, setShouldOpenOSModal] = useState(false);
 
@@ -304,15 +305,17 @@ export const App = () => {
     const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
     const unsubTracker = storageService.subscribeToTrackerSettings(orgId, setTrackerSettings);
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
-    const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
     const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
-    const unsubVehicleTypes = storageService.subscribeToVehicleTypes(orgId, setVehicleTypes);
-    const unsubFuelTypes = storageService.subscribeToFuelTypes(orgId, setFuelTypes);
-    const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries);
     const unsubClassifications = storageService.subscribeToClassifications(setClassifications);
     const unsubSectors = storageService.subscribeToSectors(setSectors);
     const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
     
+    // Fetch non-critical data once
+    storageService.getOccurrences(orgId).then(setOccurrences);
+    storageService.getVehicleTypes(orgId).then(setVehicleTypes);
+    storageService.getFuelTypes(orgId).then(setFuelTypes);
+    storageService.getFuelEntries(orgId).then(setFuelEntries);
+
     return () => {
         unsubTires();
         unsubVehicles();
@@ -327,16 +330,54 @@ export const App = () => {
         unsubCollaborators();
         unsubTracker();
         unsubArrivalAlerts();
-        unsubOccurrences();
         unsubStockItems();
-        unsubVehicleTypes();
-        unsubFuelTypes();
-        unsubFuelEntries();
         unsubClassifications();
         unsubSectors();
         unsubFuelStations();
     };
   }, [user]);
+
+  // MIGRATION: Set default fuelType to 'DIESEL S10' for all records that don't have one
+  useEffect(() => {
+    if (userRole === 'CREATOR' && !migrationDone.current && vehicles.length > 0) {
+      const runMigration = async () => {
+        try {
+          console.log('Running fuelType migration...');
+          let migratedCount = 0;
+
+          // Migrate Brand Models
+          for (const bm of vehicleBrandModels) {
+            if (!bm.fuelType) {
+              await storageService.updateVehicleBrandModel(orgId, { ...bm, fuelType: 'DIESEL S10' });
+              migratedCount++;
+            }
+          }
+          // Migrate Vehicles
+          for (const v of vehicles) {
+            if (!v.fuelType) {
+              await storageService.updateVehicle(orgId, { ...v, fuelType: 'DIESEL S10' });
+              migratedCount++;
+            }
+          }
+          // Migrate Fuel Entries
+          for (const e of fuelEntries) {
+            if (!e.fuelType) {
+              await storageService.updateFuelEntry(orgId, e.id, { fuelType: 'DIESEL S10' });
+              migratedCount++;
+            }
+          }
+
+          if (migratedCount > 0) {
+            console.log(`FuelType migration completed: ${migratedCount} records updated.`);
+          }
+          migrationDone.current = true;
+        } catch (error) {
+          console.error('Migration failed:', error);
+        }
+      };
+      runMigration();
+    }
+  }, [userRole, vehicles.length, vehicleBrandModels.length, fuelEntries.length, orgId]);
 
   // AUTOMATED UPDATES CHECK (Run once when data is available)
   useEffect(() => {
@@ -391,9 +432,9 @@ export const App = () => {
           const kmRemaining = nextPreventiveKm - currentKm;
           
           let maintenanceAlert = "";
-          if (kmRemaining <= 0) {
+          if (kmRemaining <= 0 && vehicle.type !== 'CARRETA') {
             maintenanceAlert = `O veículo ${vehicle.plate} chegou e está com MANUTENÇÃO VENCIDA há ${Math.abs(kmRemaining)} km!`;
-          } else if (kmRemaining <= 1000) {
+          } else if (kmRemaining <= 1000 && vehicle.type !== 'CARRETA') {
             maintenanceAlert = `O veículo ${vehicle.plate} chegou e está PRÓXIMO da manutenção (faltam ${kmRemaining} km).`;
           } else {
             maintenanceAlert = `O veículo ${vehicle.plate} chegou ao destino: ${alert.targetName}`;
@@ -412,6 +453,7 @@ export const App = () => {
           // Also check if there are other vehicles overdue
           const otherOverdue = vehicles.filter(v => {
             if (v.id === vehicle.id) return false;
+            if (v.type === 'CARRETA') return false;
             const next = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
             return (v.odometer || 0) >= next;
           });
@@ -435,7 +477,7 @@ export const App = () => {
     if (vehicles.length === 0 || !settings?.savedPoints || settings.savedPoints.length === 0) return;
 
     const overdueCavalo = vehicles.filter(v => {
-      if (v.type !== 'CAVALO') return false;
+      if (v.type !== 'CAVALO' && v.type !== 'BI-TRUCK') return false;
       const nextDue = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
       return (v.odometer || 0) >= nextDue;
     });
@@ -536,7 +578,8 @@ export const App = () => {
         }
       }
 
-      // 2. Processamento Sequencial: Evita que lotes posteriores expirem o timeout enquanto esperam o primeiro lote (que limpa a fila)
+      // 2. Processamento Sequencial ou Único: Evita thundering herd no servidor
+      // Como o servidor já faz cache e drenagem global, uma única chamada com todas as placas é mais eficiente
       const results = [];
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
@@ -544,10 +587,6 @@ export const App = () => {
         const totalChunks = chunks.length;
         
         try {
-          if (i > 0) {
-            // Pequeno atraso entre lotes para não sobrecarregar o servidor
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
           console.log(`[Sascar Sync] Solicitando lote ${chunkId}/${totalChunks}...`);
           const result = await sascarService.getVehicles(
             chunk.length > 0 ? chunk : undefined, 
@@ -556,9 +595,14 @@ export const App = () => {
           
           console.log(`[Sascar Sync] Lote ${chunkId}/${totalChunks} recebido.`);
           results.push(result.data?.return || result.data?.retornar || result.data || []);
+          
+          // Se tivermos mais de um lote, esperamos um pouco para não travar o servidor
+          if (totalChunks > 1 && i < totalChunks - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
         } catch (error: any) {
           console.error(`[Sascar Sync] Falha no lote ${chunkId}/${totalChunks}:`, error.message);
-          // Continuamos para o próximo lote mesmo se um falhar
+          // Continuamos para o próximo lote
         }
       }
 
@@ -693,10 +737,17 @@ export const App = () => {
     addToast('info', 'Simulação', `Localização do veículo ${plate} atualizada para ${base.name}`);
   };
 
-  // Auto-sync when entering location tab
+  // Auto-sync when entering location tab and periodically
   useEffect(() => {
     if (currentTab === 'location' && user && trackerSettings?.active) {
       syncSascar();
+      
+      // Periodic sync every 2 minutes while on location tab
+      const interval = setInterval(() => {
+        syncSascar();
+      }, 2 * 60 * 1000);
+      
+      return () => clearInterval(interval);
     }
   }, [currentTab, !!user, trackerSettings?.active]);
 
@@ -1242,7 +1293,7 @@ export const App = () => {
                 onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} 
               />
             )}
-            {currentTab === 'occurrences' && <Occurrences user={user} />}
+            {currentTab === 'occurrences' && <Occurrences user={user} occurrences={occurrences} vehicles={vehicles} />}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
         </div>
       </main>

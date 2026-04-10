@@ -75,7 +75,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     });
 
     const overdueFromVehicles = vehicles.filter(v => {
-      if (v.type !== 'CAVALO') return false;
+      if (v.type !== 'CAVALO' && v.type !== 'BI-TRUCK') return false;
       const nextDue = (v.lastPreventiveKm || 0) + (v.revisionIntervalKm || 10000);
       return (v.odometer || 0) >= nextDue && isVehicleAtBase(v);
     }).map(v => ({

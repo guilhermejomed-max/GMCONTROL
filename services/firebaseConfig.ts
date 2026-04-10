@@ -32,6 +32,20 @@ try {
     db = app.firestore();
     auth = app.auth();
     
+    // Enable local persistence
+    try {
+        db.enablePersistence({ synchronizeTabs: true })
+            .catch((err) => {
+                if (err.code === 'failed-precondition') {
+                    console.warn("Persistence failed: Multiple tabs open");
+                } else if (err.code === 'unimplemented') {
+                    console.warn("Persistence failed: Browser not supported");
+                }
+            });
+    } catch (persistenceErr) {
+        console.log("Persistence already enabled or failed:", persistenceErr);
+    }
+    
     // Suppress benign warnings from Firestore SDK (e.g., idle stream timeouts)
     firebase.firestore.setLogLevel('error');
     

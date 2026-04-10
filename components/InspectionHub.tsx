@@ -2,7 +2,7 @@
 import React, { useState, useMemo, FC, useRef, useEffect } from 'react';
 import { Tire, Vehicle, SystemSettings, VisualDamage, ServiceOrder, InspectionRecord, VehicleType } from '../types';
 import { 
-  Search, Truck, ArrowLeft, CheckCircle2, AlertOctagon, AlertTriangle, X, Save, Activity, Gauge, Ruler, Target, GitCompare, Loader2, ChevronRight, Target as TargetIcon, MousePointer2, Camera, ScanLine, Info, CheckSquare, Square
+  Search, Truck, ArrowLeft, CheckCircle2, AlertOctagon, AlertTriangle, X, Save, Activity, Gauge, Ruler, Target, GitCompare, Loader2, ChevronRight, Target as TargetIcon, MousePointer2, Camera, ScanLine, Info, CheckSquare, Square, MapPin, Navigation
 } from 'lucide-react';
 import { TireComparison } from './TireComparison';
 import { isSteerAxle } from '../lib/vehicleUtils';
@@ -27,6 +27,21 @@ const DAMAGE_OPTIONS: { id: VisualDamage, label: string }[] = [
     { id: 'DESGASTE_IRREGULAR', label: 'Desgaste Irregular' },
     { id: 'OUTRO', label: 'Outros Danos' }
 ];
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3; // metres
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // in metres
+};
 
 const SmartTreadGuideModal: FC<{ onClose: () => void; onCapture: (val: number) => void }> = ({ onClose, onCapture }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -412,6 +427,8 @@ export const InspectionHub: FC<InspectionHubProps> = ({
 }) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterPointId, setFilterPointId] = useState<string | null>(null);
+  const [userCoords, setUserCoords] = useState<{lat: number, lng: number} | null>(null);
   const [inspectionState, setInspectionState] = useState<InspectionDataMap>({});
   const [activeTireId, setActiveTireId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -427,6 +444,34 @@ export const InspectionHub: FC<InspectionHubProps> = ({
   }, [tires, selectedVehicle]);
 
   const activeTire = useMemo(() => mountedTires.find(t => t.id === activeTireId), [mountedTires, activeTireId]);
+
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter(v => {
+      const matchesSearch = v.plate.toUpperCase().includes(searchTerm.toUpperCase()) || 
+                           (v.model || '').toUpperCase().includes(searchTerm.toUpperCase());
+      
+      if (!matchesSearch) return false;
+      
+      if (filterPointId === 'current' && userCoords) {
+        if (v.lastLocation) {
+          const dist = calculateDistance(v.lastLocation.lat, v.lastLocation.lng, userCoords.lat, userCoords.lng);
+          return dist <= 1000; // 1km radius for current location
+        }
+        return false;
+      }
+
+      if (filterPointId && filterPointId !== 'current') {
+        const point = settings?.savedPoints?.find(p => p.id === filterPointId);
+        if (point && v.lastLocation) {
+          const dist = calculateDistance(v.lastLocation.lat, v.lastLocation.lng, point.lat, point.lng);
+          return dist <= (point.radius || 500);
+        }
+        return false;
+      }
+      
+      return true;
+    });
+  }, [vehicles, searchTerm, filterPointId, userCoords, settings?.savedPoints]);
 
   const handleInputChange = (tireId: string, field: string, value: any) => {
     setInspectionState(prev => {
@@ -503,7 +548,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
             </div>
         </div>
 
-        <div className="relative mb-10 group">
+        <div className="relative mb-6 group">
           <Search className="absolute left-5 top-5 text-slate-400 h-6 w-6 group-focus-within:text-blue-500 transition-colors" />
           <input 
             type="text" 
@@ -514,12 +559,50 @@ export const InspectionHub: FC<InspectionHubProps> = ({
           />
         </div>
 
+        {/* Near Me Filter */}
+        <div className="mb-10 animate-in fade-in slide-in-from-left-4 duration-500">
+            <div className="flex items-center gap-2 mb-3">
+                <MapPin className="h-4 w-4 text-blue-500" />
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pertos de Mim</h4>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <button 
+                    onClick={() => setFilterPointId(null)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${!filterPointId ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'}`}
+                >
+                    Todos
+                </button>
+                
+                <button 
+                    onClick={() => {
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition((pos) => {
+                                setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                                setFilterPointId('current');
+                            }, (err) => {
+                                alert("Erro ao obter localização: " + err.message);
+                            });
+                        }
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${filterPointId === 'current' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'}`}
+                >
+                    <Navigation className="h-3 w-3" /> Minha Localização
+                </button>
+
+                {settings?.savedPoints?.map(point => (
+                    <button 
+                        key={point.id}
+                        onClick={() => setFilterPointId(point.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filterPointId === point.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'}`}
+                    >
+                        {point.name}
+                    </button>
+                ))}
+            </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vehicles
-            .filter(v => {
-              const matchesSearch = v.plate.toUpperCase().includes(searchTerm.toUpperCase());
-              return matchesSearch;
-            })
+          {filteredVehicles
             .sort((a, b) => a.plate.localeCompare(b.plate))
             .map(v => (
             <div key={v.id} onClick={() => setSelectedVehicle(v)} className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-blue-500 hover:shadow-2xl hover:translate-y-[-4px] transition-all group relative overflow-hidden">

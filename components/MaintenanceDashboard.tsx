@@ -47,7 +47,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
 
   const maintenanceData = useMemo(() => {
     return vehicles
-      .filter(v => v.type === 'CAVALO')
+      .filter(v => v.type === 'CAVALO' || v.type === 'BI-TRUCK')
       .map(vehicle => {
         // Find relevant schedules (e.g., Oil Change)
         const oilSchedules = maintenanceSchedules.filter(s => s.vehicleId === vehicle.id);

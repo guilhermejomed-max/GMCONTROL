@@ -1,6 +1,4 @@
-
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, Camera, AlertTriangle, Type, Loader2, ScanLine, Zap, ZapOff } from 'lucide-react';
 
 // Declaration for Tesseract.js loaded via CDN
@@ -34,11 +32,17 @@ export const Scanner: React.FC<ScannerProps> = ({
   const [hasTorch, setHasTorch] = useState(false);
   
   // Refs
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<any>(null);
   const isScanningRef = useRef<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const readerDivId = useRef(`reader-${Math.random().toString(36).substring(2, 9)}`);
+
+  useEffect(() => {
+    if (scanMode === 'OCR' && !window.Tesseract) {
+      setError("Módulo de OCR (Tesseract) não carregado. Verifique sua conexão.");
+    }
+  }, [scanMode]);
 
   // --- AUDIO & HAPTIC FEEDBACK ---
   const playBeep = () => {
@@ -139,7 +143,7 @@ export const Scanner: React.FC<ScannerProps> = ({
     let isMounted = true;
     const elementId = readerDivId.current;
     
-    const stopScannerInstance = async (instance: Html5Qrcode) => {
+    const stopScannerInstance = async (instance: any) => {
         if (!instance) return;
         
         try {
@@ -170,14 +174,14 @@ export const Scanner: React.FC<ScannerProps> = ({
         }
 
         try {
-            const html5QrCode = new Html5Qrcode(elementId);
+            const { Html5Qrcode: Html5QrcodeClass } = await import('html5-qrcode');
+            const html5QrCode = new Html5QrcodeClass(elementId);
             scannerRef.current = html5QrCode;
 
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-                formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] 
+                aspectRatio: 1.0
             };
 
             await html5QrCode.start(

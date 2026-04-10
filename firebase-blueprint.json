@@ -366,6 +366,63 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "cnpj", "createdAt"]
+    },
+    "FuelType": {
+      "title": "FuelType",
+      "description": "Types of fuel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "Service partners and suppliers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "services": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "cost": { "type": "number" }
+            }
+          }
+        },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "ServiceSector": {
+      "title": "ServiceSector",
+      "description": "Service sectors",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "ServiceClassification": {
+      "title": "ServiceClassification",
+      "description": "Service classifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
     }
   },
   "firestore": {
@@ -460,6 +517,22 @@
     "/fuel_stations/{id}": {
       "schema": "FuelStation",
       "description": "Registered fueling stations"
+    },
+    "/fuelTypes/{id}": {
+      "schema": "FuelType",
+      "description": "Fuel types"
+    },
+    "/partners/{id}": {
+      "schema": "Partner",
+      "description": "Service partners"
+    },
+    "/sectors/{id}": {
+      "schema": "ServiceSector",
+      "description": "Service sectors"
+    },
+    "/classifications/{id}": {
+      "schema": "ServiceClassification",
+      "description": "Service classifications"
     },
     "/branches/{id}": {
       "schema": "Branch",

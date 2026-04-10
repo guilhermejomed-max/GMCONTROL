@@ -47,7 +47,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
     maintenancePlanId: '',
     oilChangeInterval: 0,
     oilLiters: 0,
-    fuelType: '',
+    fuelType: 'DIESEL S10',
     branchId: defaultBranchId || ''
   });
 
@@ -62,13 +62,13 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
 
   const handleOpenAddBrand = () => {
     setIsAddingBrand(true);
-    setFormData({ brand: '', model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: '' });
+    setFormData({ brand: '', model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: 'DIESEL S10' });
   };
 
   const handleOpenAddModel = (brand: string) => {
     setIsAddingModel(true);
     setEditingModelId(null);
-    setFormData({ brand, model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: '' });
+    setFormData({ brand, model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: 'DIESEL S10' });
   };
 
   const handleOpenEditModel = (bm: VehicleBrandModel) => {
@@ -82,7 +82,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
       maintenancePlanId: bm.maintenancePlanId || '',
       oilChangeInterval: bm.oilChangeInterval || 0,
       oilLiters: bm.oilLiters || 0,
-      fuelType: bm.fuelType || ''
+      fuelType: bm.fuelType || 'DIESEL S10'
     });
   };
 
@@ -257,7 +257,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                       </td>
                       <td className="py-4 px-2">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 uppercase">
-                          {bm.fuelType || 'N/A'}
+                          {bm.fuelType || 'DIESEL S10'}
                         </span>
                       </td>
                       <td className="py-4 px-2 font-bold text-slate-600 dark:text-slate-400">{bm.axles}</td>

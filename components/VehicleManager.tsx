@@ -944,7 +944,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     vin: '',
     year: '',
     color: '',
-    fuelType: '',
+    fuelType: 'DIESEL S10',
     fleetNumber: '',
     engine: '',
     transmission: '',
@@ -984,8 +984,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       const lastServiceKm = vehicle.lastPreventiveKm || 0;
       const kmSinceLastService = vehicle.odometer - lastServiceKm;
       
-      const isMaintenanceOverdue = kmSinceLastService >= maintenanceInterval;
-      const isMaintenanceNear = kmSinceLastService >= (maintenanceInterval - 5000) && !isMaintenanceOverdue;
+      const isMaintenanceOverdue = vehicle.type !== 'CARRETA' && kmSinceLastService >= maintenanceInterval;
+      const isMaintenanceNear = vehicle.type !== 'CARRETA' && kmSinceLastService >= (maintenanceInterval - 5000) && !isMaintenanceOverdue;
       
       // Verifica se algum pneu passou da vida útil estimada (padrão 80k se não houver catálogo)
       const hasExpiredTires = mountedTires.some(t => {
@@ -1046,7 +1046,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       vin: '',
       year: '',
       color: '',
-      fuelType: '',
+      fuelType: 'DIESEL S10',
       fleetNumber: '',
       engine: '',
       transmission: '',
@@ -1076,7 +1076,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       vin: vehicle.vin || '',
       year: vehicle.year ? vehicle.year.toString() : '',
       color: vehicle.color || '',
-      fuelType: vehicle.fuelType || '',
+      fuelType: vehicle.fuelType || 'DIESEL S10',
       fleetNumber: vehicle.fleetNumber || '',
       engine: vehicle.engine || '',
       transmission: vehicle.transmission || '',
@@ -1129,7 +1129,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       setEditingId(null);
       setFormData({ 
         plate: '', model: '', brand: '', brandModelId: '', axles: 3, type: 'CAVALO', odometer: 0, sascarCode: '',
-        vin: '', year: '', color: '', fuelType: '', fleetNumber: '',
+        vin: '', year: '', color: '', fuelType: 'DIESEL S10', fleetNumber: '',
         engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: '',
         revisionIntervalKm: 10000, oilLiters: 0, lastPreventiveKm: 0, lastPreventiveDate: '',
         branchId: defaultBranchId || ''
@@ -1483,31 +1483,34 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       let updatedCount = 0;
       const bestUpdates = new Map(); // Usaremos isso para filtrar o melhor ponto de cada carro
 
-      // Garantir que chamamos pelo menos uma vez se houver veículos, mesmo sem sascarCode (para pegar a fila)
-      for (let i = 0; i < (plates.length > 0 ? plates.length : 1); i += CHUNK_SIZE) {
-          const chunk = plates.length > 0 ? plates.slice(i, i + CHUNK_SIZE) : [];
-          
-          // Otimização: Se já temos dados atualizados para todos nesse chunk (vindos de um flush anterior), podemos pular
-          if (chunk.length > 0) {
-              const missingInChunk = chunk.filter(p => {
-                  const numId = parseInt(p.replace(/\D/g, ""), 10);
-                  const cleanPlate = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-                  return !bestUpdates.has(numId) && !bestUpdates.has(cleanPlate);
-              });
-              
-              if (i > 0 && missingInChunk.length === 0) {
-                  console.log(`[Sascar Sync] Lote ${i / CHUNK_SIZE + 1} já possui dados de um flush anterior.`);
-                  continue;
-              }
+      const chunks: string[][] = [];
+      if (plates.length === 0) {
+          chunks.push([]);
+      } else {
+          for (let i = 0; i < plates.length; i += CHUNK_SIZE) {
+              chunks.push(plates.slice(i, i + CHUNK_SIZE));
           }
+      }
 
-          console.log(`[Sascar Sync] Sincronizando lote ${plates.length > 0 ? (i / CHUNK_SIZE + 1) : 1}...`);
-          
+      console.log(`[Sascar Sync] Sincronizando ${chunks.length} lotes sequencialmente...`);
+      
+      const results = [];
+      for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
           try {
+              console.log(`[Sascar Sync] Solicitando lote ${i + 1}/${chunks.length}...`);
               const result = await sascarService.getVehicles(chunk.length > 0 ? chunk : undefined, trackerSettings || undefined);
-              const rawList = result.data?.return || result.data?.retornar || result.data || [];
+              results.push(result.data?.return || result.data?.retornar || result.data || []);
               
-              rawList.forEach((item: any) => {
+              if (chunks.length > 1 && i < chunks.length - 1) {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+              }
+          } catch (err) {
+              console.error(`[Sascar Sync] Erro no lote ${i + 1}:`, err);
+          }
+      }
+
+      results.flat().forEach((item: any) => {
                   let sv = item;
 
                   // CORREÇÃO 2: Decodifica o texto da Sascar para virar um objeto real
@@ -1573,10 +1576,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       console.log(`[Sascar Sync Debug] Nenhum match encontrado para: Sascar=${sascarPlate} (ID=${idSascar})`, sv);
                   }
               });
-          } catch (error) {
-              console.error(`[Sascar Sync] Erro ao sincronizar lote:`, error);
-          }
-      }
 
       // Agora transformamos o Map no array de updates final
       const updatesBatch = Array.from(bestUpdates.values()).map(item => item.updateData);
@@ -2154,7 +2153,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Combustível</p>
-                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fuelType || 'N/A'}</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fuelType || 'DIESEL S10'}</p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Frota #</p>
