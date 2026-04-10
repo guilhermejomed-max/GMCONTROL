@@ -1,4 +1,23 @@
 
+export const AVAILABLE_PERMISSIONS = [
+  { id: 'view_financial', label: 'Ver Fiscal & Custos' },
+  { id: 'view_reports', label: 'Ver Relatórios/Dashboard' },
+  { id: 'delete_records', label: 'Excluir Registros' },
+  { id: 'manage_team', label: 'Gerenciar Equipe' },
+  { id: 'manage_settings', label: 'Gerenciar Configurações' },
+  { id: 'edit_tires', label: 'Cadastrar/Editar Pneus' },
+  { id: 'inspect_tires', label: 'Inspecionar Pneus' },
+  { id: 'move_tires', label: 'Movimentar Pneus (Montar/Desmontar)' },
+  { id: 'send_retread', label: 'Enviar para Recapagem' },
+  { id: 'manage_stock', label: 'Editar Estoque (Almoxarifado)' },
+  { id: 'create_service_order', label: 'Abrir Ordem de Serviço' },
+  { id: 'close_service_order', label: 'Fechar Ordem de Serviço' },
+  { id: 'edit_vehicles', label: 'Cadastrar/Editar Veículos' },
+  { id: 'view_tracking', label: 'Ver Rastreamento/Telemetria' },
+  { id: 'add_fuel', label: 'Lançar Abastecimento' },
+  { id: 'edit_fuel_station', label: 'Gerenciar Postos' },
+];
+
 export interface Branch {
   id: string;
   name: string;
@@ -328,6 +347,8 @@ export interface Collaborator {
   isActive: boolean;
   hiredDate: string;
   branchId?: string; // Filial vinculada
+  allowedModules?: ModuleType[];
+  permissions?: string[];
 }
 
 export interface ServiceOrder {

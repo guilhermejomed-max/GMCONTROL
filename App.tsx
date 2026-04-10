@@ -571,7 +571,7 @@ export const App = () => {
       try {
           console.log(`[Sascar Sync] Solicitando posições...`);
           const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
-          results.push(result.data?.return || result.data?.retornar || result.data || []);
+          results.push(result.data || []);
       } catch (error: any) {
           console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
       }
