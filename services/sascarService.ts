@@ -38,11 +38,11 @@ export const sascarService = {
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
    <soapenv:Header/>
    <soapenv:Body>
-      <int:obterPacotePosicoes>
+      <int:obterPacotePosicoesComPlaca>
          <usuario>${user}</usuario>
          <senha>${pass}</senha>
          <quantidade>5000</quantidade>
-      </int:obterPacotePosicoes>
+      </int:obterPacotePosicoesComPlaca>
    </soapenv:Body>
 </soapenv:Envelope>`.trim();
 
