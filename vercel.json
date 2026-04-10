@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/sascar/:path*",
+      "destination": "https://api.sascar.com.br/:path*"
+    },
+    {
       "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
