@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch } from '../types';
+import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch, AVAILABLE_PERMISSIONS } from '../types';
 import { storageService } from '../services/storageService';
 import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download, Building2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -12,15 +12,6 @@ interface SettingsProps {
   onUpdateSettings: (s: SystemSettings) => void;
   branches: Branch[];
 }
-
-const AVAILABLE_PERMISSIONS = [
-  { id: 'view_financial', label: 'Ver Fiscal & Custos' },
-  { id: 'edit_tires', label: 'Cadastrar/Editar Pneus' },
-  { id: 'delete_records', label: 'Excluir Registros' },
-  { id: 'view_reports', label: 'Ver Relatórios/Dashboard' },
-  { id: 'manage_stock', label: 'Editar Estoque (Almoxarifado)' },
-  { id: 'manage_team', label: 'Gerenciar Equipe' },
-];
 
 export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings, branches }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL' | 'BRANCHES'>('GENERAL');
@@ -310,8 +301,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     }
   };
 
-  const setModule = (mod: ModuleType) => {
-     setRegModules([mod]);
+  const toggleModule = (mod: ModuleType) => {
+     setRegModules(prev => prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod]);
   };
 
   const togglePermission = (perm: string) => {
@@ -927,11 +918,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <div><label className="block text-xs font-bold text-slate-500 mb-1">Filial Vinculada</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regBranchId || ''} onChange={e => setRegBranchId(e.target.value)}><option value="">Todas as Filiais</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
                      </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200">
-                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulo Permitido</label><div className="space-y-2">
-                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="radio" checked={regModules.includes('TIRES')} onChange={() => setModule('TIRES')} className="w-4 h-4 text-purple-600" /><span className="text-sm font-medium text-slate-700">Gestão de Pneus</span></label>
-                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="radio" checked={regModules.includes('MECHANICAL')} onChange={() => setModule('MECHANICAL')} className="w-4 h-4 text-purple-600" /><span className="text-sm font-medium text-slate-700">Manutenção</span></label>
-                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="radio" checked={regModules.includes('VEHICLES')} onChange={() => setModule('VEHICLES')} className="w-4 h-4 text-purple-600" /><span className="text-sm font-medium text-slate-700">Gestão de Veículos</span></label>
-                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="radio" checked={regModules.includes('FUEL')} onChange={() => setModule('FUEL')} className="w-4 h-4 text-purple-600" /><span className="text-sm font-medium text-slate-700">Combustível</span></label>
+                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulos Permitidos</label><div className="space-y-2">
+                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('TIRES')} onChange={() => toggleModule('TIRES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Gestão de Pneus</span></label>
+                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('MECHANICAL')} onChange={() => toggleModule('MECHANICAL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Manutenção</span></label>
+                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('VEHICLES')} onChange={() => toggleModule('VEHICLES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Gestão de Veículos</span></label>
+                          <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('FUEL')} onChange={() => toggleModule('FUEL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Combustível</span></label>
                         </div></div>
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Lock className="h-3 w-3"/> Permissões Específicas</label><div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">{AVAILABLE_PERMISSIONS.map(perm => (<label key={perm.id} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded"><input type="checkbox" checked={regPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} className="w-4 h-4 text-purple-600 rounded" /><span className="text-xs text-slate-700">{perm.label}</span></label>))}</div></div>
                      </div>

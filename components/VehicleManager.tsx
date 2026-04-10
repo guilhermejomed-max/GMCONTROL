@@ -1489,7 +1489,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       try {
           console.log(`[Sascar Sync] Solicitando posições...`);
           const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
-          results.push(result.data?.return || result.data?.retornar || result.data || []);
+          results.push(result.data || []);
       } catch (err) {
           console.error(`[Sascar Sync] Erro na sincronização:`, err);
       }

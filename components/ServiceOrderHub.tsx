@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings } from 'lucide-react';
+import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch } from '../types';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 import { ServiceOrderOpening } from './ServiceOrderOpening';
@@ -1099,17 +1099,17 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 };
 
 interface CollaboratorManagerProps {
-  collaborators: import('../types').Collaborator[];
+  collaborators: Collaborator[];
   defaultBranchId?: string;
-  branches?: import('../types').Branch[];
-  onAdd?: (collaborator: import('../types').Collaborator) => Promise<void>;
-  onUpdate?: (id: string, updates: Partial<import('../types').Collaborator>) => Promise<void>;
+  branches?: Branch[];
+  onAdd?: (collaborator: Collaborator) => Promise<void>;
+  onUpdate?: (id: string, updates: Partial<Collaborator>) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
 }
 
 const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators, defaultBranchId, branches = [], onAdd, onUpdate, onDelete }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCollaborator, setEditingCollaborator] = useState<import('../types').Collaborator | null>(null);
+  const [editingCollaborator, setEditingCollaborator] = useState<Collaborator | null>(null);
   
   const [name, setName] = useState('');
   const [position, setPosition] = useState('');
@@ -1117,6 +1117,8 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
   const [hiredDate, setHiredDate] = useState(new Date().toISOString().split('T')[0]);
   const [branchId, setBranchId] = useState(defaultBranchId || '');
   const [isActive, setIsActive] = useState(true);
+  const [allowedModules, setAllowedModules] = useState<ModuleType[]>(['MECHANICAL']);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1133,7 +1135,9 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
           hiredDate,
           isActive,
           branchId,
-          hourlyRate: Number(salary) / 220 // Assuming 220 hours per month
+          hourlyRate: Number(salary) / 220,
+          allowedModules,
+          permissions
         });
       } else {
         await onAdd({
@@ -1144,7 +1148,9 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
           hiredDate,
           isActive,
           hourlyRate: Number(salary) / 220,
-          branchId: branchId || defaultBranchId
+          branchId: branchId || defaultBranchId,
+          allowedModules,
+          permissions
         });
       }
       setIsModalOpen(false);
@@ -1165,9 +1171,11 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
     setHiredDate(new Date().toISOString().split('T')[0]);
     setBranchId(defaultBranchId || '');
     setIsActive(true);
+    setAllowedModules(['MECHANICAL']);
+    setPermissions([]);
   };
 
-  const handleEdit = (c: import('../types').Collaborator) => {
+  const handleEdit = (c: Collaborator) => {
     setEditingCollaborator(c);
     setName(c.name);
     setPosition(c.position);
@@ -1175,7 +1183,17 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
     setHiredDate(c.hiredDate);
     setBranchId(c.branchId || '');
     setIsActive(c.isActive);
+    setAllowedModules(c.allowedModules || ['MECHANICAL']);
+    setPermissions(c.permissions || []);
     setIsModalOpen(true);
+  };
+
+  const toggleModule = (mod: ModuleType) => {
+    setAllowedModules(prev => prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod]);
+  };
+
+  const togglePermission = (perm: string) => {
+    setPermissions(prev => prev.includes(perm) ? prev.filter(p => p !== perm) : [...prev, perm]);
   };
 
   return (
@@ -1294,6 +1312,42 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label htmlFor="isActive" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Colaborador Ativo</label>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulos Permitidos</label>
+                  <div className="space-y-1">
+                    {(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'] as ModuleType[]).map(mod => (
+                      <label key={mod} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={allowedModules.includes(mod)} 
+                          onChange={() => toggleModule(mod)} 
+                          className="w-3 h-3 text-blue-600 rounded" 
+                        />
+                        <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                          {mod === 'TIRES' ? 'Pneus' : mod === 'MECHANICAL' ? 'Manutenção' : mod === 'VEHICLES' ? 'Veículos' : 'Combustível'}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Lock className="h-3 w-3"/> Permissões</label>
+                  <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+                    {AVAILABLE_PERMISSIONS.map(perm => (
+                      <label key={perm.id} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={permissions.includes(perm.id)} 
+                          onChange={() => togglePermission(perm.id)} 
+                          className="w-3 h-3 text-blue-600 rounded" 
+                        />
+                        <span className="text-[10px] text-slate-700 dark:text-slate-300">{perm.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="pt-4 flex gap-3">
