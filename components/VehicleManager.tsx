@@ -1483,31 +1483,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       let updatedCount = 0;
       const bestUpdates = new Map(); // Usaremos isso para filtrar o melhor ponto de cada carro
 
-      const chunks: string[][] = [];
-      if (plates.length === 0) {
-          chunks.push([]);
-      } else {
-          for (let i = 0; i < plates.length; i += CHUNK_SIZE) {
-              chunks.push(plates.slice(i, i + CHUNK_SIZE));
-          }
-      }
-
-      console.log(`[Sascar Sync] Sincronizando ${chunks.length} lotes sequencialmente...`);
+      console.log(`[Sascar Sync] Sincronizando ${plates.length} veículos...`);
       
       const results = [];
-      for (let i = 0; i < chunks.length; i++) {
-          const chunk = chunks[i];
-          try {
-              console.log(`[Sascar Sync] Solicitando lote ${i + 1}/${chunks.length}...`);
-              const result = await sascarService.getVehicles(chunk.length > 0 ? chunk : undefined, trackerSettings || undefined);
-              results.push(result.data?.return || result.data?.retornar || result.data || []);
-              
-              if (chunks.length > 1 && i < chunks.length - 1) {
-                  await new Promise(resolve => setTimeout(resolve, 2000));
-              }
-          } catch (err) {
-              console.error(`[Sascar Sync] Erro no lote ${i + 1}:`, err);
-          }
+      try {
+          console.log(`[Sascar Sync] Solicitando posições...`);
+          const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
+          results.push(result.data?.return || result.data?.retornar || result.data || []);
+      } catch (err) {
+          console.error(`[Sascar Sync] Erro na sincronização:`, err);
       }
 
       results.flat().forEach((item: any) => {

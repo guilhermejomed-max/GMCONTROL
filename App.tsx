@@ -567,43 +567,13 @@ export const App = () => {
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} veículos...`);
       storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${plates.length} veículos`, 'VEHICLES');
       
-      const CHUNK_SIZE = 100;
-      const chunks: string[][] = [];
-      
-      if (plates.length === 0) {
-        chunks.push([]); // Chamada vazia para buscar a fila/buffer geral
-      } else {
-        for (let i = 0; i < plates.length; i += CHUNK_SIZE) {
-          chunks.push(plates.slice(i, i + CHUNK_SIZE));
-        }
-      }
-
-      // 2. Processamento Sequencial ou Único: Evita thundering herd no servidor
-      // Como o servidor já faz cache e drenagem global, uma única chamada com todas as placas é mais eficiente
       const results = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const chunkId = i + 1;
-        const totalChunks = chunks.length;
-        
-        try {
-          console.log(`[Sascar Sync] Solicitando lote ${chunkId}/${totalChunks}...`);
-          const result = await sascarService.getVehicles(
-            chunk.length > 0 ? chunk : undefined, 
-            trackerSettings || undefined
-          );
-          
-          console.log(`[Sascar Sync] Lote ${chunkId}/${totalChunks} recebido.`);
+      try {
+          console.log(`[Sascar Sync] Solicitando posições...`);
+          const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
           results.push(result.data?.return || result.data?.retornar || result.data || []);
-          
-          // Se tivermos mais de um lote, esperamos um pouco para não travar o servidor
-          if (totalChunks > 1 && i < totalChunks - 1) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
-        } catch (error: any) {
-          console.error(`[Sascar Sync] Falha no lote ${chunkId}/${totalChunks}:`, error.message);
-          // Continuamos para o próximo lote
-        }
+      } catch (error: any) {
+          console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
       }
 
       // 4. Consolidação: Processar todos os itens recebidos e remover duplicatas
