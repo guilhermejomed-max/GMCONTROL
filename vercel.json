@@ -1,17 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/api/sascar/:path*",
+      "source": "/sascar-proxy/:path*",
       "destination": "https://api.sascar.com.br/:path*"
     },
     {
       "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
-  ],
-  "functions": {
-    "api/**/*": {
-      "includeFiles": "api/sascar-wsdl.xml"
-    }
-  }
+  ]
 }
