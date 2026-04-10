@@ -29,30 +29,96 @@ export const sascarService = {
     const maxRetries = 2;
     for (let i = 0; i <= maxRetries; i++) {
       try {
-        const response = await fetchWithTimeout(`/proxy-sascar/vehicles`, {
+        const user = trackerSettings?.user || 'JOMEDELOGTORREOPENTECH';
+        const pass = trackerSettings?.pass || 'sascar';
+
+        const url = '/proxy-sascar/SasIntegraWSService';
+
+        const soapEnvelope = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <int:obterPacotePosicoes>
+         <usuario>${user}</usuario>
+         <senha>${pass}</senha>
+         <quantidade>5000</quantidade>
+      </int:obterPacotePosicoes>
+   </soapenv:Body>
+</soapenv:Envelope>`.trim();
+
+        const response = await fetchWithTimeout(url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/xml;charset=UTF-8'
           },
-          body: JSON.stringify({ plates, trackerSettings })
+          body: soapEnvelope
         }, 180000); // Aumentado para 180s (3 min)
         
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          throw new Error(`Resposta inválida do servidor (não é JSON): ${text.substring(0, 100)}...`);
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status}`);
         }
 
-        const data = await response.json();
+        const text = await response.text();
         
-        if (!response.ok) {
-          if (data.mockData) {
-            console.warn("Using mock data due to API error:", data.details);
-            return data;
-          }
-          throw new Error(data.error || 'Falha ao buscar dados da Sascar');
+        // Parse XML
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "text/xml");
+        
+        // Check for SOAP Fault
+        const fault = xmlDoc.getElementsByTagName("faultstring")[0];
+        if (fault) {
+          throw new Error(`Erro Sascar: ${fault.textContent}`);
         }
-        return data;
+
+        const returns = xmlDoc.getElementsByTagName("return");
+        const vehicles = [];
+        
+        for (let j = 0; j < returns.length; j++) {
+          const ret = returns[j];
+          const v: any = {};
+          for (let k = 0; k < ret.childNodes.length; k++) {
+            const node = ret.childNodes[k];
+            if (node.nodeType === 1) { // Element node
+              v[node.nodeName] = node.textContent;
+            }
+          }
+          
+          const rawLat = v.latitude || 0;
+          const rawLng = v.longitude || 0;
+          const odometerKm = v.odometro ? parseFloat(v.odometro) / 1000 : 0;
+          const speed = Number(v.velocidade ?? 0);
+          const ignition = v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1';
+
+          vehicles.push({
+              idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
+              placa: v.placa || '',
+              plate: v.placa || v.idVeiculo || '',
+              latitude: Number(rawLat),
+              longitude: Number(rawLng),
+              odometer: odometerKm,
+              speed: speed,
+              ignition: ignition,
+              lastLocation: {
+                  lat: Number(rawLat),
+                  lng: Number(rawLng),
+                  address: v.rua || '',
+                  city: v.cidade || '',
+                  state: v.uf || '',
+                  updatedAt: v.dataPosicao || ''
+              }
+          });
+        }
+
+        // Filter by plates if provided
+        let filteredVehicles = vehicles;
+        if (plates && plates.length > 0) {
+          const platesUpper = plates.map(p => p.trim().toUpperCase());
+          filteredVehicles = vehicles.filter(v => 
+            v.placa && platesUpper.includes(v.placa.trim().toUpperCase())
+          );
+        }
+        
+        return { success: true, data: filteredVehicles };
       } catch (error: any) {
         const isLastRetry = i === maxRetries;
         const isTimeout = error.name === 'TimeoutError' || error.message?.includes('Timeout');
