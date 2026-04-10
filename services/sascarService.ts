@@ -121,11 +121,16 @@ export const sascarService = {
         let filteredVehicles = vehicles;
         if (plates && plates.length > 0) {
           const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+          console.log(`[Sascar Debug] Procurando por ${platesClean.length} placas limpas. Exemplo:`, platesClean.slice(0, 5));
+          console.log(`[Sascar Debug] Sascar retornou ${vehicles.length} veículos no pacote. Exemplo de placas retornadas:`, vehicles.slice(0, 5).map(v => v.placa));
+          
           filteredVehicles = vehicles.filter(v => {
             if (!v.placa) return false;
             const vPlacaClean = v.placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
             return platesClean.includes(vPlacaClean);
           });
+          
+          console.log(`[Sascar Debug] Após filtro, restaram ${filteredVehicles.length} veículos.`);
         }
         
         return { success: true, data: filteredVehicles };
