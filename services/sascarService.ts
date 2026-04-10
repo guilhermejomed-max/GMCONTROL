@@ -65,12 +65,19 @@ export const sascarService = {
         const xmlDoc = parser.parseFromString(text, "text/xml");
         
         // Check for SOAP Fault
-        const fault = xmlDoc.getElementsByTagName("faultstring")[0];
+        const fault = xmlDoc.getElementsByTagName("faultstring")[0] || xmlDoc.getElementsByTagNameNS("*", "faultstring")[0];
         if (fault) {
           throw new Error(`Erro Sascar: ${fault.textContent}`);
         }
 
-        const returns = xmlDoc.getElementsByTagName("return");
+        let returns = xmlDoc.getElementsByTagName("return");
+        if (!returns || returns.length === 0) {
+          returns = xmlDoc.getElementsByTagNameNS("*", "return");
+        }
+        if (!returns || returns.length === 0) {
+          returns = xmlDoc.getElementsByTagName("ns2:return");
+        }
+        
         const vehicles = [];
         
         for (let j = 0; j < returns.length; j++) {
@@ -79,7 +86,8 @@ export const sascarService = {
           for (let k = 0; k < ret.childNodes.length; k++) {
             const node = ret.childNodes[k];
             if (node.nodeType === 1) { // Element node
-              v[node.nodeName] = node.textContent;
+              const nodeName = node.localName || node.nodeName.replace(/^.*:/, '');
+              v[nodeName] = node.textContent;
             }
           }
           
@@ -112,10 +120,12 @@ export const sascarService = {
         // Filter by plates if provided
         let filteredVehicles = vehicles;
         if (plates && plates.length > 0) {
-          const platesUpper = plates.map(p => p.trim().toUpperCase());
-          filteredVehicles = vehicles.filter(v => 
-            v.placa && platesUpper.includes(v.placa.trim().toUpperCase())
-          );
+          const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+          filteredVehicles = vehicles.filter(v => {
+            if (!v.placa) return false;
+            const vPlacaClean = v.placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            return platesClean.includes(vPlacaClean);
+          });
         }
         
         return { success: true, data: filteredVehicles };
