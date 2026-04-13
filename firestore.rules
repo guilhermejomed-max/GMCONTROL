@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper simplificado para evitar erros de latência
+    // Helper functions
     function isAuthed() {
       return request.auth != null;
     }
@@ -10,65 +10,145 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthed() && (
         request.auth.token.email == "guilherme.jomed@gmail.com" ||
-        request.auth.token.email == "gui@gmail.com"
+        request.auth.token.email == "gui@gmail.com" ||
+        request.auth.token.email == "danilo.silva@sys.gmcontrol.com" ||
+        request.auth.token.email == "guilherme.martins@sys.gmcontrol.com" ||
+        (request.auth.token.email != null && request.auth.token.email.matches(".*@sys\\.gmcontrol\\.com$"))
       );
     }
 
-    function getRole() {
-      // Usando o getAuth para buscar o role de forma segura
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
+        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"], "role": "SENIOR"};
     }
 
-    // Bloqueio Global
+    function hasModuleAccess(module) {
+      return isAdmin() || (isAuthed() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"]));
+    }
+
+    function getRole() {
+      return getUserData().get('role', 'SENIOR');
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // --- TIRES MODULE ---
+    match /tires/{id} {
+      allow read: if hasModuleAccess("TIRES");
+      allow write: if hasModuleAccess("TIRES");
+    }
+    match /retread_orders/{id} {
+      allow read: if hasModuleAccess("TIRES");
+      allow write: if hasModuleAccess("TIRES");
+    }
+    match /retreaders/{id} {
+      allow read: if isAuthed();
+      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+    }
+    match /tread_patterns/{id} {
+      allow read: if isAuthed();
+      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+    }
+    match /tire_loans/{id} {
+      allow read: if hasModuleAccess("TIRES");
+      allow write: if hasModuleAccess("TIRES");
+    }
+
+    // --- VEHICLES MODULE ---
+    match /vehicles/{id} {
+      allow read: if hasModuleAccess("VEHICLES");
+      allow write: if hasModuleAccess("VEHICLES");
+    }
+    match /vehicleBrandModels/{id} {
+      allow read: if isAuthed();
+      allow write: if hasModuleAccess("VEHICLES");
+    }
+    match /vehicleTypes/{id} {
+      allow read: if isAuthed();
+      allow write: if hasModuleAccess("VEHICLES");
+    }
+    match /drivers/{id} {
+      allow read: if hasModuleAccess("VEHICLES");
+      allow write: if hasModuleAccess("VEHICLES");
+    }
+    match /collaborators/{id} { 
+      allow read: if hasModuleAccess("VEHICLES") || hasModuleAccess("MECHANICAL"); 
+      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"]; 
+    }
+    match /arrival_alerts/{id} {
+      allow read: if hasModuleAccess("VEHICLES");
+      allow write: if hasModuleAccess("VEHICLES");
+    }
+    match /occurrences/{id} {
+      allow read: if hasModuleAccess("VEHICLES");
+      allow write: if hasModuleAccess("VEHICLES");
+    }
+    match /occurrence_reasons/{id} {
+      allow read: if isAuthed();
+      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+    }
+
+    // --- MECHANICAL MODULE ---
+    match /service_orders/{id} {
+      allow read: if hasModuleAccess("MECHANICAL");
+      allow write: if hasModuleAccess("MECHANICAL");
+    }
+    match /maintenance_plans/{id} {
+      allow read: if hasModuleAccess("MECHANICAL");
+      allow write: if hasModuleAccess("MECHANICAL");
+    }
+    match /maintenance_schedules/{id} {
+      allow read: if hasModuleAccess("MECHANICAL");
+      allow write: if hasModuleAccess("MECHANICAL");
+    }
+    match /sectors/{id} {
+      allow read: if isAuthed();
+      allow write: if hasModuleAccess("MECHANICAL");
+    }
+    match /classifications/{id} {
+      allow read: if isAuthed();
+      allow write: if hasModuleAccess("MECHANICAL");
+    }
+    match /partners/{id} {
+      allow read: if isAuthed();
+      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+    }
+    match /stock_items/{id} {
+      allow read: if hasModuleAccess("MECHANICAL");
+      allow write: if hasModuleAccess("MECHANICAL");
+    }
+    match /stock_movements/{id} {
+      allow read: if hasModuleAccess("MECHANICAL");
+      allow write: if hasModuleAccess("MECHANICAL");
+    }
+
+    // --- FUEL MODULE ---
+    match /fuel_entries/{id} { 
+      allow read: if hasModuleAccess("FUEL"); 
+      allow write: if hasModuleAccess("FUEL"); 
+    }
+    match /fuel_stations/{id} { 
+      allow read: if hasModuleAccess("FUEL"); 
+      allow write: if hasModuleAccess("FUEL"); 
+    }
+    match /fuelTypes/{id} { 
+      allow read: if isAuthed(); 
+      allow write: if hasModuleAccess("FUEL"); 
+    }
+
+    // --- SYSTEM ---
+    match /system_logs/{id} { allow read: if isAdmin(); allow create: if isAuthed(); }
+    match /settings/{id} { allow read: if isAuthed(); allow write: if isAdmin() || getRole() in ["SENIOR", "CREATOR"]; }
+    match /branches/{id} { allow read: if isAuthed(); allow write: if isAdmin() || getRole() in ["SENIOR", "CREATOR"]; }
+
+    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
-
-    // Regra para Movimentação de Estoque e Itens
-    match /stock_movements/{id} {
-      allow read: if isAuthed();
-      allow write: if isAuthed() && (isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"]);
-    }
-
-    match /stock_items/{id} {
-      allow read: if isAuthed();
-      allow write: if isAuthed() && (isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"]);
-    }
-
-    // Veículos e Pneus
-    match /vehicles/{id} {
-      allow read: if isAuthed();
-      allow write: if isAuthed() && (isAdmin() || getRole() in ["SENIOR", "PLENO", "INSPECTOR", "CREATOR"]);
-    }
-
-    match /tires/{id} {
-      allow read: if isAuthed();
-      allow write: if isAuthed() && (isAdmin() || getRole() in ["SENIOR", "PLENO", "INSPECTOR", "CREATOR"]);
-    }
-
-    // Cadastros de Apoio (Liberando leitura para não travar o carregamento do App)
-    match /collaborators/{id} { allow read: if isAuthed(); allow write: if isAdmin() || getRole() == "SENIOR"; }
-    match /fuel_stations/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-    match /fuel_entries/{id} { allow read: if isAuthed(); allow write: if isAuthed(); }
-    match /fuelTypes/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-    match /vehicleTypes/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-    match /classifications/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-    match /partners/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-    match /sectors/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-
-    // Manutenção e OS
-    match /maintenance_plans/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-    match /maintenance_schedules/{id} { allow read: if isAuthed(); allow write: if isAuthed(); }
-    match /service_orders/{id} { allow read: if isAuthed(); allow write: if isAuthed(); }
-
-    // Usuários e Configurações
-    match /users/{userId} {
-      allow read: if isAuthed(); 
-      allow write: if isAdmin() || request.auth.uid == userId;
-    }
-
-    match /system_logs/{id} { allow read: if isAdmin(); allow create: if isAuthed(); }
-    match /settings/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
-    match /branches/{id} { allow read: if isAuthed(); allow write: if isAdmin(); }
   }
 }

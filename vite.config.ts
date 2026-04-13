@@ -9,6 +9,13 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
         hmr: false,
+        proxy: {
+          '/proxy-sascar': {
+            target: 'https://sasintegra.sascar.com.br/SasIntegra',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/proxy-sascar/, '')
+          }
+        }
       },
       plugins: [react()],
       define: {

@@ -36,7 +36,7 @@ import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { calculatePredictedTreadDepth } from './src/utils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector } from './types';
-import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2 } from 'lucide-react';
+import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
 
 const LoginScreen = ({ 
   branches, 
@@ -252,8 +252,12 @@ export const App = () => {
             const profile = await storageService.getUserProfile(u.uid);
             if (profile) {
                 setUserRole(profile.role);
-                setAllowedModules(profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
-                setActiveModule(profile.allowedModules?.[0] || 'TIRES');
+                const userModules = profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'];
+                setAllowedModules(userModules);
+                
+                const initialModule = userModules[0] || 'TIRES';
+                setActiveModule(initialModule);
+                
                 if (profile.branchId) {
                     setSelectedBranchId(profile.branchId);
                     setUserBranchId(profile.branchId);
@@ -261,15 +265,21 @@ export const App = () => {
                     setSelectedBranchId(undefined);
                     setUserBranchId(undefined);
                 }
+
+                // Set default tab based on module for Inspector
                 if (profile.role === 'INSPECTOR') {
-                    setCurrentTab('movement');
+                    if (initialModule === 'TIRES') setCurrentTab('movement');
+                    else if (initialModule === 'VEHICLES') setCurrentTab('fleet');
+                    else if (initialModule === 'MECHANICAL') setCurrentTab('maintenance');
+                    else if (initialModule === 'FUEL') setCurrentTab('fuel');
                 }
             } else if (u.email && (u.email.toLowerCase().trim() === 'gui@gmail.com' || u.email.toLowerCase().trim() === 'guilherme.jomed@gmail.com')) {
                 setUserRole('CREATOR');
                 setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
             } else if (u.email && u.email.toLowerCase().trim() === 'inspetor@gmcontrol.com') {
                 setUserRole('INSPECTOR');
-                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
+                setAllowedModules(['TIRES']);
+                setActiveModule('TIRES');
                 setCurrentTab('movement');
             } else {
                 setUserRole('SENIOR');
@@ -282,11 +292,6 @@ export const App = () => {
         setLoadingAuth(false);
     });
     return () => unsubAuth();
-  }, []);
-
-  useEffect(() => {
-    const unsubBranches = storageService.subscribeToBranches(setBranches);
-    return () => unsubBranches();
   }, []);
 
   useEffect(() => {
@@ -309,12 +314,13 @@ export const App = () => {
     const unsubClassifications = storageService.subscribeToClassifications(setClassifications);
     const unsubSectors = storageService.subscribeToSectors(setSectors);
     const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
+    const unsubBranches = storageService.subscribeToBranches(setBranches);
     
     // Fetch non-critical data once
     storageService.getOccurrences(orgId).then(setOccurrences);
     storageService.getVehicleTypes(orgId).then(setVehicleTypes);
     storageService.getFuelTypes(orgId).then(setFuelTypes);
-    storageService.getFuelEntries(orgId).then(setFuelEntries);
+    const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries);
 
     return () => {
         unsubTires();
@@ -334,6 +340,8 @@ export const App = () => {
         unsubClassifications();
         unsubSectors();
         unsubFuelStations();
+        unsubFuelEntries();
+        unsubBranches();
     };
   }, [user]);
 
@@ -592,11 +600,12 @@ export const App = () => {
         }
 
         const sascarId = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
+        const fullPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9-]/gi, '').toUpperCase();
         const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
         
         if (isNaN(sascarId) && !sascarPlate) return;
         
-        const uniqueKey = !isNaN(sascarId) ? `id_${sascarId}` : `plate_${sascarPlate}`;
+        const uniqueKey = !isNaN(sascarId) ? `id_${sascarId}` : `plate_${fullPlate}`;
         if (processedIds.has(uniqueKey)) return;
         processedIds.add(uniqueKey);
 
@@ -845,57 +854,6 @@ export const App = () => {
       );
   }
 
-  if (userRole === 'INSPECTOR') {
-    return (
-      <div className={`min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-300 ${darkMode ? 'dark' : ''}`}>
-        <header className="sticky top-0 z-30 p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-              <LifeBuoy className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-black text-slate-800 dark:text-white leading-tight">GM Control</h1>
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Módulo Inspetor</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={toggleDarkMode}
-              className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-            >
-              {darkMode ? <LayoutDashboard className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
-            </button>
-            <button 
-              onClick={() => storageService.logout()} 
-              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 font-bold rounded-xl transition-all text-sm flex items-center gap-2"
-            >
-              <X className="h-4 w-4" />
-              Sair
-            </button>
-          </div>
-        </header>
-        
-        <main className="p-4 max-w-5xl mx-auto pb-20">
-          <div className="mb-6">
-            <h2 className="text-2xl font-black text-slate-800 dark:text-white">Movimentação de Pneus</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Selecione um veículo para iniciar a inspeção ou troca.</p>
-          </div>
-          
-          <TireMovement 
-            tires={tires} 
-            vehicles={vehicles} 
-            onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
-            onAddTire={(tire) => storageService.addTire(orgId, tire)} 
-            userLevel={userRole} 
-            settings={settings} 
-          />
-        </main>
-
-        <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
-      </div>
-    );
-  }
-
   const handleAddFuelEntry = async (entry: FuelEntry) => {
     try {
       await storageService.addFuelEntry(orgId, entry);
@@ -957,6 +915,193 @@ export const App = () => {
     }
   };
 
+  if (userRole === 'INSPECTOR') {
+    const getModuleLabel = () => {
+      switch(activeModule) {
+        case 'TIRES': return 'Pneus';
+        case 'MECHANICAL': return 'Manutenção';
+        case 'VEHICLES': return 'Frota';
+        case 'FUEL': return 'Combustível';
+        default: return 'Sistema';
+      }
+    };
+
+    const getModuleIcon = () => {
+      switch(activeModule) {
+        case 'TIRES': return <ArrowRightLeft className="h-5 w-5 text-white" />;
+        case 'MECHANICAL': return <Wrench className="h-5 w-5 text-white" />;
+        case 'VEHICLES': return <Truck className="h-5 w-5 text-white" />;
+        case 'FUEL': return <Fuel className="h-5 w-5 text-white" />;
+        default: return <LifeBuoy className="h-5 w-5 text-white" />;
+      }
+    };
+
+    const getModuleColor = () => {
+      switch(activeModule) {
+        case 'TIRES': return 'bg-blue-600';
+        case 'MECHANICAL': return 'bg-indigo-600';
+        case 'VEHICLES': return 'bg-emerald-600';
+        case 'FUEL': return 'bg-orange-600';
+        default: return 'bg-slate-600';
+      }
+    };
+
+    return (
+      <div className={`min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-300 ${darkMode ? 'dark' : ''}`}>
+        <header className="sticky top-0 z-30 p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 ${getModuleColor()} rounded-xl flex items-center justify-center shadow-lg`}>
+              {getModuleIcon()}
+            </div>
+            <div>
+              <h1 className="text-lg font-black text-slate-800 dark:text-white leading-tight">GM Control</h1>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Inspetor - {getModuleLabel()}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {allowedModules.length > 1 && (
+              <button 
+                onClick={() => {
+                  const currentIndex = allowedModules.indexOf(activeModule);
+                  const nextIndex = (currentIndex + 1) % allowedModules.length;
+                  setActiveModule(allowedModules[nextIndex]);
+                }}
+                className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                title="Trocar Módulo"
+              >
+                <SwitchCamera className="h-5 w-5" />
+              </button>
+            )}
+            <button 
+              onClick={toggleDarkMode}
+              className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+            >
+              <LayoutDashboard className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={() => storageService.logout()} 
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 font-bold rounded-xl transition-all text-sm flex items-center gap-2"
+            >
+              <X className="h-4 w-4" />
+              Sair
+            </button>
+          </div>
+        </header>
+        
+        <main className="p-4 max-w-5xl mx-auto pb-20">
+          {activeModule === 'TIRES' && (
+            <>
+              <div className="mb-6">
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Movimentação de Pneus</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Selecione um veículo para iniciar a inspeção ou troca.</p>
+              </div>
+              <TireMovement 
+                tires={tires} 
+                vehicles={vehicles} 
+                onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
+                onAddTire={(tire) => storageService.addTire(orgId, tire)} 
+                userLevel={userRole} 
+                settings={settings} 
+              />
+            </>
+          )}
+
+          {activeModule === 'VEHICLES' && (
+            <>
+              <div className="mb-6">
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Gestão de Frota</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Visualize e gerencie os veículos da frota.</p>
+              </div>
+              <VehicleManager 
+                orgId={orgId}
+                vehicles={vehicles} 
+                vehicleBrandModels={vehicleBrandModels} 
+                tires={tires} 
+                serviceOrders={serviceOrders}
+                fuelEntries={fuelEntries}
+                maintenancePlans={maintenancePlans}
+                maintenanceSchedules={maintenanceSchedules}
+                onAddVehicle={(v) => storageService.addVehicle(orgId, v)} 
+                onDeleteVehicle={(id) => storageService.deleteVehicle(orgId, id)} 
+                onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)}
+                onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
+                onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
+                onSimulateArrival={handleSimulateArrival}
+                userLevel={userRole}
+                settings={settings}
+                trackerSettings={trackerSettings}
+                onSyncSascar={syncSascar}
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                vehicleTypes={vehicleTypes}
+                fuelTypes={fuelTypes}
+              />
+            </>
+          )}
+
+          {activeModule === 'MECHANICAL' && (
+            <>
+              <div className="mb-6">
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Manutenção</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Gerencie ordens de serviço e manutenções.</p>
+              </div>
+              <ServiceOrderHub 
+                orgId={orgId}
+                serviceOrders={serviceOrders}
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                maintenancePlans={maintenancePlans}
+                maintenanceSchedules={maintenanceSchedules}
+                vehicles={vehicles}
+                vehicleBrandModels={vehicleBrandModels}
+                tires={tires}
+                stockItems={stockItems}
+                onUpdateOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
+                onUpdateOrderBatch={(updates) => storageService.updateServiceOrderBatch(orgId, updates)}
+                onAddOrder={handleAddServiceOrder}
+                settings={settings || {} as any}
+                arrivalAlerts={arrivalAlerts}
+                initialVehicleId={preselectedVehicleId || undefined}
+                initialModalOpen={shouldOpenOSModal}
+                onCloseInitialModal={() => setShouldOpenOSModal(false)}
+                collaborators={collaborators}
+                partners={partners}
+                drivers={drivers}
+                onAddCollaborator={(c) => storageService.addCollaborator(orgId, c)}
+                userLevel={userRole}
+              />
+            </>
+          )}
+
+          {activeModule === 'FUEL' && (
+            <>
+              <div className="mb-6">
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Combustível</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Registre abastecimentos e gerencie postos.</p>
+              </div>
+              <FuelDashboard 
+                vehicles={vehicles}
+                fuelEntries={fuelEntries}
+                fuelStations={fuelStations}
+                drivers={drivers}
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                onAddEntry={handleAddFuelEntry}
+                onDeleteEntry={handleDeleteFuelEntry}
+                onAddStation={handleAddFuelStation}
+                onUpdateStation={handleUpdateFuelStation}
+                onDeleteStation={handleDeleteFuelStation}
+                fuelTypes={fuelTypes}
+              />
+            </>
+          )}
+        </main>
+
+        <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-slate-950 transition-colors duration-300 overflow-x-hidden ${darkMode ? 'dark' : ''}`}>
       {!isReportsFullScreen && (
@@ -972,6 +1117,7 @@ export const App = () => {
           userName={user.displayName || user.email || 'Usuário'}
           settings={settings}
           activeModule={activeModule}
+          allowedModules={allowedModules}
           onChangeModule={() => {
             setActiveModule(prev => {
               const currentIndex = allowedModules.indexOf(prev);
@@ -1221,6 +1367,7 @@ export const App = () => {
                 drivers={drivers}
                 classifications={classifications}
                 sectors={sectors}
+                currentUser={user ? { name: user.displayName, email: user.email } : undefined}
               />
             )}
             {currentTab === 'classification-sector' && allowedModules.includes('MECHANICAL') && (

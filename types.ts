@@ -351,6 +351,11 @@ export interface Collaborator {
   permissions?: string[];
 }
 
+export interface AxleSelection {
+  axle: number;
+  side: 'LEFT' | 'RIGHT' | 'BOTH';
+}
+
 export interface ServiceOrder {
   id: string;
   orderNumber: number;
@@ -369,7 +374,7 @@ export interface ServiceOrder {
   collaboratorId?: string; // New: Linked collaborator
   collaboratorName?: string; // New: Collaborator name for history
   parts?: { name: string; quantity: number; unitCost: number }[];
-  services?: { id: string; name: string; cost: number }[]; // New: Linked services
+  services?: { id: string; name: string; cost: number; axles?: AxleSelection[] }[]; // Updated: Linked services with axle side
   maintenanceBaseId?: string;
   maintenanceBaseName?: string;
   arrivalAlertId?: string;
@@ -384,6 +389,7 @@ export interface ServiceOrder {
   completedAt?: string;
   odometer?: number;
   branchId?: string;
+  axles?: AxleSelection[]; // Updated: Linked axles for the whole O.S. with side
   // Extended fields for the new form layout
   contactName?: string;
   isAuthorized?: boolean;

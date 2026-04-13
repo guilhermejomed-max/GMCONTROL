@@ -932,11 +932,11 @@ async function startServer() {
                   if (!vehicleData) return;
 
                   // Normalizar placa para chave (remover hífens e espaços)
-                  const plate = vehicleData.placa ? vehicleData.placa.replace(/[^A-Z0-9]/gi, '').toUpperCase() : '';
+                  const fullPlate = vehicleData.placa ? vehicleData.placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase() : '';
                   const sascarId = vehicleData.idVeiculo ? vehicleData.idVeiculo.toString() : '';
                   
                   // Usar ID como chave primária se disponível, senão placa
-                  const key = sascarId || plate;
+                  const key = sascarId || fullPlate;
                   
                   if (!key) return;
 
