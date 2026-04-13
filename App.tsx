@@ -565,15 +565,17 @@ export const App = () => {
     if (showModal) addToast('info', 'Sincronizando', 'Buscando dados na Sascar...');
 
     try {
-      // 1. Otimização de Dados: Deduplicação de placas/IDs para evitar chamadas redundantes
-      const plates = Array.from(new Set(
-        currentVehicles
-          .map(v => String(v.sascarCode || v.plate || ""))
-          .filter(p => p && p.length > 0)
-      ));
+      // 1. Otimização de Dados: Incluir tanto placas quanto códigos Sascar para busca
+      const searchTerms = new Set<string>();
+      currentVehicles.forEach(v => {
+        if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
+        if (v.plate) searchTerms.add(v.plate.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+      });
       
-      console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} veículos...`);
-      storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${plates.length} veículos`, 'VEHICLES');
+      const plates = Array.from(searchTerms).filter(p => p.length > 0);
+      
+      console.log(`[Sascar Sync] Iniciando sincronização para ${currentVehicles.length} veículos locais usando ${plates.length} termos de busca...`);
+      storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${currentVehicles.length} veículos`, 'VEHICLES');
       
       const results = [];
       try {
@@ -584,53 +586,56 @@ export const App = () => {
           console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
       }
 
-      // 4. Consolidação: Processar todos os itens recebidos e remover duplicatas
+      // 4. Consolidação: Processar todos os itens recebidos
       const allRawItems = results.flat();
       const updatesBatch: any[] = [];
-      const processedIds = new Set<string>();
+      const processedLocalIds = new Set<string>();
       const updatedPlatesList: string[] = [];
 
-      allRawItems.forEach((item: any) => {
-        let sv = item;
-        if (typeof item === 'string') {
-          try { 
-            sv = JSON.parse(item); 
-            if (typeof sv === 'string') sv = JSON.parse(sv); 
-          } catch (e) { return; }
-        }
+      // Ordenar itens por data (se disponível) para garantir que pegamos o mais recente
+      const sortedItems = [...allRawItems].sort((a, b) => {
+        const dateA = new Date(a.lastLocation?.updatedAt || a.dataPosicao || 0).getTime();
+        const dateB = new Date(b.lastLocation?.updatedAt || b.dataPosicao || 0).getTime();
+        return dateB - dateA; // Mais recente primeiro
+      });
 
-        const sascarId = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
-        const fullPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+      sortedItems.forEach((sv: any) => {
+        const sascarId = String(sv.idVeiculo || sv.id || "").trim();
         const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
         
-        if (isNaN(sascarId) && !sascarPlate) return;
+        if (!sascarId && !sascarPlate) return;
         
-        const uniqueKey = !isNaN(sascarId) ? `id_${sascarId}` : `plate_${fullPlate}`;
-        if (processedIds.has(uniqueKey)) return;
-        processedIds.add(uniqueKey);
-
+        // Encontrar o veículo local que corresponde a este item da Sascar
         const localVehicle = currentVehicles.find(v => {
-          const idApp = parseInt(String(v.sascarCode || "").replace(/\D/g, ""), 10);
-          if (!isNaN(idApp) && !isNaN(sascarId) && idApp === sascarId) return true;
+          if (processedLocalIds.has(v.id)) return false;
+
+          // Tentar match por ID Sascar
+          if (sascarId && v.sascarCode) {
+            const cleanIdApp = String(v.sascarCode).trim();
+            if (cleanIdApp === sascarId) return true;
+            // Tentar match numérico se ambos forem números
+            if (/^\d+$/.test(cleanIdApp) && /^\d+$/.test(sascarId)) {
+              if (parseInt(cleanIdApp, 10) === parseInt(sascarId, 10)) return true;
+            }
+          }
           
-          const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
-          if (plateApp && sascarPlate && plateApp === sascarPlate) return true;
+          // Tentar match por Placa
+          if (sascarPlate) {
+            const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            if (plateApp && plateApp === sascarPlate) return true;
+          }
           
           return false;
         });
 
         if (localVehicle) {
+          processedLocalIds.add(localVehicle.id);
           const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
           const finalOdo = Math.round(Number(rawOdo));
           const lat = Number(sv.latitude || sv.lat || 0);
           const lng = Number(sv.longitude || sv.lng || 0);
 
-          const rawLitrometro = sv.litrometro || sv.liters || 0;
-          const finalLitrometro = Number(rawLitrometro);
-          let exactKmPerLiter = undefined;
-          if (finalLitrometro > 0 && finalOdo > 0) {
-            exactKmPerLiter = finalOdo / finalLitrometro;
-          }
+          if (lat === 0 && lng === 0) return; // Posição inválida
 
           updatesBatch.push({
             id: localVehicle.id,
@@ -642,8 +647,10 @@ export const App = () => {
               address: sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS',
               city: sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida',
               state: sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || '',
-              updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || new Date().toISOString()
+              updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date().toISOString()
             },
+            speed: Number(sv.velocidade || sv.speed || 0),
+            ignition: sv.ignicao === 'S' || sv.ignicao === 'true' || sv.ignicao === '1' || sv.ignition === true,
             lastAutoUpdateDate: new Date().toISOString()
           });
           updatedPlatesList.push(localVehicle.plate);
@@ -1069,6 +1076,9 @@ export const App = () => {
                 drivers={drivers}
                 onAddCollaborator={(c) => storageService.addCollaborator(orgId, c)}
                 userLevel={userRole}
+                classifications={classifications}
+                sectors={sectors}
+                currentUser={user ? { name: user.displayName, email: user.email } : undefined}
               />
             </>
           )}
