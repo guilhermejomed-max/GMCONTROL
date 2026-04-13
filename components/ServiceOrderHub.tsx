@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock } from 'lucide-react';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 import { ServiceOrderOpening } from './ServiceOrderOpening';
@@ -128,6 +128,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [editOrderPartnerId, setEditOrderPartnerId] = useState('');
   const [editOrderServiceId, setEditOrderServiceId] = useState('');
   const [editOrderAxles, setEditOrderAxles] = useState<AxleSelection[]>([]);
+  const [editOrderSectorId, setEditOrderSectorId] = useState('');
+  const [editOrderClassificationId, setEditOrderClassificationId] = useState('');
   const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
@@ -294,6 +296,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       setEditOrderProviderName(order.providerName || '');
       setEditOrderExternalServiceCost(order.externalServiceCost || '');
       setEditOrderTireId(order.tireId || '');
+      setEditOrderSectorId(order.sectorId || '');
+      setEditOrderClassificationId(order.classificationId || '');
       setEditOrderAxles(order.axles || []);
       
       // Try to find partner and service ID for the dropdowns
@@ -323,6 +327,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const partner = partners.find(p => p.id === editOrderPartnerId);
           const service = partner?.services.find(s => s.id === editOrderServiceId);
           const tire = tires.find(t => t.id === editOrderTireId);
+          const sector = sectors.find(s => s.id === editOrderSectorId);
+          const classification = classifications.find(c => c.id === editOrderClassificationId);
 
           await onUpdateOrder(editingOrder.id, {
               title: editOrderTitle,
@@ -344,7 +350,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               collaboratorId: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderCollaboratorId || undefined) : undefined,
               collaboratorName: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? collaborator?.name : undefined,
               laborHours: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined) : undefined,
-              laborCost: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined
+              laborCost: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined,
+              sectorId: editOrderSectorId || undefined,
+              sectorName: sector?.name,
+              classificationId: editOrderClassificationId || undefined,
+              classificationName: classification?.name
           });
           setEditingOrder(null);
       } catch (err) {
@@ -954,6 +964,35 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           )}
 
                           <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Setor</label>
+                                  <select 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={editOrderSectorId}
+                                      onChange={e => setEditOrderSectorId(e.target.value)}
+                                  >
+                                      <option value="">Selecionar...</option>
+                                      {sectors.map(s => (
+                                          <option key={s.id} value={s.id}>{s.name}</option>
+                                      ))}
+                                  </select>
+                              </div>
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Classificação</label>
+                                  <select 
+                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                      value={editOrderClassificationId}
+                                      onChange={e => setEditOrderClassificationId(e.target.value)}
+                                  >
+                                      <option value="">Selecionar...</option>
+                                      {classifications.map(c => (
+                                          <option key={c.id} value={c.id}>{c.name}</option>
+                                      ))}
+                                  </select>
+                              </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
                               <div className="col-span-2">
                                   <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descrição do Serviço</label>
                                   <textarea 
@@ -1111,6 +1150,24 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                 <p className="text-sm font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
                                     <Disc className="h-4 w-4"/>
                                     {viewingOrderDetails.axles.map(a => `Eixo ${a.axle} (${a.side === 'BOTH' ? 'Ambos' : a.side === 'LEFT' ? 'Esq' : 'Dir'})`).join(', ')}
+                                </p>
+                            </div>
+                          )}
+                          {viewingOrderDetails.sectorName && (
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Setor</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <Building2 className="h-4 w-4 text-indigo-500"/>
+                                    {viewingOrderDetails.sectorName}
+                                </p>
+                            </div>
+                          )}
+                          {viewingOrderDetails.classificationName && (
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Classificação</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <Tag className="h-4 w-4 text-pink-500"/>
+                                    {viewingOrderDetails.classificationName}
                                 </p>
                             </div>
                           )}

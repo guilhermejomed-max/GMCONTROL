@@ -30,15 +30,148 @@ export const sascarService = {
     const pass = trackerSettings?.pass || 'sascar';
     const url = '/proxy-sascar/SasIntegraWSService';
 
+    const fetchAllLatest = async (): Promise<any[]> => {
+      const soapEnvelope = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <int:obterUltimaPosicaoTodosVeiculos>
+         <usuario>${user}</usuario>
+         <senha>${pass}</senha>
+      </int:obterUltimaPosicaoTodosVeiculos>
+   </soapenv:Body>
+</soapenv:Envelope>`.trim();
+
+      try {
+        console.log(`[Sascar Service] Solicitando última posição de todos os veículos...`);
+        const response = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
+          body: soapEnvelope
+        }, 60000);
+
+        if (!response.ok) return [];
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "text/xml");
+        
+        let returns = xmlDoc.getElementsByTagName("return");
+        if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
+        
+        const results: any[] = [];
+        for (let j = 0; j < returns.length; j++) {
+          const ret = returns[j];
+          const v: any = {};
+          for (let k = 0; k < ret.childNodes.length; k++) {
+            const node = ret.childNodes[k];
+            if (node.nodeType === 1) {
+              const element = node as Element;
+              const nodeName = element.localName || element.nodeName.replace(/^.*:/, '');
+              v[nodeName] = element.textContent;
+            }
+          }
+          if (v.placa || v.idVeiculo) results.push(v);
+        }
+        console.log(`[Sascar Service] Recebidos ${results.length} veículos via obterUltimaPosicaoTodosVeiculos.`);
+        return results;
+      } catch (e) {
+        console.error(`[Sascar Service] Erro em obterUltimaPosicaoTodosVeiculos:`, e);
+      }
+      return [];
+    };
+
+    const fetchIndividual = async (idOrPlate: string): Promise<any | null> => {
+      const isId = /^\d+$/.test(idOrPlate);
+      const methods = isId 
+        ? [{ name: 'obterUltimaPosicaoVeiculo', param: 'idVeiculo' }, { name: 'obterUltimaPosicaoVeiculoComPlaca', param: 'placa' }]
+        : [{ name: 'obterUltimaPosicaoVeiculoComPlaca', param: 'placa' }, { name: 'obterUltimaPosicaoVeiculo', param: 'idVeiculo' }];
+
+      for (const method of methods) {
+        const soapEnvelope = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <int:${method.name}>
+         <usuario>${user}</usuario>
+         <senha>${pass}</senha>
+         <${method.param}>${idOrPlate}</${method.param}>
+      </int:${method.name}>
+   </soapenv:Body>
+</soapenv:Envelope>`.trim();
+
+        try {
+          const response = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
+            body: soapEnvelope
+          }, 30000);
+
+          if (!response.ok) continue;
+          const text = await response.text();
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(text, "text/xml");
+          
+          let returns = xmlDoc.getElementsByTagName("return");
+          if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
+          
+          if (returns && returns.length > 0) {
+            const ret = returns[0];
+            const v: any = {};
+            for (let k = 0; k < ret.childNodes.length; k++) {
+              const node = ret.childNodes[k];
+              if (node.nodeType === 1) {
+                const element = node as Element;
+                const nodeName = element.localName || element.nodeName.replace(/^.*:/, '');
+                v[nodeName] = element.textContent;
+              }
+            }
+            if (v.placa || v.idVeiculo) return v;
+          }
+        } catch (e) {
+          console.warn(`Erro no método ${method.name} para ${idOrPlate}:`, e);
+        }
+      }
+      return null;
+    };
+
     const maxRetries = 2;
     let allVehiclesMap = new Map<string, any>();
+
+    // Estratégia 1: Buscar última posição de TODOS os veículos (Mais eficiente e completa)
+    const allLatest = await fetchAllLatest();
+    allLatest.forEach(v => {
+      const placa = v.placa || '';
+      const uniqueKey = v.idVeiculo ? String(v.idVeiculo) : placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+      
+      const normalizedVehicle = {
+        ...v,
+        idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
+        placa: placa,
+        plate: placa || v.idVeiculo || '',
+        latitude: Number(v.latitude || 0),
+        longitude: Number(v.longitude || 0),
+        odometer: v.odometro ? parseFloat(v.odometro) / 1000 : 0,
+        speed: Number(v.velocidade ?? 0),
+        ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
+        lastLocation: {
+            lat: Number(v.latitude || 0),
+            lng: Number(v.longitude || 0),
+            address: v.rua || '',
+            city: v.cidade || '',
+            state: v.uf || '',
+            updatedAt: v.dataPosicao || ''
+        }
+      };
+      allVehiclesMap.set(uniqueKey, normalizedVehicle);
+    });
+
+    // Estratégia 2: Se ainda faltarem veículos, buscar no pacote de posições (Fallback)
     let hasMoreData = true;
     let loopCount = 0;
-    const maxLoops = 20; // Prevent infinite loops, max 100,000 positions
+    const maxLoops = 5; // Reduzido pois já temos a maioria via Estratégia 1
 
     while (hasMoreData && loopCount < maxLoops) {
       loopCount++;
-      let successInThisLoop = false;
       
       for (let i = 0; i <= maxRetries; i++) {
         try {
@@ -62,31 +195,20 @@ export const sascarService = {
             body: soapEnvelope
           }, 180000);
           
-          if (!response.ok) {
-            throw new Error(`Erro HTTP: ${response.status}`);
-          }
+          if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
 
           const text = await response.text();
-          
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(text, "text/xml");
           
           const fault = xmlDoc.getElementsByTagName("faultstring")[0] || xmlDoc.getElementsByTagNameNS("*", "faultstring")[0];
-          if (fault) {
-            throw new Error(`Erro Sascar: ${fault.textContent}`);
-          }
+          if (fault) throw new Error(`Erro Sascar: ${fault.textContent}`);
 
           let returns = xmlDoc.getElementsByTagName("return");
-          if (!returns || returns.length === 0) {
-            returns = xmlDoc.getElementsByTagNameNS("*", "return");
-          }
-          if (!returns || returns.length === 0) {
-            returns = xmlDoc.getElementsByTagName("ns2:return");
-          }
+          if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
+          if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagName("ns2:return");
           
-          if (returns.length < 3000) {
-            hasMoreData = false;
-          }
+          if (returns.length < 3000) hasMoreData = false;
 
           for (let j = 0; j < returns.length; j++) {
             const ret = returns[j];
@@ -102,10 +224,9 @@ export const sascarService = {
             
             const placa = v.placa || '';
 
-            if (placa) {
+            if (placa || v.idVeiculo) {
               const uniqueKey = v.idVeiculo ? String(v.idVeiculo) : placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
               
-              // Keep the raw object but add/normalize key fields for the components
               const normalizedVehicle = {
                 ...v,
                 idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
@@ -126,26 +247,82 @@ export const sascarService = {
                 }
               };
 
-              // Keep the latest position
-              allVehiclesMap.set(uniqueKey, normalizedVehicle);
+              // Manter apenas a posição mais recente
+              const existing = allVehiclesMap.get(uniqueKey);
+              if (!existing || new Date(normalizedVehicle.lastLocation.updatedAt).getTime() > new Date(existing.lastLocation.updatedAt).getTime()) {
+                allVehiclesMap.set(uniqueKey, normalizedVehicle);
+              }
             }
           }
-          
-          successInThisLoop = true;
-          break; // Break the retry loop if successful
+          break; 
         } catch (error: any) {
-          const isLastRetry = i === maxRetries;
-          if (isLastRetry) {
+          if (i === maxRetries) {
             console.error('Erro na integração Sascar (Final):', error);
-            hasMoreData = false; // Stop the main loop on final error
-            if (allVehiclesMap.size === 0) {
-                throw error; // Only throw if we got nothing at all
-            }
+            hasMoreData = false; 
+            if (allVehiclesMap.size === 0 && (!plates || plates.length === 0)) throw error; 
           } else {
             const delay = 2000 * (i + 1);
-            console.warn(`Tentativa ${i + 1}/${maxRetries + 1} falhou (${error.message}), tentando novamente em ${delay/1000}s...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
+        }
+      }
+    }
+
+    // Fallback individual para veículos não encontrados no pacote
+    if (plates && plates.length > 0) {
+      const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+      const idsClean = plates.map(p => p.replace(/\D/g, '')).filter(p => p.length > 0);
+      
+      const missingTerms = plates.filter(p => {
+        const pClean = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        const pId = p.replace(/\D/g, '');
+        
+        const alreadyFound = Array.from(allVehiclesMap.values()).some(v => {
+          const vPlaca = (v.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+          const vId = (v.idVeiculo || '').replace(/\D/g, '');
+          return (vPlaca && vPlaca === pClean) || (vId && vId === pId);
+        });
+        
+        return !alreadyFound;
+      });
+
+      if (missingTerms.length > 0) {
+        console.log(`[Sascar Sync] ${missingTerms.length} termos não encontrados no pacote. Buscando individualmente...`);
+        const concurrencyLimit = 5;
+        for (let i = 0; i < missingTerms.length; i += concurrencyLimit) {
+          const chunk = missingTerms.slice(i, i + concurrencyLimit);
+          await Promise.all(chunk.map(async (term) => {
+            const v = await fetchIndividual(term);
+            if (v) {
+              const placa = v.placa || '';
+              const uniqueKey = v.idVeiculo ? String(v.idVeiculo) : placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+              
+              const normalizedVehicle = {
+                ...v,
+                idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
+                placa: placa,
+                plate: placa || v.idVeiculo || '',
+                latitude: Number(v.latitude || 0),
+                longitude: Number(v.longitude || 0),
+                odometer: v.odometro ? parseFloat(v.odometro) / 1000 : 0,
+                speed: Number(v.velocidade ?? 0),
+                ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
+                lastLocation: {
+                    lat: Number(v.latitude || 0),
+                    lng: Number(v.longitude || 0),
+                    address: v.rua || '',
+                    city: v.cidade || '',
+                    state: v.uf || '',
+                    updatedAt: v.dataPosicao || ''
+                }
+              };
+              
+              const existing = allVehiclesMap.get(uniqueKey);
+              if (!existing || new Date(normalizedVehicle.lastLocation.updatedAt).getTime() > new Date(existing.lastLocation.updatedAt).getTime()) {
+                allVehiclesMap.set(uniqueKey, normalizedVehicle);
+              }
+            }
+          }));
         }
       }
     }
@@ -156,17 +333,18 @@ export const sascarService = {
     let filteredVehicles = vehicles;
     if (plates && plates.length > 0) {
       const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
-      console.log(`[Sascar Debug] Procurando por ${platesClean.length} placas limpas. Exemplo:`, platesClean.slice(0, 5));
-      console.log(`[Sascar Debug] Sascar retornou ${vehicles.length} veículos únicos no total.`);
+      const idsClean = plates.map(p => p.replace(/\D/g, '')).filter(p => p.length > 0);
       
       filteredVehicles = vehicles.filter(v => {
         const placa = v.placa || v.plate || '';
-        if (!placa) return false;
+        const idVeiculo = v.idVeiculo || '';
+        if (!placa && !idVeiculo) return false;
+        
         const vPlacaClean = placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        return platesClean.includes(vPlacaClean);
+        const vIdClean = idVeiculo.replace(/\D/g, '');
+        
+        return platesClean.includes(vPlacaClean) || (vIdClean && idsClean.includes(vIdClean));
       });
-      
-      console.log(`[Sascar Debug] Após filtro, restaram ${filteredVehicles.length} veículos.`);
     }
     
     return { success: true, data: filteredVehicles };
