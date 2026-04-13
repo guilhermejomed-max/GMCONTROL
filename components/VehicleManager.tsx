@@ -1506,6 +1506,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   }
 
                   const idSascar = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
+                  const fullPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9-]/gi, '').toUpperCase();
                   const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
                   
                   if (isNaN(idSascar) && !sascarPlate) return;
@@ -1527,7 +1528,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       console.log(`[Sascar Sync Debug] Match encontrado: Local=${localVehicle.plate} (ID=${localVehicle.sascarCode}) <-> Sascar=${sascarPlate} (ID=${idSascar})`);
                       const dataPosicaoNova = new Date(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date()).getTime();
                       
-                      const matchKey = !isNaN(idSascar) ? idSascar : sascarPlate;
+                      const matchKey = !isNaN(idSascar) ? idSascar : fullPlate;
 
                       // Só adiciona se não houver dados desse carro ainda OU se esse ponto for mais novo
                       if (!bestUpdates.has(matchKey) || dataPosicaoNova > bestUpdates.get(matchKey).timestamp) {

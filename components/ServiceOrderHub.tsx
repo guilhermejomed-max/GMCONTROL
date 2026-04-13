@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch } from '../types';
+import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection } from '../types';
 import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
@@ -33,6 +33,7 @@ interface ServiceOrderHubProps {
   userLevel: UserLevel;
   classifications?: any[];
   sectors?: any[];
+  currentUser?: { name?: string; email?: string };
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
@@ -65,7 +66,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   userLevel,
   drivers = [],
   classifications = [],
-  sectors = []
+  sectors = [],
+  currentUser
 }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
@@ -125,12 +127,18 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [editOrderExternalServiceCost, setEditOrderExternalServiceCost] = useState<number | ''>('');
   const [editOrderPartnerId, setEditOrderPartnerId] = useState('');
   const [editOrderServiceId, setEditOrderServiceId] = useState('');
+  const [editOrderAxles, setEditOrderAxles] = useState<AxleSelection[]>([]);
   const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [viewingOrderDetails, setViewingOrderDetails] = useState<ServiceOrder | null>(null);
+
+  const editingVehicle = useMemo(() => {
+    if (!editingOrder) return null;
+    return vehicles.find(v => v.id === editingOrder.vehicleId);
+  }, [editingOrder, vehicles]);
 
   const handleEditUpdatePartQty = (index: number, newQty: number) => {
       if (newQty < 1) return;
@@ -286,6 +294,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       setEditOrderProviderName(order.providerName || '');
       setEditOrderExternalServiceCost(order.externalServiceCost || '');
       setEditOrderTireId(order.tireId || '');
+      setEditOrderAxles(order.axles || []);
       
       // Try to find partner and service ID for the dropdowns
       if (order.providerName) {
@@ -321,10 +330,16 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               tireId: editOrderTireId || undefined,
               tireFireNumber: tire?.fireNumber,
               date: editOrderDate,
+              axles: editOrderAxles.length > 0 ? editOrderAxles : undefined,
               serviceType: editOrderServiceType,
               providerName: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') ? (partner?.name || editOrderProviderName) : undefined,
               externalServiceCost: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : undefined,
-              services: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && service ? [{ id: service.id, name: service.name, cost: (editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : 0) }] : undefined,
+              services: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && service ? [{ 
+                  id: service.id, 
+                  name: service.name, 
+                  cost: (editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : 0),
+                  axles: editOrderAxles.length > 0 ? editOrderAxles : undefined
+              }] : undefined,
               parts: editOrderParts.length > 0 ? editOrderParts : undefined,
               collaboratorId: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderCollaboratorId || undefined) : undefined,
               collaboratorName: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? collaborator?.name : undefined,
@@ -556,6 +571,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                 <Timer className="h-3 w-3 text-blue-500"/> {order.odometer.toLocaleString()} KM
                             </span>
                         )}
+                        {order.axles && order.axles.length > 0 && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-lg border border-purple-100 dark:border-purple-800/50">
+                                <Disc className="h-3 w-3 text-purple-500"/> Eixos: {order.axles.map(a => `${a.axle}${a.side === 'BOTH' ? '' : a.side === 'LEFT' ? 'E' : 'D'}`).join(', ')}
+                            </span>
+                        )}
                         {order.collaboratorName && (
                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800/50">
                                 <UserCircle className="h-3 w-3"/> {order.collaboratorName}
@@ -669,6 +689,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       <ServiceOrderOpening 
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        currentUser={currentUser}
         onSubmit={async (orderData) => {
           if (onAddOrder) {
             // Create Arrival Alert if a base is selected
@@ -866,6 +887,72 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               </div>
                           )}
 
+                          {/* Axle Selection */}
+                          {editingVehicle && editingVehicle.axles > 0 && (
+                              <div className="space-y-2 animate-in slide-in-from-top-2">
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Vincular aos Eixos</label>
+                                  <div className="flex flex-col gap-2">
+                                      {Array.from({ length: editingVehicle.axles }).map((_, i) => {
+                                          const axleNum = i + 1;
+                                          const currentAxleSelection = editOrderAxles.find(a => a.axle === axleNum);
+                                          
+                                          const toggleSide = (side: 'LEFT' | 'RIGHT') => {
+                                            const currentAxles = [...editOrderAxles];
+                                            const index = currentAxles.findIndex(a => a.axle === axleNum);
+                                            
+                                            if (index === -1) {
+                                              currentAxles.push({ axle: axleNum, side });
+                                            } else {
+                                              const existing = currentAxles[index];
+                                              if (existing.side === 'BOTH') {
+                                                existing.side = side === 'LEFT' ? 'RIGHT' : 'LEFT';
+                                              } else if (existing.side === side) {
+                                                currentAxles.splice(index, 1);
+                                              } else {
+                                                existing.side = 'BOTH';
+                                              }
+                                            }
+                                            setEditOrderAxles(currentAxles);
+                                          };
+
+                                          return (
+                                              <div key={axleNum} className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                                  <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase w-14">Eixo {axleNum}</span>
+                                                  <div className="flex gap-1.5">
+                                                      <button
+                                                          type="button"
+                                                          onClick={() => toggleSide('LEFT')}
+                                                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                              currentAxleSelection?.side === 'LEFT' || currentAxleSelection?.side === 'BOTH'
+                                                                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-blue-300'
+                                                          }`}
+                                                      >
+                                                          E
+                                                      </button>
+                                                      <button
+                                                          type="button"
+                                                          onClick={() => toggleSide('RIGHT')}
+                                                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                              currentAxleSelection?.side === 'RIGHT' || currentAxleSelection?.side === 'BOTH'
+                                                                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-blue-300'
+                                                          }`}
+                                                      >
+                                                          D
+                                                      </button>
+                                                  </div>
+                                                  {currentAxleSelection?.side === 'BOTH' && (
+                                                      <span className="text-[8px] font-black text-blue-500 uppercase ml-auto">Ambos</span>
+                                                  )}
+                                              </div>
+                                          );
+                                      })}
+                                  </div>
+                                  <p className="text-[9px] text-slate-400 font-medium italic">Selecione o lado (Esquerdo/Direito) para cada eixo.</p>
+                              </div>
+                          )}
+
                           <div className="grid grid-cols-2 gap-4">
                               <div className="col-span-2">
                                   <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descrição do Serviço</label>
@@ -1018,6 +1105,15 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                   {viewingOrderDetails.collaboratorName || viewingOrderDetails.providerName || 'N/A'}
                               </p>
                           </div>
+                          {viewingOrderDetails.axles && viewingOrderDetails.axles.length > 0 && (
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Eixos Vinculados</span>
+                                <p className="text-sm font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
+                                    <Disc className="h-4 w-4"/>
+                                    {viewingOrderDetails.axles.map(a => `Eixo ${a.axle} (${a.side === 'BOTH' ? 'Ambos' : a.side === 'LEFT' ? 'Esq' : 'Dir'})`).join(', ')}
+                                </p>
+                            </div>
+                          )}
                       </div>
 
                       {/* Service Title & Details */}

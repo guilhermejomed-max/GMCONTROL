@@ -103,7 +103,7 @@ export const sascarService = {
             const placa = v.placa || '';
 
             if (placa) {
-              const placaClean = placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+              const uniqueKey = v.idVeiculo ? String(v.idVeiculo) : placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
               
               // Keep the raw object but add/normalize key fields for the components
               const normalizedVehicle = {
@@ -127,7 +127,7 @@ export const sascarService = {
               };
 
               // Keep the latest position
-              allVehiclesMap.set(placaClean, normalizedVehicle);
+              allVehiclesMap.set(uniqueKey, normalizedVehicle);
             }
           }
           
@@ -160,7 +160,9 @@ export const sascarService = {
       console.log(`[Sascar Debug] Sascar retornou ${vehicles.length} veículos únicos no total.`);
       
       filteredVehicles = vehicles.filter(v => {
-        const vPlacaClean = v.placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        const placa = v.placa || v.plate || '';
+        if (!placa) return false;
+        const vPlacaClean = placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
         return platesClean.includes(vPlacaClean);
       });
       

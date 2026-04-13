@@ -23,6 +23,7 @@ interface ServiceOrderOpeningProps {
   nextOrderNumber: number;
   classifications?: any[];
   sectors?: any[];
+  currentUser?: { name?: string; email?: string };
 }
 
 export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
@@ -39,7 +40,8 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
   defaultBranchId,
   nextOrderNumber,
   classifications = [],
-  sectors = []
+  sectors = [],
+  currentUser
 }) => {
   const [formData, setFormData] = useState<Partial<ServiceOrder>>({
     branchId: defaultBranchId || '',
@@ -56,6 +58,32 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
     laborCost: 0,
     partsCost: 0,
     parts: [],
+    axles: [],
+    details: '',
+    title: '',
+    vehicleId: '',
+    vehiclePlate: '',
+    odometer: 0,
+    indisponibilidade: 'Não',
+    supplierName: '',
+    providerName: '',
+    externalServiceCost: 0,
+    estimatedDelivery: '',
+    deliveryLimit: '',
+    contactName: '',
+    paymentTerm: '',
+    documentType: '',
+    employeeId: '',
+    employeeName: '',
+    sectorId: '',
+    sectorName: '',
+    classificationId: '',
+    classificationName: '',
+    maintenanceBaseId: '',
+    maintenanceBaseName: '',
+    box: '',
+    driverId: '',
+    driverName: '',
   });
 
   const [vehicleSearch, setVehicleSearch] = useState('');
@@ -232,7 +260,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-12">
               <label className={labelClass}>Gerou Indisponibilidade :</label>
-              <select name="indisponibilidade" className={inputClass} onChange={handleChange}>
+              <select name="indisponibilidade" value={formData.indisponibilidade || 'Não'} className={inputClass} onChange={handleChange}>
                 <option value="Não">Não</option>
                 <option value="Sim">Sim</option>
               </select>
@@ -264,6 +292,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
                   <select 
                     name="supplierName" 
                     className={inputClass} 
+                    value={partners.find(p => p.name === formData.supplierName)?.id || ''}
                     onChange={(e) => {
                       const partner = partners.find(p => p.id === e.target.value);
                       setFormData(prev => ({ ...prev, supplierName: partner?.name }));
@@ -323,7 +352,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
             <div className="col-span-1 md:col-span-2">
               <label className={labelClass}>Box :</label>
-              <input type="text" name="box" className={inputClass} onChange={handleChange} />
+              <input type="text" name="box" className={inputClass} value={formData.box || ''} onChange={handleChange} />
             </div>
           </div>
 
@@ -347,9 +376,10 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
               <select 
                 name="employeeId" 
                 className={inputClass} 
+                value={formData.employeeId || ''} 
                 onChange={(e) => {
                   const c = collaborators.find(col => col.id === e.target.value);
-                  setFormData(prev => ({ ...prev, employeeId: c?.id, employeeName: c?.name }));
+                  setFormData(prev => ({ ...prev, employeeId: e.target.value, employeeName: c?.name }));
                 }}
               >
                 <option value="">Selecione...</option>
@@ -427,6 +457,73 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
               </select>
             </div>
           </div>
+
+          {/* Axle Selection (New) */}
+          {formData.vehicleId && vehicles.find(v => v.id === formData.vehicleId)?.axles && (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div className="col-span-1 md:col-span-12">
+                <label className={labelClass}>Vincular aos Eixos :</label>
+                <div className="flex flex-col gap-3 mt-2">
+                  {Array.from({ length: vehicles.find(v => v.id === formData.vehicleId)?.axles || 0 }).map((_, i) => {
+                    const axleNum = i + 1;
+                    const currentAxleSelection = formData.axles?.find(a => a.axle === axleNum);
+                    
+                    const toggleSide = (side: 'LEFT' | 'RIGHT') => {
+                      const currentAxles = [...(formData.axles || [])];
+                      const index = currentAxles.findIndex(a => a.axle === axleNum);
+                      
+                      if (index === -1) {
+                        currentAxles.push({ axle: axleNum, side });
+                      } else {
+                        const existing = currentAxles[index];
+                        if (existing.side === 'BOTH') {
+                          existing.side = side === 'LEFT' ? 'RIGHT' : 'LEFT';
+                        } else if (existing.side === side) {
+                          currentAxles.splice(index, 1);
+                        } else {
+                          existing.side = 'BOTH';
+                        }
+                      }
+                      setFormData(prev => ({ ...prev, axles: currentAxles }));
+                    };
+
+                    return (
+                      <div key={axleNum} className="flex items-center gap-4 bg-slate-100 p-2 rounded border border-slate-200">
+                        <span className="text-[10px] font-black text-slate-700 uppercase w-16">Eixo {axleNum}</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleSide('LEFT')}
+                            className={`px-4 py-1.5 rounded text-[10px] font-black border transition-all ${
+                              currentAxleSelection?.side === 'LEFT' || currentAxleSelection?.side === 'BOTH'
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                : 'bg-white border-slate-300 text-slate-500 hover:border-blue-400'
+                            }`}
+                          >
+                            ESQUERDO (E)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleSide('RIGHT')}
+                            className={`px-4 py-1.5 rounded text-[10px] font-black border transition-all ${
+                              currentAxleSelection?.side === 'RIGHT' || currentAxleSelection?.side === 'BOTH'
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                : 'bg-white border-slate-300 text-slate-500 hover:border-blue-400'
+                            }`}
+                          >
+                            DIREITO (D)
+                          </button>
+                        </div>
+                        {(currentAxleSelection?.side === 'BOTH') && (
+                          <span className="text-[9px] font-bold text-blue-600 uppercase ml-auto">Ambos Lados</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Row 14: Serviços Solicitados */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
@@ -539,14 +636,6 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             )}
           </div>
 
-          {/* Row 17: Box */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Box :</label>
-              <input type="text" name="box" className={inputClass} onChange={handleChange} />
-            </div>
-          </div>
-
           {/* Footer: Custos e Botões */}
           <div className="pt-4 border-t border-slate-400 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-wrap items-center gap-4">
@@ -606,7 +695,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
               Última Interação : <span className="bg-slate-200 px-1 rounded">08/04/2026 09:25</span>
             </div>
             <div className="col-span-4">
-              Usuário Abertura : <span className="bg-slate-200 px-1 rounded">GUILHERME.MARTINS</span>
+              Usuário Abertura : <span className="bg-slate-200 px-1 rounded">{currentUser?.name || currentUser?.email || 'GUILHERME.MARTINS'}</span>
             </div>
             <div className="col-span-4 text-right">
               Data Inclusão / Atualização : <span className="bg-slate-200 px-1 rounded">09/04/2026 09:26</span>

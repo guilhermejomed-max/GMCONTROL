@@ -15,6 +15,7 @@ interface SidebarProps {
   userName: string;
   settings?: SystemSettings;
   activeModule: ModuleType;
+  allowedModules: ModuleType[];
   onChangeModule: () => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -30,6 +31,7 @@ export const Sidebar: FC<SidebarProps> = ({
   userName, 
   settings, 
   activeModule, 
+  allowedModules,
   onChangeModule, 
   darkMode, 
   toggleDarkMode 
@@ -144,9 +146,11 @@ export const Sidebar: FC<SidebarProps> = ({
                    <p className="text-sm font-bold text-white leading-none">{getModuleLabel()}</p>
                 </div>
              </div>
-             <button onClick={onChangeModule} className="p-2 hover:bg-slate-800 rounded-full text-slate-500 hover:text-white transition-colors" title="Trocar Módulo">
-                <SwitchCamera className="h-5 w-5" />
-             </button>
+             {allowedModules.length > 1 && (
+               <button onClick={onChangeModule} className="p-2 hover:bg-slate-800 rounded-full text-slate-500 hover:text-white transition-colors" title="Trocar Módulo">
+                  <SwitchCamera className="h-5 w-5" />
+               </button>
+             )}
           </div>
         </div>
 

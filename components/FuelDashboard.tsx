@@ -62,7 +62,7 @@ export const FuelDashboard: React.FC<Props> = ({
   const [historySearchTerm, setHistorySearchTerm] = useState('');
   const [showAllModels, setShowAllModels] = useState(false);
   const [showAllHistory, setShowAllHistory] = useState(false);
-  const [periodFilter, setPeriodFilter] = useState<'ALL' | '30D' | '60D' | '90D' | '1Y' | 'CUSTOM'>('30D');
+  const [periodFilter, setPeriodFilter] = useState<'ALL' | '30D' | '60D' | '90D' | '1Y' | 'CUSTOM'>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -111,6 +111,11 @@ export const FuelDashboard: React.FC<Props> = ({
 
   const fuelEntries = useMemo(() => {
     let filtered = allFuelEntries;
+    
+    // Branch Filter
+    if (defaultBranchId) {
+      filtered = filtered.filter(e => e.branchId === defaultBranchId);
+    }
     
     // Period Filter
     if (periodFilter !== 'ALL') {
