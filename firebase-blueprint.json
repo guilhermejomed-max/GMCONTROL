@@ -285,6 +285,19 @@
       },
       "required": ["id", "name", "cnpj", "location", "code", "createdAt"]
     },
+    "VehicleType": {
+      "title": "VehicleType",
+      "description": "Dynamic vehicle type definitions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "axlesCount": { "type": "number" },
+        "steerAxlesCount": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "name", "axlesCount"]
+    },
     "TireLoan": {
       "title": "TireLoan",
       "description": "Records of tire loans",
@@ -463,6 +476,10 @@
     "/stock_items/{id}": {
       "schema": "StockItem",
       "description": "Stock inventory"
+    },
+    "/vehicleTypes/{id}": {
+      "schema": "VehicleType",
+      "description": "Vehicle type definitions"
     },
     "/drivers/{id}": {
       "schema": "Driver",

@@ -211,6 +211,7 @@ export const App = () => {
   const [maintenancePlans, setMaintenancePlans] = useState<import('./types').MaintenancePlan[]>([]);
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<import('./types').MaintenanceSchedule[]>([]);
   const [retreadOrders, setRetreadOrders] = useState<RetreadOrder[]>([]);
+  const [tireLoans, setTireLoans] = useState<any[]>([]);
   const [partners, setPartners] = useState<import('./types').Partner[]>([]);
   const [settings, setSettings] = useState<SystemSettings | undefined>(undefined);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -234,6 +235,36 @@ export const App = () => {
   const [trackerSettings, setTrackerSettings] = useState<TrackerSettings | null>(null);
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [limits, setLimits] = useState({
+    tires: 1000,
+    vehicles: 1000,
+    serviceOrders: 100,
+    fuelEntries: 100
+  });
+  const [hasMore, setHasMore] = useState({
+    tires: false,
+    vehicles: false,
+    serviceOrders: false,
+    fuelEntries: false
+  });
+
+  // Helper to check if there are more items
+  useEffect(() => {
+    setHasMore(prev => ({
+      ...prev,
+      tires: tires.length >= limits.tires,
+      vehicles: vehicles.length >= limits.vehicles,
+      serviceOrders: serviceOrders.length >= limits.serviceOrders,
+      fuelEntries: fuelEntries.length >= limits.fuelEntries
+    }));
+  }, [tires.length, vehicles.length, serviceOrders.length, fuelEntries.length, limits]);
+
+  const handleLoadMore = (module: keyof typeof limits) => {
+    setLimits(prev => ({
+      ...prev,
+      [module]: prev[module] + (module === 'tires' || module === 'vehicles' ? 100 : 50)
+    }));
+  };
   const [showNotifications, setShowNotifications] = useState(false);
   const [syncModal, setSyncModal] = useState<{ isOpen: boolean, updatedPlates: string[] }>({ isOpen: false, updatedPlates: [] });
   const migrationDone = useRef(false);
@@ -294,54 +325,95 @@ export const App = () => {
     return () => unsubAuth();
   }, []);
 
+  // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {
-    if (!user) return; // Only subscribe to data if logged in
-
-    const unsubTires = storageService.subscribeToTires(orgId, setTires);
-    const unsubVehicles = storageService.subscribeToVehicles(orgId, setVehicles);
-    const unsubVehicleBrandModels = storageService.subscribeToVehicleBrandModels(orgId, setVehicleBrandModels);
-    const unsubServiceOrders = storageService.subscribeToServiceOrders(orgId, setServiceOrders);
-    const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
-    const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(orgId, setMaintenanceSchedules);
-    const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
-    const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
+    if (!user) return;
     const unsubSettings = storageService.subscribeToSettings(orgId, setSettings);
-    const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
-    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
     const unsubTracker = storageService.subscribeToTrackerSettings(orgId, setTrackerSettings);
-    const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
-    const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
-    const unsubClassifications = storageService.subscribeToClassifications(setClassifications);
-    const unsubSectors = storageService.subscribeToSectors(setSectors);
-    const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
     const unsubBranches = storageService.subscribeToBranches(setBranches);
+    const unsubVehicleBrandModels = storageService.subscribeToVehicleBrandModels(orgId, setVehicleBrandModels);
     
-    // Fetch non-critical data once
-    storageService.getOccurrences(orgId).then(setOccurrences);
     storageService.getVehicleTypes(orgId).then(setVehicleTypes);
     storageService.getFuelTypes(orgId).then(setFuelTypes);
-    const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries);
 
     return () => {
-        unsubTires();
-        unsubVehicles();
+        unsubSettings();
+        unsubTracker();
+        unsubBranches();
         unsubVehicleBrandModels();
+    };
+  }, [user]);
+
+  // 2. Vehicles Data (Needed by most modules)
+  useEffect(() => {
+    if (!user) return;
+    const unsubVehicles = storageService.subscribeToVehicles(orgId, setVehicles, limits.vehicles);
+    const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
+    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
+    
+    return () => {
+        unsubVehicles();
+        unsubDrivers();
+        unsubCollaborators();
+    };
+  }, [user, limits.vehicles]);
+
+  // 3. Tires Module Data
+  useEffect(() => {
+    if (!user) return;
+    const unsubTires = storageService.subscribeToTires(orgId, setTires, limits.tires);
+    const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
+    const unsubTireLoans = storageService.subscribeToTireLoans(orgId, setTireLoans);
+    
+    return () => {
+        unsubTires();
+        unsubRetreadOrders();
+        unsubTireLoans();
+    };
+  }, [user, limits.tires]);
+
+  // 4. Mechanical Module Data
+  useEffect(() => {
+    if (!user) return;
+    const unsubServiceOrders = storageService.subscribeToServiceOrders(orgId, setServiceOrders, limits.serviceOrders);
+    const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
+    const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(orgId, setMaintenanceSchedules);
+    const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
+    const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
+    const unsubClassifications = storageService.subscribeToClassifications(setClassifications);
+    const unsubSectors = storageService.subscribeToSectors(setSectors);
+    
+    return () => {
         unsubServiceOrders();
         unsubMaintenancePlans();
         unsubMaintenanceSchedules();
-        unsubRetreadOrders();
-        unsubPartners();
-        unsubSettings();
-        unsubDrivers();
-        unsubCollaborators();
-        unsubTracker();
-        unsubArrivalAlerts();
         unsubStockItems();
+        unsubPartners();
         unsubClassifications();
         unsubSectors();
-        unsubFuelStations();
+    };
+  }, [user, limits.serviceOrders]);
+
+  // 5. Fuel Module Data
+  useEffect(() => {
+    if (!user) return;
+    const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries, limits.fuelEntries);
+    const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
+    
+    return () => {
         unsubFuelEntries();
-        unsubBranches();
+        unsubFuelStations();
+    };
+  }, [user, limits.fuelEntries]);
+
+  // 6. Other Data (Occurrences, Alerts)
+  useEffect(() => {
+    if (!user) return;
+    const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
+    storageService.getOccurrences(orgId).then(setOccurrences);
+    
+    return () => {
+        unsubArrivalAlerts();
     };
   }, [user]);
 
@@ -1030,6 +1102,8 @@ export const App = () => {
                 defaultBranchId={selectedBranchId}
                 vehicleTypes={vehicleTypes}
                 fuelTypes={fuelTypes}
+                onLoadMore={() => handleLoadMore('vehicles')}
+                hasMore={hasMore.vehicles}
               />
             </>
           )}
@@ -1067,6 +1141,8 @@ export const App = () => {
                 classifications={classifications}
                 sectors={sectors}
                 currentUser={user ? { name: user.displayName, email: user.email } : undefined}
+                onLoadMore={() => handleLoadMore('serviceOrders')}
+                hasMore={hasMore.serviceOrders}
               />
             </>
           )}
@@ -1090,6 +1166,8 @@ export const App = () => {
                 onUpdateStation={handleUpdateFuelStation}
                 onDeleteStation={handleDeleteFuelStation}
                 fuelTypes={fuelTypes}
+                onLoadMore={() => handleLoadMore('fuelEntries')}
+                hasMore={hasMore.fuelEntries}
               />
             </>
           )}
@@ -1214,37 +1292,60 @@ export const App = () => {
               />
             )}
             {currentTab === 'partners' && allowedModules.includes('MECHANICAL') && <PartnerManager orgId={orgId} />}
-            {currentTab === 'inventory' && allowedModules.includes('TIRES') && <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onRegister={() => setCurrentTab('register')} onNotification={addToast} userLevel={userRole} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'inventory' && allowedModules.includes('TIRES') && (
+              <InventoryList 
+                tires={tires} 
+                vehicles={vehicles} 
+                branches={branches} 
+                defaultBranchId={selectedBranchId} 
+                serviceOrders={serviceOrders} 
+                maintenancePlans={maintenancePlans} 
+                maintenanceSchedules={maintenanceSchedules} 
+                onDelete={(id) => storageService.deleteTire(orgId, id)} 
+                onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
+                onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} 
+                onRegister={() => setCurrentTab('register')} 
+                onNotification={addToast} 
+                userLevel={userRole} 
+                vehicleTypes={vehicleTypes} 
+                onLoadMore={() => handleLoadMore('tires')}
+                hasMore={hasMore.tires}
+              />
+            )}
             {currentTab === 'scrap' && allowedModules.includes('TIRES') && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
             {currentTab === 'register' && allowedModules.includes('TIRES') && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />}
             {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
             {currentTab === 'brand-models' && allowedModules.includes('VEHICLES') && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} />}
             {currentTab === 'vehicle-types' && allowedModules.includes('VEHICLES') && <VehicleTypeManager orgId={orgId} />}
             {currentTab === 'fuel-types' && allowedModules.includes('FUEL') && <FuelTypeManager orgId={orgId} />}
-            {currentTab === 'fleet' && allowedModules.includes('VEHICLES') && <VehicleManager 
-              orgId={orgId}
-              vehicles={vehicles} 
-              vehicleBrandModels={vehicleBrandModels} 
-              tires={tires} 
-              serviceOrders={serviceOrders}
-              fuelEntries={fuelEntries}
-              maintenancePlans={maintenancePlans}
-              maintenanceSchedules={maintenanceSchedules}
-              onAddVehicle={(v) => storageService.addVehicle(orgId, v)} 
-              onDeleteVehicle={(id) => storageService.deleteVehicle(orgId, id)} 
-              onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)}
-              onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
-              onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
-              onSimulateArrival={handleSimulateArrival}
-              userLevel={userRole}
-              settings={settings}
-              trackerSettings={trackerSettings}
-              onSyncSascar={syncSascar}
-              branches={branches}
-              defaultBranchId={selectedBranchId}
-              vehicleTypes={vehicleTypes}
-              fuelTypes={fuelTypes}
-            />}
+            {currentTab === 'fleet' && allowedModules.includes('VEHICLES') && (
+              <VehicleManager 
+                orgId={orgId}
+                vehicles={vehicles} 
+                vehicleBrandModels={vehicleBrandModels} 
+                tires={tires} 
+                serviceOrders={serviceOrders}
+                fuelEntries={fuelEntries}
+                maintenancePlans={maintenancePlans}
+                maintenanceSchedules={maintenanceSchedules}
+                onAddVehicle={(v) => storageService.addVehicle(orgId, v)} 
+                onDeleteVehicle={(id) => storageService.deleteVehicle(orgId, id)} 
+                onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)}
+                onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
+                onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
+                onSimulateArrival={handleSimulateArrival}
+                userLevel={userRole}
+                settings={settings}
+                trackerSettings={trackerSettings}
+                onSyncSascar={syncSascar}
+                branches={branches}
+                defaultBranchId={selectedBranchId}
+                vehicleTypes={vehicleTypes}
+                fuelTypes={fuelTypes}
+                onLoadMore={() => handleLoadMore('vehicles')}
+                hasMore={hasMore.vehicles}
+              />
+            )}
             {currentTab === 'inspection' && allowedModules.includes('TIRES') && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} vehicleTypes={vehicleTypes} />}
             {currentTab === 'retreading' && allowedModules.includes('TIRES') && (
               <RetreadingHub 

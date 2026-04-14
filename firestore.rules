@@ -39,14 +39,33 @@ service cloud.firestore {
 
     // --- USERS COLLECTION ---
     match /users/{userId} {
-      allow read: if isAuthed();
+      allow read: if isAuthed() && (request.auth.uid == userId || isAdmin());
       allow write: if isAuthed() && (request.auth.uid == userId || isAdmin());
     }
 
+    // Validation Helpers
+    function isValidString(val, min, max) {
+      return val is string && val.size() >= min && val.size() <= max;
+    }
+
+    function isValidNumber(val, min, max) {
+      return val is number && val >= min && val <= max;
+    }
+
+    function hasFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
     // --- TIRES MODULE ---
+    function isValidTire(data) {
+      return hasFields(data, ['fireNumber', 'brand', 'model', 'status']) &&
+             isValidString(data.fireNumber, 1, 50) &&
+             isValidString(data.brand, 1, 50);
+    }
+
     match /tires/{id} {
       allow read: if hasModuleAccess("TIRES");
-      allow write: if hasModuleAccess("TIRES");
+      allow write: if hasModuleAccess("TIRES") && isValidTire(request.resource.data);
     }
     match /retread_orders/{id} {
       allow read: if hasModuleAccess("TIRES");
@@ -66,9 +85,15 @@ service cloud.firestore {
     }
 
     // --- VEHICLES MODULE ---
+    function isValidVehicle(data) {
+      return hasFields(data, ['plate', 'model', 'type']) &&
+             isValidString(data.plate, 1, 20) &&
+             isValidString(data.model, 1, 100);
+    }
+
     match /vehicles/{id} {
       allow read: if hasModuleAccess("VEHICLES");
-      allow write: if hasModuleAccess("VEHICLES");
+      allow write: if hasModuleAccess("VEHICLES") && isValidVehicle(request.resource.data);
     }
     match /vehicleBrandModels/{id} {
       allow read: if isAuthed();
