@@ -67,8 +67,9 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
   vehicleTypes = []
 }) => {
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    return allTires;
+  }, [allTires]);
 
   const vehicles = allVehicles;
   const [opFilter, setOpFilter] = useState<OperationFilter>('ALL');

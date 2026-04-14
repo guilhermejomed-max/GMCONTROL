@@ -34,12 +34,13 @@ export const YardAnalysis: FC<YardAnalysisProps> = ({
   onNavigate 
 }) => {
   const vehicles = useMemo(() => {
-    return defaultBranchId ? allVehicles.filter(v => v.branchId === defaultBranchId) : allVehicles;
-  }, [allVehicles, defaultBranchId]);
+    return allVehicles;
+  }, [allVehicles]);
 
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais
+    return allTires;
+  }, [allTires]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [auditData, setAuditData] = useState<Record<string, AuditStatus>>({});

@@ -137,6 +137,7 @@ export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, setti
                 </>
               ) : isSupport ? (
                 <>
+                  {/* Eixo de apoio (ex: 4º eixo do bi-truck) tem 4 pneus ou 2? Vamos assumir 4 por padrão ou 2 dependendo da regra. A regra em getAxlePositions diz que se não for steer, são 4. */}
                   {renderTire(`${i + 1}EE`, cx - 95, y)}
                   {renderTire(`${i + 1}EI`, cx - 60, y)}
                   {renderTire(`${i + 1}DI`, cx + 60, y)}

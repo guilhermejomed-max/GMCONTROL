@@ -186,26 +186,27 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais
+    return allTires;
+  }, [allTires]);
 
   const vehicles = allVehicles;
 
   const serviceOrders = useMemo(() => {
-    return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
-  }, [allServiceOrders, defaultBranchId]);
+    return allServiceOrders;
+  }, [allServiceOrders]);
 
   const retreadOrders = useMemo(() => {
-    return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
-  }, [allRetreadOrders, defaultBranchId]);
+    return allRetreadOrders;
+  }, [allRetreadOrders]);
 
   const occurrences = useMemo(() => {
-    return defaultBranchId ? allOccurrences.filter(o => o.branchId === defaultBranchId) : allOccurrences;
-  }, [allOccurrences, defaultBranchId]);
+    return allOccurrences;
+  }, [allOccurrences]);
 
   const fuelEntries = useMemo(() => {
-    return defaultBranchId ? allFuelEntries.filter(e => e.branchId === defaultBranchId) : allFuelEntries;
-  }, [allFuelEntries, defaultBranchId]);
+    return allFuelEntries;
+  }, [allFuelEntries]);
   
   // Inicializa com as colunas padrão
   const [selectedColumns, setSelectedColumns] = useState<string[]>(

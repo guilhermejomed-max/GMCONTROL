@@ -16,8 +16,9 @@ export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({
   defaultBranchId 
 }) => {
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais
+    return allTires;
+  }, [allTires]);
 
   const retreadOrders = useMemo(() => {
     return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;

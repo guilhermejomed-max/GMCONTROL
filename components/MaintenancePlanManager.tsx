@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MaintenancePlan, MaintenanceSchedule, Vehicle, StockItem } from '../types';
-import { ClipboardList, Plus, Search, Calendar, Truck, Save, X, Trash2 } from 'lucide-react';
+import { ClipboardList, Plus, Search, Calendar, Truck, Save, X, Trash2, PenLine } from 'lucide-react';
 import { storageService } from '../services/storageService';
 
 interface Props {
@@ -15,13 +15,6 @@ interface Props {
 
 export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedules, vehicles, stockItems, defaultBranchId, userLevel }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newPlanName, setNewPlanName] = useState('');
-  const [newPlanType, setNewPlanType] = useState<'KM' | 'DATE'>('KM');
-  const [newPlanInterval, setNewPlanInterval] = useState('');
-  const [newPlanDescription, setNewPlanDescription] = useState('');
-  const [newPlanStockItems, setNewPlanStockItems] = useState<string[]>([]);
-  const [newStockItemId, setNewStockItemId] = useState('');
-
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<string | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedPlanForSchedule, setSelectedPlanForSchedule] = useState<MaintenancePlan | null>(null);
@@ -29,24 +22,53 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
   const [scheduleDueKm, setScheduleDueKm] = useState('');
   const [scheduleDueDate, setScheduleDueDate] = useState('');
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [editingPlan, setEditingPlan] = useState<MaintenancePlan | null>(null);
+  const [newPlanName, setNewPlanName] = useState('');
+  const [newPlanType, setNewPlanType] = useState<'KM' | 'DATE'>('KM');
+  const [newPlanInterval, setNewPlanInterval] = useState('');
+  const [newPlanDescription, setNewPlanDescription] = useState('');
+  const [newPlanStockItems, setNewPlanStockItems] = useState<string[]>([]);
+  const [newStockItemId, setNewStockItemId] = useState('');
 
-  const handleCreatePlan = async (e: React.FormEvent) => {
+  const openEditModal = (plan: MaintenancePlan) => {
+    setEditingPlan(plan);
+    setNewPlanName(plan.name);
+    setNewPlanType(plan.type);
+    setNewPlanInterval(plan.type === 'KM' ? (plan.intervalKm?.toString() || '') : (plan.intervalDays?.toString() || ''));
+    setNewPlanDescription(plan.description || '');
+    setNewPlanStockItems(plan.stockItemIds || []);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlanName || !newPlanInterval) return;
 
-    await storageService.addMaintenancePlan(orgId, {
-      id: Date.now().toString(),
-      name: newPlanName,
-      description: newPlanDescription,
-      type: newPlanType,
-      intervalKm: newPlanType === 'KM' ? Number(newPlanInterval) : undefined,
-      intervalDays: newPlanType === 'DATE' ? Number(newPlanInterval) : undefined,
-      isActive: true,
-      stockItemIds: newPlanStockItems,
-      branchId: defaultBranchId
-    });
+    if (editingPlan) {
+      await storageService.updateMaintenancePlan(orgId, editingPlan.id, {
+        name: newPlanName,
+        description: newPlanDescription,
+        type: newPlanType,
+        intervalKm: newPlanType === 'KM' ? Number(newPlanInterval) : undefined,
+        intervalDays: newPlanType === 'DATE' ? Number(newPlanInterval) : undefined,
+        stockItemIds: newPlanStockItems,
+      });
+    } else {
+      await storageService.addMaintenancePlan(orgId, {
+        id: Date.now().toString(),
+        name: newPlanName,
+        description: newPlanDescription,
+        type: newPlanType,
+        intervalKm: newPlanType === 'KM' ? Number(newPlanInterval) : undefined,
+        intervalDays: newPlanType === 'DATE' ? Number(newPlanInterval) : undefined,
+        isActive: true,
+        stockItemIds: newPlanStockItems,
+        branchId: defaultBranchId
+      });
+    }
 
     setIsCreateModalOpen(false);
+    setEditingPlan(null);
     setNewPlanName('');
     setNewPlanInterval('');
     setNewPlanDescription('');
@@ -100,7 +122,14 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
         </h3>
         {(userLevel === 'SENIOR' || userLevel === 'CREATOR') && (
           <button 
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              setEditingPlan(null);
+              setNewPlanName('');
+              setNewPlanInterval('');
+              setNewPlanDescription('');
+              setNewPlanStockItems([]);
+              setIsCreateModalOpen(true);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all text-sm"
           >
             <Plus className="h-4 w-4" /> Novo Plano
@@ -112,12 +141,20 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
         {plans.map((plan, index) => (
           <div key={`plan-${plan.id}-${index}`} className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative group">
             {(userLevel === 'SENIOR' || userLevel === 'CREATOR') && (
-              <button 
-                onClick={() => handleDeletePlan(plan.id)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => openEditModal(plan)}
+                  className="text-slate-400 hover:text-blue-500"
+                >
+                  <PenLine className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={() => handleDeletePlan(plan.id)}
+                  className="text-slate-400 hover:text-red-500"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             )}
             <h4 className="font-bold text-slate-800 dark:text-white text-lg">{plan.name}</h4>
             {plan.description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{plan.description}</p>}
@@ -260,13 +297,13 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
               <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <Plus className="h-5 w-5 text-blue-600" /> Novo Plano de Manutenção
+                <ClipboardList className="h-5 w-5 text-blue-600" /> {editingPlan ? 'Editar Plano' : 'Novo Plano de Manutenção'}
               </h3>
               <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleCreatePlan} className="p-4 space-y-4">
+            <form onSubmit={handleSavePlan} className="p-4 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Serviço</label>
                 <input 
@@ -366,7 +403,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
                   Cancelar
                 </button>
                 <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-sm flex items-center gap-2 transition-colors">
-                  <Save className="h-4 w-4" /> Salvar Plano
+                  <Save className="h-4 w-4" /> {editingPlan ? 'Salvar Alterações' : 'Salvar Plano'}
                 </button>
               </div>
             </form>

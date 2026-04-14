@@ -33,8 +33,9 @@ export const DemandForecast: FC<DemandForecastProps> = ({
   settings 
 }) => {
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais
+    return allTires;
+  }, [allTires]);
 
   const vehicles = allVehicles;
   const [viewMode, setViewMode] = useState<'TIMELINE' | 'BY_SIZE'>('TIMELINE');

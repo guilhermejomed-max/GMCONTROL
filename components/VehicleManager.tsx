@@ -2,9 +2,10 @@
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
 import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType, FuelType, FuelEntry } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2 } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2, RefreshCw } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
+import { getAllValidPositions } from '../lib/vehicleUtils';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
 DAJ5H64;2215706
@@ -530,6 +531,8 @@ interface VehicleManagerProps {
   vehicleTypes?: VehicleType[];
   fuelTypes?: FuelType[];
   fuelEntries?: FuelEntry[];
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
 export const VehicleManager: FC<VehicleManagerProps> = ({ 
@@ -554,7 +557,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   onSyncSascar,
   vehicleTypes: propVehicleTypes = [],
   fuelTypes = [],
-  fuelEntries = []
+  fuelEntries = [],
+  onLoadMore,
+  hasMore
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -963,12 +968,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
       
       // 1. Falta de Pneus
-      let expectedTires = vehicle.axles * 4;
-      if (vehicle.type === 'CAVALO') {
-        expectedTires = 2 + ((vehicle.axles - 1) * 4);
-      } else if (vehicle.type === 'BI-TRUCK') {
-        expectedTires = 4 + ((vehicle.axles - 2) * 4);
-      }
+      const validPositions = getAllValidPositions(vehicle, vehicleTypes);
+      const expectedTires = validPositions.length;
       const missingTiresCount = Math.max(0, expectedTires - mountedTires.length);
       const isMissingTires = missingTiresCount > 0;
 
@@ -1750,7 +1751,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {(showAllVehicles ? filteredVehicles : filteredVehicles.slice(0, 12)).map(vehicle => {
+        {filteredVehicles.map(vehicle => {
           const status = getVehicleStatus(vehicle);
           const isSelected = selectedIds.has(vehicle.id);
           
@@ -1914,13 +1915,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         })}
       </div>
 
-      {filteredVehicles.length > 12 && (
+      {hasMore && (
         <div className="flex justify-center pt-8">
           <button 
-            onClick={() => setShowAllVehicles(!showAllVehicles)}
-            className="px-10 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-sm"
+            onClick={onLoadMore}
+            className="px-10 py-4 bg-white dark:bg-slate-900 border-2 border-blue-600 text-blue-600 dark:text-blue-400 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/10 hover:bg-blue-50 dark:hover:bg-slate-800"
           >
-            {showAllVehicles ? 'VER MENOS' : `VER TODOS OS VEÍCULOS (${filteredVehicles.length})`}
+            <RefreshCw className="h-5 w-5" />
+            CARREGAR MAIS VEÍCULOS
           </button>
         </div>
       )}

@@ -20,18 +20,16 @@ const ScrapHub: React.FC<ScrapHubProps> = ({ tires, vehicles, branches = [], def
   const scrappedTires = useMemo(() => {
     return tires.filter(t => {
       const isScrap = t.status === TireStatus.DAMAGED;
-      const matchesBranch = !defaultBranchId || t.branchId === defaultBranchId;
-      return isScrap && matchesBranch;
+      return isScrap;
     });
-  }, [tires, defaultBranchId]);
+  }, [tires]);
 
   const activeTires = useMemo(() => {
     return tires.filter(t => {
       const isNotScrap = t.status !== TireStatus.DAMAGED;
-      const matchesBranch = !defaultBranchId || t.branchId === defaultBranchId;
-      return isNotScrap && matchesBranch;
+      return isNotScrap;
     });
-  }, [tires, defaultBranchId]);
+  }, [tires]);
 
   const stats = useMemo(() => {
     const brandCounts: Record<string, number> = {};
@@ -80,6 +78,7 @@ const ScrapHub: React.FC<ScrapHubProps> = ({ tires, vehicles, branches = [], def
       location: 'Sucata',
       vehicleId: null,
       position: null,
+      branchId: defaultBranchId || tire.branchId, // Atualiza para a filial onde a ação ocorre
       history: [
         ...(tire.history || []),
         {

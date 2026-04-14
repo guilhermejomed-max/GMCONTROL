@@ -1,5 +1,5 @@
 
-import { FC, ChangeEvent } from 'react';
+import React, { FC, ChangeEvent, useState } from 'react';
 import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel, Droplets } from 'lucide-react';
 import { TabView, UserLevel, SystemSettings, ModuleType } from '../types';
 
@@ -17,6 +17,7 @@ interface SidebarProps {
   activeModule: ModuleType;
   allowedModules: ModuleType[];
   onChangeModule: () => void;
+  onSelectModule?: (module: ModuleType) => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
 }
@@ -33,9 +34,12 @@ export const Sidebar: FC<SidebarProps> = ({
   activeModule, 
   allowedModules,
   onChangeModule, 
+  onSelectModule,
   darkMode, 
   toggleDarkMode 
 }) => {
+  const [isModuleDropdownOpen, setIsModuleDropdownOpen] = useState(false);
+
   const allMenuItems = [
     // --- MÓDULO PNEUS ---
     { id: 'register', label: 'Cadastrar Pneu', icon: PlusCircle, modules: ['TIRES'] },
@@ -86,26 +90,30 @@ export const Sidebar: FC<SidebarProps> = ({
   const baseClasses = `fixed z-[9999] w-72 bg-[#020617] text-slate-300 transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-800/50 h-screen inset-y-0 left-0`;
   const mobileClasses = isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0";
 
-  const getModuleIcon = () => {
-    if (activeModule === 'TIRES') return <Disc className="h-4 w-4 text-white" />;
-    if (activeModule === 'VEHICLES') return <Truck className="h-4 w-4 text-white" />;
-    if (activeModule === 'FUEL') return <Fuel className="h-4 w-4 text-white" />;
+  const getModuleIconFor = (mod: ModuleType) => {
+    if (mod === 'TIRES') return <Disc className="h-4 w-4 text-white" />;
+    if (mod === 'VEHICLES') return <Truck className="h-4 w-4 text-white" />;
+    if (mod === 'FUEL') return <Fuel className="h-4 w-4 text-white" />;
     return <Package className="h-4 w-4 text-white" />;
   };
 
-  const getModuleLabel = () => {
-    if (activeModule === 'TIRES') return 'Pneus';
-    if (activeModule === 'VEHICLES') return 'Veículos';
-    if (activeModule === 'FUEL') return 'Abastecimento';
+  const getModuleLabelFor = (mod: ModuleType) => {
+    if (mod === 'TIRES') return 'Pneus';
+    if (mod === 'VEHICLES') return 'Veículos';
+    if (mod === 'FUEL') return 'Abastecimento';
     return 'Oficina';
   };
 
-  const getModuleColor = () => {
-    if (activeModule === 'TIRES') return 'bg-blue-600';
-    if (activeModule === 'VEHICLES') return 'bg-emerald-600';
-    if (activeModule === 'FUEL') return 'bg-amber-600';
+  const getModuleColorFor = (mod: ModuleType) => {
+    if (mod === 'TIRES') return 'bg-blue-600';
+    if (mod === 'VEHICLES') return 'bg-emerald-600';
+    if (mod === 'FUEL') return 'bg-amber-600';
     return 'bg-orange-600';
   };
+
+  const getModuleIcon = () => getModuleIconFor(activeModule);
+  const getModuleLabel = () => getModuleLabelFor(activeModule);
+  const getModuleColor = () => getModuleColorFor(activeModule);
 
   const getActiveColorClass = () => {
     if (activeModule === 'TIRES') return 'bg-blue-600 shadow-blue-600/20';
@@ -136,21 +144,53 @@ export const Sidebar: FC<SidebarProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex items-center justify-between mb-2 backdrop-blur-sm">
-             <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${getModuleColor()} shadow-lg`}>
-                   {getModuleIcon()}
-                </div>
-                <div>
-                   <p className="text-[10px] text-slate-500 uppercase font-bold leading-none mb-1">Módulo Ativo</p>
-                   <p className="text-sm font-bold text-white leading-none">{getModuleLabel()}</p>
-                </div>
-             </div>
-             {allowedModules.length > 1 && (
-               <button onClick={onChangeModule} className="p-2 hover:bg-slate-800 rounded-full text-slate-500 hover:text-white transition-colors" title="Trocar Módulo">
-                  <SwitchCamera className="h-5 w-5" />
-               </button>
-             )}
+          <div className="relative">
+            <button 
+              onClick={() => allowedModules.length > 1 && setIsModuleDropdownOpen(!isModuleDropdownOpen)}
+              className={`w-full bg-slate-900/50 p-4 rounded-2xl border ${isModuleDropdownOpen ? 'border-blue-500/50' : 'border-slate-800'} flex items-center justify-between mb-2 backdrop-blur-sm transition-all ${allowedModules.length > 1 ? 'hover:bg-slate-800/50 cursor-pointer' : 'cursor-default'}`}
+            >
+               <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${getModuleColor()} shadow-lg`}>
+                     {getModuleIcon()}
+                  </div>
+                  <div className="text-left">
+                     <p className="text-[10px] text-slate-500 uppercase font-bold leading-none mb-1">Módulo Ativo</p>
+                     <p className="text-sm font-bold text-white leading-none">{getModuleLabel()}</p>
+                  </div>
+               </div>
+               {allowedModules.length > 1 && (
+                 <div className="p-2 rounded-full text-slate-500 transition-colors">
+                    <ChevronRight className={`h-5 w-5 transition-transform ${isModuleDropdownOpen ? 'rotate-90' : ''}`} />
+                 </div>
+               )}
+            </button>
+
+            {isModuleDropdownOpen && allowedModules.length > 1 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden z-50 py-2">
+                {allowedModules.map(mod => (
+                  <button
+                    key={mod}
+                    onClick={() => {
+                      if (onSelectModule) {
+                        onSelectModule(mod);
+                      } else {
+                        // Fallback
+                        onChangeModule();
+                      }
+                      setIsModuleDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800 transition-colors ${activeModule === mod ? 'bg-slate-800/50' : ''}`}
+                  >
+                    <div className={`p-1.5 rounded-lg ${getModuleColorFor(mod)} shadow-sm`}>
+                       {getModuleIconFor(mod)}
+                    </div>
+                    <span className={`text-sm font-bold ${activeModule === mod ? 'text-white' : 'text-slate-400'}`}>
+                      {getModuleLabelFor(mod)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

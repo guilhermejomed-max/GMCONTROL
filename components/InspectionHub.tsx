@@ -435,8 +435,9 @@ export const InspectionHub: FC<InspectionHubProps> = ({
   const [showComparison, setShowComparison] = useState(false);
 
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    return allTires;
+  }, [allTires]);
 
   const mountedTires = useMemo(() => {
     if (!selectedVehicle) return [];

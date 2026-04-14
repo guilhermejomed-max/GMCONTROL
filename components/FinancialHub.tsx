@@ -29,8 +29,9 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
   defaultBranchId 
 }) => {
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais
+    return allTires;
+  }, [allTires]);
 
   const vehicles = allVehicles;
 

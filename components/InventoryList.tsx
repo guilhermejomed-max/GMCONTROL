@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Scanner } from './Scanner';
-import { isSteerAxle } from '../lib/vehicleUtils';
+import { isSteerAxle, getAllValidPositions } from '../lib/vehicleUtils';
 
 interface InventoryListProps {
   tires: Tire[];
@@ -31,6 +31,8 @@ interface InventoryListProps {
   userLevel: UserLevel;
   viewMode?: 'inventory' | 'scrap';
   vehicleTypes?: VehicleType[];
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
 const TransferModal: React.FC<{
@@ -828,7 +830,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   onNotification,
   userLevel, 
   viewMode = 'inventory',
-  vehicleTypes = []
+  vehicleTypes = [],
+  onLoadMore,
+  hasMore
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDashboard, setShowDashboard] = useState(true);
@@ -854,8 +858,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [showAllTires, setShowAllTires] = useState(false);
 
   const filteredByBranchTires = useMemo(() => {
-    return defaultBranchId ? tires.filter(t => t.branchId === defaultBranchId || !!t.vehicleId) : tires;
-  }, [tires, defaultBranchId]);
+    // Pneus agora são universais, não filtramos mais por filial
+    return tires;
+  }, [tires]);
 
   const stats = useMemo(() => {
     const stockTires = filteredByBranchTires.filter(t => !t.vehicleId && t.status !== TireStatus.DAMAGED);
@@ -920,26 +925,20 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     const missingTires: any[] = [];
     vehicles.forEach(vehicle => {
       const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
+      const validPositions = getAllValidPositions(vehicle, vehicleTypes);
       
-      for (let i = 0; i < vehicle.axles; i++) {
-        const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
-        const isSupport = vehicle.type === 'BI-TRUCK' && i === vehicle.axles - 1;
-        
-        const positions = isSteer ? [`${i + 1}E`, `${i + 1}D`] : [`${i + 1}EE`, `${i + 1}EI`, `${i + 1}DI`, `${i + 1}DE`];
-        
-        positions.forEach(pos => {
-          const hasTire = mountedTires.some(t => t.position === pos);
-          if (!hasTire) {
-            missingTires.push({
-              plate: vehicle.plate,
-              fleetNumber: vehicle.fleetNumber || 'N/A',
-              model: vehicle.model,
-              axle: i + 1,
-              position: pos
-            });
-          }
-        });
-      }
+      validPositions.forEach(pos => {
+        const hasTire = mountedTires.some(t => t.position === pos);
+        if (!hasTire) {
+          missingTires.push({
+            plate: vehicle.plate,
+            fleetNumber: vehicle.fleetNumber || 'N/A',
+            model: vehicle.model,
+            axle: parseInt(pos.charAt(0)), // Extract axle number from position (e.g., '1E' -> 1)
+            position: pos
+          });
+        }
+      });
     });
     return missingTires;
   };
@@ -1290,7 +1289,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                       <div className="mt-2 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-inner max-h-48 overflow-y-auto animate-in slide-in-from-top-2 custom-scrollbar">
                         <div className="grid grid-cols-1 gap-1.5">
                           {tires
-                            .filter(t => t.brand.toUpperCase() === brand && (defaultBranchId ? t.branchId === defaultBranchId : true))
+                            .filter(t => t.brand.toUpperCase() === brand)
                             .map(t => (
                               <button
                                 key={t.id}
@@ -1511,7 +1510,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           <>
               {layoutMode === 'GRID' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in slide-in-from-bottom-4">
-                      {(showAllTires ? filteredTires : filteredTires.slice(0, 12)).map(tire => (
+                      {filteredTires.map(tire => (
                           <div key={tire.id} className={`relative ${isInventoryMode && scannedTireIds.has(tire.id) ? 'ring-4 ring-emerald-500 rounded-3xl' : ''}`}>
                               {isInventoryMode && scannedTireIds.has(tire.id) && (
                                   <div className="absolute -top-3 -right-3 z-10 bg-emerald-500 text-white p-2 rounded-full shadow-lg">
@@ -1630,7 +1629,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                              {(showAllTires ? filteredTires : filteredTires.slice(0, 20)).map(t => (
+                              {filteredTires.map(t => (
                                   <tr key={t.id} onClick={() => setSelectedTire(t)} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer ${isInventoryMode && scannedTireIds.has(t.id) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''} ${selectedTireIds.has(t.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
                                       <td className="p-5" onClick={(e) => e.stopPropagation()}>
                                           <input 
@@ -1717,13 +1716,14 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   </div>
               )}
 
-              {filteredTires.length > (layoutMode === 'GRID' ? 12 : 20) && (
+              {hasMore && (
                   <div className="flex justify-center pt-8">
                       <button 
-                          onClick={() => setShowAllTires(!showAllTires)}
-                          className="px-10 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                          onClick={onLoadMore}
+                          className="px-10 py-4 bg-white dark:bg-slate-900 border-2 border-blue-600 text-blue-600 dark:text-blue-400 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/10 hover:bg-blue-50 dark:hover:bg-slate-800"
                       >
-                          {showAllTires ? 'VER MENOS' : `VER TODOS OS PNEUS (${filteredTires.length})`}
+                          <RefreshCw className="h-5 w-5" />
+                          CARREGAR MAIS PNEUS
                       </button>
                   </div>
               )}

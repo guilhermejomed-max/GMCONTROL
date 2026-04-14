@@ -143,6 +143,7 @@ const MovementSchematic: FC<{
         {Array.from({ length: vehicle.axles }).map((_, i) => {
           const y = startY + (i * axleSpacing);
           const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
+          const isSupport = vehicle.type === 'BI-TRUCK' && i === vehicle.axles - 1;
           return (
             <g key={i}>
               <rect x={cx - 100} y={y - 3} width={200} height={6} rx="2" fill="#1e293b" />
@@ -150,6 +151,14 @@ const MovementSchematic: FC<{
                 <>
                   {renderTire(`${i + 1}E`, cx - 75, y)}
                   {renderTire(`${i + 1}D`, cx + 75, y)}
+                </>
+              ) : isSupport ? (
+                <>
+                  {/* Eixo de apoio (ex: 4º eixo do bi-truck) tem 4 pneus ou 2? Vamos assumir 4 por padrão ou 2 dependendo da regra. A regra em getAxlePositions diz que se não for steer, são 4. */}
+                  {renderTire(`${i + 1}EE`, cx - 95, y)}
+                  {renderTire(`${i + 1}EI`, cx - 60, y)}
+                  {renderTire(`${i + 1}DI`, cx + 60, y)}
+                  {renderTire(`${i + 1}DE`, cx + 95, y)}
                 </>
               ) : (
                 <>
@@ -201,8 +210,9 @@ export const TireMovement: FC<TireMovementProps> = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    return allTires;
+  }, [allTires]);
 
   const mountedTires = useMemo(() => {
     if (!selectedVehicle) return [];
@@ -243,12 +253,10 @@ export const TireMovement: FC<TireMovementProps> = ({
     return tires.filter(t => {
       const vId = t.vehicleId ? String(t.vehicleId).trim().toLowerCase() : '';
       const isMounted = vId !== '' && vId !== 'null' && vId !== 'undefined';
-      const matchesBranch = !defaultBranchId || t.branchId === defaultBranchId;
       
       return !isMounted && 
              t.status !== TireStatus.DAMAGED && 
              t.status !== TireStatus.RETREADING && 
-             matchesBranch &&
              (t.fireNumber.toLowerCase().includes(stockSearch.toLowerCase()) || 
               t.brand.toLowerCase().includes(stockSearch.toLowerCase()));
     });
@@ -290,6 +298,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               installOdometer: mountKm,
               installDate: finalDate, // Save Install Date
               location: selectedVehicle.plate,
+              branchId: defaultBranchId || tireToMount.branchId, // Atualiza para a filial onde a ação ocorre
               history: [...(tireToMount.history || []), {
                   date: finalDate,
                   action: 'MONTADO',
@@ -332,6 +341,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               installOdometer: 0, 
               installDate: undefined, // Clear install date
               location: 'Estoque',
+              branchId: defaultBranchId || freshTire.branchId, // Atualiza para a filial onde a ação ocorre
               totalKms: currentTotalKms + kmsRun,
               history: [...(freshTire.history || []), {
                   date: new Date().toISOString(),
@@ -389,6 +399,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               installDate: undefined,
               currentTreadDepth: finalDepth, // Atualiza com o valor informado
               location: 'Estoque',
+              branchId: defaultBranchId || tireOut.branchId, // Atualiza para a filial onde a ação ocorre
               totalKms: currentTotalKms + kmsRun,
               history: [...(tireOut.history || []), {
                   date: now,
@@ -405,6 +416,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               installOdometer: currentOdometer,
               installDate: now,
               location: selectedVehicle.plate,
+              branchId: defaultBranchId || swapInTire.branchId, // Atualiza para a filial onde a ação ocorre
               history: [...(swapInTire.history || []), {
                   date: now,
                   action: 'MONTADO',
@@ -449,6 +461,7 @@ export const TireMovement: FC<TireMovementProps> = ({
           await onUpdateTire({
               ...tireA,
               position: target,
+              branchId: defaultBranchId || tireA.branchId, // Atualiza para a filial onde a ação ocorre
               history: [...(tireA.history || []), { date: now, action: 'EDITADO', details: `Rodízio: ${source} -> ${target}` }]
           });
 
@@ -457,6 +470,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               await onUpdateTire({
                   ...tireB,
                   position: source,
+                  branchId: defaultBranchId || tireB.branchId, // Atualiza para a filial onde a ação ocorre
                   history: [...(tireB.history || []), { date: now, action: 'EDITADO', details: `Rodízio: ${target} -> ${source}` }]
               });
           }

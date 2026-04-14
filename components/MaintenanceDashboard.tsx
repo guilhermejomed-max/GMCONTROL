@@ -27,8 +27,8 @@ export const MaintenanceDashboard: React.FC<Props> = ({
   onOpenServiceOrder 
 }) => {
   const vehicles = useMemo(() => {
-    return defaultBranchId ? allVehicles.filter(v => v.branchId === defaultBranchId) : allVehicles;
-  }, [allVehicles, defaultBranchId]);
+    return allVehicles;
+  }, [allVehicles]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OK' | 'WARNING' | 'OVERDUE'>('ALL');

@@ -83,12 +83,13 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
   settings 
 }) => {
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    return allTires;
+  }, [allTires]);
 
   const retreadOrders = useMemo(() => {
-    return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
-  }, [allRetreadOrders, defaultBranchId]);
+    return allRetreadOrders;
+  }, [allRetreadOrders]);
   const [activeTab, setActiveTab] = useState<'SEND' | 'TRACK' | 'PARTNERS'>('TRACK');
   const [showDashboard, setShowDashboard] = useState(false);
   const [selectedTireIds, setSelectedTireIds] = useState<Set<string>>(new Set());

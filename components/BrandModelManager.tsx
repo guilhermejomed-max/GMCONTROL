@@ -12,6 +12,7 @@ interface BrandModelManagerProps {
   tires?: Tire[];
   defaultBranchId?: string;
   vehicleTypes?: VehicleType[];
+  fuelTypes?: FuelType[];
 }
 
 export const BrandModelManager: FC<BrandModelManagerProps> = ({ 
@@ -22,7 +23,8 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
   serviceOrders = [],
   tires = [],
   defaultBranchId,
-  vehicleTypes = []
+  vehicleTypes = [],
+  fuelTypes = []
 }) => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
@@ -399,13 +401,16 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
 
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">TIPO DE COMBUSTÍVEL</label>
-                <input 
-                  type="text" 
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold uppercase" 
+                <select 
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                   value={formData.fuelType || ''} 
-                  onChange={e => setFormData({...formData, fuelType: e.target.value.toUpperCase()})} 
-                  placeholder="Ex: DIESEL S10, FLEX, ARLA 32"
-                />
+                  onChange={e => setFormData({...formData, fuelType: e.target.value})}
+                >
+                  <option value="">Selecione o combustível</option>
+                  {fuelTypes.map(ft => (
+                    <option key={ft.id} value={ft.name}>{ft.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

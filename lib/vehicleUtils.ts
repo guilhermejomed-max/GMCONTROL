@@ -11,6 +11,11 @@ import { VehicleType } from '../types';
 export const isSteerAxle = (vType: string, axleIndex: number, vehicleTypes: VehicleType[] = []): boolean => {
   const upperType = vType.toUpperCase();
   
+  // Regra especial para o veículo BSX3G15: considerar os dois primeiros eixos como direcionais
+  if (upperType.includes('BSX3G15')) {
+    return axleIndex === 0 || axleIndex === 1;
+  }
+
   // Força 0 eixos direcionais para qualquer carreta, mesmo se cadastrado errado no banco
   if (upperType.includes('CARRETA')) {
     return false;
@@ -47,3 +52,26 @@ export const getAxlePositions = (axleIndex: number, isSteer: boolean): string[] 
   }
   return [`${axleNum}EE`, `${axleNum}EI`, `${axleNum}DI`, `${axleNum}DE`];
 };
+
+/**
+ * Retorna todas as posições válidas para um veículo.
+ */
+export const getAllValidPositions = (vehicle: VehicleType | any, vehicleTypes: VehicleType[] = []): string[] => {
+  const positions: string[] = [];
+  const axles = vehicle.axles || 0;
+  for (let i = 0; i < axles; i++) {
+    const isSteer = isSteerAxle(vehicle.type, i, vehicleTypes);
+    const isSupport = vehicle.type === 'BI-TRUCK' && i === axles - 1;
+    
+    if (isSteer) {
+      positions.push(...getAxlePositions(i, true));
+    } else if (isSupport) {
+      positions.push(...getAxlePositions(i, false));
+    } else {
+      positions.push(...getAxlePositions(i, false));
+    }
+  }
+  return positions;
+};
+
+

@@ -34,6 +34,8 @@ interface Props {
   onUpdateStation: (id: string, data: Partial<FuelStation>) => Promise<void>;
   onDeleteStation: (id: string) => Promise<void>;
   fuelTypes: FuelType[];
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
 export const FuelDashboard: React.FC<Props> = ({
@@ -48,7 +50,9 @@ export const FuelDashboard: React.FC<Props> = ({
   onAddStation,
   onUpdateStation,
   onDeleteStation,
-  fuelTypes
+  fuelTypes,
+  onLoadMore,
+  hasMore
 }) => {
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'STATIONS' | 'COMPARATIVO'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
@@ -570,20 +574,21 @@ export const FuelDashboard: React.FC<Props> = ({
 
               <div className="flex-1 lg:max-h-[500px]">
                 <RecentEntriesList 
-                  entries={showAllHistory ? fuelEntries : fuelEntries.slice(0, 6)} 
+                  entries={fuelEntries} 
                   allFuelEntries={allFuelEntries} 
                   branches={branches} 
                   onDeleteEntry={onDeleteEntry} 
                 />
               </div>
 
-              {fuelEntries.length > 6 && (
+              {hasMore && (
                 <div className="flex justify-center pt-4 mt-auto">
                   <button 
-                    onClick={() => setShowAllHistory(!showAllHistory)}
-                    className="px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black transition-all"
+                    onClick={onLoadMore}
+                    className="px-10 py-4 bg-white dark:bg-slate-900 border-2 border-blue-600 text-blue-600 dark:text-blue-400 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/10 hover:bg-blue-50 dark:hover:bg-slate-800"
                   >
-                    {showAllHistory ? 'VER MENOS' : `VER MAIS (${fuelEntries.length - 6})`}
+                    <HistoryIcon className="h-5 w-5" />
+                    CARREGAR MAIS ABASTECIMENTOS
                   </button>
                 </div>
               )}

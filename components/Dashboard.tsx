@@ -42,8 +42,9 @@ export const Dashboard: FC<DashboardProps> = ({
   vehicleTypes = []
 }) => {
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    return allTires;
+  }, [allTires]);
 
   const vehicles = useMemo(() => {
     return defaultBranchId ? allVehicles.filter(v => v.branchId === defaultBranchId) : allVehicles;
@@ -64,8 +65,8 @@ export const Dashboard: FC<DashboardProps> = ({
     const minDepth = settings?.minTreadDepth || 3;
 
     // 1. FILTERING
-    const branchVehicles = defaultBranchId ? (vehicles || []).filter(v => v.branchId === defaultBranchId) : (vehicles || []);
-    const branchTiresForStats = defaultBranchId ? (tires || []).filter(t => t.branchId === defaultBranchId) : (tires || []);
+    const branchVehicles = vehicles || [];
+    const branchTiresForStats = tires || [];
 
     const filteredVehicles = branchVehicles.filter(v => opFilter === 'ALL' || v.type === opFilter);
     const vehicleIds = new Set(filteredVehicles.map(v => v.id));

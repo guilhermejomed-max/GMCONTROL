@@ -523,9 +523,73 @@ export const storageService = {
     }
   },
 
-  subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void) => {
+  getPaginatedTires: async (orgId: string, limitCount: number = 50, lastDoc?: any): Promise<{ data: Tire[], lastDoc: any }> => {
+    if (mockUser || !db) return { data: LocalDB.get(`tires`, []).slice(0, limitCount), lastDoc: null };
+    try {
+      let query = db.collection("tires").orderBy("fireNumber").limit(limitCount);
+      if (lastDoc) query = query.startAfter(lastDoc);
+      const snapshot = await query.get();
+      return {
+        data: snapshot.docs.map(doc => doc.data() as Tire),
+        lastDoc: snapshot.docs[snapshot.docs.length - 1]
+      };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "tires_paginated");
+      return { data: [], lastDoc: null };
+    }
+  },
+
+  getPaginatedVehicles: async (orgId: string, limitCount: number = 50, lastDoc?: any): Promise<{ data: Vehicle[], lastDoc: any }> => {
+    if (mockUser || !db) return { data: LocalDB.get(`vehicles`, []).slice(0, limitCount), lastDoc: null };
+    try {
+      let query = db.collection("vehicles").orderBy("plate").limit(limitCount);
+      if (lastDoc) query = query.startAfter(lastDoc);
+      const snapshot = await query.get();
+      return {
+        data: snapshot.docs.map(doc => doc.data() as Vehicle),
+        lastDoc: snapshot.docs[snapshot.docs.length - 1]
+      };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "vehicles_paginated");
+      return { data: [], lastDoc: null };
+    }
+  },
+
+  getPaginatedServiceOrders: async (orgId: string, limitCount: number = 50, lastDoc?: any): Promise<{ data: ServiceOrder[], lastDoc: any }> => {
+    if (mockUser || !db) return { data: LocalDB.get(`service_orders`, []).sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, limitCount), lastDoc: null };
+    try {
+      let query = db.collection("service_orders").orderBy("createdAt", "desc").limit(limitCount);
+      if (lastDoc) query = query.startAfter(lastDoc);
+      const snapshot = await query.get();
+      return {
+        data: snapshot.docs.map(doc => doc.data() as ServiceOrder),
+        lastDoc: snapshot.docs[snapshot.docs.length - 1]
+      };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "service_orders_paginated");
+      return { data: [], lastDoc: null };
+    }
+  },
+
+  getPaginatedFuelEntries: async (orgId: string, limitCount: number = 50, lastDoc?: any): Promise<{ data: FuelEntry[], lastDoc: any }> => {
+    if (mockUser || !db) return { data: LocalDB.get(`fuel_entries`, []).sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, limitCount), lastDoc: null };
+    try {
+      let query = db.collection("fuel_entries").orderBy("date", "desc").limit(limitCount);
+      if (lastDoc) query = query.startAfter(lastDoc);
+      const snapshot = await query.get();
+      return {
+        data: snapshot.docs.map(doc => doc.data() as FuelEntry),
+        lastDoc: snapshot.docs[snapshot.docs.length - 1]
+      };
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "fuel_entries_paginated");
+      return { data: [], lastDoc: null };
+    }
+  },
+
+  subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void, limitCount: number = 100) => {
     if (mockUser || !db) return LocalDB.subscribe(`tires`, callback);
-    return db.collection("tires").onSnapshot((snapshot) => {
+    return db.collection("tires").limit(limitCount).onSnapshot((snapshot) => {
       const tires: Tire[] = [];
       snapshot.forEach((doc) => tires.push(doc.data() as Tire));
       callback(tires);
@@ -583,9 +647,9 @@ export const storageService = {
     logActivity(orgId, "Excluiu Pneu", `ID: ${id}`, 'TIRES');
   },
 
-  subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void) => {
+  subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void, limitCount: number = 100) => {
     if (mockUser || !db) return LocalDB.subscribe(`vehicles`, callback);
-    return db.collection("vehicles").onSnapshot((snapshot) => {
+    return db.collection("vehicles").limit(limitCount).onSnapshot((snapshot) => {
       const vehicles: Vehicle[] = [];
       snapshot.forEach((doc) => vehicles.push(doc.data() as Vehicle));
       callback(vehicles);
@@ -1037,9 +1101,9 @@ export const storageService = {
       }
   },
 
-  subscribeToServiceOrders: (orgId: string, callback: (orders: ServiceOrder[]) => void) => {
+  subscribeToServiceOrders: (orgId: string, callback: (orders: ServiceOrder[]) => void, limitCount: number = 50) => {
     if (mockUser || !db) return LocalDB.subscribe(`service_orders`, (data) => callback(data.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
-    return db.collection("service_orders").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+    return db.collection("service_orders").orderBy("createdAt", "desc").limit(limitCount).onSnapshot(snapshot => {
       const orders: ServiceOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as ServiceOrder));
       callback(orders);
@@ -1632,9 +1696,9 @@ export const storageService = {
   },
 
   // --- FUEL MANAGEMENT ---
-  subscribeToFuelEntries: (orgId: string, callback: (entries: FuelEntry[]) => void) => {
+  subscribeToFuelEntries: (orgId: string, callback: (entries: FuelEntry[]) => void, limitCount: number = 50) => {
     if (mockUser || !db) return LocalDB.subscribe(`fuel_entries`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())), []);
-    return db.collection("fuel_entries").orderBy("date", "desc").onSnapshot((snapshot) => {
+    return db.collection("fuel_entries").orderBy("date", "desc").limit(limitCount).onSnapshot((snapshot) => {
       const entries: FuelEntry[] = [];
       snapshot.forEach((doc) => entries.push(doc.data() as FuelEntry));
       callback(entries);

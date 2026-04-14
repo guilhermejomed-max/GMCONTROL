@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag } from 'lucide-react';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 import { ServiceOrderOpening } from './ServiceOrderOpening';
@@ -34,6 +34,8 @@ interface ServiceOrderHubProps {
   classifications?: any[];
   sectors?: any[];
   currentUser?: { name?: string; email?: string };
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
 type StatusFilter = 'ALL' | 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
@@ -67,7 +69,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   drivers = [],
   classifications = [],
   sectors = [],
-  currentUser
+  currentUser,
+  onLoadMore,
+  hasMore
 }) => {
   const [activeTab, setActiveTab] = useState<TabView>('ORDERS');
   const [filter, setFilter] = useState<StatusFilter>('PENDENTE');
@@ -76,29 +80,30 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [showAllOrders, setShowAllOrders] = useState(false);
 
   const serviceOrders = useMemo(() => {
-    return defaultBranchId ? allServiceOrders.filter(so => so.branchId === defaultBranchId) : allServiceOrders;
+    return allServiceOrders;
   }, [allServiceOrders, defaultBranchId]);
 
   const vehicles = allVehicles;
 
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais
+    return allTires;
+  }, [allTires]);
 
   const filteredCollaborators = useMemo(() => {
-    return defaultBranchId ? collaborators.filter(c => c.branchId === defaultBranchId) : collaborators;
+    return collaborators;
   }, [collaborators, defaultBranchId]);
 
   const arrivalAlerts = useMemo(() => {
-    return defaultBranchId ? allArrivalAlerts.filter(a => a.branchId === defaultBranchId) : allArrivalAlerts;
+    return allArrivalAlerts;
   }, [allArrivalAlerts, defaultBranchId]);
 
   const filteredMaintenancePlans = useMemo(() => {
-    return defaultBranchId ? maintenancePlans.filter(p => p.branchId === defaultBranchId) : maintenancePlans;
+    return maintenancePlans;
   }, [maintenancePlans, defaultBranchId]);
 
   const filteredMaintenanceSchedules = useMemo(() => {
-    return defaultBranchId ? maintenanceSchedules.filter(s => s.branchId === defaultBranchId) : maintenanceSchedules;
+    return maintenanceSchedules;
   }, [maintenanceSchedules, defaultBranchId]);
 
   // Create Modal State
@@ -196,8 +201,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         }
 
         if (searchTerm && 
-            !order.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase()) && 
-            !order.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+            !(order.vehiclePlate || '').toLowerCase().includes(searchTerm.toLowerCase()) && 
+            !(order.title || '').toLowerCase().includes(searchTerm.toLowerCase()) &&
             !String(order.orderNumber).includes(searchTerm)) {
           return false;
         }
@@ -558,7 +563,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {(showAllOrders ? filteredOrders : filteredOrders.slice(0, 10)).map(order => (
+            {filteredOrders.map(order => (
               <div key={order.id} className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-orange-500/30 transition-all duration-300 flex flex-col overflow-hidden">
                  {/* Card Header */}
                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex justify-between items-start">
@@ -652,13 +657,15 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                         )}
                     </div>
                     <div className="flex gap-1.5">
-                        <button 
-                            onClick={() => handleOpenEditModal(order)} 
-                            className="p-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 rounded-xl border border-slate-200 dark:border-slate-700 transition-all active:scale-90"
-                            title="Editar O.S."
-                        >
-                            <Wrench className="h-4 w-4"/>
-                        </button>
+                        {(userLevel === 'SENIOR' || userLevel === 'CREATOR') && (
+                            <button 
+                                onClick={() => handleOpenEditModal(order)} 
+                                className="p-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 rounded-xl border border-slate-200 dark:border-slate-700 transition-all active:scale-90"
+                                title="Editar O.S."
+                            >
+                                <Wrench className="h-4 w-4"/>
+                            </button>
+                        )}
                         {order.status === 'PENDENTE' && (
                             <button 
                                 onClick={() => handleStatusChange(order, 'EM_ANDAMENTO')} 
@@ -693,14 +700,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
             </div>
           )}
 
-          {filteredOrders.length > 10 && (
-            <div className="flex justify-center pt-10">
+          {hasMore && (
+            <div className="flex justify-center pt-8">
               <button 
-                onClick={() => setShowAllOrders(!showAllOrders)}
-                className="px-12 py-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-sm"
+                onClick={onLoadMore}
+                className="px-10 py-4 bg-white dark:bg-slate-900 border-2 border-blue-600 text-blue-600 dark:text-blue-400 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/10 hover:bg-blue-50 dark:hover:bg-slate-800"
               >
-                {showAllOrders ? 'MOSTRAR MENOS' : `VER TODAS AS ORDENS (${filteredOrders.length})`}
-                <ChevronDown className={`h-4 w-4 transition-transform ${showAllOrders ? 'rotate-180' : ''}`} />
+                <RefreshCw className="h-5 w-5" />
+                CARREGAR MAIS ORDENS
               </button>
             </div>
           )}

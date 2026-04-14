@@ -33,8 +33,9 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   const vehicles = allVehicles;
 
   const tires = useMemo(() => {
-    return defaultBranchId ? allTires.filter(t => t.branchId === defaultBranchId) : allTires;
-  }, [allTires, defaultBranchId]);
+    // Pneus agora são universais
+    return allTires;
+  }, [allTires]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingPoint, setIsSavingPoint] = useState(false);
   const [newPointCoords, setNewPointCoords] = useState<{ lat: number; lng: number } | null>(null);
