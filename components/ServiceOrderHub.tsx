@@ -223,10 +223,22 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const vehicle = vehicles.find(v => v.plate === order.vehiclePlate);
           if (vehicle) {
               const orderCost = order.totalCost || 0;
+              const vehicleUpdates: Partial<Vehicle> = {};
+              
               if (orderCost > 0) {
+                  vehicleUpdates.totalCost = (vehicle.totalCost || 0) + orderCost;
+              }
+
+              // Update maintenance tracking fields if this is a preventive OS
+              if (order.isPreventiveMaintenance) {
+                  vehicleUpdates.lastPreventiveKm = order.odometer || vehicle.odometer;
+                  vehicleUpdates.lastPreventiveDate = new Date().toISOString().split('T')[0];
+              }
+
+              if (Object.keys(vehicleUpdates).length > 0) {
                   await storageService.updateVehicle(orgId, {
                       ...vehicle,
-                      totalCost: (vehicle.totalCost || 0) + orderCost
+                      ...vehicleUpdates
                   });
               }
 

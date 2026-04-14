@@ -981,11 +981,38 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       const brandModel = vehicleBrandModels.find(bm => bm.id === vehicle.brandModelId);
       const maintenanceInterval = vehicle.revisionIntervalKm || brandModel?.oilChangeInterval || settings?.maintenanceIntervalKm || 10000;
       
-      const lastServiceKm = vehicle.lastPreventiveKm || 0;
-      const kmSinceLastService = vehicle.odometer - lastServiceKm;
+      // Find the most recent completed preventive service order
+      const vehicleServiceOrders = serviceOrders.filter(so => 
+        so.vehicleId === vehicle.id && 
+        so.status === 'CONCLUIDO' && 
+        so.isPreventiveMaintenance
+      );
+
+      const latestPreventiveOS = [...vehicleServiceOrders].sort((a, b) => {
+        const dateA = new Date(a.completedAt || a.date || a.createdAt).getTime();
+        const dateB = new Date(b.completedAt || b.date || b.createdAt).getTime();
+        return dateB - dateA;
+      })[0];
+
+      const lastServiceKm = latestPreventiveOS?.odometer || vehicle.lastPreventiveKm || 0;
+      const currentKm = vehicle.odometer || 0;
       
-      const isMaintenanceOverdue = vehicle.type !== 'CARRETA' && kmSinceLastService >= maintenanceInterval;
-      const isMaintenanceNear = vehicle.type !== 'CARRETA' && kmSinceLastService >= (maintenanceInterval - 5000) && !isMaintenanceOverdue;
+      // Find next scheduled maintenance from PMJ
+      const vehicleSchedules = maintenanceSchedules.filter(s => s.vehicleId === vehicle.id);
+      const nextSchedule = [...vehicleSchedules]
+        .filter(s => s.nextDueKm)
+        .sort((a, b) => (a.nextDueKm || 0) - (b.nextDueKm || 0))[0];
+
+      const nextDueKm = nextSchedule?.nextDueKm || (lastServiceKm + maintenanceInterval);
+      const kmToNextMaintenance = Math.max(0, nextDueKm - currentKm);
+      
+      let isMaintenanceOverdue = vehicle.type !== 'CARRETA' && kmToNextMaintenance <= 0;
+      const isMaintenanceNear = vehicle.type !== 'CARRETA' && kmToNextMaintenance <= 1500 && !isMaintenanceOverdue;
+      
+      // If lastServiceKm is 0 and odometer is high, it's definitely overdue
+      if (lastServiceKm === 0 && currentKm >= maintenanceInterval && !nextSchedule && vehicle.type !== 'CARRETA') {
+        isMaintenanceOverdue = true;
+      }
       
       // Verifica se algum pneu passou da vida útil estimada (padrão 80k se não houver catálogo)
       const hasExpiredTires = mountedTires.some(t => {
@@ -1011,7 +1038,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           isMaintenanceNear,
           hasExpiredTires,
           mountedCount: mountedTires.length,
-          kmToNextMaintenance: Math.max(0, maintenanceInterval - kmSinceLastService)
+          kmToNextMaintenance
       };
   };
 
@@ -1536,7 +1563,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                           const latVal = Number(sv.latitude || sv.lat || 0);
                           const lngVal = Number(sv.longitude || sv.lng || 0);
                           
-                          console.log(`[Sascar Sync Debug] Atualizando dados: Odo=${rawOdo}, Lat=${latVal}, Lng=${lngVal}`);
+                          const isInvalidPosition = latVal === 0 && lngVal === 0;
+                          const finalLat = isInvalidPosition ? (localVehicle.lastLocation?.lat || 0) : latVal;
+                          const finalLng = isInvalidPosition ? (localVehicle.lastLocation?.lng || 0) : lngVal;
+                          
+                          console.log(`[Sascar Sync Debug] Atualizando dados: Odo=${rawOdo}, Lat=${finalLat}, Lng=${finalLng}`);
 
                           bestUpdates.set(matchKey, {
                               timestamp: dataPosicaoNova,
@@ -1545,11 +1576,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                   odometer: Math.round(Number(rawOdo)),
                                   lastLocation: {
                                       ...localVehicle.lastLocation,
-                                      lat: latVal,
-                                      lng: lngVal,
-                                      address: sv.lastLocation?.address || sv.rua || sv.address || 'Coordenadas GPS',
-                                      city: sv.lastLocation?.city || sv.cidade || sv.city || 'Desconhecida',
-                                      state: sv.lastLocation?.state || sv.uf || sv.state || '',
+                                      lat: finalLat,
+                                      lng: finalLng,
+                                      address: isInvalidPosition ? (localVehicle.lastLocation?.address || 'Coordenadas GPS') : (sv.lastLocation?.address || sv.rua || sv.address || 'Coordenadas GPS'),
+                                      city: isInvalidPosition ? (localVehicle.lastLocation?.city || 'Desconhecida') : (sv.lastLocation?.city || sv.cidade || sv.city || 'Desconhecida'),
+                                      state: isInvalidPosition ? (localVehicle.lastLocation?.state || '') : (sv.lastLocation?.state || sv.uf || sv.state || ''),
                                       updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || new Date().toISOString()
                                   },
                                   lastAutoUpdateDate: new Date().toISOString()

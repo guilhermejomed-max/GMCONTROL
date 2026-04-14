@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { storageService } from '../services/storageService';
 import { Branch } from '../types';
-import { Plus, Building2, MapPin, Hash, FileText, Trash2, Edit2, Loader2, Search } from 'lucide-react';
+import { Plus, Building2, MapPin, Hash, FileText, Trash2, Edit2, Loader2, Search, X } from 'lucide-react';
 
 export const BranchManagement = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -15,8 +15,14 @@ export const BranchManagement = () => {
     name: '',
     cnpj: '',
     location: '',
-    code: ''
+    code: '',
+    lat: undefined as number | undefined,
+    lng: undefined as number | undefined
   });
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<any>(null);
+  const markerRef = useRef<any>(null);
 
   useEffect(() => {
     const unsubscribe = storageService.subscribeToBranches((data) => {
@@ -25,6 +31,51 @@ export const BranchManagement = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (showForm && mapContainerRef.current && !mapInstance.current) {
+      const L = (window as any).L;
+      if (!L) return;
+
+      // Pequeno delay para garantir que o container esteja renderizado com as dimensões corretas
+      setTimeout(() => {
+        if (!mapContainerRef.current) return;
+
+        const initialLat = formData.lat || -15.7801;
+        const initialLng = formData.lng || -47.9292;
+        const initialZoom = formData.lat ? 15 : 4;
+
+        mapInstance.current = L.map(mapContainerRef.current).setView([initialLat, initialLng], initialZoom);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(mapInstance.current);
+
+        if (formData.lat && formData.lng) {
+          markerRef.current = L.marker([formData.lat, formData.lng]).addTo(mapInstance.current);
+        }
+
+        mapInstance.current.on('click', (e: any) => {
+          const { lat, lng } = e.latlng;
+          setFormData(prev => ({ ...prev, lat, lng }));
+          
+          if (markerRef.current) {
+            markerRef.current.setLatLng(e.latlng);
+          } else {
+            markerRef.current = L.marker(e.latlng).addTo(mapInstance.current);
+          }
+        });
+      }, 100);
+    }
+
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, [showForm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +92,7 @@ export const BranchManagement = () => {
       }
       setShowForm(false);
       setEditingBranch(null);
-      setFormData({ name: '', cnpj: '', location: '', code: '' });
+      setFormData({ name: '', cnpj: '', location: '', code: '', lat: undefined, lng: undefined });
     } catch (error) {
       console.error("Error saving branch:", error);
     }
@@ -53,7 +104,9 @@ export const BranchManagement = () => {
       name: branch.name,
       cnpj: branch.cnpj,
       location: branch.location,
-      code: branch.code
+      code: branch.code,
+      lat: branch.lat,
+      lng: branch.lng
     });
     setShowForm(true);
   };
@@ -77,17 +130,17 @@ export const BranchManagement = () => {
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Gestão de Filiais</h1>
           <p className="text-slate-500 font-medium">Cadastre e gerencie as unidades da sua empresa</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingBranch(null);
-            setFormData({ name: '', cnpj: '', location: '', code: '' });
-            setShowForm(true);
-          }}
-          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95"
-        >
-          <Plus className="h-5 w-5" />
-          Nova Filial
-        </button>
+          <button
+            onClick={() => {
+              setEditingBranch(null);
+              setFormData({ name: '', cnpj: '', location: '', code: '', lat: undefined, lng: undefined });
+              setShowForm(true);
+            }}
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95"
+          >
+            <Plus className="h-5 w-5" />
+            Nova Filial
+          </button>
       </div>
 
       <div className="mb-6 relative">
@@ -143,6 +196,17 @@ export const BranchManagement = () => {
                 <div className="flex items-center gap-3 text-slate-500">
                   <MapPin className="h-4 w-4" />
                   <span className="text-sm font-bold">{branch.location}</span>
+                  {branch.lat && branch.lng && (
+                    <a 
+                      href={`https://www.google.com/maps?q=${branch.lat},${branch.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+                      title="Ver no Google Maps"
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -152,8 +216,8 @@ export const BranchManagement = () => {
 
       {showForm && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h2 className="text-xl font-black text-slate-800">
                 {editingBranch ? 'Editar Filial' : 'Nova Filial'}
               </h2>
@@ -161,11 +225,11 @@ export const BranchManagement = () => {
                 onClick={() => setShowForm(false)}
                 className="p-2 hover:bg-slate-200 rounded-xl transition-colors"
               >
-                <Trash2 className="h-5 w-5 text-slate-500" />
+                <X className="h-5 w-5 text-slate-500" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-xs font-black text-slate-500 uppercase mb-1 ml-1">Nome da Filial</label>
@@ -211,9 +275,42 @@ export const BranchManagement = () => {
                     onChange={e => setFormData({...formData, location: e.target.value})}
                   />
                 </div>
+
+                <div className="col-span-2">
+                  <label className="block text-xs font-black text-slate-500 uppercase mb-2 ml-1">Localização no Mapa</label>
+                  <div className="relative h-64 w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+                    <div ref={mapContainerRef} className="h-full w-full z-0" />
+                    <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-lg border border-slate-100 pointer-events-none">
+                      <p className="text-[10px] font-black text-slate-500 uppercase">Clique no mapa para selecionar</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase mb-1 ml-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl outline-none font-bold text-slate-500"
+                    placeholder="0.000000"
+                    value={formData.lat || ''}
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-500 uppercase mb-1 ml-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl outline-none font-bold text-slate-500"
+                    placeholder="0.000000"
+                    value={formData.lng || ''}
+                    readOnly
+                  />
+                </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}

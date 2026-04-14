@@ -150,7 +150,7 @@ export const sascarService = {
         plate: placa || v.idVeiculo || '',
         latitude: Number(v.latitude || 0),
         longitude: Number(v.longitude || 0),
-        odometer: v.odometro ? parseFloat(v.odometro) / 1000 : 0,
+        odometer: v.odometro ? parseFloat(v.odometro) : 0,
         speed: Number(v.velocidade ?? 0),
         ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
         lastLocation: {
@@ -234,7 +234,7 @@ export const sascarService = {
                 plate: placa || v.idVeiculo || '',
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
-                odometer: v.odometro ? parseFloat(v.odometro) / 1000 : 0,
+                odometer: v.odometro ? parseFloat(v.odometro) : 0,
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
                 lastLocation: {
@@ -304,7 +304,7 @@ export const sascarService = {
                 plate: placa || v.idVeiculo || '',
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
-                odometer: v.odometro ? parseFloat(v.odometro) / 1000 : 0,
+                odometer: v.odometro ? parseFloat(v.odometro) : 0,
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
                 lastLocation: {

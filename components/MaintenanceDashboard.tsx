@@ -11,6 +11,7 @@ interface Props {
   maintenancePlans: MaintenancePlan[];
   vehicleBrandModels: VehicleBrandModel[];
   serviceOrders: ServiceOrder[];
+  settings?: any;
   onOpenServiceOrder?: (vehicleId: string) => void;
 }
 
@@ -22,9 +23,13 @@ export const MaintenanceDashboard: React.FC<Props> = ({
   maintenancePlans: allMaintenancePlans = [], 
   vehicleBrandModels: allVehicleBrandModels = [], 
   serviceOrders: allServiceOrders = [],
+  settings,
   onOpenServiceOrder 
 }) => {
-  const vehicles = allVehicles;
+  const vehicles = useMemo(() => {
+    return defaultBranchId ? allVehicles.filter(v => v.branchId === defaultBranchId) : allVehicles;
+  }, [allVehicles, defaultBranchId]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'OK' | 'WARNING' | 'OVERDUE'>('ALL');
   const [fuelFilter, setFuelFilter] = useState<'ALL' | 'DIESEL' | 'GAS'>('ALL');
@@ -47,30 +52,55 @@ export const MaintenanceDashboard: React.FC<Props> = ({
 
   const maintenanceData = useMemo(() => {
     return vehicles
-      .filter(v => v.type === 'CAVALO' || v.type === 'BI-TRUCK')
+      .filter(v => v.type !== 'CARRETA')
       .map(vehicle => {
         // Find relevant schedules (e.g., Oil Change)
-        const oilSchedules = maintenanceSchedules.filter(s => s.vehicleId === vehicle.id);
-        // For simplicity in this initial dashboard, we'll look at the most critical or latest
-        const latestSchedule = oilSchedules.sort((a, b) => {
-            const aVal = a.nextDueKm || 0;
-            const bVal = b.nextDueKm || 0;
-            return bVal - aVal;
+        const vehicleSchedules = maintenanceSchedules.filter(s => s.vehicleId === vehicle.id);
+        
+        // Find the most recent completed preventive service order
+        const vehicleServiceOrders = serviceOrders.filter(so => 
+          so.vehicleId === vehicle.id && 
+          so.status === 'CONCLUIDO' && 
+          so.isPreventiveMaintenance
+        );
+
+        const latestPreventiveOS = [...vehicleServiceOrders].sort((a, b) => {
+          const dateA = new Date(a.completedAt || a.date || a.createdAt).getTime();
+          const dateB = new Date(b.completedAt || b.date || b.createdAt).getTime();
+          return dateB - dateA;
         })[0];
 
         const currentKm = vehicle.odometer || 0;
-        const lastPreventiveKm = vehicle.lastPreventiveKm || 0;
         
-        // Find brand model to get oil change interval
+        // Use OS data if available, otherwise fallback to vehicle fields
+        const lastPreventiveKm = latestPreventiveOS?.odometer || vehicle.lastPreventiveKm || 0;
+        
+        // Format date for display
+        let lastDateDisplay = vehicle.lastPreventiveDate || 'N/A';
+        if (latestPreventiveOS) {
+          const dateObj = new Date(latestPreventiveOS.completedAt || latestPreventiveOS.date || latestPreventiveOS.createdAt);
+          lastDateDisplay = dateObj.toLocaleDateString('pt-BR');
+        }
+
         const brandModel = vehicleBrandModels.find(bm => bm.id === vehicle.brandModelId);
-        const revisionInterval = vehicle.revisionIntervalKm || brandModel?.oilChangeInterval || 10000;
+        const revisionInterval = vehicle.revisionIntervalKm || brandModel?.oilChangeInterval || settings?.maintenanceIntervalKm || 10000;
         
-        const nextPreventiveKm = lastPreventiveKm + revisionInterval;
+        // Find next scheduled maintenance from PMJ
+        const nextSchedule = [...vehicleSchedules]
+          .filter(s => s.nextDueKm)
+          .sort((a, b) => (a.nextDueKm || 0) - (b.nextDueKm || 0))[0];
+
+        const nextPreventiveKm = nextSchedule?.nextDueKm || (lastPreventiveKm + revisionInterval);
         const kmRemaining = nextPreventiveKm - currentKm;
         
         let status: 'OK' | 'WARNING' | 'OVERDUE' = 'OK';
         if (kmRemaining <= 0) status = 'OVERDUE';
-        else if (kmRemaining <= 1000) status = 'WARNING';
+        else if (kmRemaining <= 1500) status = 'WARNING';
+
+        // If lastPreventiveKm is 0 and odometer is high, it's definitely overdue
+        if (lastPreventiveKm === 0 && currentKm >= revisionInterval && !nextSchedule) {
+          status = 'OVERDUE';
+        }
 
         return {
           ...vehicle,
@@ -78,11 +108,11 @@ export const MaintenanceDashboard: React.FC<Props> = ({
           nextPreventiveKm,
           kmRemaining,
           status,
-          oilLiters: vehicle.oilLiters || 0,
-          lastPreventiveDate: vehicle.lastPreventiveDate || 'N/A'
+          lastPreventiveDate: lastDateDisplay,
+          oilLiters: vehicle.oilLiters || brandModel?.oilLiters || 0
         };
       });
-  }, [vehicles, maintenanceSchedules]);
+  }, [vehicles, maintenanceSchedules, serviceOrders, vehicleBrandModels]);
 
   const filteredData = useMemo(() => {
     return maintenanceData.filter(item => {
