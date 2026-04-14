@@ -278,6 +278,8 @@
         "name": { "type": "string" },
         "cnpj": { "type": "string" },
         "location": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
         "code": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

@@ -23,6 +23,8 @@ export interface Branch {
   name: string;
   cnpj: string;
   location: string;
+  lat?: number;
+  lng?: number;
   code: string;
   createdAt: string;
 }

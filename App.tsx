@@ -635,18 +635,20 @@ export const App = () => {
           const lat = Number(sv.latitude || sv.lat || 0);
           const lng = Number(sv.longitude || sv.lng || 0);
 
-          if (lat === 0 && lng === 0) return; // Posição inválida
+          const isInvalidPosition = lat === 0 && lng === 0;
+          const finalLat = isInvalidPosition ? (localVehicle.lastLocation?.lat || 0) : lat;
+          const finalLng = isInvalidPosition ? (localVehicle.lastLocation?.lng || 0) : lng;
 
           updatesBatch.push({
             id: localVehicle.id,
             odometer: finalOdo,
             lastLocation: {
               ...localVehicle.lastLocation,
-              lat: lat,
-              lng: lng,
-              address: sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS',
-              city: sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida',
-              state: sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || '',
+              lat: finalLat,
+              lng: finalLng,
+              address: isInvalidPosition ? (localVehicle.lastLocation?.address || 'Coordenadas GPS') : (sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS'),
+              city: isInvalidPosition ? (localVehicle.lastLocation?.city || 'Desconhecida') : (sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida'),
+              state: isInvalidPosition ? (localVehicle.lastLocation?.state || '') : (sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || ''),
               updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date().toISOString()
             },
             speed: Number(sv.velocidade || sv.speed || 0),
@@ -722,20 +724,6 @@ export const App = () => {
     await storageService.updateVehicle(orgId, updatedVehicle);
     addToast('info', 'Simulação', `Localização do veículo ${plate} atualizada para ${base.name}`);
   };
-
-  // Auto-sync when entering location tab and periodically
-  useEffect(() => {
-    if (currentTab === 'location' && user && trackerSettings?.active) {
-      syncSascar();
-      
-      // Periodic sync every 2 minutes while on location tab
-      const interval = setInterval(() => {
-        syncSascar();
-      }, 2 * 60 * 1000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [currentTab, !!user, trackerSettings?.active]);
 
   const addToast = (type: any, title: string, message: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -1314,6 +1302,7 @@ export const App = () => {
                 maintenancePlans={maintenancePlans} 
                 vehicleBrandModels={vehicleBrandModels}
                 serviceOrders={serviceOrders}
+                settings={settings}
                 onOpenServiceOrder={(vehicleId) => {
                   setPreselectedVehicleId(vehicleId);
                   setShouldOpenOSModal(true);

@@ -4,11 +4,17 @@ service cloud.firestore {
 
     // Helper functions
     function isAuthed() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Allow server-side operations (service account)
+    function isServer() {
+      return request.auth == null;
     }
 
     function isAdmin() {
       return isAuthed() && (
+        request.auth.uid == "tnfDueAojpU7PJThDm6VAT1jRRA3" ||
         request.auth.token.email == "guilherme.jomed@gmail.com" ||
         request.auth.token.email == "gui@gmail.com" ||
         request.auth.token.email == "danilo.silva@sys.gmcontrol.com" ||
@@ -24,11 +30,11 @@ service cloud.firestore {
     }
 
     function hasModuleAccess(module) {
-      return isAdmin() || (isAuthed() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"]));
+      return isServer() || isAdmin() || (isAuthed() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"]));
     }
 
     function getRole() {
-      return getUserData().get('role', 'SENIOR');
+      return isServer() ? "SENIOR" : getUserData().get('role', 'SENIOR');
     }
 
     // --- USERS COLLECTION ---
