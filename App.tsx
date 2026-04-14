@@ -236,10 +236,10 @@ export const App = () => {
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [limits, setLimits] = useState({
-    tires: 1000,
-    vehicles: 1000,
-    serviceOrders: 100,
-    fuelEntries: 100
+    tires: 5000,
+    vehicles: 5000,
+    serviceOrders: 500,
+    fuelEntries: 500
   });
   const [hasMore, setHasMore] = useState({
     tires: false,
@@ -1207,6 +1207,13 @@ export const App = () => {
               return next;
             });
           }}
+          onSelectModule={(mod) => {
+            setActiveModule(mod);
+            if (mod === 'FUEL') setCurrentTab('fuel');
+            if (mod === 'TIRES') setCurrentTab('dashboard');
+            if (mod === 'VEHICLES') setCurrentTab('fleet');
+            if (mod === 'MECHANICAL') setCurrentTab('maintenance');
+          }}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
         />
@@ -1315,9 +1322,9 @@ export const App = () => {
             {currentTab === 'scrap' && allowedModules.includes('TIRES') && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
             {currentTab === 'register' && allowedModules.includes('TIRES') && <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onCancel={() => setCurrentTab('inventory')} onFinish={() => setCurrentTab('inventory')} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />}
             {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
-            {currentTab === 'brand-models' && allowedModules.includes('VEHICLES') && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'brand-models' && allowedModules.includes('VEHICLES') && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} fuelTypes={fuelTypes} />}
             {currentTab === 'vehicle-types' && allowedModules.includes('VEHICLES') && <VehicleTypeManager orgId={orgId} />}
-            {currentTab === 'fuel-types' && allowedModules.includes('FUEL') && <FuelTypeManager orgId={orgId} />}
+            {currentTab === 'fuel-types' && allowedModules.includes('FUEL') && <FuelTypeManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} />}
             {currentTab === 'fleet' && allowedModules.includes('VEHICLES') && (
               <VehicleManager 
                 orgId={orgId}

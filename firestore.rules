@@ -117,7 +117,7 @@ service cloud.firestore {
     }
     match /occurrences/{id} {
       allow read: if hasModuleAccess("VEHICLES");
-      allow write: if hasModuleAccess("VEHICLES");
+      allow write, delete: if hasModuleAccess("VEHICLES");
     }
     match /occurrence_reasons/{id} {
       allow read: if isAuthed();
