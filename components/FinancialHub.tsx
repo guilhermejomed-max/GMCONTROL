@@ -1,17 +1,19 @@
 
 import React, { useMemo, useState } from 'react';
-import { Tire, TireStatus, Vehicle, RetreadOrder } from '../types';
+import { Tire, TireStatus, Vehicle, RetreadOrder, FinancialRecord } from '../types';
 import { 
   DollarSign, TrendingUp, PieChart as PieIcon, BarChart3, TrendingDown, 
   Wallet, Recycle, AlertCircle, FileSpreadsheet, Loader2, Printer, 
   X, Landmark, ArrowUpRight, ArrowDownRight, Coins, Briefcase, 
-  PiggyBank, ShieldCheck, BarChart, History, Layers, Calculator, Medal, Calendar as CalendarIcon
+  PiggyBank, ShieldCheck, BarChart, History, Layers, Calculator, Medal, Calendar as CalendarIcon,
+  Plus, Trash2, PenLine
 } from 'lucide-react';
 import { 
   BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, PieChart, Pie, Cell, Legend, ComposedChart, 
   Line, AreaChart, Area 
 } from 'recharts';
+import { storageService } from '../services/storageService';
 
 interface FinancialHubProps {
   tires: Tire[];
@@ -19,6 +21,8 @@ interface FinancialHubProps {
   retreadOrders?: RetreadOrder[];
   branches?: any[];
   defaultBranchId?: string;
+  financialRecords?: FinancialRecord[];
+  orgId?: string;
 }
 
 export const FinancialHub: React.FC<FinancialHubProps> = ({ 
@@ -26,7 +30,9 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
   vehicles: allVehicles = [], 
   retreadOrders: allRetreadOrders = [], 
   branches = [],
-  defaultBranchId 
+  defaultBranchId,
+  financialRecords: allFinancialRecords = [],
+  orgId = 'default'
 }) => {
   const tires = useMemo(() => {
     // Pneus agora são universais

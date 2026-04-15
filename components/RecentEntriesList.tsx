@@ -76,7 +76,12 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
                 <p className="text-sm font-black text-emerald-600">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(entry.totalCost)}
                 </p>
-                <p className="text-[9px] text-slate-400 font-bold tracking-wider">{entry.odometer.toLocaleString()} KM</p>
+                <div className="flex flex-col items-end">
+                  <p className="text-[9px] text-slate-400 font-bold tracking-wider">{entry.odometer.toLocaleString()} KM</p>
+                  {entry.litrometro && (
+                    <p className="text-[9px] text-blue-500 font-bold tracking-wider">{entry.litrometro.toLocaleString()} L (Litrômetro)</p>
+                  )}
+                </div>
               </div>
             </div>
             <button 

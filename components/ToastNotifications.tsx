@@ -9,7 +9,7 @@ interface ToastNotificationsProps {
 
 export const ToastNotifications: React.FC<ToastNotificationsProps> = ({ toasts, removeToast }) => {
   return (
-    <div className="fixed top-4 right-4 z-[150] flex flex-col gap-3 pointer-events-none">
+    <div className="fixed top-4 right-4 z-[99999] flex flex-col gap-3 pointer-events-none">
       {toasts.map(toast => (
         <div 
           key={toast.id}

@@ -176,7 +176,9 @@ const getCurrentUser = () => {
   return (auth && auth.currentUser) || (mockUser ? { uid: mockUser.uid, displayName: mockUser.displayName, email: mockUser.email } : null);
 };
 
-export const logActivity = async (orgId: string, action: string, details: string, module: ModuleType = 'TIRES') => {
+export const logActivity = async (orgId: string, action: string, details: string, module: ModuleType = 'TIRES', entityId?: string, entityType?: string) => {
+  // Desativado temporariamente para economizar armazenamento
+  return;
   const user = getCurrentUser();
   if (!user) return;
 
@@ -189,7 +191,9 @@ export const logActivity = async (orgId: string, action: string, details: string
       action: action,
       details: details,
       module: module,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      entityId: entityId,
+      entityType: entityType
     };
     
     if (mockUser || !db) {
@@ -587,9 +591,9 @@ export const storageService = {
     }
   },
 
-  subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void, limitCount: number = 100) => {
+  subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`tires`, callback);
-    return db.collection("tires").limit(limitCount).onSnapshot((snapshot) => {
+    return db.collection("tires").onSnapshot((snapshot) => {
       const tires: Tire[] = [];
       snapshot.forEach((doc) => tires.push(doc.data() as Tire));
       callback(tires);
@@ -647,9 +651,9 @@ export const storageService = {
     logActivity(orgId, "Excluiu Pneu", `ID: ${id}`, 'TIRES');
   },
 
-  subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void, limitCount: number = 100) => {
+  subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`vehicles`, callback);
-    return db.collection("vehicles").limit(limitCount).onSnapshot((snapshot) => {
+    return db.collection("vehicles").onSnapshot((snapshot) => {
       const vehicles: Vehicle[] = [];
       snapshot.forEach((doc) => vehicles.push(doc.data() as Vehicle));
       callback(vehicles);
@@ -1438,7 +1442,7 @@ export const storageService = {
 
   subscribeToTrackerSettings: (orgId: string, callback: (settings: TrackerSettings) => void) => {
     const DEFAULT_TRACKER: TrackerSettings = { 
-      apiUrl: 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService', 
+      apiUrl: '/proxy-sascar/SasIntegraWSService', 
       user: 'JOMEDELOGTORREOPENTECH', 
       pass: 'sascar', 
       active: true 
@@ -1888,6 +1892,43 @@ export const storageService = {
         (snapshot) => onUpdate(snapshot.docs.map(doc => doc.data() as ServiceSector)),
         (error) => handleFirestoreError(error, OperationType.LIST, "sectors")
     );
+  },
+
+  // --- FINANCIAL RECORDS ---
+  subscribeToFinancialRecords: (orgId: string, callback: (records: import('../types').FinancialRecord[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`financial_records`, callback, []);
+    return db.collection("financial_records").orderBy("date", "desc").onSnapshot((snapshot) => {
+        const records: import('../types').FinancialRecord[] = [];
+        snapshot.forEach(doc => records.push(doc.data() as import('../types').FinancialRecord));
+        callback(records);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "financial_records"));
+  },
+
+  addFinancialRecord: async (orgId: string, record: import('../types').FinancialRecord) => {
+      if (mockUser || !db) { LocalDB.add(`financial_records`, record); return; }
+      try {
+        await db.collection("financial_records").doc(record.id).set(sanitize(record));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, `financial_records/${record.id}`);
+      }
+  },
+
+  updateFinancialRecord: async (orgId: string, recordId: string, updates: Partial<import('../types').FinancialRecord>) => {
+      if (mockUser || !db) { LocalDB.update(`financial_records`, recordId, updates); return; }
+      try {
+        await db.collection("financial_records").doc(recordId).update(sanitize(updates));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `financial_records/${recordId}`);
+      }
+  },
+
+  deleteFinancialRecord: async (orgId: string, recordId: string) => {
+      if (mockUser || !db) { LocalDB.delete(`financial_records`, recordId); return; }
+      try {
+        await db.collection("financial_records").doc(recordId).delete();
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `financial_records/${recordId}`);
+      }
   },
 
   resetData: async (orgId: string) => {

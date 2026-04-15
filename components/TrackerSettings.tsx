@@ -11,7 +11,7 @@ interface TrackerSettingsProps {
 
 const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSave }) => {
   const [settings, setSettings] = useState<TrackerSettings>({
-    apiUrl: 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService',
+    apiUrl: '/proxy-sascar/SasIntegraWSService',
     user: 'JOMEDELOGTORREOPENTECH',
     pass: 'sascar',
     active: true

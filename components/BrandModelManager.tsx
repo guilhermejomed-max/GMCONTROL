@@ -1,5 +1,5 @@
 import React, { useState, FC, useMemo, useEffect } from 'react';
-import { VehicleBrandModel, MaintenancePlan, Vehicle, ServiceOrder, Tire, VehicleType } from '../types';
+import { VehicleBrandModel, MaintenancePlan, Vehicle, ServiceOrder, Tire, VehicleType, FuelType } from '../types';
 import { storageService } from '../services/storageService';
 import { Save, Trash2, PenLine, Truck, Loader2, Plus, X, Car, ClipboardList, ChevronRight, LayoutGrid, BarChart3 } from 'lucide-react';
 

@@ -835,8 +835,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   hasMore
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showDashboard, setShowDashboard] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<'ALL' | 'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP' | 'LISO' | 'BORRACHUDO'>(viewMode === 'scrap' ? 'SCRAP' : 'ALL');
+  const [activeCategory, setActiveCategory] = useState<'ALL' | 'STOCK' | 'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP' | 'LISO' | 'BORRACHUDO'>(viewMode === 'scrap' ? 'SCRAP' : 'STOCK');
   const [layoutMode, setLayoutMode] = useState<'GRID' | 'LIST'>('LIST');
   const [detailedView, setDetailedView] = useState(false);
   const [selectedTire, setSelectedTire] = useState<Tire | null>(null);
@@ -990,13 +989,15 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       
       if (!matchesSearch) return false;
 
-      const isMounted = !!t.vehicleId;
+      const vId = t.vehicleId ? String(t.vehicleId).trim().toLowerCase() : '';
+      const isMounted = vId !== '' && vId !== 'null' && vId !== 'undefined';
       const isDamaged = t.status === TireStatus.DAMAGED;
       const isLowTread = t.currentTreadDepth < 3;
       const isRecapagem = isLowTread && !isDamaged;
 
       switch (activeCategory) {
-          case 'ALL': return !isMounted && !isDamaged && !isLowTread;
+          case 'ALL': return !isDamaged;
+          case 'STOCK': return !isMounted && !isDamaged;
           case 'NEW': return !isMounted && !isDamaged && !isLowTread && t.status === TireStatus.NEW;
           case 'RETREADED': return !isMounted && !isDamaged && (t.status === TireStatus.RETREADED || isRecapagem);
           case 'USED': return !isMounted && !isDamaged && !isLowTread && t.status === TireStatus.USED;
@@ -1181,13 +1182,6 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            <button 
-              onClick={() => setShowDashboard(!showDashboard)}
-              className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 ${showDashboard ? 'bg-white text-slate-900 border-white shadow-xl shadow-white/10' : 'bg-transparent border-white/20 text-white hover:bg-white/5'}`}
-            >
-              {showDashboard ? <TrendingDown className="h-4 w-4" /> : <Activity className="h-4 w-4" />}
-              {showDashboard ? 'Ocultar Painel' : 'Ver Estatísticas'}
-            </button>
             {onRegister && (
               <button onClick={onRegister} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/40 flex items-center gap-3 transition-all hover:scale-105 active:scale-95">
                 <Plus className="h-5 w-5"/> <span>Novo Pneu</span>
@@ -1196,161 +1190,6 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           </div>
         </div>
       </div>
-
-      {showDashboard && (
-        <div className="bg-slate-50 dark:bg-slate-900/30 rounded-[3.5rem] p-8 md:p-10 border border-slate-200 dark:border-slate-800/50 space-y-10 animate-in slide-in-from-top-8 duration-500">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="h-1 w-12 bg-blue-600 rounded-full"></div>
-            <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Painel de Controle</h2>
-          </div>
-          
-          {/* SUMMARY STATS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div 
-                  className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'ALL' ? 'ring-2 ring-blue-500' : ''}`}
-                  onClick={() => setActiveCategory('ALL')}
-              >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl">
-                      <Package className="h-5 w-5" />
-                    </div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total em Estoque</p>
-                  </div>
-                  <p className="text-2xl font-black text-slate-800 dark:text-white tracking-tight font-mono truncate">{stats.totalInStock}</p>
-              </div>
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl">
-                      <DollarSign className="h-5 w-5" />
-                    </div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Patrimonial</p>
-                  </div>
-                  <p className="text-xl font-black text-emerald-600 tracking-tight font-mono break-all truncate">{money(stats.totalValue)}</p>
-              </div>
-              <div 
-                  className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'MOUNTED' ? 'ring-2 ring-indigo-500' : ''}`}
-                  onClick={() => setActiveCategory('MOUNTED')}
-              >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-xl">
-                      <Truck className="h-5 w-5" />
-                    </div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pneus em Operação</p>
-                  </div>
-                  <p className="text-2xl font-black text-indigo-600 tracking-tight font-mono truncate">{stats.totalRunning}</p>
-              </div>
-              <div 
-                  className={`bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeCategory === 'RETREADED' ? 'ring-2 ring-purple-500' : ''}`}
-                  onClick={() => setActiveCategory('RETREADED')}
-              >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-xl">
-                      <Layers className="h-5 w-5" />
-                    </div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recapagem</p>
-                  </div>
-                  <p className="text-2xl font-black text-purple-600 tracking-tight font-mono truncate">{(stats.byStatus['RECAPAGEM'] || 0) + (stats.byStatus[TireStatus.RETREADED] || 0)}</p>
-              </div>
-          </div>
-
-          {/* BRAND SUMMARY TABLE */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/20">
-                    <Disc className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight text-lg">Resumo por Marca</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Distribuição do Inventário</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-black text-slate-800 dark:text-white truncate">{Object.keys(stats.byBrand).length}</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Marcas</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {Object.entries(stats.byBrand).sort((a, b) => b[1] - a[1]).map(([brand, count]) => (
-                  <div key={brand} className="flex flex-col">
-                    <button 
-                      onClick={() => setExpandedBrand(expandedBrand === brand ? null : brand)}
-                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${expandedBrand === brand ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 shadow-sm' : 'bg-slate-50 border-slate-100 dark:bg-slate-950 dark:border-slate-800 hover:border-blue-300'}`}
-                    >
-                      <span className="font-black text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tight">{brand}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">{count}</span>
-                        {expandedBrand === brand ? <ChevronDown className="h-4 w-4 text-blue-400" /> : <ChevronRight className="h-4 w-4 text-slate-300" />}
-                      </div>
-                    </button>
-                    
-                    {expandedBrand === brand && (
-                      <div className="mt-2 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-inner max-h-48 overflow-y-auto animate-in slide-in-from-top-2 custom-scrollbar">
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {tires
-                            .filter(t => t.brand.toUpperCase() === brand)
-                            .map(t => (
-                              <button
-                                key={t.id}
-                                onClick={() => setSelectedTire(t)}
-                                className="text-[11px] font-bold p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl text-left flex items-center justify-between group transition-colors"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                                  <span className="text-slate-600 dark:text-slate-400 group-hover:text-blue-600">#{t.fireNumber}</span>
-                                </div>
-                                <ChevronRight className="h-3 w-3 text-slate-300 group-hover:text-blue-400" />
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-600/20">
-                  <Layers className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight text-lg">Tipo de Banda</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categorização Técnica</p>
-                </div>
-              </div>
-              <div className="space-y-4 flex-1 flex flex-col justify-center">
-                <div className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 transition-all group">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
-                      <CircleDot className="h-6 w-6 text-slate-600" />
-                    </div>
-                    <div>
-                      <span className="font-black text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tight">Liso</span>
-                      <p className="text-[10px] font-bold text-slate-400">Pneus Direcionais</p>
-                    </div>
-                  </div>
-                  <span className="text-xl font-black text-slate-800 dark:text-white truncate">{stats.byTreadType['LISO'] || 0}</span>
-                </div>
-                <div className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 transition-all group">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
-                      <Grid3X3 className="h-6 w-6 text-slate-600" />
-                    </div>
-                    <div>
-                      <span className="font-black text-sm text-slate-700 dark:text-slate-300 uppercase tracking-tight">Borrachudo</span>
-                      <p className="text-[10px] font-bold text-slate-400">Pneus de Tração</p>
-                    </div>
-                  </div>
-                  <span className="text-xl font-black text-slate-800 dark:text-white truncate">{stats.byTreadType['BORRACHUDO'] || 0}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* LIST SECTION */}
       <div className="space-y-8">
@@ -1362,8 +1201,11 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">
             
             <div className="flex bg-slate-100 dark:bg-slate-950 p-2 rounded-2xl w-full lg:w-auto overflow-x-auto no-scrollbar">
-                <button onClick={() => setActiveCategory('ALL')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'ALL' ? 'bg-white dark:bg-slate-800 shadow-md text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}>
+                <button onClick={() => setActiveCategory('STOCK')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'STOCK' ? 'bg-white dark:bg-slate-800 shadow-md text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}>
                     <Package className="h-4 w-4"/> Estoque
+                </button>
+                <button onClick={() => setActiveCategory('ALL')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'ALL' ? 'bg-white dark:bg-slate-800 shadow-md text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}>
+                    <LayoutGrid className="h-4 w-4"/> Todos
                 </button>
                 <button onClick={() => setActiveCategory('NEW')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'NEW' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700'}`}>
                     <Disc className="h-4 w-4"/> Novos

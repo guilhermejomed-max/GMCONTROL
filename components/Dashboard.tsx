@@ -171,6 +171,7 @@ export const Dashboard: FC<DashboardProps> = ({
     // 9. TAXA DE OCUPAÇÃO (Pneus Rodando / Total Ativos)
     const totalActiveTires = (tires || []).filter(t => t.status !== TireStatus.DAMAGED).length;
     const utilizationRate = totalActiveTires > 0 ? (mountedTires.length / totalActiveTires) * 100 : 0;
+    const totalFuelFleet = filteredVehicles.reduce((acc, v) => acc + (v.totalFuelConsumed || 0), 0);
 
     // 10. COST DISTRIBUTION
     let totalAcquisition = 0;
@@ -361,7 +362,8 @@ export const Dashboard: FC<DashboardProps> = ({
         stockVelocity,
         warningTiresCount,
         projectedCost,
-        utilizationRate
+        utilizationRate,
+        totalFuelFleet
     };
   }, [tires, vehicles, settings, period, opFilter]);
 
@@ -407,7 +409,7 @@ export const Dashboard: FC<DashboardProps> = ({
 
 
       {/* 3. BENTO GRID - KPI CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
          
          {/* HEALTH SCORE */}
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-indigo-300 transition-colors">
@@ -489,7 +491,8 @@ export const Dashboard: FC<DashboardProps> = ({
                 Evitado em pneus novos
             </div>
          </div>
-      </div>
+
+         </div>
 
       {/* 4. MAIN ANALYTICS GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -646,8 +649,8 @@ export const Dashboard: FC<DashboardProps> = ({
           </div>
       </div>
 
-      {/* 6. LIVE OPERATIONS FEED */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-0">
+      {/* 6. LIVE OPERATIONS FEED REMOVED */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-0 hidden">
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
               <h3 className="text-sm font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest flex items-center gap-2">
                   <ScrollText className="h-4 w-4 text-blue-500"/> Feed de Operações (Ao Vivo)

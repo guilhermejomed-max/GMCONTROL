@@ -1,4 +1,5 @@
 import { TrackerSettings } from '../types';
+import { parseSascarDate } from '../src/utils';
 
 export const sascarService = {
   getVehicles: async (plates?: string[], trackerSettings?: TrackerSettings, retries = 2) => {
@@ -29,56 +30,6 @@ export const sascarService = {
     const user = trackerSettings?.user || 'JOMEDELOGTORREOPENTECH';
     const pass = trackerSettings?.pass || 'sascar';
     const url = '/proxy-sascar/SasIntegraWSService';
-
-    const fetchAllLatest = async (): Promise<any[]> => {
-      const soapEnvelope = `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <int:obterUltimaPosicaoTodosVeiculos>
-         <usuario>${user}</usuario>
-         <senha>${pass}</senha>
-      </int:obterUltimaPosicaoTodosVeiculos>
-   </soapenv:Body>
-</soapenv:Envelope>`.trim();
-
-      try {
-        console.log(`[Sascar Service] Solicitando última posição de todos os veículos...`);
-        const response = await fetchWithTimeout(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
-          body: soapEnvelope
-        }, 60000);
-
-        if (!response.ok) return [];
-        const text = await response.text();
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(text, "text/xml");
-        
-        let returns = xmlDoc.getElementsByTagName("return");
-        if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
-        
-        const results: any[] = [];
-        for (let j = 0; j < returns.length; j++) {
-          const ret = returns[j];
-          const v: any = {};
-          for (let k = 0; k < ret.childNodes.length; k++) {
-            const node = ret.childNodes[k];
-            if (node.nodeType === 1) {
-              const element = node as Element;
-              const nodeName = element.localName || element.nodeName.replace(/^.*:/, '');
-              v[nodeName] = element.textContent;
-            }
-          }
-          if (v.placa || v.idVeiculo) results.push(v);
-        }
-        console.log(`[Sascar Service] Recebidos ${results.length} veículos via obterUltimaPosicaoTodosVeiculos.`);
-        return results;
-      } catch (e) {
-        console.error(`[Sascar Service] Erro em obterUltimaPosicaoTodosVeiculos:`, e);
-      }
-      return [];
-    };
 
     const fetchIndividual = async (idOrPlate: string): Promise<any | null> => {
       const isId = /^\d+$/.test(idOrPlate);
@@ -137,38 +88,9 @@ export const sascarService = {
     const maxRetries = 2;
     let allVehiclesMap = new Map<string, any>();
 
-    // Estratégia 1: Buscar última posição de TODOS os veículos (Mais eficiente e completa)
-    const allLatest = await fetchAllLatest();
-    allLatest.forEach(v => {
-      const placa = v.placa || '';
-      const uniqueKey = v.idVeiculo ? String(v.idVeiculo) : placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-      
-      const normalizedVehicle = {
-        ...v,
-        idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
-        placa: placa,
-        plate: placa || v.idVeiculo || '',
-        latitude: Number(v.latitude || 0),
-        longitude: Number(v.longitude || 0),
-        odometer: v.odometro ? parseFloat(v.odometro) : 0,
-        speed: Number(v.velocidade ?? 0),
-        ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
-        lastLocation: {
-            lat: Number(v.latitude || 0),
-            lng: Number(v.longitude || 0),
-            address: v.rua || '',
-            city: v.cidade || '',
-            state: v.uf || '',
-            updatedAt: v.dataPosicao || ''
-        }
-      };
-      allVehiclesMap.set(uniqueKey, normalizedVehicle);
-    });
-
-    // Estratégia 2: Se ainda faltarem veículos, buscar no pacote de posições (Fallback)
     let hasMoreData = true;
     let loopCount = 0;
-    const maxLoops = 5; // Reduzido pois já temos a maioria via Estratégia 1
+    const maxLoops = 10; 
 
     while (hasMoreData && loopCount < maxLoops) {
       loopCount++;
@@ -179,11 +101,11 @@ export const sascarService = {
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
    <soapenv:Header/>
    <soapenv:Body>
-      <int:obterPacotePosicoesComPlaca>
+      <int:obterPacotePosicoesJSONComPlaca>
          <usuario>${user}</usuario>
          <senha>${pass}</senha>
          <quantidade>5000</quantidade>
-      </int:obterPacotePosicoesComPlaca>
+      </int:obterPacotePosicoesJSONComPlaca>
    </soapenv:Body>
 </soapenv:Envelope>`.trim();
 
@@ -212,14 +134,14 @@ export const sascarService = {
 
           for (let j = 0; j < returns.length; j++) {
             const ret = returns[j];
-            const v: any = {};
-            for (let k = 0; k < ret.childNodes.length; k++) {
-              const node = ret.childNodes[k];
-              if (node.nodeType === 1) {
-                const element = node as Element;
-                const nodeName = element.localName || element.nodeName.replace(/^.*:/, '');
-                v[nodeName] = element.textContent;
-              }
+            const jsonText = ret.textContent;
+            if (!jsonText) continue;
+            
+            let v: any;
+            try {
+              v = JSON.parse(jsonText);
+            } catch (e) {
+              continue;
             }
             
             const placa = v.placa || '';
@@ -235,8 +157,9 @@ export const sascarService = {
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
                 odometer: v.odometro ? parseFloat(v.odometro) : 0,
+                totalFuelConsumed: v.litrometro !== undefined && v.litrometro !== null ? parseFloat(v.litrometro) : (v.litrometro2 !== undefined && v.litrometro2 !== null ? parseFloat(v.litrometro2) : (v.consumoCombustivel !== undefined && v.consumoCombustivel !== null ? parseFloat(v.consumoCombustivel) : 0)),
                 speed: Number(v.velocidade ?? 0),
-                ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
+                ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {
                     lat: Number(v.latitude || 0),
                     lng: Number(v.longitude || 0),
@@ -249,7 +172,7 @@ export const sascarService = {
 
               // Manter apenas a posição mais recente
               const existing = allVehiclesMap.get(uniqueKey);
-              if (!existing || new Date(normalizedVehicle.lastLocation.updatedAt).getTime() > new Date(existing.lastLocation.updatedAt).getTime()) {
+              if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
                 allVehiclesMap.set(uniqueKey, normalizedVehicle);
               }
             }
@@ -305,8 +228,9 @@ export const sascarService = {
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
                 odometer: v.odometro ? parseFloat(v.odometro) : 0,
+                totalFuelConsumed: v.litrometro !== undefined && v.litrometro !== null ? parseFloat(v.litrometro) : (v.litrometro2 !== undefined && v.litrometro2 !== null ? parseFloat(v.litrometro2) : (v.consumoCombustivel !== undefined && v.consumoCombustivel !== null ? parseFloat(v.consumoCombustivel) : 0)),
                 speed: Number(v.velocidade ?? 0),
-                ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1',
+                ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {
                     lat: Number(v.latitude || 0),
                     lng: Number(v.longitude || 0),
@@ -318,7 +242,7 @@ export const sascarService = {
               };
               
               const existing = allVehiclesMap.get(uniqueKey);
-              if (!existing || new Date(normalizedVehicle.lastLocation.updatedAt).getTime() > new Date(existing.lastLocation.updatedAt).getTime()) {
+              if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
                 allVehiclesMap.set(uniqueKey, normalizedVehicle);
               }
             }

@@ -161,6 +161,26 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
             </div>
 
             <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Litrômetro (Consumo Total)</label>
+              <div className="relative">
+                <Droplets className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                  placeholder="0.00"
+                  value={newEntry.litrometro || ''}
+                  onChange={e => setNewEntry(prev => ({ ...prev, litrometro: Number(e.target.value) }))}
+                />
+              </div>
+              {newEntry.vehicleId && vehicles.find(v => v.id === newEntry.vehicleId)?.totalFuelConsumed && (
+                <p className="text-[9px] font-bold text-slate-400 mt-1 ml-1">
+                  Atual na Sascar: {vehicles.find(v => v.id === newEntry.vehicleId)?.totalFuelConsumed?.toLocaleString()} L
+                </p>
+              )}
+            </div>
+
+            <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Motorista</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

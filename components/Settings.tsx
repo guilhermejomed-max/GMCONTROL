@@ -895,9 +895,6 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             <div className="mb-6 flex justify-between items-center">
               <div><h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Users className="h-5 w-5 text-purple-600" /> Gestão da Equipe</h3><p className="text-slate-500 text-sm mt-1">Controle de acesso e permissões.</p></div>
               <div className="flex gap-2">
-                 <button onClick={openGlobalLogs} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold shadow-sm flex items-center gap-2 transition-all">
-                    <ClipboardList className="h-4 w-4" /> Auditoria Geral
-                 </button>
                  {!isMemberFormOpen && (
                     <button onClick={() => setIsMemberFormOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2 transition-all"><Plus className="h-4 w-4" /> Novo Membro</button>
                  )}
@@ -962,9 +959,6 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                            </td>
                            <td className="p-3 text-right">
                               <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                                 <button onClick={() => openActivityLog(member)} className="p-2 text-purple-500 hover:bg-purple-50 rounded transition-colors" title="Ver Atividade">
-                                    <List className="h-4 w-4"/>
-                                 </button>
                                  <button onClick={() => openEditMember(member)} className="p-2 text-blue-500 hover:bg-blue-50 rounded transition-colors" title="Editar">
                                     <PenLine className="h-4 w-4"/>
                                  </button>

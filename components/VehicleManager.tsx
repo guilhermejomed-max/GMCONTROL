@@ -1886,6 +1886,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       <Fuel className="h-3 w-3" /> {vehicle.averageKmPerLiter.toFixed(2)} km/L <span className="text-[8px] uppercase opacity-70">(Abast.)</span>
                     </div>
                   ) : null}
+                  {vehicle.totalFuelConsumed ? (
+                    <div className="text-[10px] text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
+                      <Fuel className="h-3 w-3" /> {vehicle.totalFuelConsumed.toLocaleString()} L <span className="text-[8px] uppercase opacity-70">(Litrômetro)</span>
+                    </div>
+                  ) : null}
                   {vehicle.sascarCode && (
                     <div className="text-[10px] text-slate-400 font-medium">
                       Cód. Sascar: {vehicle.sascarCode}
@@ -2161,6 +2166,24 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
                         </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex flex-col justify-between">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Litrômetro (Sascar)</p>
+                              <Fuel className="h-3 w-3 text-blue-500" />
+                            </div>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{(selectedVehicleRG.totalFuelConsumed || 0).toLocaleString()} L</p>
+                        </div>
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex flex-col justify-between">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Média (KM/L)</p>
+                              <Activity className="h-3 w-3 text-emerald-500" />
+                            </div>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">
+                                {selectedVehicleRG.totalFuelConsumed && selectedVehicleRG.totalFuelConsumed > 0 
+                                    ? (selectedVehicleRG.odometer / selectedVehicleRG.totalFuelConsumed).toFixed(2) 
+                                    : '0.00'} KM/L
+                            </p>
+                        </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Ano</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.year || 'N/A'}</p>
@@ -2189,8 +2212,16 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 <Activity className="h-4 w-4" />
                                 <span className="text-[10px] font-black uppercase tracking-wider">Consumo Diesel</span>
                             </div>
-                            <p className="text-xl font-black text-slate-800 dark:text-white truncate">{rgStats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-500">L</span></p>
-                            <p className="text-[10px] font-bold text-slate-500 mt-1">Investimento: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.fuelCost)}</p>
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <p className="text-xl font-black text-slate-800 dark:text-white truncate">{rgStats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-500">L</span></p>
+                                <p className="text-[10px] font-bold text-slate-500 mt-1">Investimento: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.fuelCost)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[9px] font-black text-blue-600 uppercase">Sascar</p>
+                                <p className="text-sm font-black text-blue-700">{(selectedVehicleRG.totalFuelConsumed || 0).toLocaleString()} L</p>
+                              </div>
+                            </div>
                         </div>
                         <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-800">
                             <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 mb-1">
@@ -2305,6 +2336,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         <Activity className="h-5 w-5 text-blue-600" /> Histórico de Abastecimento
                       </h3>
                       <div className="flex gap-4">
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Litrômetro (Sascar)</p>
+                          <p className="text-sm font-black text-blue-600">{(selectedVehicleRG.totalFuelConsumed || 0).toLocaleString()} L</p>
+                        </div>
                         <div className="text-right">
                           <p className="text-[10px] font-bold text-slate-400 uppercase">Total Litros</p>
                           <p className="text-sm font-black text-slate-800 dark:text-white">{rgStats.totalLiters.toLocaleString()} L</p>

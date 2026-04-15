@@ -21,12 +21,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SearchableSelect } from './ui/SearchableSelect';
 
 interface OccurrencesProps {
-  user: TeamMember;
+  orgId: string;
+  user: any;
   occurrences: Occurrence[];
   vehicles: Vehicle[];
 }
 
-export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: initialOccurrences, vehicles: initialVehicles }) => {
+export const Occurrences: React.FC<OccurrencesProps> = ({ orgId, user, occurrences: initialOccurrences, vehicles: initialVehicles }) => {
   const [activeTab, setActiveTab] = useState<'list' | 'reasons'>('list');
   const [occurrences, setOccurrences] = useState<Occurrence[]>(initialOccurrences);
   const [reasons, setReasons] = useState<OccurrenceReason[]>([]);
@@ -62,12 +63,12 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: ini
   }, [initialVehicles]);
 
   useEffect(() => {
-    const unsubReasons = storageService.subscribeToOccurrenceReasons('', setReasons);
+    const unsubReasons = storageService.subscribeToOccurrenceReasons(orgId, setReasons);
 
     return () => {
       unsubReasons();
     };
-  }, []);
+  }, [orgId]);
 
   const handleAddOccurrence = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +78,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: ini
     if (!selectedVehicle || !selectedReason) return;
 
     if (editingOccurrence) {
-      await storageService.updateOccurrence('', editingOccurrence.id, {
+      await storageService.updateOccurrence(orgId, editingOccurrence.id, {
         vehicleId: selectedVehicle.id,
         vehiclePlate: selectedVehicle.plate,
         reasonId: selectedReason.id,
@@ -94,11 +95,11 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: ini
         description: occurrenceForm.description,
         status: 'OPEN',
         createdAt: new Date().toISOString(),
-        userId: user.id,
-        userName: user.name,
+        userId: user.uid || user.id,
+        userName: user.displayName || user.name,
         branchId: user.branchId || undefined
       };
-      await storageService.addOccurrence('', newOccurrence);
+      await storageService.addOccurrence(orgId, newOccurrence);
     }
     
     setIsOccurrenceModalOpen(false);
@@ -109,7 +110,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: ini
   const handleAddReason = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingReason) {
-      await storageService.updateOccurrenceReason('', editingReason.id, {
+      await storageService.updateOccurrenceReason(orgId, editingReason.id, {
         name: reasonForm.name,
         description: reasonForm.description
       });
@@ -120,7 +121,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: ini
         description: reasonForm.description,
         branchId: user.branchId || undefined
       };
-      await storageService.addOccurrenceReason('', newReason);
+      await storageService.addOccurrenceReason(orgId, newReason);
     }
     
     setIsReasonModalOpen(false);
@@ -129,7 +130,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: ini
   };
 
   const handleResolveOccurrence = async (occurrence: Occurrence) => {
-    await storageService.updateOccurrence('', occurrence.id, {
+    await storageService.updateOccurrence(orgId, occurrence.id, {
       status: 'RESOLVED',
       resolvedAt: new Date().toISOString()
     });
@@ -137,13 +138,13 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ user, occurrences: ini
 
   const handleDeleteOccurrence = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta ocorrência?')) {
-      await storageService.deleteOccurrence('', id);
+      await storageService.deleteOccurrence(orgId, id);
     }
   };
 
   const handleDeleteReason = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este motivo?')) {
-      await storageService.deleteOccurrenceReason('', id);
+      await storageService.deleteOccurrenceReason(orgId, id);
     }
   };
 

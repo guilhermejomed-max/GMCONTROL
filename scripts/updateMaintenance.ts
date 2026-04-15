@@ -1,10 +1,10 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
-import firebaseConfig from "./firebase-applet-config.json";
+import firebaseConfig from "../firebase-applet-config.json";
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(app);
 
 const data = [
   { placa: "TMD5G27", data: "27/02/2026", km: 123299 },
