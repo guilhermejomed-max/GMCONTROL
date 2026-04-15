@@ -13,7 +13,13 @@ export default defineConfig(({ mode }) => {
           '/proxy-sascar': {
             target: 'https://sasintegra.sascar.com.br/SasIntegra',
             changeOrigin: true,
+            secure: false,
             rewrite: (path) => path.replace(/^\/proxy-sascar/, '')
+          },
+          '/SasIntegraWSService': {
+            target: 'https://sasintegra.sascar.com.br/SasIntegra',
+            changeOrigin: true,
+            secure: false
           }
         }
       },

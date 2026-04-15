@@ -26,11 +26,11 @@ service cloud.firestore {
     function getUserData() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
-        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"], "role": "SENIOR"};
+        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "FINANCIAL"], "role": "SENIOR"};
     }
 
     function hasModuleAccess(module) {
-      return isServer() || isAdmin() || (isAuthed() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"]));
+      return isServer() || isAdmin() || (isAuthed() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "FINANCIAL"]));
     }
 
     function getRole() {
@@ -170,6 +170,11 @@ service cloud.firestore {
     match /fuelTypes/{id} { 
       allow read: if isAuthed(); 
       allow write: if hasModuleAccess("FUEL"); 
+    }
+
+    // --- FINANCIAL MODULE ---
+    match /financial_records/{id} {
+      allow read, write: if isAuthed() && (isAdmin() || hasModuleAccess("FINANCIAL"));
     }
 
     // --- SYSTEM ---

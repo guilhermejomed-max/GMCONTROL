@@ -438,6 +438,26 @@
         "branchId": { "type": "string" }
       },
       "required": ["id", "name"]
+    },
+    "FinancialRecord": {
+      "title": "FinancialRecord",
+      "description": "Financial records for vehicles or branches",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["PENDING", "PAID", "CANCELLED"] },
+        "relatedId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "category", "description", "amount", "date", "status", "createdAt", "createdBy"]
     }
   },
   "firestore": {
@@ -552,6 +572,10 @@
     "/classifications/{id}": {
       "schema": "ServiceClassification",
       "description": "Service classifications"
+    },
+    "/financial_records/{id}": {
+      "schema": "FinancialRecord",
+      "description": "Financial records"
     },
     "/branches/{id}": {
       "schema": "Branch",

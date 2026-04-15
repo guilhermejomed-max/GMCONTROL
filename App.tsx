@@ -34,7 +34,7 @@ import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
-import { calculatePredictedTreadDepth } from './src/utils';
+import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
 
@@ -205,6 +205,7 @@ export const App = () => {
   const [darkMode, setDarkMode] = useState(false);
   
   const [tires, setTires] = useState<Tire[]>([]);
+  const [financialRecords, setFinancialRecords] = useState<import('./types').FinancialRecord[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleBrandModels, setVehicleBrandModels] = useState<VehicleBrandModel[]>([]);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -237,7 +238,7 @@ export const App = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [limits, setLimits] = useState({
     tires: 5000,
-    vehicles: 5000,
+    vehicles: 1000,
     serviceOrders: 500,
     fuelEntries: 500
   });
@@ -252,17 +253,17 @@ export const App = () => {
   useEffect(() => {
     setHasMore(prev => ({
       ...prev,
-      tires: tires.length >= limits.tires,
-      vehicles: vehicles.length >= limits.vehicles,
+      tires: false,
+      vehicles: false,
       serviceOrders: serviceOrders.length >= limits.serviceOrders,
       fuelEntries: fuelEntries.length >= limits.fuelEntries
     }));
-  }, [tires.length, vehicles.length, serviceOrders.length, fuelEntries.length, limits]);
+  }, [serviceOrders.length, fuelEntries.length, limits]);
 
   const handleLoadMore = (module: keyof typeof limits) => {
     setLimits(prev => ({
       ...prev,
-      [module]: prev[module] + (module === 'tires' || module === 'vehicles' ? 100 : 50)
+      [module]: prev[module] + (module === 'tires' || module === 'vehicles' ? 1000 : 200)
     }));
   };
   const [showNotifications, setShowNotifications] = useState(false);
@@ -347,7 +348,7 @@ export const App = () => {
   // 2. Vehicles Data (Needed by most modules)
   useEffect(() => {
     if (!user) return;
-    const unsubVehicles = storageService.subscribeToVehicles(orgId, setVehicles, limits.vehicles);
+    const unsubVehicles = storageService.subscribeToVehicles(orgId, setVehicles);
     const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
     const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
     
@@ -356,21 +357,23 @@ export const App = () => {
         unsubDrivers();
         unsubCollaborators();
     };
-  }, [user, limits.vehicles]);
+  }, [user]);
 
   // 3. Tires Module Data
   useEffect(() => {
     if (!user) return;
-    const unsubTires = storageService.subscribeToTires(orgId, setTires, limits.tires);
+    const unsubTires = storageService.subscribeToTires(orgId, setTires);
+    const unsubFinancialRecords = storageService.subscribeToFinancialRecords(orgId, setFinancialRecords);
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
     const unsubTireLoans = storageService.subscribeToTireLoans(orgId, setTireLoans);
     
     return () => {
         unsubTires();
+        unsubFinancialRecords();
         unsubRetreadOrders();
         unsubTireLoans();
     };
-  }, [user, limits.tires]);
+  }, [user]);
 
   // 4. Mechanical Module Data
   useEffect(() => {
@@ -465,6 +468,25 @@ export const App = () => {
           storageService.checkDailyTrailerIncrement(orgId, vehicles, settings);
       }
   }, [vehicles.length, settings, orgId]);
+
+  // AUTOMATED SASCAR SYNC (Every 10 minutes)
+  useEffect(() => {
+    if (!user || !trackerSettings?.active) return;
+    
+    // Initial sync after a short delay to let data load
+    const initialTimeout = setTimeout(() => {
+      syncSascar(false);
+    }, 5000);
+
+    const interval = setInterval(() => {
+      syncSascar(false);
+    }, 10 * 60 * 1000); // 10 minutes
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [user, trackerSettings?.active, vehicles.length]);
 
   // ARRIVAL ALERTS CHECK
   useEffect(() => {
@@ -664,10 +686,10 @@ export const App = () => {
       const processedLocalIds = new Set<string>();
       const updatedPlatesList: string[] = [];
 
-      // Ordenar itens por data (se disponível) para garantir que pegamos o mais recente
+      // Ordenar itens por data para garantir que pegamos o mais recente
       const sortedItems = [...allRawItems].sort((a, b) => {
-        const dateA = new Date(a.lastLocation?.updatedAt || a.dataPosicao || 0).getTime();
-        const dateB = new Date(b.lastLocation?.updatedAt || b.dataPosicao || 0).getTime();
+        const dateA = parseSascarDate(a.lastLocation?.updatedAt || a.dataPosicao || 0);
+        const dateB = parseSascarDate(b.lastLocation?.updatedAt || b.dataPosicao || 0);
         return dateB - dateA; // Mais recente primeiro
       });
 
@@ -714,6 +736,7 @@ export const App = () => {
           updatesBatch.push({
             id: localVehicle.id,
             odometer: finalOdo,
+            totalFuelConsumed: Number(sv.totalFuelConsumed || 0),
             lastLocation: {
               ...localVehicle.lastLocation,
               lat: finalLat,
@@ -721,7 +744,7 @@ export const App = () => {
               address: isInvalidPosition ? (localVehicle.lastLocation?.address || 'Coordenadas GPS') : (sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS'),
               city: isInvalidPosition ? (localVehicle.lastLocation?.city || 'Desconhecida') : (sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida'),
               state: isInvalidPosition ? (localVehicle.lastLocation?.state || '') : (sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || ''),
-              updatedAt: sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date().toISOString()
+              updatedAt: new Date(parseSascarDate(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date().toISOString())).toISOString()
             },
             speed: Number(sv.velocidade || sv.speed || 0),
             ignition: sv.ignicao === 'S' || sv.ignicao === 'true' || sv.ignicao === '1' || sv.ignition === true,
@@ -1391,6 +1414,8 @@ export const App = () => {
                 retreadOrders={retreadOrders} 
                 branches={branches}
                 defaultBranchId={selectedBranchId}
+                financialRecords={financialRecords}
+                orgId={orgId}
               />
             )}
             {currentTab === 'esg-panel' && allowedModules.includes('TIRES') && (
@@ -1517,7 +1542,7 @@ export const App = () => {
                 onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} 
               />
             )}
-            {currentTab === 'occurrences' && <Occurrences user={user} occurrences={occurrences} vehicles={vehicles} />}
+            {currentTab === 'occurrences' && <Occurrences orgId={orgId} user={user} occurrences={occurrences} vehicles={vehicles} />}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
         </div>
       </main>

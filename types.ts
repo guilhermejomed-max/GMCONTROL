@@ -37,9 +37,9 @@ export enum TireStatus {
   DAMAGED = 'Danificado/Descarte'
 }
 
-export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR' | 'INSPECTOR';
+export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR' | 'INSPECTOR' | 'ADMIN' | 'MECHANIC' | 'MANAGER' | 'DRIVER' | 'STOCK' | 'FINANCIAL';
 
-export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL';
+export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL' | 'FINANCIAL' | 'SETTINGS' | 'AUDIT';
 
 export interface TireHistoryLog {
   date: string;
@@ -57,6 +57,8 @@ export interface SystemLog {
   module: ModuleType;
   timestamp: string;
   branchId?: string;
+  entityId?: string;
+  entityType?: string;
 }
 
 export type VisualDamage = 'CORTE' | 'BOLHA' | 'DESGASTE_IRREGULAR' | 'FURO' | 'OUTRO';
@@ -198,6 +200,7 @@ export interface Vehicle {
   speed?: number;
   ignition?: boolean;
   consumoInstantaneo?: number;
+  totalFuelConsumed?: number; // Litrômetro (consumo total acumulado)
   brand?: string;
   engine?: string;
   transmission?: string;
@@ -595,4 +598,21 @@ export interface ToastMessage {
   title: string;
   message: string;
   duration?: number;
+}
+
+export type FinancialCategory = 'FINE' | 'TOLL' | 'TAX' | 'INSURANCE' | 'LICENSING' | 'MAINTENANCE_PREVENTIVE' | 'MAINTENANCE_CORRECTIVE' | 'FUEL' | 'OTHER';
+
+export interface FinancialRecord {
+  id: string;
+  vehicleId?: string; // Opcional, pois pode ser custo da filial
+  branchId?: string;
+  category: FinancialCategory;
+  description: string;
+  amount: number;
+  date: string;
+  dueDate?: string;
+  status: 'PENDING' | 'PAID' | 'CANCELLED';
+  relatedId?: string; // ID da OS, Abastecimento, etc.
+  createdAt: string;
+  createdBy: string;
 }

@@ -460,12 +460,16 @@ async function runSascarAutomation() {
             
             const docId = sascarIdToDocId.get(sascarId) || plateToDocId.get(normalizedPlate);
             
+            if (plate === 'BSX3G15') {
+                logToFile(`[Debug] Veículo BSX3G15 encontrado na Sascar. Dados: ${JSON.stringify(pos)}`);
+            }
+            
             if (docId) {
                 const rawLat = pos.latitude ?? 0;
                 const rawLng = pos.longitude ?? 0;
                 
                 const odometerKm = pos.odometroExato ? parseSascarNumber(pos.odometroExato) / 1000 : parseSascarNumber(pos.odometro ?? 0);
-                const litrometroLiters = pos.consumoTotal ? parseSascarNumber(pos.consumoTotal) / 1000 : parseSascarNumber(pos.litrometro ?? 0);
+                const litrometroLiters = (pos.consumoTotal !== undefined && pos.consumoTotal !== null) ? parseSascarNumber(pos.consumoTotal) / 1000 : parseSascarNumber(pos.litrometro ?? 0);
                 const rawInstantaneo = parseSascarNumber(pos.consumoInstantaneo || 0);
                 
                 const speed = pos.velocidade ?? 0;
@@ -971,6 +975,9 @@ async function startServer() {
           const rawLng = v.longitude ?? 0;
           
           // Log raw values for debugging fuel consumption issues
+          if (v.placa === 'BSX3G15' || v.idVeiculo === 'BSX3G15') {
+            console.log(`[Sascar Debug] Veículo BSX3G15 | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoTotal=${v.consumoTotal}, litrometro=${v.litrometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
+          }
           if (index < 5) {
             logToFile(`[Sascar Debug] Veículo ${v.placa || v.idVeiculo} | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoTotal=${v.consumoTotal}, litrometro=${v.litrometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
           }
@@ -978,7 +985,7 @@ async function startServer() {
           // Sascar: odometroExato is in meters, odometro is in km.
           // consumoTotal is usually in milliliters.
           const odometerKm = v.odometroExato ? parseSascarNumber(v.odometroExato) / 1000 : parseSascarNumber(v.odometro ?? 0);
-          const litrometroLiters = v.consumoTotal ? parseSascarNumber(v.consumoTotal) / 1000 : parseSascarNumber(v.litrometro ?? 0);
+          const litrometroLiters = (v.consumoTotal !== undefined && v.consumoTotal !== null) ? parseSascarNumber(v.consumoTotal) / 1000 : parseSascarNumber(v.litrometro ?? 0);
           const rawInstantaneo = parseSascarNumber(v.consumoInstantaneo || 0);
 
           const speed = Number(v.velocidade ?? 0);

@@ -4,11 +4,12 @@ const soapEnvelope = `
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
    <soapenv:Header/>
    <soapenv:Body>
-      <int:obterVeiculos>
+      <int:obterPacotePosicoesRestricao>
          <usuario>JOMEDELOGTORREOPENTECH</usuario>
          <senha>sascar</senha>
-         <quantidade>5000</quantidade>
-      </int:obterVeiculos>
+         <quantidade>1</quantidade>
+         <idVeiculo>2194837</idVeiculo>
+      </int:obterPacotePosicoesRestricao>
    </soapenv:Body>
 </soapenv:Envelope>`.trim();
 
@@ -21,10 +22,6 @@ fetch('https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService', {
 })
 .then(res => res.text())
 .then(text => {
-    console.log("Response length:", text.length);
-    const match = text.match(/<return>(.*?)<\/return>/);
-    if (match) {
-        console.log("First vehicle:", match[1]);
-    }
+    console.log("Response:", text);
 })
 .catch(err => console.error(err));
