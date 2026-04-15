@@ -835,6 +835,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   hasMore
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeBranch, setActiveBranch] = useState<string>('ALL');
   const [activeCategory, setActiveCategory] = useState<'ALL' | 'STOCK' | 'NEW' | 'RETREADED' | 'USED' | 'MOUNTED' | 'SCRAP' | 'LISO' | 'BORRACHUDO'>(viewMode === 'scrap' ? 'SCRAP' : 'STOCK');
   const [layoutMode, setLayoutMode] = useState<'GRID' | 'LIST'>('LIST');
   const [detailedView, setDetailedView] = useState(false);
@@ -857,9 +858,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [showAllTires, setShowAllTires] = useState(false);
 
   const filteredByBranchTires = useMemo(() => {
-    // Pneus agora são universais, não filtramos mais por filial
-    return tires;
-  }, [tires]);
+    if (activeBranch === 'ALL') return tires;
+    return tires.filter(t => t.branchId === activeBranch);
+  }, [tires, activeBranch]);
 
   const stats = useMemo(() => {
     const stockTires = filteredByBranchTires.filter(t => !t.vehicleId && t.status !== TireStatus.DAMAGED);
@@ -1239,6 +1240,14 @@ export const InventoryList: React.FC<InventoryListProps> = ({
             </div>
 
             <div className="flex items-center gap-3 w-full lg:w-auto">
+                <select 
+                    value={activeBranch}
+                    onChange={e => setActiveBranch(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-950 border-none rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all py-3 px-4 w-full lg:w-48"
+                >
+                    <option value="ALL">Todas as Filiais</option>
+                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
                 <div className="relative flex-1 lg:w-64">
                     <Search className="absolute left-4 top-3 h-4 w-4 text-slate-400" />
                     <input 

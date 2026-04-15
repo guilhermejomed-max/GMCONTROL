@@ -7,7 +7,6 @@ interface FuelStatsCardsProps {
     totalLiters: number;
     globalAvg: number;
     count: number;
-    totalLitrometro: number;
   };
 }
 
@@ -69,21 +68,6 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
         <h3 className="text-2xl font-black text-purple-600 tracking-tight truncate">{stats.count}</h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
           <Plus className="h-3 w-3" /> Registros efetuados
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all border-l-4 border-l-indigo-500">
-        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-          <div className="p-1 bg-indigo-100 dark:bg-indigo-900/30 rounded-md">
-            <Droplets className="h-3 w-3 text-indigo-600"/>
-          </div>
-          Litrômetro Acumulado
-        </div>
-        <h3 className="text-2xl font-black text-indigo-600 tracking-tight truncate">
-          {stats.totalLitrometro.toLocaleString()} <span className="text-sm font-bold text-slate-400">L</span>
-        </h3>
-        <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
-          <Zap className="h-3 w-3" /> Telemetria Sascar
         </div>
       </div>
     </div>

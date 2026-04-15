@@ -174,11 +174,6 @@ export const FuelDashboard: React.FC<Props> = ({
 
     let totalKm = 0;
     let totalLitersForAvg = 0;
-    let totalLitrometro = 0;
-
-    fuelEntries.forEach(e => {
-      if (e.litrometro) totalLitrometro += e.litrometro;
-    });
 
     Object.values(vehicleGroups).forEach(entries => {
       if (entries.length < 2) return;
@@ -197,8 +192,7 @@ export const FuelDashboard: React.FC<Props> = ({
       totalCost,
       totalLiters,
       globalAvg: totalLitersForAvg > 0 ? (totalKm / totalLitersForAvg) : 0,
-      count: fuelEntries.length,
-      totalLitrometro
+      count: fuelEntries.length
     };
   }, [fuelEntries]);
 

@@ -631,13 +631,23 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       return sum + (so.totalCost || (partsCost + (so.laborCost || 0) + (so.externalServiceCost || 0)));
     }, 0);
     
+    const sortedEntries = [...vehicleFuelEntries].sort((a, b) => a.odometer - b.odometer);
+    const totalKm = sortedEntries.length > 1 ? sortedEntries[sortedEntries.length - 1].odometer - sortedEntries[0].odometer : 0;
+    
+    const avgConsumptionRefueling = totalLiters > 0 ? totalKm / totalLiters : 0;
+    const avgConsumptionLitrometer = (selectedVehicleRG?.totalFuelConsumed || 0) > 0 ? totalKm / (selectedVehicleRG!.totalFuelConsumed!) : 0;
+    
     return {
       totalLiters,
       fuelCost,
       maintenanceCost,
-      totalCost: fuelCost + maintenanceCost
+      totalCost: fuelCost + maintenanceCost,
+      totalKm,
+      avgConsumptionRefueling,
+      avgConsumptionLitrometer,
+      diff: avgConsumptionRefueling - avgConsumptionLitrometer
     };
-  }, [vehicleFuelEntries, vehicleMaintenanceOrders]);
+  }, [vehicleFuelEntries, vehicleMaintenanceOrders, selectedVehicleRG]);
 
   const handlePrintMaintenanceReport = () => {
     if (!selectedVehicleRG) return;
@@ -2337,12 +2347,18 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       </h3>
                       <div className="flex gap-4">
                         <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">Litrômetro (Sascar)</p>
-                          <p className="text-sm font-black text-blue-600">{(selectedVehicleRG.totalFuelConsumed || 0).toLocaleString()} L</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Média Abastecimento</p>
+                          <p className="text-sm font-black text-blue-600">{rgStats.avgConsumptionRefueling.toFixed(2)} KM/L</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">Total Litros</p>
-                          <p className="text-sm font-black text-slate-800 dark:text-white">{rgStats.totalLiters.toLocaleString()} L</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Média Litrômetro</p>
+                          <p className="text-sm font-black text-indigo-600">{rgStats.avgConsumptionLitrometer.toFixed(2)} KM/L</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Diferença</p>
+                          <p className={`text-sm font-black ${rgStats.diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {rgStats.diff.toFixed(2)} KM/L
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] font-bold text-slate-400 uppercase">Total Gasto</p>
