@@ -25,12 +25,12 @@ interface OccurrencesProps {
   user: any;
   occurrences: Occurrence[];
   vehicles: Vehicle[];
+  reasons: OccurrenceReason[];
 }
 
-export const Occurrences: React.FC<OccurrencesProps> = ({ orgId, user, occurrences: initialOccurrences, vehicles: initialVehicles }) => {
+export const Occurrences: React.FC<OccurrencesProps> = ({ orgId, user, occurrences: initialOccurrences, vehicles: initialVehicles, reasons }) => {
   const [activeTab, setActiveTab] = useState<'list' | 'reasons'>('list');
   const [occurrences, setOccurrences] = useState<Occurrence[]>(initialOccurrences);
-  const [reasons, setReasons] = useState<OccurrenceReason[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
@@ -61,14 +61,6 @@ export const Occurrences: React.FC<OccurrencesProps> = ({ orgId, user, occurrenc
   useEffect(() => {
     setVehicles(initialVehicles);
   }, [initialVehicles]);
-
-  useEffect(() => {
-    const unsubReasons = storageService.subscribeToOccurrenceReasons(orgId, setReasons);
-
-    return () => {
-      unsubReasons();
-    };
-  }, [orgId]);
 
   const handleAddOccurrence = async (e: React.FormEvent) => {
     e.preventDefault();

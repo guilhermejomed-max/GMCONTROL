@@ -143,6 +143,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
       newParts[existingIndex].quantity += selectedPartQty;
     } else {
       newParts = [...existingParts, {
+        itemId: item.id,
         name: item.name,
         quantity: selectedPartQty,
         unitCost: item.averageCost

@@ -11,8 +11,7 @@ interface ServiceManagerProps {
   userLevel: UserLevel;
 }
 
-export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) => {
-  const [items, setItems] = useState<StockItem[]>([]);
+export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = ({ orgId, userLevel, items }) => {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'STOCK' | 'MOVEMENTS' | 'AUDIT'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,10 +31,9 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
   const [scannedCode, setScannedCode] = useState('');
 
   useEffect(() => {
-    const unsubStock = storageService.subscribeToStock(orgId, setItems);
+    // Subscriptions moved to App.tsx to avoid duplicate reads
     const unsubMovements = storageService.subscribeToStockMovements(orgId, setMovements);
     return () => {
-      unsubStock();
       unsubMovements();
     };
   }, []);
@@ -133,6 +131,21 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
       setIsItemModalOpen(false);
     } catch (err) {
       alert("Erro ao salvar item.");
+    }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!['SENIOR', 'CREATOR', 'ADMIN', 'MANAGER'].includes(userLevel)) {
+      alert("Você não tem permissão para excluir itens.");
+      return;
+    }
+
+    if (confirm("Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.")) {
+      try {
+        await storageService.deleteStockItem(orgId, id);
+      } catch (err) {
+        alert("Erro ao excluir item.");
+      }
     }
   };
 
@@ -663,6 +676,15 @@ export const ServiceManager: FC<ServiceManagerProps> = ({ orgId, userLevel }) =>
                         >
                           <PenLine className="h-4 w-4"/>
                         </button>
+                        {['SENIOR', 'CREATOR', 'ADMIN', 'MANAGER'].includes(userLevel) && (
+                          <button 
+                            onClick={() => handleDeleteItem(item.id)} 
+                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4"/>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

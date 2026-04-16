@@ -531,6 +531,7 @@ interface VehicleManagerProps {
   vehicleTypes?: VehicleType[];
   fuelTypes?: FuelType[];
   fuelEntries?: FuelEntry[];
+  arrivalAlerts?: ArrivalAlert[];
   onLoadMore?: () => void;
   hasMore?: boolean;
 }
@@ -558,6 +559,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   vehicleTypes: propVehicleTypes = [],
   fuelTypes = [],
   fuelEntries = [],
+  arrivalAlerts = [],
   onLoadMore,
   hasMore
 }) => {
@@ -566,6 +568,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncingSascar, setIsSyncingSascar] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const [updatingLocationId, setUpdatingLocationId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVehicleRG, setSelectedVehicleRG] = useState<Vehicle | null>(null);
@@ -588,14 +592,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
   useEffect(() => {
     if (selectedVehicleRG) {
-      const unsub = storageService.subscribeToArrivalAlerts(orgId, (alerts) => {
-        setVehicleAlerts(alerts.filter(a => a.vehiclePlate === selectedVehicleRG.plate));
-      });
+      setVehicleAlerts(arrivalAlerts.filter(a => a.vehiclePlate === selectedVehicleRG.plate));
       setActiveRGTab('geral');
       setSelectedAxle('ALL');
-      return () => unsub();
     }
-  }, [selectedVehicleRG, orgId]);
+  }, [selectedVehicleRG, arrivalAlerts]);
 
   useEffect(() => {
     if (selectedVehicleRG) {
@@ -1069,6 +1070,18 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       return true;
     }).sort((a, b) => a.plate.localeCompare(b.plate));
   }, [vehicles, searchTerm, tires, settings, filterType, vehicleBrandModels]);
+
+  const paginatedVehicles = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredVehicles.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredVehicles, currentPage]);
+
+  const totalPages = Math.ceil(filteredVehicles.length / itemsPerPage);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType]);
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -1761,7 +1774,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVehicles.map(vehicle => {
+        {paginatedVehicles.map(vehicle => {
           const status = getVehicleStatus(vehicle);
           const isSelected = selectedIds.has(vehicle.id);
           
@@ -1930,14 +1943,52 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         })}
       </div>
 
-      {hasMore && (
-        <div className="flex justify-center pt-8">
-          <button 
-            onClick={onLoadMore}
-            className="px-10 py-4 bg-white dark:bg-slate-900 border-2 border-blue-600 text-blue-600 dark:text-blue-400 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/10 hover:bg-blue-50 dark:hover:bg-slate-800"
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-8">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium"
           >
-            <RefreshCw className="h-5 w-5" />
-            CARREGAR MAIS VEÍCULOS
+            Anterior
+          </button>
+          
+          <div className="flex gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+              if (
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-lg text-sm font-bold transition-colors ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (
+                page === currentPage - 2 ||
+                page === currentPage + 2
+              ) {
+                return <span key={page} className="px-2 py-2 text-slate-400">...</span>;
+              }
+              return null;
+            })}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium"
+          >
+            Próxima
           </button>
         </div>
       )}

@@ -135,7 +135,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [editOrderAxles, setEditOrderAxles] = useState<AxleSelection[]>([]);
   const [editOrderSectorId, setEditOrderSectorId] = useState('');
   const [editOrderClassificationId, setEditOrderClassificationId] = useState('');
-  const [editOrderParts, setEditOrderParts] = useState<{ name: string; quantity: number; unitCost: number }[]>([]);
+  const [editOrderParts, setEditOrderParts] = useState<{ itemId?: string; name: string; quantity: number; unitCost: number }[]>([]);
   const [editSelectedStockItemId, setEditSelectedStockItemId] = useState('');
   const [editSelectedStockItemQty, setEditSelectedStockItemQty] = useState(1);
 
@@ -166,6 +166,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           setEditOrderParts(updatedParts);
       } else {
           setEditOrderParts([...editOrderParts, {
+              itemId: item.id,
               name: item.name,
               quantity: editSelectedStockItemQty,
               unitCost: item.averageCost

@@ -1672,6 +1672,17 @@ export const storageService = {
     }, (error) => handleFirestoreError(error, OperationType.LIST, "branches"));
   },
 
+  getBranches: async (): Promise<Branch[]> => {
+    if (mockUser || !db) return LocalDB.get(`branches`, []);
+    try {
+      const snapshot = await db.collection("branches").orderBy("name").get();
+      return snapshot.docs.map(doc => doc.data() as Branch);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "branches_get");
+      return [];
+    }
+  },
+
   addBranch: async (branch: Branch) => {
       if (mockUser || !db) { LocalDB.add(`branches`, branch); return; }
       try {
@@ -1756,6 +1767,17 @@ export const storageService = {
       snapshot.forEach((doc) => stations.push(doc.data() as FuelStation));
       callback(stations);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "fuel_stations"));
+  },
+
+  getFuelStations: async (): Promise<FuelStation[]> => {
+    if (mockUser || !db) return LocalDB.get(`fuel_stations`, []);
+    try {
+      const snapshot = await db.collection("fuel_stations").orderBy("name").get();
+      return snapshot.docs.map(doc => doc.data() as FuelStation);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "fuel_stations_get");
+      return [];
+    }
   },
 
   addFuelStation: async (orgId: string, station: FuelStation) => {
