@@ -378,7 +378,7 @@ export interface ServiceOrder {
   laborHours?: number; // New: Hours worked
   collaboratorId?: string; // New: Linked collaborator
   collaboratorName?: string; // New: Collaborator name for history
-  parts?: { name: string; quantity: number; unitCost: number }[];
+  parts?: { name: string; quantity: number; unitCost: number; itemId?: string }[];
   services?: { id: string; name: string; cost: number; axles?: AxleSelection[] }[]; // Updated: Linked services with axle side
   maintenanceBaseId?: string;
   maintenanceBaseName?: string;

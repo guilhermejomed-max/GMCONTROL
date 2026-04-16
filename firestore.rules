@@ -120,8 +120,7 @@ service cloud.firestore {
       allow write, delete: if hasModuleAccess("VEHICLES");
     }
     match /occurrence_reasons/{id} {
-      allow read: if isAuthed();
-      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+      allow read, write: if isAuthed();
     }
 
     // --- MECHANICAL MODULE ---
@@ -150,12 +149,10 @@ service cloud.firestore {
       allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
     }
     match /stock_items/{id} {
-      allow read: if hasModuleAccess("MECHANICAL");
-      allow write: if hasModuleAccess("MECHANICAL");
+      allow read, write: if isAuthed();
     }
     match /stock_movements/{id} {
-      allow read: if hasModuleAccess("MECHANICAL");
-      allow write: if hasModuleAccess("MECHANICAL");
+      allow read, write: if isAuthed();
     }
 
     // --- FUEL MODULE ---
@@ -174,7 +171,7 @@ service cloud.firestore {
 
     // --- FINANCIAL MODULE ---
     match /financial_records/{id} {
-      allow read, write: if isAuthed() && (isAdmin() || hasModuleAccess("FINANCIAL"));
+      allow read, write: if isAuthed();
     }
 
     // --- SYSTEM ---

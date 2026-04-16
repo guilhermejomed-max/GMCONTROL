@@ -35,7 +35,7 @@ import { GlobalHeader } from './components/GlobalHeader';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
-import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector } from './types';
+import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
 
 const LoginScreen = ({ 
@@ -227,6 +227,7 @@ export const App = () => {
   const [classifications, setClassifications] = useState<ServiceClassification[]>([]);
   const [sectors, setSectors] = useState<ServiceSector[]>([]);
   const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
+  const [occurrenceReasons, setOccurrenceReasons] = useState<OccurrenceReason[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
@@ -331,94 +332,94 @@ export const App = () => {
     if (!user) return;
     const unsubSettings = storageService.subscribeToSettings(orgId, setSettings);
     const unsubTracker = storageService.subscribeToTrackerSettings(orgId, setTrackerSettings);
-    const unsubBranches = storageService.subscribeToBranches(setBranches);
     const unsubVehicleBrandModels = storageService.subscribeToVehicleBrandModels(orgId, setVehicleBrandModels);
     
+    // One-time fetches for static data
+    storageService.getBranches().then(setBranches);
     storageService.getVehicleTypes(orgId).then(setVehicleTypes);
     storageService.getFuelTypes(orgId).then(setFuelTypes);
+    storageService.getFuelStations().then(setFuelStations);
+    storageService.getClassifications(orgId).then(setClassifications);
+    storageService.getSectors(orgId).then(setSectors);
 
     return () => {
         unsubSettings();
         unsubTracker();
-        unsubBranches();
         unsubVehicleBrandModels();
     };
   }, [user]);
 
-  // 2. Vehicles Data (Needed by most modules)
+  // 2. Core Data (Needed by Dashboard and most modules)
   useEffect(() => {
     if (!user) return;
     const unsubVehicles = storageService.subscribeToVehicles(orgId, setVehicles);
-    const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
-    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
+    const unsubTires = storageService.subscribeToTires(orgId, setTires);
+    const unsubServiceOrders = storageService.subscribeToServiceOrders(orgId, setServiceOrders, limits.serviceOrders);
+    const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(orgId, setMaintenanceSchedules);
+    const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
     
     return () => {
         unsubVehicles();
-        unsubDrivers();
-        unsubCollaborators();
+        unsubTires();
+        unsubServiceOrders();
+        unsubMaintenanceSchedules();
+        unsubStockItems();
     };
-  }, [user]);
+  }, [user, limits.serviceOrders]);
 
-  // 3. Tires Module Data
+  // 3. Tires Module Data (Lazy)
   useEffect(() => {
-    if (!user) return;
-    const unsubTires = storageService.subscribeToTires(orgId, setTires);
+    if (!user || activeModule !== 'TIRES') return;
     const unsubFinancialRecords = storageService.subscribeToFinancialRecords(orgId, setFinancialRecords);
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
     const unsubTireLoans = storageService.subscribeToTireLoans(orgId, setTireLoans);
     
     return () => {
-        unsubTires();
         unsubFinancialRecords();
         unsubRetreadOrders();
         unsubTireLoans();
     };
-  }, [user]);
+  }, [user, activeModule]);
 
-  // 4. Mechanical Module Data
+  // 4. Mechanical Module Data (Lazy)
   useEffect(() => {
-    if (!user) return;
-    const unsubServiceOrders = storageService.subscribeToServiceOrders(orgId, setServiceOrders, limits.serviceOrders);
+    if (!user || activeModule !== 'MECHANICAL') return;
     const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
-    const unsubMaintenanceSchedules = storageService.subscribeToMaintenanceSchedules(orgId, setMaintenanceSchedules);
-    const unsubStockItems = storageService.subscribeToStock(orgId, setStockItems);
     const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
-    const unsubClassifications = storageService.subscribeToClassifications(setClassifications);
-    const unsubSectors = storageService.subscribeToSectors(setSectors);
     
     return () => {
-        unsubServiceOrders();
         unsubMaintenancePlans();
-        unsubMaintenanceSchedules();
-        unsubStockItems();
         unsubPartners();
-        unsubClassifications();
-        unsubSectors();
     };
-  }, [user, limits.serviceOrders]);
+  }, [user, activeModule]);
 
-  // 5. Fuel Module Data
+  // 5. Fuel Module Data (Lazy)
   useEffect(() => {
-    if (!user) return;
+    if (!user || activeModule !== 'FUEL') return;
     const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries, limits.fuelEntries);
-    const unsubFuelStations = storageService.subscribeToFuelStations(setFuelStations);
     
     return () => {
         unsubFuelEntries();
-        unsubFuelStations();
     };
-  }, [user, limits.fuelEntries]);
+  }, [user, activeModule, limits.fuelEntries]);
 
-  // 6. Other Data (Occurrences, Alerts)
+  // 6. Other Data (Lazy)
   useEffect(() => {
-    if (!user) return;
+    if (!user || (activeModule !== 'VEHICLES' && currentTab !== 'location' && currentTab !== 'occurrences')) return;
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
-    storageService.getOccurrences(orgId).then(setOccurrences);
+    const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
+    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
+    const unsubOccurrenceReasons = storageService.subscribeToOccurrenceReasons(orgId, setOccurrenceReasons);
+    const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
     
     return () => {
         unsubArrivalAlerts();
+        unsubDrivers();
+        unsubCollaborators();
+        unsubOccurrenceReasons();
+        unsubOccurrences();
     };
-  }, [user]);
+  }, [user, activeModule, currentTab]);
 
   // MIGRATION: Set default fuelType to 'DIESEL S10' for all records that don't have one
   useEffect(() => {
@@ -468,25 +469,6 @@ export const App = () => {
           storageService.checkDailyTrailerIncrement(orgId, vehicles, settings);
       }
   }, [vehicles.length, settings, orgId]);
-
-  // AUTOMATED SASCAR SYNC (Every 10 minutes)
-  useEffect(() => {
-    if (!user || !trackerSettings?.active) return;
-    
-    // Initial sync after a short delay to let data load
-    const initialTimeout = setTimeout(() => {
-      syncSascar(false);
-    }, 5000);
-
-    const interval = setInterval(() => {
-      syncSascar(false);
-    }, 10 * 60 * 1000); // 10 minutes
-
-    return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(interval);
-    };
-  }, [user, trackerSettings?.active, vehicles.length]);
 
   // ARRIVAL ALERTS CHECK
   useEffect(() => {
@@ -840,6 +822,66 @@ export const App = () => {
   };
 
   // Wrapper function to properly construct Service Order before saving
+  const handleUpdateServiceOrder = async (orderId: string, updates: Partial<ServiceOrder>) => {
+      const existingOrder = serviceOrders.find(o => o.id === orderId);
+      if (existingOrder && updates.parts) {
+          // Calculate difference in parts
+          const oldParts = existingOrder.parts || [];
+          const newParts = updates.parts || [];
+
+          for (const newPart of newParts) {
+              if (!newPart.itemId) continue;
+              const oldPart = oldParts.find(p => p.itemId === newPart.itemId);
+              const oldQty = oldPart ? oldPart.quantity : 0;
+              const diffQty = newPart.quantity - oldQty;
+
+              if (diffQty > 0) {
+                  // Deduct from stock
+                  await storageService.registerStockMovement(orgId, {
+                      id: Date.now().toString() + Math.random().toString(36).substring(7),
+                      itemId: newPart.itemId,
+                      type: 'EXIT',
+                      quantity: diffQty,
+                      date: new Date().toISOString(),
+                      notes: `O.S. #${existingOrder.orderNumber} - Adição de peças`,
+                      createdBy: user?.displayName || user?.email || 'Sistema'
+                  });
+              } else if (diffQty < 0) {
+                  // Return to stock
+                  await storageService.registerStockMovement(orgId, {
+                      id: Date.now().toString() + Math.random().toString(36).substring(7),
+                      itemId: newPart.itemId,
+                      type: 'ENTRY',
+                      quantity: Math.abs(diffQty),
+                      date: new Date().toISOString(),
+                      notes: `O.S. #${existingOrder.orderNumber} - Remoção de peças`,
+                      createdBy: user?.displayName || user?.email || 'Sistema'
+                  });
+              }
+          }
+
+          // Check for removed parts
+          for (const oldPart of oldParts) {
+              if (!oldPart.itemId) continue;
+              const stillExists = newParts.some(p => p.itemId === oldPart.itemId);
+              if (!stillExists) {
+                  // Return full quantity to stock
+                  await storageService.registerStockMovement(orgId, {
+                      id: Date.now().toString() + Math.random().toString(36).substring(7),
+                      itemId: oldPart.itemId,
+                      type: 'ENTRY',
+                      quantity: oldPart.quantity,
+                      date: new Date().toISOString(),
+                      notes: `O.S. #${existingOrder.orderNumber} - Remoção de peças`,
+                      createdBy: user?.displayName || user?.email || 'Sistema'
+                  });
+              }
+          }
+      }
+
+      await storageService.updateServiceOrder(orgId, orderId, updates);
+  };
+
   const handleAddServiceOrder = async (partialOrder: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => {
       const maxOrderNum = serviceOrders.reduce((max, o) => Math.max(max, o.orderNumber), 0);
       
@@ -854,6 +896,23 @@ export const App = () => {
 
       await storageService.addServiceOrder(orgId, newOrder);
       addToast('success', 'Ordem Criada', `O.S. #${newOrder.orderNumber} aberta com sucesso.`);
+
+      // Deduct parts from stock
+      if (newOrder.parts && newOrder.parts.length > 0) {
+          for (const part of newOrder.parts) {
+              if (part.itemId) {
+                  await storageService.registerStockMovement(orgId, {
+                      id: Date.now().toString() + Math.random().toString(36).substring(7),
+                      itemId: part.itemId,
+                      type: 'EXIT',
+                      quantity: part.quantity,
+                      date: new Date().toISOString(),
+                      notes: `O.S. #${newOrder.orderNumber} - Veículo: ${newOrder.vehiclePlate}`,
+                      createdBy: user?.displayName || user?.email || 'Sistema'
+                  });
+              }
+          }
+      }
 
       const vehicle = vehicles.find(v => v.id === newOrder.vehicleId);
       if (vehicle) {
@@ -1127,6 +1186,7 @@ export const App = () => {
                 fuelTypes={fuelTypes}
                 onLoadMore={() => handleLoadMore('vehicles')}
                 hasMore={hasMore.vehicles}
+                arrivalAlerts={arrivalAlerts}
               />
             </>
           )}
@@ -1148,7 +1208,7 @@ export const App = () => {
                 vehicleBrandModels={vehicleBrandModels}
                 tires={tires}
                 stockItems={stockItems}
-                onUpdateOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
+                onUpdateOrder={handleUpdateServiceOrder}
                 onUpdateOrderBatch={(updates) => storageService.updateServiceOrderBatch(orgId, updates)}
                 onAddOrder={handleAddServiceOrder}
                 settings={settings || {} as any}
@@ -1374,6 +1434,7 @@ export const App = () => {
                 fuelTypes={fuelTypes}
                 onLoadMore={() => handleLoadMore('vehicles')}
                 hasMore={hasMore.vehicles}
+                arrivalAlerts={arrivalAlerts}
               />
             )}
             {currentTab === 'inspection' && allowedModules.includes('TIRES') && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} vehicleTypes={vehicleTypes} />}
@@ -1482,7 +1543,7 @@ export const App = () => {
                 vehicleBrandModels={vehicleBrandModels} 
                 tires={tires} 
                 stockItems={stockItems} 
-                onUpdateOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} 
+                onUpdateOrder={handleUpdateServiceOrder} 
                 onUpdateOrderBatch={(updates) => storageService.updateServiceOrderBatch(orgId, updates)}
                 onAddOrder={handleAddServiceOrder} 
                 settings={settings} 
@@ -1505,7 +1566,7 @@ export const App = () => {
             {currentTab === 'classification-sector' && allowedModules.includes('MECHANICAL') && (
               <ClassificationSectorManager orgId={orgId} branches={branches} />
             )}
-            {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} />}
+            {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} items={stockItems} />}
             {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance' || currentTab === 'reports-fuel') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
               <ReportsHub 
                 tires={tires} 
@@ -1542,7 +1603,7 @@ export const App = () => {
                 onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} 
               />
             )}
-            {currentTab === 'occurrences' && <Occurrences orgId={orgId} user={user} occurrences={occurrences} vehicles={vehicles} />}
+            {currentTab === 'occurrences' && <Occurrences orgId={orgId} user={user} occurrences={occurrences} vehicles={vehicles} reasons={occurrenceReasons} />}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
         </div>
       </main>
