@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch, AVAILABLE_PERMISSIONS, ServiceSector, ServiceClassification } from '../types';
+import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch, AVAILABLE_PERMISSIONS, ServiceSector, ServiceClassification, WasteType, WasteUnit } from '../types';
 import { storageService } from '../services/storageService';
 import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download, Building2, Grid, DollarSign } from 'lucide-react';
 import { jsPDF } from 'jspdf';
@@ -63,6 +63,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   const [newSector, setNewSector] = useState('');
   const [newClassification, setNewClassification] = useState('');
 
+  // --- WASTE TYPES STATE ---
+  const [wasteTypes, setWasteTypes] = useState<WasteType[]>([]);
+  const [newWasteTypeName, setNewWasteTypeName] = useState('');
+  const [newWasteTypeUnit, setNewWasteTypeUnit] = useState<WasteUnit>('KG');
+
   // --- SERVICES STATE ---
   const [serviceTypes, setServiceTypes] = useState<ServiceTypeDefinition[]>([]);
   const [newServiceType, setNewServiceType] = useState<string>('');
@@ -103,6 +108,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    const unsubWasteTypes = storageService.subscribeToWasteTypes(orgId, setWasteTypes);
+    return () => unsubWasteTypes();
+  }, [orgId]);
 
   // Filter Logs logic
   const filteredLogs = useMemo(() => {
@@ -833,6 +843,69 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             </div>
 
             <div className="space-y-8 divide-y divide-slate-100">
+                {/* ITENS PARA DESCARTE */}
+                <section className="pt-4">
+                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Trash2 className="h-4 w-4" /> Itens para Descarte (Resíduos)
+                    </h4>
+                    <div className="flex flex-col md:flex-row gap-6">
+                        <div className="w-full md:w-1/3">
+                            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cadastrar Novo Item de Resíduo</label>
+                                <div className="space-y-3">
+                                    <input 
+                                        type="text" 
+                                        className="w-full p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
+                                        placeholder="Ex: Óleo Usado, Baterias..." 
+                                        value={newWasteTypeName}
+                                        onChange={(e) => setNewWasteTypeName(e.target.value)}
+                                    />
+                                    <div className="flex gap-2">
+                                        <select 
+                                            className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500"
+                                            value={newWasteTypeUnit}
+                                            onChange={(e) => setNewWasteTypeUnit(e.target.value as WasteUnit)}
+                                        >
+                                            <option value="KG">Quilos (KG)</option>
+                                            <option value="LITERS">Litros (L)</option>
+                                            <option value="UNITS">Unidades (UN)</option>
+                                            <option value="METERS">Metros (M)</option>
+                                        </select>
+                                        <button 
+                                            onClick={async () => {
+                                                if (!newWasteTypeName.trim()) return;
+                                                await storageService.addWasteType(orgId, {
+                                                    name: newWasteTypeName.trim(),
+                                                    unit: newWasteTypeUnit
+                                                });
+                                                setNewWasteTypeName('');
+                                            }}
+                                            className="px-4 py-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 transition-colors"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex-1 h-full min-h-[200px] bg-slate-50 rounded-xl border border-slate-200 p-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {wasteTypes.map(type => (
+                                    <div key={type.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm group">
+                                        <div className="min-w-0">
+                                          <div className="font-bold text-slate-800 truncate">{type.name}</div>
+                                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{type.unit}</div>
+                                        </div>
+                                        <button onClick={() => storageService.deleteWasteType(orgId, type.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg group-hover:bg-red-50 transition-all">
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {/* SETORES DA EMPRESA */}
                 <section className="pt-4">
                     <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">

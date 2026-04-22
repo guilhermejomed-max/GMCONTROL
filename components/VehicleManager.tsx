@@ -625,7 +625,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   }, [serviceOrders, selectedVehicleRG]);
 
   const rgStats = useMemo(() => {
-    const totalLiters = vehicleFuelEntries.reduce((sum, fe) => sum + (fe.liters || 0), 0);
     const fuelCost = vehicleFuelEntries.reduce((sum, fe) => sum + (fe.totalCost || 0), 0);
     const maintenanceCost = vehicleMaintenanceOrders.reduce((sum, so) => {
       const partsCost = so.parts ? so.parts.reduce((pSum, p) => pSum + (p.quantity * p.unitCost), 0) : 0;
@@ -633,20 +632,41 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     }, 0);
     
     const sortedEntries = [...vehicleFuelEntries].sort((a, b) => a.odometer - b.odometer);
-    const totalKm = sortedEntries.length > 1 ? sortedEntries[sortedEntries.length - 1].odometer - sortedEntries[0].odometer : 0;
     
-    const avgConsumptionRefueling = totalLiters > 0 ? totalKm / totalLiters : 0;
-    const avgConsumptionLitrometer = (selectedVehicleRG?.totalFuelConsumed || 0) > 0 ? totalKm / (selectedVehicleRG!.totalFuelConsumed!) : 0;
+    let totalKm = 0;
+    let litersUsed = 0;
+
+    if (sortedEntries.length >= 2) {
+      const firstEntry = sortedEntries[0];
+      const lastEntry = sortedEntries[sortedEntries.length - 1];
+      
+      totalKm = lastEntry.odometer - firstEntry.odometer;
+      
+      // Liters consumed in the interval: Sum liters from 2nd entry onwards
+      litersUsed = sortedEntries.slice(1).reduce((acc, fe) => {
+        const isGasE = fe.category === 'GAS' || 
+                       String(fe.fuelType || '').toUpperCase().includes('GNV') || 
+                       String(fe.fuelType || '').toUpperCase().includes('GÁS') ||
+                       (Number(fe.kg) > 0);
+        const volume = isGasE ? (Number(fe.liters) || Number(fe.kg) || 0) : (Number(fe.liters) || 0);
+        return acc + volume;
+      }, 0);
+    }
+    
+    // totalLiters for UI display (all recorded liters)
+    const totalLitersRecorded = vehicleFuelEntries.reduce((sum, fe) => sum + (fe.liters || 0), 0);
+    
+    const avgConsumptionRefueling = litersUsed > 0 ? totalKm / litersUsed : 0;
     
     return {
-      totalLiters,
+      totalLiters: totalLitersRecorded,
       fuelCost,
       maintenanceCost,
       totalCost: fuelCost + maintenanceCost,
       totalKm,
       avgConsumptionRefueling,
-      avgConsumptionLitrometer,
-      diff: avgConsumptionRefueling - avgConsumptionLitrometer
+      avgConsumptionLitrometer: 0,
+      diff: 0
     };
   }, [vehicleFuelEntries, vehicleMaintenanceOrders, selectedVehicleRG]);
 
@@ -1909,11 +1929,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       <Fuel className="h-3 w-3" /> {vehicle.averageKmPerLiter.toFixed(2)} km/L <span className="text-[8px] uppercase opacity-70">(Abast.)</span>
                     </div>
                   ) : null}
-                  {vehicle.totalFuelConsumed ? (
-                    <div className="text-[10px] text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
-                      <Fuel className="h-3 w-3" /> {vehicle.totalFuelConsumed.toLocaleString()} L <span className="text-[8px] uppercase opacity-70">(Litrômetro)</span>
-                    </div>
-                  ) : null}
                   {vehicle.sascarCode && (
                     <div className="text-[10px] text-slate-400 font-medium">
                       Cód. Sascar: {vehicle.sascarCode}
@@ -2227,22 +2242,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
                         </div>
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 flex flex-col justify-between">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Litrômetro (Sascar)</p>
-                              <Fuel className="h-3 w-3 text-blue-500" />
-                            </div>
-                            <p className="text-lg font-black text-slate-800 dark:text-white">{(selectedVehicleRG.totalFuelConsumed || 0).toLocaleString()} L</p>
-                        </div>
                         <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex flex-col justify-between">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Média (KM/L)</p>
                               <Activity className="h-3 w-3 text-emerald-500" />
                             </div>
                             <p className="text-lg font-black text-slate-800 dark:text-white">
-                                {selectedVehicleRG.totalFuelConsumed && selectedVehicleRG.totalFuelConsumed > 0 
-                                    ? (selectedVehicleRG.odometer / selectedVehicleRG.totalFuelConsumed).toFixed(2) 
-                                    : '0.00'} KM/L
+                                {rgStats.avgConsumptionRefueling ? rgStats.avgConsumptionRefueling.toFixed(2) : '0.00'} KM/L
                             </p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -2277,10 +2283,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                               <div>
                                 <p className="text-xl font-black text-slate-800 dark:text-white truncate">{rgStats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-500">L</span></p>
                                 <p className="text-[10px] font-bold text-slate-500 mt-1">Investimento: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.fuelCost)}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-[9px] font-black text-blue-600 uppercase">Sascar</p>
-                                <p className="text-sm font-black text-blue-700">{(selectedVehicleRG.totalFuelConsumed || 0).toLocaleString()} L</p>
                               </div>
                             </div>
                         </div>
@@ -2398,18 +2400,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       </h3>
                       <div className="flex gap-4">
                         <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">Média Abastecimento</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Média Km/L</p>
                           <p className="text-sm font-black text-blue-600">{rgStats.avgConsumptionRefueling.toFixed(2)} KM/L</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">Média Litrômetro</p>
-                          <p className="text-sm font-black text-indigo-600">{rgStats.avgConsumptionLitrometer.toFixed(2)} KM/L</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">Diferença</p>
-                          <p className={`text-sm font-black ${rgStats.diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                            {rgStats.diff.toFixed(2)} KM/L
-                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] font-bold text-slate-400 uppercase">Total Gasto</p>

@@ -99,9 +99,6 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
                 </p>
                 <div className="flex flex-col items-end">
                   <p className="text-[9px] text-slate-400 font-bold tracking-wider">{entry.odometer.toLocaleString()} KM</p>
-                  {entry.litrometro && (
-                    <p className="text-[9px] text-blue-500 font-bold tracking-wider">{entry.litrometro.toLocaleString()} {unit} (Litrômetro)</p>
-                  )}
                 </div>
               </div>
             </div>

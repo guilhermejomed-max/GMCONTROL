@@ -129,8 +129,7 @@ export const FuelDashboard: React.FC<Props> = ({
       if (vehicle) {
         setNewEntry(prev => ({ 
           ...prev, 
-          fuelType: vehicle.fuelType || prev.fuelType,
-          litrometro: vehicle.totalFuelConsumed || prev.litrometro
+          fuelType: vehicle.fuelType || prev.fuelType
         }));
       }
     }
@@ -437,7 +436,6 @@ export const FuelDashboard: React.FC<Props> = ({
       driverName: driver?.name || '',
       branchId: defaultBranchId || vehicle?.branchId,
       kmPerLiter: currentKmPerLiter,
-      litrometro: newEntry.litrometro ? Number(newEntry.litrometro) : undefined,
       notes: newEntry.notes
     };
 

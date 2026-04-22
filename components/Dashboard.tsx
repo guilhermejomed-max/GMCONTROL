@@ -171,7 +171,7 @@ export const Dashboard: FC<DashboardProps> = ({
     // 9. TAXA DE OCUPAÇÃO (Pneus Rodando / Total Ativos)
     const totalActiveTires = (tires || []).filter(t => t.status !== TireStatus.DAMAGED).length;
     const utilizationRate = totalActiveTires > 0 ? (mountedTires.length / totalActiveTires) * 100 : 0;
-    const totalFuelFleet = filteredVehicles.reduce((acc, v) => acc + (v.totalFuelConsumed || 0), 0);
+    const totalFuelFleet = 0; // Removed totalFuelConsumed usage
 
     // 10. COST DISTRIBUTION
     let totalAcquisition = 0;

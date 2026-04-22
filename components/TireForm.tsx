@@ -1,4 +1,5 @@
 
+// Test
 import React, { useState, useEffect, FC, FormEvent, ChangeEvent } from 'react';
 import { Tire, TireStatus, SystemSettings, TireModelDefinition, Vehicle, Branch } from '../types';
 import { Save, Flame, Loader2, CheckCircle2, Plus, X, Search, Activity, Ruler, CircleDollarSign, BookOpen, Calendar, ArrowLeft, Tag, Layers, Truck, Building2 } from 'lucide-react';
@@ -6,6 +7,8 @@ import QRCode from 'react-qr-code';
 
 interface TireFormProps {
   onAddTire: (tire: Tire) => Promise<void>;
+  onUpdateTire?: (tire: Tire) => Promise<void>;
+  editingTire?: Tire;
   onCancel: () => void;
   onFinish?: () => void;
   settings?: SystemSettings;
@@ -18,7 +21,7 @@ interface TireFormProps {
   defaultBranchId?: string;
 }
 
-export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, settings, onUpdateSettings, existingTires = [], vehicles = [], autoMountVehicleId, autoMountPosition, branches = [], defaultBranchId }) => {
+export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTire, onCancel, onFinish, settings, onUpdateSettings, existingTires = [], vehicles = [], autoMountVehicleId, autoMountPosition, branches = [], defaultBranchId }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [successTire, setSuccessTire] = useState<Tire | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -52,7 +55,13 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
     branchId: defaultBranchId || ''
   };
 
-  const [formData, setFormData] = useState(initialFormData);
+  const [formData, setFormData] = useState(editingTire || initialFormData);
+
+  useEffect(() => {
+    if (editingTire) {
+      setFormData(editingTire);
+    }
+  }, [editingTire]);
 
   useEffect(() => {
       if (formData.status === TireStatus.NEW) {
@@ -81,13 +90,15 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
           status = TireStatus.RETREADED;
           retreadCount = 1;
           kms = 50000;
+      } else if (val === 'DAMAGED') {
+          status = TireStatus.DAMAGED;
       }
 
       setFormData(prev => ({
           ...prev,
           status,
           retreadCount,
-          totalKms: kms
+          totalKms: val === 'DAMAGED' ? prev.totalKms : kms
       }));
   };
 
@@ -96,8 +107,13 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
     setIsSaving(true);
     try {
       const normalizedFireNumber = formData.fireNumber.trim().toUpperCase();
-      if (existingTires.some(t => t.fireNumber.toUpperCase() === normalizedFireNumber)) {
+      if (!editingTire && existingTires.some(t => t.fireNumber.toUpperCase() === normalizedFireNumber)) {
           alert(`Erro: Fogo "${normalizedFireNumber}" já cadastrado.`);
+          setIsSaving(false);
+          return;
+      }
+      if (editingTire && existingTires.some(t => t.id !== editingTire.id && t.fireNumber.toUpperCase() === normalizedFireNumber)) {
+          alert(`Erro: Fogo "${normalizedFireNumber}" já existe em outro pneu.`);
           setIsSaving(false);
           return;
       }
@@ -105,14 +121,14 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
       const selectedVehicle = formData.vehicleId ? vehicles.find(v => v.id === formData.vehicleId) : null;
       
       const newTire: Tire = {
-        id: Date.now().toString(36),
+        id: editingTire ? editingTire.id : Date.now().toString(36),
         ...formData,
         fireNumber: normalizedFireNumber,
         brand: formData.brand.trim().toUpperCase(),
         model: formData.model.trim().toUpperCase(),
         currentTreadDepth: formData.currentTreadDepth,
         pressure: formData.targetPressure,
-        history: [{ date: new Date().toISOString(), action: 'CADASTRADO', details: formData.vehicleId ? `Novo pneu registrado e montado no veículo ${selectedVehicle?.plate || ''}.` : 'Novo pneu registrado no estoque.' }],
+        history: editingTire ? (formData as Tire).history : [{ date: new Date().toISOString(), action: 'CADASTRADO', details: formData.vehicleId ? `Novo pneu registrado e montado no veículo ${selectedVehicle?.plate || ''}.` : 'Novo pneu registrado no estoque.' }],
         totalKms: formData.totalKms,
         firstLifeKms: formData.firstLifeKms,
         retreadKms: formData.retreadKms,
@@ -125,14 +141,18 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onCancel, onFinish, set
         vehicleId: formData.vehicleId || undefined,
         position: formData.position || undefined,
         branchId: formData.branchId || undefined,
-        installOdometer: selectedVehicle ? selectedVehicle.odometer : undefined,
-        installDate: formData.vehicleId ? new Date().toISOString() : undefined,
-        location: selectedVehicle ? selectedVehicle.plate : 'Estoque'
+        installOdometer: editingTire ? (formData as Tire).installOdometer : (selectedVehicle ? selectedVehicle.odometer : undefined),
+        installDate: editingTire ? (formData as Tire).installDate : (formData.vehicleId ? new Date().toISOString() : undefined),
+        location: formData.vehicleId ? (selectedVehicle ? selectedVehicle.plate : formData.location) : 'Estoque'
       };
-      await onAddTire(newTire);
+      if (editingTire) {
+        await onUpdateTire!(newTire);
+      } else {
+        await onAddTire(newTire);
+      }
       setSuccessTire(newTire); 
     } catch (error) {
-      alert("Erro ao salvar pneu.");
+      alert("Erro ao " + (editingTire ? "atualizar" : "salvar") + " pneu.");
     } finally {
       setIsSaving(false);
     }
