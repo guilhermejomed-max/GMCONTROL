@@ -36,11 +36,12 @@ interface Props {
   fuelTypes: FuelType[];
   onLoadMore?: () => void;
   hasMore?: boolean;
+  fuelCategory?: 'LIQUID' | 'GAS'; // Added
 }
 
 export const FuelDashboard: React.FC<Props> = ({
   vehicles,
-  fuelEntries: allFuelEntries,
+  fuelEntries: allFuelEntriesRaw,
   fuelStations,
   drivers,
   branches,
@@ -52,8 +53,27 @@ export const FuelDashboard: React.FC<Props> = ({
   onDeleteStation,
   fuelTypes,
   onLoadMore,
-  hasMore
+  hasMore,
+  fuelCategory = 'LIQUID' // Default
 }) => {
+  const unit = fuelCategory === 'GAS' ? 'm³' : 'L';
+  const unitKm = fuelCategory === 'GAS' ? 'KM/m³' : 'KM/L';
+
+  const allFuelEntries = useMemo(() => {
+    return allFuelEntriesRaw.filter(e => {
+      const fuelT = String(e.fuelType || '').toUpperCase();
+      const isGasFuel = e.category === 'GAS' || 
+                        fuelT.includes('GNV') || 
+                        fuelT.includes('GÁS') || 
+                        fuelT === 'GAS' ||
+                        fuelT.includes('GAS ') ||
+                        (e.kg && e.kg > 0);
+      
+      if (fuelCategory === 'GAS') return isGasFuel;
+      return !isGasFuel;
+    });
+  }, [allFuelEntriesRaw, fuelCategory]);
+
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'STATIONS' | 'COMPARATIVO'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -69,15 +89,19 @@ export const FuelDashboard: React.FC<Props> = ({
   const [periodFilter, setPeriodFilter] = useState<'ALL' | '30D' | '60D' | '90D' | '1Y' | 'CUSTOM'>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentModelPage, setCurrentModelPage] = useState(1);
+  const ENTRIES_PER_PAGE = 4;
+  const MODELS_PER_PAGE = 4;
 
   // Form states
   const [newStation, setNewStation] = useState<Partial<FuelStation>>({
-    name: '', cnpj: '', address: '', city: '', state: ''
+    name: '', cnpj: '', address: '', city: '', state: '', fuelTypes: []
   });
 
   const [newEntry, setNewEntry] = useState<Partial<FuelEntry>>({
     date: new Date().toISOString().split('T')[0],
-    fuelType: 'DIESEL S10',
+    fuelType: fuelCategory === 'GAS' ? 'GNV' : 'DIESEL S10',
     liters: 0,
     unitPrice: 0,
     odometer: 0
@@ -88,7 +112,12 @@ export const FuelDashboard: React.FC<Props> = ({
     if (!newEntry.vehicleId) return 0;
     const vehicleEntries = allFuelEntries
       .filter(e => e.vehicleId === newEntry.vehicleId)
-      .sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+      .sort((a, b) => {
+        const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
+        const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return b.odometer - a.odometer;
+      });
     
     if (vehicleEntries.length > 0) return vehicleEntries[0].odometer;
     return vehicles.find(v => v.id === newEntry.vehicleId)?.odometer || 0;
@@ -112,13 +141,17 @@ export const FuelDashboard: React.FC<Props> = ({
     const kmDiff = Number(newEntry.odometer) - lastOdometer;
     if (kmDiff <= 0) return 0;
 
-    // Use pumped liters
-    if (!newEntry.liters) return 0;
-    return kmDiff / Number(newEntry.liters);
-  }, [newEntry.liters, newEntry.odometer, lastOdometer]);
+    // For GAS, we might use liters (m3) or kg
+    const volume = fuelCategory === 'GAS' ? (Number(newEntry.liters) || Number(newEntry.kg) || 0) : Number(newEntry.liters);
+    if (!volume) return 0;
+    return kmDiff / volume;
+  }, [newEntry.liters, newEntry.kg, newEntry.odometer, lastOdometer, fuelCategory]);
 
   const fuelEntries = useMemo(() => {
     let filtered = allFuelEntries;
+    
+    // Reset page when filters change
+    // Note: This check is done in useEffect below
     
     // Branch Filter
     if (defaultBranchId) {
@@ -160,32 +193,63 @@ export const FuelDashboard: React.FC<Props> = ({
     return filtered.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
   }, [allFuelEntries, filterVehicleId, historySearchTerm, periodFilter, startDate, endDate]);
 
+  const paginatedEntries = useMemo(() => {
+    const startIndex = (currentPage - 1) * ENTRIES_PER_PAGE;
+    return fuelEntries.slice(startIndex, startIndex + ENTRIES_PER_PAGE);
+  }, [fuelEntries, currentPage]);
+
+  const totalPages = Math.ceil(fuelEntries.length / ENTRIES_PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setCurrentModelPage(1);
+  }, [filterVehicleId, historySearchTerm, periodFilter, startDate, endDate, fuelCategory]);
   const stats = useMemo(() => {
     let totalCost = 0;
     let totalLiters = 0;
     const vehicleGroups: Record<string, FuelEntry[]> = {};
 
-    fuelEntries.forEach(e => {
-      totalCost += (e.totalCost || 0);
-      totalLiters += (e.liters || 0);
-      if (!vehicleGroups[e.vehicleId]) vehicleGroups[e.vehicleId] = [];
-      vehicleGroups[e.vehicleId].push(e);
-    });
+      fuelEntries.forEach(e => {
+        totalCost += (Number(e.totalCost) || 0);
+        const isGasE = e.category === 'GAS' || 
+                       String(e.fuelType || '').toUpperCase().includes('GNV') || 
+                       String(e.fuelType || '').toUpperCase().includes('GÁS') ||
+                       (Number(e.kg) > 0);
+        // O valor numérico de M3 é guardado no campo liters (Quantidade m³)
+        const volume = isGasE ? (Number(e.liters) || Number(e.kg) || 0) : (Number(e.liters) || 0);
+        totalLiters += volume;
+        if (!vehicleGroups[e.vehicleId]) vehicleGroups[e.vehicleId] = [];
+        vehicleGroups[e.vehicleId].push(e);
+      });
 
     let totalKm = 0;
     let totalLitersForAvg = 0;
 
     Object.values(vehicleGroups).forEach(entries => {
       if (entries.length < 2) return;
-      const sorted = [...entries].sort((a, b) => a.odometer - b.odometer);
+      const sorted = [...entries].sort((a, b) => {
+        const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
+        const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return a.odometer - b.odometer;
+      });
       
       const firstEntry = sorted[0];
       const lastEntry = sorted[sorted.length - 1];
       
       const kmDiff = lastEntry.odometer - firstEntry.odometer;
       
-      totalKm += kmDiff;
-      totalLitersForAvg += sorted.slice(1).reduce((acc, e) => acc + e.liters, 0);
+        if (kmDiff > 0) {
+          totalKm += kmDiff;
+          totalLitersForAvg += sorted.slice(1).reduce((acc, e) => {
+            const isGasE = e.category === 'GAS' || 
+                           String(e.fuelType || '').toUpperCase().includes('GNV') || 
+                           String(e.fuelType || '').toUpperCase().includes('GÁS') ||
+                           (Number(e.kg) > 0);
+            const volume = isGasE ? (Number(e.liters) || Number(e.kg) || 0) : (Number(e.liters) || 0);
+            return acc + volume;
+          }, 0);
+        }
     });
 
     return {
@@ -222,18 +286,26 @@ export const FuelDashboard: React.FC<Props> = ({
       const avgPrice = totalLiters > 0 ? (totalSpent / totalLiters) : 0;
       
       const getEfficiencyForEntry = (entry: FuelEntry) => {
-        const liters = Number(entry.liters);
+        const isGasE = entry.category === 'GAS' || 
+                       String(entry.fuelType || '').toUpperCase().includes('GNV') ||
+                       String(entry.fuelType || '').toUpperCase().includes('GÁS') ||
+                       (entry.kg && entry.kg > 0);
+        const liters = isGasE ? (Number(entry.liters) || Number(entry.kg) || 0) : Number(entry.liters);
         
         const vehicleEntries = allFuelEntries
           .filter(e => e.vehicleId === entry.vehicleId)
-          .sort((a, b) => new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).valueOf() - new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).valueOf());
+          .sort((a, b) => {
+            const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
+            const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+            return a.odometer - b.odometer;
+          });
         
         const index = vehicleEntries.findIndex(e => e.id === entry.id);
         if (index > 0) {
             const prev = vehicleEntries[index - 1];
             const kmDiff = entry.odometer - prev.odometer;
             
-            // Use pumped liters
             if (kmDiff > 0 && liters > 0) return kmDiff / liters;
         }
         return 0;
@@ -279,18 +351,32 @@ export const FuelDashboard: React.FC<Props> = ({
       let totalSpent = 0;
 
       Object.values(vehicleEntries).forEach(entries => {
-        const sorted = [...entries].sort((a, b) => a.odometer - b.odometer);
+        const sorted = [...entries].sort((a, b) => {
+          const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
+          const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
+          if (dateA !== dateB) return dateA - dateB;
+          return a.odometer - b.odometer;
+        });
         if (sorted.length >= 2) {
           const first = sorted[0];
           const last = sorted[sorted.length - 1];
           const kmDiff = last.odometer - first.odometer;
           
-          totalKm += kmDiff;
-          totalLiters += sorted.slice(1).reduce((acc, e) => acc + e.liters, 0);
+          if (kmDiff > 0) {
+            totalKm += kmDiff;
+            totalLiters += sorted.slice(1).reduce((acc, e) => {
+              const isGasE = e.category === 'GAS' || 
+                             String(e.fuelType || '').toUpperCase().includes('GNV') || 
+                             String(e.fuelType || '').toUpperCase().includes('GÁS') ||
+                             (Number(e.kg) > 0);
+              const volume = isGasE ? (Number(e.liters) || Number(e.kg) || 0) : (Number(e.liters) || 0);
+              return acc + volume;
+            }, 0);
+          }
         }
       });
       
-      totalSpent = data.entries.reduce((acc, e) => acc + e.totalCost, 0);
+      totalSpent = data.entries.reduce((acc, e) => acc + (Number(e.totalCost) || 0), 0);
 
       return {
         modelName,
@@ -310,6 +396,13 @@ export const FuelDashboard: React.FC<Props> = ({
     return modelAverages.filter(m => m.modelName.toLowerCase().includes(lowerSearch));
   }, [modelAverages, searchTerm]);
 
+  const paginatedModelAverages = useMemo(() => {
+    const startIndex = (currentModelPage - 1) * MODELS_PER_PAGE;
+    return filteredModelAverages.slice(startIndex, startIndex + MODELS_PER_PAGE);
+  }, [filteredModelAverages, currentModelPage]);
+
+  const totalModelPages = Math.ceil(filteredModelAverages.length / MODELS_PER_PAGE);
+
   // Handlers
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,16 +417,20 @@ export const FuelDashboard: React.FC<Props> = ({
       if (station) stationName = station.name;
     }
 
+    const finalLiters = Number(newEntry.liters) || (fuelCategory === 'GAS' ? Number(newEntry.kg || 0) : 0);
+
     const entry: FuelEntry = {
       id: Date.now().toString(),
       vehicleId: newEntry.vehicleId,
       vehiclePlate: vehicle?.plate || '',
       date: newEntry.date || new Date().toISOString().split('T')[0],
       odometer: Number(newEntry.odometer),
-      liters: Number(newEntry.liters),
+      liters: finalLiters,
+      kg: newEntry.kg ? Number(newEntry.kg) : undefined,
       unitPrice: Number(newEntry.unitPrice),
-      totalCost: Number(newEntry.liters) * Number(newEntry.unitPrice),
-      fuelType: newEntry.fuelType || 'DIESEL S10',
+      totalCost: finalLiters * Number(newEntry.unitPrice),
+      fuelType: newEntry.fuelType || (fuelCategory === 'GAS' ? 'GNV' : 'DIESEL S10'),
+      category: fuelCategory,
       stationName: stationName,
       stationCnpj: newEntry.stationCnpj,
       driverId: newEntry.driverId,
@@ -348,12 +445,13 @@ export const FuelDashboard: React.FC<Props> = ({
     setShowAddModal(false);
     setNewEntry({
       date: new Date().toISOString().split('T')[0],
-      fuelType: 'DIESEL S10',
+      fuelType: fuelCategory === 'GAS' ? 'GNV' : 'DIESEL S10',
       liters: 0,
+      kg: 0,
       unitPrice: 0,
       odometer: 0
     });
-  }, [newEntry, vehicles, drivers, fuelStations, defaultBranchId, onAddEntry, currentKmPerLiter]);
+  }, [newEntry, vehicles, drivers, fuelStations, defaultBranchId, onAddEntry, currentKmPerLiter, fuelCategory]);
 
   const handleStationSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -369,6 +467,7 @@ export const FuelDashboard: React.FC<Props> = ({
         address: newStation.address,
         city: newStation.city,
         state: newStation.state,
+        fuelTypes: newStation.fuelTypes,
         branchId: defaultBranchId,
         createdAt: new Date().toISOString()
       };
@@ -377,7 +476,7 @@ export const FuelDashboard: React.FC<Props> = ({
 
     setShowStationModal(false);
     setEditingStation(null);
-    setNewStation({ name: '', cnpj: '', address: '', city: '', state: '' });
+    setNewStation({ name: '', cnpj: '', address: '', city: '', state: '', fuelTypes: [] });
   }, [newStation, editingStation, defaultBranchId, onUpdateStation, onAddStation]);
 
   const handleImport = useCallback(async (entries: FuelEntry[]) => {
@@ -400,10 +499,10 @@ export const FuelDashboard: React.FC<Props> = ({
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
             <Fuel className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
-            Controle de Abastecimento
+            Controle de Abastecimento {fuelCategory === 'GAS' ? 'a GÁS' : ''}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 text-sm">
-            Gestão de consumo, médias de KM/L e custos de combustível.
+            Gestão de consumo, médias de {unitKm} e custos de combustível.
           </p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
@@ -419,7 +518,7 @@ export const FuelDashboard: React.FC<Props> = ({
                 setShowAddModal(true);
               } else {
                 setEditingStation(null);
-                setNewStation({ name: '', cnpj: '', address: '', city: '', state: '' });
+                setNewStation({ name: '', cnpj: '', address: '', city: '', state: '', fuelTypes: [] });
                 setShowStationModal(true);
               }
             }}
@@ -506,7 +605,7 @@ export const FuelDashboard: React.FC<Props> = ({
 
       {activeTab === 'DASHBOARD' ? (
         <>
-          <FuelStatsCards stats={stats} />
+          <FuelStatsCards stats={stats} unit={unit} unitKm={unitKm} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             <div className="md:col-span-2 flex flex-col gap-4">
@@ -523,24 +622,34 @@ export const FuelDashboard: React.FC<Props> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-slate-400" />
-                  <span className="text-xs font-bold text-slate-500 uppercase">Médias por Modelo</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Médias por Modelo ({unitKm})</span>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar lg:max-h-[500px] pr-2">
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                 <ModelAveragesList 
-                  averages={showAllModels ? filteredModelAverages : filteredModelAverages.slice(0, 6)} 
+                  averages={paginatedModelAverages} 
                   onSelectModel={handleSelectModel} 
+                  unitKm={unitKm}
                 />
               </div>
               
-              {filteredModelAverages.length > 6 && (
-                <div className="flex justify-center pt-4">
-                  <button 
-                    onClick={() => setShowAllModels(!showAllModels)}
-                    className="px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black transition-all"
+              {totalModelPages > 1 && (
+                <div className="flex justify-center items-center gap-2 py-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => setCurrentModelPage(p => Math.max(1, p - 1))}
+                    disabled={currentModelPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30"
                   >
-                    {showAllModels ? 'VER MENOS' : `VER MAIS (${filteredModelAverages.length - 6})`}
+                    <Plus className="h-3 w-3 rotate-45" />
+                  </button>
+                  <span className="text-[10px] font-black text-slate-500">{currentModelPage} / {totalModelPages}</span>
+                  <button
+                    onClick={() => setCurrentModelPage(p => Math.min(totalModelPages, p + 1))}
+                    disabled={currentModelPage === totalModelPages}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30"
+                  >
+                    <Plus className="h-3 w-3" />
                   </button>
                 </div>
               )}
@@ -576,26 +685,19 @@ export const FuelDashboard: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="flex-1 lg:max-h-[500px]">
+              <div className="flex-1">
                 <RecentEntriesList 
-                  entries={fuelEntries} 
+                  entries={paginatedEntries} 
                   allFuelEntries={allFuelEntries} 
                   branches={branches} 
                   onDeleteEntry={onDeleteEntry} 
+                  unit={unit}
+                  unitKm={unitKm}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
                 />
               </div>
-
-              {hasMore && (
-                <div className="flex justify-center pt-4 mt-auto">
-                  <button 
-                    onClick={onLoadMore}
-                    className="px-10 py-4 bg-white dark:bg-slate-900 border-2 border-blue-600 text-blue-600 dark:text-blue-400 rounded-2xl text-sm font-black transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/10 hover:bg-blue-50 dark:hover:bg-slate-800"
-                  >
-                    <HistoryIcon className="h-5 w-5" />
-                    CARREGAR MAIS ABASTECIMENTOS
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </>
@@ -607,8 +709,8 @@ export const FuelDashboard: React.FC<Props> = ({
               <div key={s.stationName} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
                 <h3 className="font-bold text-slate-800 dark:text-white mb-2">{s.stationName}</h3>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  <p>Preço Médio: R$ {s.avgPrice.toFixed(2)}/L</p>
-                  <p>Eficiência Média: {s.avgEfficiency.toFixed(2)} km/L</p>
+                  <p>Preço Médio: R$ {s.avgPrice.toFixed(2)}/{unit}</p>
+                  <p>Eficiência Média: {s.avgEfficiency.toFixed(2)} {unitKm}</p>
                   <p>Abastecimentos: {s.entriesCount}</p>
                 </div>
               </div>
@@ -626,7 +728,7 @@ export const FuelDashboard: React.FC<Props> = ({
           onDelete={onDeleteStation}
           onAddFirst={() => {
             setEditingStation(null);
-            setNewStation({ name: '', cnpj: '', address: '', city: '', state: '' });
+            setNewStation({ name: '', cnpj: '', address: '', city: '', state: '', fuelTypes: [] });
             setShowStationModal(true);
           }}
         />
@@ -644,6 +746,8 @@ export const FuelDashboard: React.FC<Props> = ({
         fuelStations={fuelStations}
         lastOdometer={lastOdometer}
         currentKmPerLiter={currentKmPerLiter}
+        unit={unit === 'm³' ? 'm³' : 'Litros'}
+        unitKm={unitKm}
       />
 
       <FuelStationModal 
@@ -660,6 +764,8 @@ export const FuelDashboard: React.FC<Props> = ({
           data={selectedModelData} 
           branches={branches} 
           onClose={() => setShowModelModal(false)} 
+          unit={unit}
+          unitKm={unitKm}
         />
       )}
 

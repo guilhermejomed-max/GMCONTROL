@@ -420,7 +420,7 @@ export const Dashboard: FC<DashboardProps> = ({
                 </div>
             </div>
             <div className="absolute right-[-10px] bottom-[-20px] w-24 h-24 opacity-20">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width={96} height={96}>
                     <RadialBarChart innerRadius="80%" outerRadius="100%" data={[{ value: stats.healthScore, fill: scoreColor }]} startAngle={90} endAngle={-270}>
                         <RadialBar background dataKey="value" />
                     </RadialBarChart>
@@ -460,7 +460,7 @@ export const Dashboard: FC<DashboardProps> = ({
             </div>
 
             <div className="h-10 w-full mt-3 opacity-50 group-hover:opacity-100 transition-opacity">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={40}>
                     <LineChart data={stats.chartData}>
                         <Line type="monotone" dataKey="cpk" stroke="#6366f1" strokeWidth={2} dot={false} />
                     </LineChart>
@@ -519,8 +519,8 @@ export const Dashboard: FC<DashboardProps> = ({
                 </div>
             </div>
             
-            <div className="flex-1 min-h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[400px] w-full">
+                <ResponsiveContainer width="100%" height={400}>
                     <AreaChart data={stats.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
                         <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tick={{fill: '#94a3b8', fontWeight: 'bold'}} dy={10} />
@@ -545,8 +545,8 @@ export const Dashboard: FC<DashboardProps> = ({
                 <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide mb-2 flex items-center gap-2">
                     <Wallet className="h-4 w-4 text-emerald-500"/> Distribuição de Custos
                 </h3>
-                <div className="flex-1 flex items-center relative">
-                    <ResponsiveContainer width="100%" height={160}>
+                <div className="h-[250px] flex items-center relative">
+                    <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
                             <Pie
                                 data={stats.costDistribution}

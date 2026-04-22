@@ -1,8 +1,8 @@
 
 // Force Vite cache invalidation - 2026-03-26
-import { db, auth } from './firebaseConfig';
+import { db, auth, storage } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -1126,6 +1126,28 @@ export const storageService = {
   updateServiceOrder: async (orgId: string, orderId: string, updates: Partial<ServiceOrder>) => {
     if (mockUser || !db) { LocalDB.update(`service_orders`, orderId, updates); return; }
     try {
+      // Logic for trigger: if status is being updated to CONCLUIDO, fetch the OS and complete occurrence.
+      if (updates.status === 'CONCLUIDO') {
+          const docRef = db.collection("service_orders").doc(orderId);
+          await db.runTransaction(async (transaction) => {
+              const sfDoc = await transaction.get(docRef);
+              if (!sfDoc.exists) {
+                  throw new Error("Document does not exist!");
+              }
+              const data = sfDoc.data() as ServiceOrder;
+              transaction.update(docRef, sanitize(updates));
+              
+              if (data.occurrenceId) {
+                  const occRef = db.collection("occurrences").doc(data.occurrenceId);
+                  transaction.update(occRef, sanitize({
+                      status: 'RESOLVED', // Update the occurrence
+                      resolvedAt: new Date().toISOString()
+                  }));
+              }
+          });
+          return;
+      }
+
       await db.collection("service_orders").doc(orderId).update(sanitize(updates));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `service_orders/${orderId}`);
@@ -1539,10 +1561,11 @@ export const storageService = {
     }
   },
 
-  deleteOccurrence: async (orgId: string, id: string) => {
+  deleteOccurrence: async (orgId: string, id: string, vehiclePlate?: string) => {
     if (mockUser || !db) { LocalDB.delete(`occurrences`, id); return; }
     try {
       await db.collection("occurrences").doc(id).delete();
+      logActivity(orgId, "Excluiu Ocorrência", `Veículo: ${vehiclePlate || id}`, 'VEHICLES');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `occurrences/${id}`);
     }
@@ -1849,6 +1872,43 @@ export const storageService = {
     }
   },
 
+  // --- PAYMENT METHODS ---
+  subscribeToPaymentMethods: (orgId: string, callback: (methods: PaymentMethod[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`payment_methods`, (data) => callback(data.sort((a:any,b:any) => a.name.localeCompare(b.name))), []);
+    return db.collection("payment_methods").orderBy("name").onSnapshot((snapshot) => {
+      const methods: PaymentMethod[] = [];
+      snapshot.forEach((doc) => methods.push(doc.data() as PaymentMethod));
+      callback(methods);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "payment_methods"));
+  },
+
+  addPaymentMethod: async (orgId: string, method: PaymentMethod) => {
+    if (mockUser || !db) { LocalDB.add(`payment_methods`, method); return; }
+    try {
+      await db.collection("payment_methods").doc(method.id).set(sanitize(method));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `payment_methods/${method.id}`);
+    }
+  },
+
+  updatePaymentMethod: async (orgId: string, id: string, data: Partial<PaymentMethod>) => {
+    if (mockUser || !db) { LocalDB.update(`payment_methods`, id, data); return; }
+    try {
+      await db.collection("payment_methods").doc(id).update(sanitize(data));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `payment_methods/${id}`);
+    }
+  },
+
+  deletePaymentMethod: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`payment_methods`, id); return; }
+    try {
+      await db.collection("payment_methods").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `payment_methods/${id}`);
+    }
+  },
+
   // --- SERVICE SECTOR ---
   getSectors: async (orgId: string): Promise<ServiceSector[]> => {
     if (mockUser || !db) return LocalDB.get(`sectors`, []);
@@ -2008,5 +2068,88 @@ export const storageService = {
         console.log("Firebase não resetado (db:", !!db, ", mockUser:", !!mockUser, ")");
     }
     console.log("resetData finalizado.");
+  },
+
+  // Helper para comprimir imagem antes do upload
+  compressImage: async (file: File): Promise<Blob | File> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        resolve(file);
+                    }
+                }, 'image/jpeg', 0.7); // 70% de qualidade
+            };
+        };
+    });
+  },
+
+  uploadImage: async (path: string, file: File): Promise<string> => {
+    console.log(`[StorageService] Preparando upload: ${path} (${(file.size / 1024).toFixed(1)} KB)`);
+    
+    const getFallbackDataUrl = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+        });
+    };
+
+    if (mockUser || !storage) {
+        return await getFallbackDataUrl(file);
+    }
+    
+    try {
+        // Comprimir imagem antes de enviar (Reduz drasticamente o tempo de upload)
+        const compressedBlob = await storageService.compressImage(file);
+        console.log(`[StorageService] Imagem comprimida: ${(compressedBlob.size / 1024).toFixed(1)} KB`);
+
+        const fileRef = storage.ref().child(path);
+        
+        // Timeout reduzido para 12 segundos (com compressão deve ser instantâneo)
+        const TIMEOUT_MS = 12000;
+        const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error(`Timeout de ${TIMEOUT_MS/1000}s`)), TIMEOUT_MS)
+        );
+
+        const uploadTask = fileRef.put(compressedBlob);
+        await Promise.race([uploadTask, timeoutPromise]);
+        
+        const downloadUrl = await fileRef.getDownloadURL();
+        return downloadUrl;
+    } catch (error: any) {
+        console.warn("[StorageService] Falha no upload real, usando fallback local imediato.");
+        return await getFallbackDataUrl(file);
+    }
   }
 };

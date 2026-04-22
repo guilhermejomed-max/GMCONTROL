@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection } from '../types';
+import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection, Occurrence } from '../types';
 import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
@@ -22,6 +22,7 @@ interface ServiceOrderHubProps {
   settings?: SystemSettings;
   arrivalAlerts?: ArrivalAlert[];
   initialVehicleId?: string;
+  initialOccurrenceId?: string;
   initialModalOpen?: boolean;
   onCloseInitialModal?: () => void;
   collaborators?: Collaborator[];
@@ -34,6 +35,7 @@ interface ServiceOrderHubProps {
   classifications?: any[];
   sectors?: any[];
   currentUser?: { name?: string; email?: string };
+  occurrences?: Occurrence[];
   onLoadMore?: () => void;
   hasMore?: boolean;
 }
@@ -58,6 +60,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   settings, 
   arrivalAlerts: allArrivalAlerts = [], 
   initialVehicleId, 
+  initialOccurrenceId,
   initialModalOpen, 
   onCloseInitialModal,
   collaborators = [],
@@ -70,6 +73,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   classifications = [],
   sectors = [],
   currentUser,
+  occurrences = [],
   onLoadMore,
   hasMore
 }) => {
@@ -297,6 +301,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                   }
               }
           }
+           if (order.occurrenceId) {
+               alert(`Veículo ${vehicle.plate} finalizado!\nA ocorrência vinculada foi encerrada com sucesso.`);
+           }
       }
       }
       await onUpdateOrder(order.id, updates);
@@ -345,7 +352,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const partner = partners.find(p => p.id === editOrderPartnerId);
           const service = partner?.services.find(s => s.id === editOrderServiceId);
           const tire = tires.find(t => t.id === editOrderTireId);
-          const sector = sectors.find(s => s.id === editOrderSectorId);
+          const sType = (settings?.serviceTypes || []).find(s => s.id === editOrderSectorId);
           const classification = classifications.find(c => c.id === editOrderClassificationId);
 
           await onUpdateOrder(editingOrder.id, {
@@ -370,7 +377,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               laborHours: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined) : undefined,
               laborCost: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined,
               sectorId: editOrderSectorId || undefined,
-              sectorName: sector?.name,
+              sectorName: sType?.name,
               classificationId: editOrderClassificationId || undefined,
               classificationName: classification?.name
           });
@@ -755,6 +762,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
         stockItems={stockItems || []}
         settings={settings}
         defaultBranchId={defaultBranchId}
+        vehicleId={initialVehicleId}
+        occurrenceId={initialOccurrenceId}
+        occurrences={occurrences}
         nextOrderNumber={serviceOrders.length > 0 ? Math.max(...serviceOrders.map(o => o.orderNumber)) + 1 : 1}
         classifications={classifications}
         sectors={sectors}
@@ -985,15 +995,15 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
                           <div className="grid grid-cols-2 gap-4">
                               <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Setor</label>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de serviço</label>
                                   <select 
                                       className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                       value={editOrderSectorId}
                                       onChange={e => setEditOrderSectorId(e.target.value)}
                                   >
                                       <option value="">Selecionar...</option>
-                                      {sectors.map(s => (
-                                          <option key={s.id} value={s.id}>{s.name}</option>
+                                      {(settings?.serviceTypes || []).map(st => (
+                                          <option key={st.id} value={st.id}>{st.name}</option>
                                       ))}
                                   </select>
                               </div>
@@ -1175,7 +1185,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           )}
                           {viewingOrderDetails.sectorName && (
                             <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Setor</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Tipo de serviço</span>
                                 <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                     <Building2 className="h-4 w-4 text-indigo-500"/>
                                     {viewingOrderDetails.sectorName}

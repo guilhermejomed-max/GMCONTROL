@@ -446,7 +446,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                       <span className="text-xs font-medium text-slate-400">Menor barra é melhor</span>
                    </div>
                    <div className="h-[350px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={350}>
                          <BarChart data={strategicData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.1} />
                             <XAxis type="number" hide />
@@ -484,8 +484,8 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                        <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><ScatterIcon className="h-5 w-5 text-purple-500"/> Matriz de Valor</h3>
                        <p className="text-xs text-slate-500 mt-1">Preço de Compra (X) vs Durabilidade (Y)</p>
                     </div>
-                    <div className="flex-1 w-full">
-                       <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] w-full">
+                       <ResponsiveContainer width="100%" height={300}>
                           <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
                              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
                              <XAxis type="number" dataKey="avgPurchasePrice" name="Preço" unit="R$" tick={{fontSize: 10, fill: '#94a3b8'}} />
@@ -511,8 +511,8 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                     
                     {scrapAnalysis.chartData.length > 0 ? (
                         <>
-                            <div className="flex-1 w-full">
-                                <ResponsiveContainer width="100%" height="100%">
+                            <div className="h-[250px] w-full">
+                                <ResponsiveContainer width="100%" height={250}>
                                     <RePieChart>
                                         <Pie
                                             data={scrapAnalysis.chartData}

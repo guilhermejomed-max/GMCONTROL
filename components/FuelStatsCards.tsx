@@ -8,9 +8,11 @@ interface FuelStatsCardsProps {
     globalAvg: number;
     count: number;
   };
+  unit?: string;
+  unitKm?: string;
 }
 
-export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats }) => {
+export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats, unit = 'L', unitKm = 'km/l' }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
@@ -36,7 +38,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           Volume Total
         </div>
         <h3 className="text-2xl font-black text-blue-600 tracking-tight truncate">
-          {stats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-400">L</span>
+          {stats.totalLiters.toLocaleString()} <span className="text-sm font-bold text-slate-400">{unit}</span>
         </h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
           <Zap className="h-3 w-3" /> Consumo de frota
@@ -51,7 +53,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           Média Global
         </div>
         <h3 className="text-2xl font-black text-orange-600 tracking-tight truncate">
-          {stats.globalAvg.toFixed(2)} <span className="text-sm font-bold text-slate-400">km/l</span>
+          {stats.globalAvg.toFixed(2)} <span className="text-sm font-bold text-slate-400 lowercase">{unitKm}</span>
         </h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
           <Truck className="h-3 w-3" /> Eficiência média

@@ -59,9 +59,22 @@ export const FuelStationList: React.FC<FuelStationListProps> = React.memo(({
             <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">CNPJ: {station.cnpj}</span>
           </div>
           {(station.address || station.city) && (
-            <div className="flex items-start gap-2 text-xs text-slate-500">
+            <div className="flex items-start gap-2 text-xs text-slate-500 mb-4">
               <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
               <span>{station.address}{station.city ? `, ${station.city}` : ''}{station.state ? ` - ${station.state}` : ''}</span>
+            </div>
+          )}
+
+          {station.fuelTypes && station.fuelTypes.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-50 dark:border-slate-800/50">
+              {station.fuelTypes.map(type => (
+                <span 
+                  key={type} 
+                  className="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+                >
+                  {type}
+                </span>
+              ))}
             </div>
           )}
         </div>

@@ -118,7 +118,10 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       const plate = String(normalizedRow['PLACA'] || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
       const cnpj = String(normalizedRow['CNPJ'] || normalizedRow['CPNJ'] || '');
       
-      const liters = parseNum(normalizedRow['QUANTIDADE DE LT ABASTECIDO'] || normalizedRow['LITROS'] || normalizedRow['QUANTIDADE'] || normalizedRow['QTD']);
+      const m3 = parseNum(normalizedRow['QUANTIDADE M3']);
+      const kilograms = parseNum(normalizedRow['QUANTIDADE KG']);
+      const liters = m3 > 0 ? m3 : parseNum(normalizedRow['QUANTIDADE DE LT ABASTECIDO'] || normalizedRow['LITROS'] || normalizedRow['QUANTIDADE'] || normalizedRow['QTD']);
+      
       const rawValor = parseNum(normalizedRow['VALOR'] || normalizedRow['VALOR TOTAL'] || normalizedRow['TOTAL'] || normalizedRow['VALOR PAGO']);
       const rawUnitPrice = parseNum(normalizedRow['PREÇO UNITÁRIO'] || normalizedRow['VALOR UNITÁRIO'] || normalizedRow['UNITÁRIO'] || normalizedRow['PREÇO']);
       
@@ -147,22 +150,26 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       let totalCost = 0;
       let unitPrice = 0;
 
+      const mainVolume = liters > 0 ? liters : kilograms; // Fallback to kg if m3/liters is 0?
+
       if (rawValor > 0 && rawUnitPrice > 0) {
         totalCost = rawValor;
         unitPrice = rawUnitPrice;
       } else if (rawValor > 0) {
-        if (rawValor < 20 && liters > 50) {
+        if (rawValor < 20 && mainVolume > 50) {
           unitPrice = rawValor;
-          totalCost = liters * unitPrice;
+          totalCost = mainVolume * unitPrice;
         } else {
           totalCost = rawValor;
-          unitPrice = liters > 0 ? totalCost / liters : 0;
+          unitPrice = mainVolume > 0 ? totalCost / mainVolume : 0;
         }
-      } else if (rawUnitPrice > 0 && liters > 0) {
+      } else if (rawUnitPrice > 0 && mainVolume > 0) {
         unitPrice = rawUnitPrice;
-        totalCost = liters * unitPrice;
+        totalCost = mainVolume * unitPrice;
       }
 
+      const fuelT = String(normalizedRow['COMBUSTÍVEL'] || normalizedRow['TIPO'] || (m3 > 0 || kilograms > 0 ? 'GNV' : 'DIESEL S10')).toUpperCase();
+      const isGas = (m3 > 0 || kilograms > 0 || fuelT.includes('GNV') || fuelT.includes('GÁS'));
       const station = fuelStations.find(s => s.cnpj.replace(/\D/g, '') === cnpj.replace(/\D/g, ''));
 
       entries.push({
@@ -171,11 +178,13 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
         vehiclePlate: vehicle.plate,
         date: dateStr || new Date().toISOString().split('T')[0],
         odometer: finalOdometer,
-        liters: liters,
+        liters: liters || m3 || kilograms, // Store m3 or kg in liters if they are the primary unit
+        kg: kilograms > 0 ? kilograms : undefined,
         unitPrice: unitPrice,
         totalCost: totalCost,
-        fuelType: String(normalizedRow['COMBUSTÍVEL'] || normalizedRow['TIPO'] || 'DIESEL S10').toUpperCase(),
-        stationName: station ? station.name : String(normalizedRow['POSTO'] || normalizedRow['NOME DO POSTO'] || ''),
+        fuelType: fuelT,
+        category: isGas ? 'GAS' : 'LIQUID',
+        stationName: station ? station.name : String(normalizedRow['NOME DO POSTO'] || normalizedRow['POSTO'] || ''),
         stationCnpj: cnpj,
         branchId: branch?.id || vehicle.branchId,
         driverName: String(normalizedRow['MOTORISTA'] || normalizedRow['NOME'] || '')
@@ -219,7 +228,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {['DATA', 'PLACA', 'CNPJ', 'QUANTIDADE DE LT ABASTECIDO', 'VALOR', 'ULTIMO KM', 'KM ATUAL', 'KM RODADO'].map(col => (
+                  {['NOME DO POSTO', 'DATA', 'PLACA', 'QUANTIDADE KG', 'QUANTIDADE M3', 'VALOR', 'ULTIMO KM', 'KM ATUAL'].map(col => (
                     <div key={col} className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-blue-50 dark:border-slate-700 text-center">
                       <span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">{col}</span>
                     </div>
@@ -274,7 +283,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
                       <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
                         <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Data</th>
                         <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Placa</th>
-                        <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Litros</th>
+                        <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Quantidade</th>
                         <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Total</th>
                         <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Posto</th>
                       </tr>
@@ -284,7 +293,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
                         <tr key={idx} className="text-xs hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                           <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{e.date}</td>
                           <td className="p-4 font-black text-slate-800 dark:text-white">{e.vehiclePlate}</td>
-                          <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{e.liters.toLocaleString()}L</td>
+                          <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{e.liters.toLocaleString()} {e.category === 'GAS' ? 'm³' : 'L'}</td>
                           <td className="p-4 font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(e.totalCost)}</td>
                           <td className="p-4 font-medium text-slate-500">{e.stationName || '-'}</td>
                         </tr>

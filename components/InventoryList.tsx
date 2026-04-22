@@ -27,6 +27,7 @@ interface InventoryListProps {
   onUpdateTire: (tire: Tire) => Promise<void>;
   onUpdateServiceOrder?: (id: string, updates: Partial<ServiceOrder>) => Promise<void>;
   onRegister?: () => void;
+  onEditTire?: (tire: Tire) => void;
   onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
   userLevel: UserLevel;
   viewMode?: 'inventory' | 'scrap';
@@ -223,9 +224,10 @@ const TireDetailModal: React.FC<{
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
   onClose: () => void;
+  onEdit?: (tire: Tire) => void;
   vehicleTypes?: VehicleType[];
   onUpdateServiceOrder?: (id: string, updates: Partial<ServiceOrder>) => Promise<void>;
-}> = ({ tire, vehicles, branches = [], serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose, vehicleTypes = [], onUpdateServiceOrder }) => {
+}> = ({ tire, vehicles, branches = [], serviceOrders = [], maintenancePlans = [], maintenanceSchedules = [], onClose, onEdit, vehicleTypes = [], onUpdateServiceOrder }) => {
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
     const [showLinkOS, setShowLinkOS] = useState(false);
     
@@ -278,7 +280,14 @@ const TireDetailModal: React.FC<{
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6 text-slate-400"/></button>
+                    <div className="flex items-center gap-2">
+                        {onEdit && (
+                            <button onClick={() => onEdit(tire)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500 hover:text-blue-600" title="Editar Pneu">
+                                <PenLine className="h-6 w-6" />
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6 text-slate-400"/></button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -827,6 +836,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   onUpdateTire, 
   onUpdateServiceOrder,
   onRegister, 
+  onEditTire,
   onNotification,
   userLevel, 
   viewMode = 'inventory',
@@ -1591,6 +1601,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               maintenancePlans={maintenancePlans}
               maintenanceSchedules={maintenanceSchedules}
               onClose={() => setSelectedTire(null)} 
+              onEdit={(userLevel === 'SENIOR' || userLevel === 'ADMIN' || userLevel === 'MANAGER') && onEditTire ? onEditTire : undefined}
               onUpdateServiceOrder={onUpdateServiceOrder}
               vehicleTypes={vehicleTypes}
           />

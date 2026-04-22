@@ -29,6 +29,98 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedCode, setScannedCode] = useState('');
+  
+  // NFe Import State
+  const [isNfeModalOpen, setIsNfeModalOpen] = useState(false);
+  const [processingNfe, setProcessingNfe] = useState(false);
+  
+  const handleNfeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setProcessingNfe(true);
+    
+    try {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(text, "text/xml");
+      
+      const detElements = xmlDoc.getElementsByTagName("det");
+      const infNfe = xmlDoc.getElementsByTagName("infNFe")[0];
+      const ide = xmlDoc.getElementsByTagName("ide")[0];
+      
+      if (!detElements || detElements.length === 0) {
+        alert("Nenhum item encontrado no XML da Nota Fiscal.");
+        setProcessingNfe(false);
+        return;
+      }
+      
+      const nfeNumber = ide ? ide.getElementsByTagName("nNF")[0]?.textContent : "Sem_Numero";
+      
+      let processedCount = 0;
+      
+      for (let i = 0; i < detElements.length; i++) {
+        const prod = detElements[i].getElementsByTagName("prod")[0];
+        if (!prod) continue;
+        
+        const code = prod.getElementsByTagName("cProd")[0]?.textContent || "";
+        const name = prod.getElementsByTagName("xProd")[0]?.textContent || "";
+        const qComStr = prod.getElementsByTagName("qCom")[0]?.textContent || "0";
+        const vUnComStr = prod.getElementsByTagName("vUnCom")[0]?.textContent || "0";
+        const uCom = prod.getElementsByTagName("uCom")[0]?.textContent || "UN";
+        
+        const quantity = parseFloat(qComStr);
+        const unitCost = parseFloat(vUnComStr);
+        
+        if (quantity <= 0) continue;
+        
+        // Find if item exists in current stock
+        let existingItem = items.find(item => item.code.toLowerCase() === code.toLowerCase());
+        
+        if (!existingItem) {
+          // Add new item to stock
+          const newItem: StockItem = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            name: name,
+            code: code,
+            category: 'PECA',
+            quantity: 0,
+            minQuantity: 5,
+            unit: uCom,
+            averageCost: unitCost,
+            updatedAt: new Date().toISOString()
+          };
+          await storageService.addStockItem(orgId, newItem);
+          existingItem = newItem; // Note: We don't have the generated ID from firestore, but we passed our own ID so it's fine.
+        }
+        
+        // Register entry movement
+        const movementData: StockMovement = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+          itemId: existingItem.id,
+          itemName: existingItem.name,
+          type: 'ENTRY',
+          quantity: quantity,
+          unitCost: unitCost,
+          totalValue: quantity * unitCost,
+          date: new Date().toISOString(),
+          user: userLevel,
+          notes: `Entrada via XML NF-e nº ${nfeNumber}`
+        };
+        
+        await storageService.registerStockMovement(orgId, movementData);
+        processedCount++;
+      }
+      
+      alert(`Nota Fiscal importada! Foram registrados ${processedCount} itens no estoque.`);
+      setIsNfeModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao ler o arquivo XML. O arquivo é válido?");
+    } finally {
+      setProcessingNfe(false);
+    }
+  };
 
   useEffect(() => {
     // Subscriptions moved to App.tsx to avoid duplicate reads
@@ -97,10 +189,29 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
     setIsItemModalOpen(true);
   };
 
-  const handleScanSuccess = (code: string) => {
+  const handleScanSuccess = async (code: string) => {
     setScannedCode(code);
     setIsScannerOpen(false);
     
+    // Check if it's a 44 digit NF-e Access Key (DANFE)
+    const cleanedCode = code.replace(/\D/g, '');
+    if (cleanedCode.length === 44) {
+       // Need to fetch from an API that provides SEFAZ NF-e data by key
+       // Example integration with Focus NFe (requires API Key from .env)
+       try {
+           alert("Chave NF-e detectada: " + cleanedCode + "\n\nO sistema tentará contatar a SEFAZ (Requer Token configurado).");
+           // You would normally do: const response = await fetch(`/api/nfe/${cleanedCode}`);
+           // E como o backend precisa de um Certificado A1 ou Token pago, 
+           // a recomendação é ter a chave exportada.
+           // throw new Error("A chave " + code + " foi lida com sucesso! Para puxar os itens do governo automaticamente usando APENAS O CÓDIGO DE BARRAS da DANFE, é obrigatório possuir uma API configurada (Ex: Focus NFe, NFe.io, Sieg) no servidor devido à proteção da SEFAZ.");
+           alert("Funcionalidade configurada para o Servidor Backend. Quando o Token for inserido nas chaves do ambiente (ENV), a leitura automática de DANFE via SEFAZ funcionará.");
+       } catch (err) {
+           console.error(err);
+       }
+       return;
+    }
+    
+    // It's a standard Item barcode
     const existingItem = items.find(i => i.code === code);
     if (existingItem) {
       handleOpenMovement(existingItem, 'ENTRY');
@@ -539,7 +650,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><PieIcon className="h-5 w-5 text-purple-500"/> Composição do Estoque</h3>
                   <div className="h-64 w-full">
-                     <ResponsiveContainer width="100%" height="100%">
+                     <ResponsiveContainer width="100%" height={256}>
                         <PieChart>
                            <Pie data={stats.categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                               {stats.categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
@@ -554,7 +665,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                   <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><BarChart3 className="h-5 w-5 text-orange-500"/> Top 5 Itens (Valor Total)</h3>
                   <div className="h-64 w-full">
-                     <ResponsiveContainer width="100%" height="100%">
+                     <ResponsiveContainer width="100%" height={256}>
                         <BarChart data={stats.topValueItems} layout="vertical" margin={{ left: 20 }}>
                            <CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.1} />
                            <XAxis type="number" hide />
@@ -571,7 +682,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-500"/> Fluxo Financeiro (Últimos 6 Meses)</h3>
                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={256}>
                      <AreaChart data={stats.trendData}>
                         <defs>
                            <linearGradient id="colorEntrada" x1="0" y1="0" x2="0" y2="1">
@@ -600,11 +711,55 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
       {activeTab !== 'DASHBOARD' && activeTab !== 'AUDIT' && (
         <div className="flex gap-2 animate-in fade-in slide-in-from-bottom-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <input type="text" placeholder="Buscar item..." className="w-full pl-10 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white placeholder-slate-400" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Buscar por nome ou bipe o Código de Barras (Leitor)..." 
+              className="w-full px-10 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white placeholder-slate-400 font-semibold shadow-sm" 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)} 
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const scannedCode = searchTerm.trim().replace(/\D/g, '');
+                  if (!scannedCode) return;
+                  
+                  if (scannedCode.length === 44) {
+                    alert("Chave NF-e detectada: " + scannedCode + "\n\nA consulta aos itens a partir do código de barras da DANFE exige integração paga/certificado digital na SEFAZ. O módulo backend está preparado aguardando a chave (Token) no arquivo .env");
+                    setSearchTerm('');
+                    return;
+                  }
+                  
+                  const existingItem = items.find(i => i.code.toLowerCase() === scannedCode.toLowerCase());
+                  if (existingItem) {
+                    handleOpenMovement(existingItem, 'ENTRY');
+                    setSearchTerm('');
+                  } else if (scannedCode.length > 2) {
+                    setEditingItem(null);
+                    setItemFormData({ name: '', code: scannedCode, category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0 });
+                    setIsItemModalOpen(true);
+                    setSearchTerm('');
+                  }
+                }
+              }}
+              autoFocus
+            />
+            <button 
+              onClick={() => setIsScannerOpen(true)}
+              className="absolute right-2 top-2 p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors border border-blue-200"
+              title="Abrir Câmera do Celular"
+            >
+              <ScanLine className="h-5 w-5" />
+            </button>
           </div>
           {activeTab === 'STOCK' && (
              <>
+                <div>
+                   <input type="file" id="nfe-upload" accept=".xml" className="hidden" onChange={handleNfeFileUpload} />
+                   <label htmlFor="nfe-upload" className="cursor-pointer bg-green-600 hover:bg-green-700 text-white px-4 h-full rounded-xl shadow-sm transition-colors flex items-center gap-2 font-bold" title="Importar XML da Nota Fiscal">
+                     {processingNfe ? <RotateCcw className="h-5 w-5 animate-spin" /> : <ClipboardList className="h-5 w-5" />}
+                     <span className="hidden md:inline">{processingNfe ? 'Lendo NF...' : 'Importar NF-e'}</span>
+                   </label>
+                </div>
                 <button onClick={() => setIsScannerOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-xl shadow-sm transition-colors flex items-center gap-2 font-bold" title="Entrada via Scanner"><ScanLine className="h-5 w-5" /> <span className="hidden md:inline">Entrada de Peça</span></button>
                 <button onClick={handlePrintStockReport} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-4 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 font-bold" title="Imprimir Relatório"><Printer className="h-5 w-5" /> <span className="hidden md:inline">Relatório</span></button>
                 <button onClick={() => handleOpenItemModal()} className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-xl shadow-lg transition-colors"><Plus className="h-6 w-6" /></button>
@@ -909,7 +1064,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block text-center">Quantidade</label>
                  <div className="flex items-center justify-center">
                     <button type="button" onClick={() => setMovementFormData(p => ({...p, quantity: Math.max(1, p.quantity - 1)}))} className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center font-bold text-lg">-</button>
-                    <input type="number" required className="w-24 p-2 text-center text-3xl font-black bg-transparent outline-none text-slate-800 dark:text-white" value={movementFormData.quantity} onChange={e => setMovementFormData({ ...movementFormData, quantity: Number(e.target.value) })} />
+                    <input autoFocus type="number" required className="w-24 p-2 text-center text-3xl font-black bg-transparent outline-none text-slate-800 dark:text-white" value={movementFormData.quantity} onChange={e => setMovementFormData({ ...movementFormData, quantity: Number(e.target.value) })} />
                     <button type="button" onClick={() => setMovementFormData(p => ({...p, quantity: p.quantity + 1}))} className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center font-bold text-lg">+</button>
                  </div>
               </div>

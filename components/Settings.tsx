@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch, AVAILABLE_PERMISSIONS } from '../types';
+import { SystemSettings, TeamMember, UserLevel, ModuleType, TireModelDefinition, SystemLog, ServiceTypeDefinition, LocationPoint, Branch, AVAILABLE_PERMISSIONS, ServiceSector, ServiceClassification } from '../types';
 import { storageService } from '../services/storageService';
-import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download, Building2 } from 'lucide-react';
+import { Save, Users, Settings as SettingsIcon, Trash2, Plus, Lock, Activity, Check, Image as ImageIcon, Upload, PenLine, Shield, X, AlertTriangle, BookOpen, Clock, List, Search, ClipboardList, Milestone, Truck, CalendarClock, Wrench, MapPin, FileText, Download, Building2, Grid, DollarSign } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { BranchManagement } from './BranchManagement';
 
@@ -11,9 +11,12 @@ interface SettingsProps {
   currentSettings: SystemSettings;
   onUpdateSettings: (s: SystemSettings) => void;
   branches: Branch[];
+  sectors: ServiceSector[];
+  classifications: ServiceClassification[];
+  paymentMethods: import('../types').PaymentMethod[];
 }
 
-export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings, branches }) => {
+export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings, branches, sectors, classifications, paymentMethods }) => {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL' | 'BRANCHES'>('GENERAL');
   
   // General Settings State
@@ -47,12 +50,18 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   const [logUserName, setLogUserName] = useState('');
   const [logFilter, setLogFilter] = useState('');
   const [viewingGlobalLogs, setViewingGlobalLogs] = useState(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   // --- CATALOG STATE ---
   const [catalogItems, setCatalogItems] = useState<TireModelDefinition[]>([]);
   const [newModel, setNewModel] = useState<Partial<TireModelDefinition>>({
      brand: '', model: '', width: 295, profile: 80, rim: 22.5, standardPressure: 110, originalDepth: 18.0, estimatedLifespanKm: 80000, limitDepth: 3.0
   });
+
+  // --- NEW SETTINGS STATE ---
+  const [newPaymentMethod, setNewPaymentMethod] = useState('');
+  const [newSector, setNewSector] = useState('');
+  const [newClassification, setNewClassification] = useState('');
 
   // --- SERVICES STATE ---
   const [serviceTypes, setServiceTypes] = useState<ServiceTypeDefinition[]>([]);
@@ -560,7 +569,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
       )}
 
       {activeTab === 'GENERAL' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+        <>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
            <form onSubmit={handleSaveSettings} className="space-y-6">
               <div className="mb-8">
                  <label className="block text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><ImageIcon className="h-4 w-4 text-slate-400" /> Personalização Visual (Logo)</label>
@@ -614,6 +624,109 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
               </div>
            </form>
         </div>
+
+        <div className="space-y-6 mt-6">
+           {/* Payment Methods Section */}
+           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+             <div className="flex items-center gap-2 mb-6">
+               <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                 <DollarSign className="w-5 h-5" />
+               </div>
+               <div>
+                 <h3 className="text-lg font-bold text-slate-800">Formas de Pagamento</h3>
+                 <p className="text-sm text-slate-500">Cadastre as opções para pagamentos de ocorrências externas.</p>
+               </div>
+             </div>
+
+             <div className="flex gap-2 mb-6">
+               <input
+                 type="text"
+                 value={newPaymentMethod}
+                 onChange={(e) => setNewPaymentMethod(e.target.value)}
+                 placeholder="PIX, Cartão Bradesco, Dinheiro..."
+                 className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+               />
+               <button
+                 onClick={async () => {
+                   if (!newPaymentMethod.trim()) return;
+                   await storageService.addPaymentMethod(orgId, {
+                     id: Date.now().toString(),
+                     name: newPaymentMethod.trim()
+                   });
+                   setNewPaymentMethod('');
+                 }}
+                 className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-bold"
+               >
+                 Adicionar
+               </button>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+               {paymentMethods.map((method) => (
+                 <div key={method.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                   <span className="font-bold text-slate-700">{method.name}</span>
+                   <button
+                     onClick={() => storageService.deletePaymentMethod(orgId, method.id)}
+                     className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                   >
+                     <Trash2 className="w-4 h-4" />
+                   </button>
+                 </div>
+               ))}
+             </div>
+           </div>
+
+           {/* Sectors Section */}
+           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+             <div className="flex items-center gap-2 mb-6">
+               <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                 <Grid className="w-5 h-5" />
+               </div>
+               <div>
+                 <h3 className="text-lg font-bold text-slate-800">Setores / Departamentos</h3>
+                 <p className="text-sm text-slate-500">Departamentos responsáveis pelas ocorrências.</p>
+               </div>
+             </div>
+
+             <div className="flex gap-2 mb-6">
+               <input
+                 type="text"
+                 value={newSector}
+                 onChange={(e) => setNewSector(e.target.value)}
+                 placeholder="Mecânica, Financeiro, Logística..."
+                 className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+               />
+               <button
+                 onClick={async () => {
+                   if (!newSector.trim()) return;
+                   await storageService.addSector(orgId, {
+                     id: Date.now().toString(),
+                     name: newSector.trim()
+                   });
+                   setNewSector('');
+                 }}
+                 className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-bold"
+               >
+                 Adicionar
+               </button>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+               {sectors.map((sector) => (
+                 <div key={sector.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                   <span className="font-bold text-slate-700">{sector.name}</span>
+                   <button
+                     onClick={() => storageService.deleteSector(orgId, sector.id)}
+                     className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                   >
+                     <Trash2 className="w-4 h-4" />
+                   </button>
+                 </div>
+               ))}
+             </div>
+           </div>
+        </div>
+        </>
       )}
 
       {/* CATALOG TAB */}
@@ -719,16 +832,93 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                </button>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-8 divide-y divide-slate-100">
+                {/* SETORES DA EMPRESA */}
+                <section className="pt-4">
+                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Grid className="h-4 w-4" /> Filas / Setores Responsáveis (Ocorrências)
+                    </h4>
+                    <div className="flex flex-col md:flex-row gap-6">
+                        <div className="w-full md:w-1/3">
+                            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cadastrar Novo Setor</label>
+                                <div className="space-y-3">
+                                    <input 
+                                        type="text" 
+                                        className="w-full p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
+                                        placeholder="Ex: TRÁFEGO, ELÉTRICA..." 
+                                        id="new-sector-name"
+                                    />
+                                    <button 
+                                        onClick={async () => {
+                                            const input = document.getElementById('new-sector-name') as HTMLInputElement;
+                                            if (input && input.value) {
+                                                await storageService.addSector(orgId, { name: input.value });
+                                                input.value = '';
+                                            }
+                                        }} 
+                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="h-4 w-4"/> Adicionar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-[300px] overflow-y-auto shadow-inner">
+                            {sectors.length === 0 ? (
+                                <div className="text-center text-slate-400 py-8 italic text-sm">Nenhum item cadastrado.</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {sectors.map(s => (
+                                        <div key={s.id} className="bg-white p-3 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm group hover:border-indigo-300 transition-all relative overflow-hidden">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                                                <span className="text-sm font-bold text-slate-700">{s.name}</span>
+                                            </div>
+                                            
+                                            {confirmingDeleteId === s.id ? (
+                                                <div className="flex items-center gap-1 animate-in slide-in-from-right-full">
+                                                    <button 
+                                                        onClick={() => {
+                                                            storageService.deleteSector(orgId, s.id);
+                                                            setConfirmingDeleteId(null);
+                                                        }}
+                                                        className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700"
+                                                    >
+                                                        Confirmar
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setConfirmingDeleteId(null)}
+                                                        className="p-1 text-slate-400 hover:text-slate-600"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => setConfirmingDeleteId(s.id)} 
+                                                    className="text-slate-400 hover:text-red-500 p-1 hover:bg-red-50 rounded-full transition-colors lg:opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 className="h-4 w-4"/>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
                 {/* Tipos de Serviço */}
-                <section>
+                <section className="pt-8">
                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <List className="h-4 w-4" /> Tipos de Serviço (Títulos)
+                        <List className="h-4 w-4" /> Tipos de Serviço (Itens da O.S.)
                     </h4>
                     <div className="flex flex-col md:flex-row gap-6">
                         <div className="w-full md:w-1/3">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Novo Tipo</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Novo Título</label>
                                 <div className="flex gap-2">
                                     <input 
                                         type="text" 
@@ -759,7 +949,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                 </section>
 
                 {/* Procedimentos Padrões */}
-                <section>
+                <section className="pt-8">
                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <ClipboardList className="h-4 w-4" /> Procedimentos Padrões (Checklists)
                     </h4>

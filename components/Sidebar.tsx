@@ -57,6 +57,7 @@ export const Sidebar: FC<SidebarProps> = ({
     // --- MÓDULO VEÍCULOS ---
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
     { id: 'fuel', label: 'Abastecimento', icon: Fuel, modules: ['FUEL'] },
+    { id: 'fuel-gas', label: 'Abastecimento a GÁS', icon: Fuel, modules: ['FUEL'] },
     { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
     { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
@@ -73,7 +74,6 @@ export const Sidebar: FC<SidebarProps> = ({
 
     // --- MÓDULO OFICINA/PEÇAS ---
     { id: 'service', label: 'Almoxarifado (Peças)', icon: Package, modules: ['MECHANICAL'] },
-    { id: 'classification-sector', label: 'Classificação e Setor', icon: Grid, modules: ['MECHANICAL'] },
     { id: 'partners', label: 'Parceiros/Fornecedores', icon: Users, modules: ['MECHANICAL', 'TIRES'] },
 
     // --- COMPARTILHADOS ---

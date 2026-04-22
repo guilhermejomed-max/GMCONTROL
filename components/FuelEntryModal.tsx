@@ -13,6 +13,8 @@ interface FuelEntryModalProps {
   fuelStations: FuelStation[];
   lastOdometer: number;
   currentKmPerLiter: number;
+  unit?: string;
+  unitKm?: string;
 }
 
 export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
@@ -25,7 +27,9 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
   drivers,
   fuelStations,
   lastOdometer,
-  currentKmPerLiter
+  currentKmPerLiter,
+  unit = 'Litros',
+  unitKm = 'KM/L'
 }) => {
   if (!isOpen) return null;
 
@@ -111,7 +115,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Quantidade (Litros)</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Quantidade ({unit})</label>
               <div className="relative">
                 <Droplets className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input 
@@ -125,6 +129,23 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                 />
               </div>
             </div>
+
+            {unit === 'm³' && (
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Quantidade (KG)</label>
+                <div className="relative">
+                  <Droplets className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                    placeholder="0.00"
+                    value={newEntry.kg || ''}
+                    onChange={e => setNewEntry(prev => ({ ...prev, kg: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Preço Unitário (R$)</label>
@@ -161,7 +182,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Litrômetro (Consumo Total)</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Litrômetro (Consumo Total {unit})</label>
               <div className="relative">
                 <Droplets className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input 
@@ -175,7 +196,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
               </div>
               {newEntry.vehicleId && vehicles.find(v => v.id === newEntry.vehicleId)?.totalFuelConsumed && (
                 <p className="text-[9px] font-bold text-slate-400 mt-1 ml-1">
-                  Atual na Sascar: {vehicles.find(v => v.id === newEntry.vehicleId)?.totalFuelConsumed?.toLocaleString()} L
+                  Atual na Sascar: {vehicles.find(v => v.id === newEntry.vehicleId)?.totalFuelConsumed?.toLocaleString()} {unit}
                 </p>
               )}
             </div>
@@ -242,7 +263,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-orange-800 dark:text-orange-300 uppercase tracking-wider">Média Estimada</p>
-                  <p className="text-lg font-black text-orange-600">{currentKmPerLiter.toFixed(2)} KM/L</p>
+                  <p className="text-lg font-black text-orange-600">{currentKmPerLiter.toFixed(2)} {unitKm}</p>
                 </div>
               </div>
               <div className="text-right">

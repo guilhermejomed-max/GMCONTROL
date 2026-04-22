@@ -7,13 +7,23 @@ interface RecentEntriesListProps {
   allFuelEntries: FuelEntry[];
   branches: Branch[];
   onDeleteEntry: (id: string) => void;
+  unit?: string;
+  unitKm?: string;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
 export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({ 
   entries, 
   allFuelEntries, 
   branches, 
-  onDeleteEntry 
+  onDeleteEntry,
+  unit = 'L',
+  unitKm = 'KM/L',
+  currentPage,
+  totalPages,
+  onPageChange
 }) => {
   return (
     <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar w-full h-full min-h-[400px]">
@@ -21,7 +31,12 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
         // Try to calculate KM/L for this specific entry if possible
         const vehicleEntries = allFuelEntries
           .filter(e => e.vehicleId === entry.vehicleId)
-          .sort((a, b) => new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime());
+          .sort((a, b) => {
+            const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
+            const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+            return a.odometer - b.odometer;
+          });
         
         const entryIndex = vehicleEntries.findIndex(e => e.id === entry.id);
         let entryAvg = 0;
@@ -30,8 +45,14 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
           const prevEntry = vehicleEntries[entryIndex - 1];
           const kmDiff = entry.odometer - prevEntry.odometer;
           
-          if (kmDiff > 0 && entry.liters > 0) {
-            entryAvg = kmDiff / entry.liters;
+          const isGasE = entry.category === 'GAS' || 
+                         String(entry.fuelType || '').toUpperCase().includes('GNV') ||
+                         String(entry.fuelType || '').toUpperCase().includes('GÁS') ||
+                         (Number(entry.kg) > 0);
+          const volume = isGasE ? (Number(entry.liters) || Number(entry.kg) || 0) : (Number(entry.liters) || 0);
+
+          if (kmDiff > 0 && volume > 0) {
+            entryAvg = kmDiff / volume;
           }
         }
 
@@ -51,14 +72,14 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-white mt-1">{entry.liters.toLocaleString()}L • {entry.fuelType}</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-white mt-1">{entry.liters.toLocaleString()}{unit} • {entry.fuelType}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold text-slate-400">{new Date(entry.date + (entry.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</p>
                 {entryAvg > 0 && (
                   <span className="inline-block mt-1 px-2 py-0.5 text-[9px] font-black rounded-full border bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800">
-                    {entryAvg.toFixed(2)} KM/L
+                    {entryAvg.toFixed(2)} {unitKm}
                   </span>
                 )}
               </div>
@@ -79,7 +100,7 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
                 <div className="flex flex-col items-end">
                   <p className="text-[9px] text-slate-400 font-bold tracking-wider">{entry.odometer.toLocaleString()} KM</p>
                   {entry.litrometro && (
-                    <p className="text-[9px] text-blue-500 font-bold tracking-wider">{entry.litrometro.toLocaleString()} L (Litrômetro)</p>
+                    <p className="text-[9px] text-blue-500 font-bold tracking-wider">{entry.litrometro.toLocaleString()} {unit} (Litrômetro)</p>
                   )}
                 </div>
               </div>
@@ -97,6 +118,55 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
         <div className="py-10 text-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
           <Fuel className="h-8 w-8 text-slate-300 mx-auto mb-2" />
           <p className="text-xs text-slate-400 font-medium">Nenhum registro encontrado.</p>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 py-6 border-t border-slate-100 dark:border-slate-800 mt-4">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            Anterior
+          </button>
+          
+          <div className="flex gap-1 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(page => {
+                // Show first, last, and pages around current
+                if (totalPages <= 7) return true;
+                return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+              })
+              .map((page, idx, arr) => {
+                const showEllipsis = idx > 0 && page - arr[idx - 1] > 1;
+                return (
+                  <React.Fragment key={page}>
+                    {showEllipsis && (
+                      <span className="w-8 h-8 flex items-center justify-center text-slate-400 text-xs font-bold">...</span>
+                    )}
+                    <button
+                      onClick={() => onPageChange(page)}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black transition-all shrink-0 ${
+                        currentPage === page
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+          </div>
+
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            Próxima
+          </button>
         </div>
       )}
     </div>

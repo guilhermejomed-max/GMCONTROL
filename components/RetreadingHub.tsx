@@ -889,7 +889,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                     <TrendingDown className="h-5 w-5 text-green-500" /> Economia Mensal (R$)
                   </h4>
                   <div className="h-[250px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={250}>
                       <BarChart data={dashboardData.savingsChartData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
@@ -909,7 +909,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                     <PieChartIcon className="h-5 w-5 text-purple-500" /> Volume por Recapadora
                   </h4>
                   <div className="h-[250px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={250}>
                       <PieChart>
                         <Pie
                           data={dashboardData.partnerChartData}

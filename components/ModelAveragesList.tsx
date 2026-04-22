@@ -14,9 +14,10 @@ interface ModelAverage {
 interface ModelAveragesListProps {
   averages: ModelAverage[];
   onSelectModel: (model: ModelAverage) => void;
+  unitKm?: string;
 }
 
-export const ModelAveragesList: React.FC<ModelAveragesListProps> = React.memo(({ averages, onSelectModel }) => {
+export const ModelAveragesList: React.FC<ModelAveragesListProps> = React.memo(({ averages, onSelectModel, unitKm = 'KM/L' }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {averages.map((m) => (
@@ -38,7 +39,7 @@ export const ModelAveragesList: React.FC<ModelAveragesListProps> = React.memo(({
             <div className={`px-3 py-1 rounded-full text-[10px] font-black ${
               m.avg > 0 ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-slate-50 text-slate-400 border border-slate-100'
             }`}>
-              {m.avg > 0 ? `${m.avg.toFixed(2)} KM/L` : 'S/ MÉDIA'}
+              {m.avg > 0 ? `${m.avg.toFixed(2)} ${unitKm}` : 'S/ MÉDIA'}
             </div>
           </div>
 

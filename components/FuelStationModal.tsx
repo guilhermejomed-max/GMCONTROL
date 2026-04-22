@@ -1,6 +1,8 @@
 import React from 'react';
-import { Store, X, MapPin } from 'lucide-react';
+import { Store, X, MapPin, Droplets } from 'lucide-react';
 import { FuelStation } from '../types';
+
+const COMMON_FUEL_TYPES = ['DIESEL S10', 'DIESEL S500', 'ARLA 32', 'GNV', 'GASOLINA', 'ETANOL'];
 
 interface FuelStationModalProps {
   isOpen: boolean;
@@ -83,6 +85,40 @@ export const FuelStationModal: React.FC<FuelStationModalProps> = React.memo(({
                 value={newStation.address}
                 onChange={e => setNewStation(prev => ({ ...prev, address: e.target.value }))}
               />
+            </div>
+            
+            <div className="sm:col-span-2 space-y-3">
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Tipos de Combustível Disponíveis</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {COMMON_FUEL_TYPES.map(fuelType => {
+                  const isSelected = newStation.fuelTypes?.includes(fuelType);
+                  return (
+                    <label 
+                      key={fuelType}
+                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                        isSelected 
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400' 
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox"
+                        className="hidden"
+                        checked={isSelected}
+                        onChange={() => {
+                          const currentTypes = newStation.fuelTypes || [];
+                          const updatedTypes = isSelected 
+                            ? currentTypes.filter(t => t !== fuelType)
+                            : [...currentTypes, fuelType];
+                          setNewStation(prev => ({ ...prev, fuelTypes: updatedTypes }));
+                        }}
+                      />
+                      <Droplets className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-slate-300'}`} />
+                      <span className="text-[11px] font-black whitespace-nowrap">{fuelType}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

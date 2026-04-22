@@ -13,9 +13,11 @@ interface ModelDetailsModalProps {
   };
   branches: Branch[];
   onClose: () => void;
+  unit?: string;
+  unitKm?: string;
 }
 
-export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({ data, branches, onClose }) => {
+export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({ data, branches, onClose, unit = 'L', unitKm = 'km/l' }) => {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-2 sm:p-4">
       <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
@@ -39,7 +41,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
             <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
               <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Média do Modelo</p>
               <p className="text-2xl font-black text-orange-600">
-                {data.avg > 0 ? `${data.avg.toFixed(2)} km/l` : 'N/A'}
+                {data.avg > 0 ? `${data.avg.toFixed(2)} ${unitKm}` : 'N/A'}
               </p>
             </div>
             <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
@@ -78,7 +80,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                       <div className="flex flex-col items-end gap-1">
                         {vAvg > 0 ? (
                           <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200" title="Média do Período">
-                            {vAvg.toFixed(2)} km/l
+                            {vAvg.toFixed(2)} {unitKm}
                           </span>
                         ) : (
                           <span className="text-[10px] font-black px-2 py-0.5 bg-slate-50 text-slate-400 rounded-full border border-slate-100">
@@ -108,7 +110,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                   <tr className="border-b border-slate-100 dark:border-slate-800">
                     <th className="py-3 text-[10px] font-black text-slate-400 uppercase">Data</th>
                     <th className="py-3 text-[10px] font-black text-slate-400 uppercase">Placa</th>
-                    <th className="py-3 text-[10px] font-black text-slate-400 uppercase">Litros</th>
+                    <th className="py-3 text-[10px] font-black text-slate-400 uppercase">{unit === 'm³' ? 'm³' : 'Litros'}</th>
                     <th className="py-3 text-[10px] font-black text-slate-400 uppercase">Total</th>
                     <th className="py-3 text-[10px] font-black text-slate-400 uppercase">Posto</th>
                     <th className="py-3 text-[10px] font-black text-slate-400 uppercase">Filial</th>
@@ -119,7 +121,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                     <tr key={e.id} className="text-xs">
                       <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{new Date(e.date + (e.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</td>
                       <td className="py-3 font-black text-slate-800 dark:text-white">{e.vehiclePlate}</td>
-                      <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{e.liters.toLocaleString()}L</td>
+                      <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{e.liters.toLocaleString()}{unit}</td>
                       <td className="py-3 font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(e.totalCost)}</td>
                       <td className="py-3 font-medium text-slate-500 truncate max-w-[150px]">{e.stationName}</td>
                       <td className="py-3 font-medium text-slate-500">{branches.find(b => b.id === e.branchId)?.name || '-'}</td>

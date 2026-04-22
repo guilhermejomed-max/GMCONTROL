@@ -387,6 +387,7 @@ export interface ServiceOrder {
   serviceType?: 'INTERNAL' | 'EXTERNAL' | 'BOTH'; // Updated: Internal, External or Both
   providerName?: string; // New: Provider name
   externalServiceCost?: number; // New: External service cost
+  occurrenceId?: string; // Link to the original Occurrence
   date?: string; // Data da O.S. (pode ser diferente de createdAt)
   createdBy: string;
   createdAt: string;
@@ -537,11 +538,26 @@ export interface Occurrence {
   reasonId: string;
   reasonName: string;
   description?: string;
+  responsibleSector?: string; // Changed from fixed enum to dynamic string from ServiceSector
+  responsibleSectorId?: string; // Store ID as well for better linking
   status: 'OPEN' | 'RESOLVED';
   createdAt: string;
   resolvedAt?: string;
   userId: string;
   userName: string;
+  branchId?: string;
+  driverPhone?: string;
+  photoUrls?: string[];
+  externalCost?: number;
+  paymentMethod?: string;
+  paymentMethodId?: string;
+  linkedServiceOrderId?: string;
+  linkedServiceOrderNumber?: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
   branchId?: string;
 }
 
@@ -552,6 +568,7 @@ export interface FuelStation {
   address?: string;
   city?: string;
   state?: string;
+  fuelTypes?: string[];
   branchId?: string;
   createdAt: string;
 }
@@ -564,9 +581,11 @@ export interface FuelEntry {
   odometer: number;
   litrometro?: number; // Litrômetro no momento do abastecimento
   liters: number;
+  kg?: number; // Added for Gas fueling
   unitPrice: number;
   totalCost: number;
   fuelType: string;
+  category?: 'LIQUID' | 'GAS'; // Added category
   stationName?: string;
   stationCnpj?: string;
   driverId?: string;
@@ -588,7 +607,7 @@ export interface ServiceSector {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'classification-sector';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

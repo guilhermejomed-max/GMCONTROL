@@ -6,7 +6,7 @@ import {
   Package, DollarSign, UserCircle, Tag, Box, Info, ScanLine
 } from 'lucide-react';
 import { Scanner } from './Scanner';
-import { ServiceOrder, Vehicle, Branch, Collaborator, Partner, Driver, StockItem } from '../types';
+import { ServiceOrder, Vehicle, Branch, Collaborator, Partner, Driver, StockItem, Occurrence } from '../types';
 
 interface ServiceOrderOpeningProps {
   isOpen: boolean;
@@ -20,10 +20,13 @@ interface ServiceOrderOpeningProps {
   stockItems: StockItem[];
   settings?: any;
   defaultBranchId?: string;
+  occurrenceId?: string; // Passed from URL/modal
+  vehicleId?: string; // Passed from URL/modal
   nextOrderNumber: number;
   classifications?: any[];
   sectors?: any[];
   currentUser?: { name?: string; email?: string };
+  occurrences?: Occurrence[];
 }
 
 export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
@@ -38,10 +41,13 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
   stockItems,
   settings,
   defaultBranchId,
+  occurrenceId,
+  vehicleId,
   nextOrderNumber,
   classifications = [],
   sectors = [],
-  currentUser
+  currentUser,
+  occurrences = []
 }) => {
   const [formData, setFormData] = useState<Partial<ServiceOrder>>({
     branchId: defaultBranchId || '',
@@ -61,8 +67,9 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
     axles: [],
     details: '',
     title: '',
-    vehicleId: '',
-    vehiclePlate: '',
+    vehicleId: vehicleId || '',
+    occurrenceId: occurrenceId || '',
+    vehiclePlate: vehicleId ? vehicles.find(v => v.id === vehicleId)?.plate || '' : '',
     odometer: 0,
     indisponibilidade: 'Não',
     supplierName: '',
@@ -89,6 +96,26 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [showVehicleList, setShowVehicleList] = useState(false);
   const vehicleDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (occurrenceId && occurrences.length > 0) {
+      const occ = occurrences.find(o => o.id === occurrenceId);
+      if (occ) {
+        setFormData(prev => ({
+          ...prev,
+          title: occ.reasonName,
+          details: occ.description || '',
+          vehicleId: occ.vehicleId,
+          vehiclePlate: occ.vehiclePlate,
+          occurrenceId: occ.id,
+          sectorId: occ.responsibleSectorId || '',
+          sectorName: occ.responsibleSector || '',
+          branchId: occ.branchId || prev.branchId
+        }));
+        setVehicleSearch(occ.vehiclePlate);
+      }
+    }
+  }, [occurrenceId, occurrences, isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -391,22 +418,22 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 12: Setor */}
+          {/* Row 12: Tipos de serviço */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Setor :</label>
+              <label className={labelClass}>Tipos de serviço :</label>
               <select 
                 name="sectorId" 
                 className={inputClass} 
                 value={formData.sectorId || ''} 
                 onChange={(e) => {
-                  const sector = sectors.find(s => s.id === e.target.value);
-                  setFormData(prev => ({ ...prev, sectorId: e.target.value, sectorName: sector?.name }));
+                  const sType = (settings?.serviceTypes || []).find((s: any) => s.id === e.target.value);
+                  setFormData(prev => ({ ...prev, sectorId: e.target.value, sectorName: sType?.name }));
                 }}
               >
-                <option value="">Selecione o Setor...</option>
-                {sectors.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                <option value="">Selecione...</option>
+                {(settings?.serviceTypes || []).map((st: any) => (
+                  <option key={st.id} value={st.id}>{st.name}</option>
                 ))}
               </select>
             </div>

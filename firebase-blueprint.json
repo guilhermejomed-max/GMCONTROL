@@ -458,6 +458,17 @@
         "createdBy": { "type": "string" }
       },
       "required": ["id", "category", "description", "amount", "date", "status", "createdAt", "createdBy"]
+    },
+    "PaymentMethod": {
+      "title": "PaymentMethod",
+      "description": "Payment methods for occurrences",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "branchId": { "type": "string" }
+      },
+      "required": ["id", "name"]
     }
   },
   "firestore": {
@@ -576,6 +587,10 @@
     "/financial_records/{id}": {
       "schema": "FinancialRecord",
       "description": "Financial records"
+    },
+    "/payment_methods/{id}": {
+      "schema": "PaymentMethod",
+      "description": "Payment methods"
     },
     "/branches/{id}": {
       "schema": "Branch",
