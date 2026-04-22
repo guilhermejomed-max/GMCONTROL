@@ -3,8 +3,29 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper functions
-    function isAuthed() {
+    function isSignedIn() {
       return request.auth != null && request.auth.uid != null;
+    }
+
+    function isVerified() {
+      // Allowing isSignedIn to pass as verified temporarily since the main admin account (gui@gmail.com) is not email-verified.
+      return isSignedIn(); 
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     // Allow server-side operations (service account)
@@ -13,7 +34,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthed() && (
+      return isSignedIn() && (
         request.auth.uid == "tnfDueAojpU7PJThDm6VAT1jRRA3" ||
         request.auth.token.email == "guilherme.jomed@gmail.com" ||
         request.auth.token.email == "gui@gmail.com" ||
@@ -30,7 +51,7 @@ service cloud.firestore {
     }
 
     function hasModuleAccess(module) {
-      return isServer() || isAdmin() || (isAuthed() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "FINANCIAL"]));
+      return isServer() || isAdmin() || (isSignedIn() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "FINANCIAL"]));
     }
 
     function getRole() {
@@ -39,8 +60,8 @@ service cloud.firestore {
 
     // --- USERS COLLECTION ---
     match /users/{userId} {
-      allow read: if isAuthed() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAuthed() && (request.auth.uid == userId || isAdmin());
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isVerified() && (request.auth.uid == userId || isAdmin());
     }
 
     // Validation Helpers
@@ -72,12 +93,12 @@ service cloud.firestore {
       allow write: if hasModuleAccess("TIRES");
     }
     match /retreaders/{id} {
-      allow read: if isAuthed();
-      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || (isVerified() && getRole() in ["SENIOR", "PLENO", "CREATOR"]);
     }
     match /tread_patterns/{id} {
-      allow read: if isAuthed();
-      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || (isVerified() && getRole() in ["SENIOR", "PLENO", "CREATOR"]);
     }
     match /tire_loans/{id} {
       allow read: if hasModuleAccess("TIRES");
@@ -96,19 +117,19 @@ service cloud.firestore {
       allow write: if hasModuleAccess("VEHICLES") && isValidVehicle(request.resource.data);
     }
     match /vehicleBrandModels/{id} {
-      allow read: if isAuthed();
-      allow write: if hasModuleAccess("VEHICLES");
+      allow read: if isSignedIn();
+      allow write: if isVerified() && hasModuleAccess("VEHICLES");
     }
     match /vehicleTypes/{id} {
-      allow read: if isAuthed();
-      allow write: if hasModuleAccess("VEHICLES");
+      allow read: if isSignedIn();
+      allow write: if isVerified() && hasModuleAccess("VEHICLES");
     }
     match /drivers/{id} {
       allow read: if hasModuleAccess("VEHICLES");
       allow write: if hasModuleAccess("VEHICLES");
     }
     match /collaborators/{id} { 
-      allow read: if hasModuleAccess("VEHICLES") || hasModuleAccess("MECHANICAL"); 
+      allow read: if isSignedIn(); 
       allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"]; 
     }
     match /arrival_alerts/{id} {
@@ -116,11 +137,11 @@ service cloud.firestore {
       allow write: if hasModuleAccess("VEHICLES");
     }
     match /occurrences/{id} {
-      allow read: if hasModuleAccess("VEHICLES");
-      allow write, delete: if hasModuleAccess("VEHICLES");
+      allow read, write: if hasModuleAccess("VEHICLES");
     }
     match /occurrence_reasons/{id} {
-      allow read, write: if isAuthed();
+      allow read: if isSignedIn();
+      allow write: if isVerified();
     }
 
     // --- MECHANICAL MODULE ---
@@ -137,22 +158,24 @@ service cloud.firestore {
       allow write: if hasModuleAccess("MECHANICAL");
     }
     match /sectors/{id} {
-      allow read: if isAuthed();
-      allow write: if hasModuleAccess("MECHANICAL");
+      allow read: if isSignedIn();
+      allow write, delete: if isVerified() && hasModuleAccess("MECHANICAL");
     }
     match /classifications/{id} {
-      allow read: if isAuthed();
-      allow write: if hasModuleAccess("MECHANICAL");
+      allow read: if isSignedIn();
+      allow write, delete: if isVerified() && hasModuleAccess("MECHANICAL");
     }
     match /partners/{id} {
-      allow read: if isAuthed();
-      allow write: if isAdmin() || getRole() in ["SENIOR", "PLENO", "CREATOR"];
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || (isVerified() && getRole() in ["SENIOR", "PLENO", "CREATOR"]);
     }
     match /stock_items/{id} {
-      allow read, write: if isAuthed();
+      allow read: if isSignedIn();
+      allow write: if isVerified();
     }
     match /stock_movements/{id} {
-      allow read, write: if isAuthed();
+      allow read: if isSignedIn();
+      allow write: if isVerified();
     }
 
     // --- FUEL MODULE ---
@@ -165,19 +188,30 @@ service cloud.firestore {
       allow write: if hasModuleAccess("FUEL"); 
     }
     match /fuelTypes/{id} { 
-      allow read: if isAuthed(); 
-      allow write: if hasModuleAccess("FUEL"); 
+      allow read: if isSignedIn(); 
+      allow write: if isVerified() && hasModuleAccess("FUEL"); 
     }
 
     // --- FINANCIAL MODULE ---
     match /financial_records/{id} {
-      allow read, write: if isAuthed();
+      allow read, write: if isVerified();
+    }
+
+    // --- PAYMENT METHODS ---
+    function isValidPaymentMethod(data) {
+      return hasFields(data, ['id', 'name']) &&
+             isValidString(data.name, 1, 100);
+    }
+
+    match /payment_methods/{id} {
+      allow read: if isSignedIn();
+      allow write: if isVerified() && isValidPaymentMethod(request.resource.data);
     }
 
     // --- SYSTEM ---
-    match /system_logs/{id} { allow read: if isAdmin(); allow create: if isAuthed(); }
-    match /settings/{id} { allow read: if isAuthed(); allow write: if isAdmin() || getRole() in ["SENIOR", "CREATOR"]; }
-    match /branches/{id} { allow read: if isAuthed(); allow write: if isAdmin() || getRole() in ["SENIOR", "CREATOR"]; }
+    match /system_logs/{id} { allow read: if isAdmin(); allow create: if isSignedIn(); }
+    match /settings/{id} { allow read: if isSignedIn(); allow write: if isAdmin() || (isVerified() && getRole() in ["SENIOR", "CREATOR"]); }
+    match /branches/{id} { allow read: if isSignedIn(); allow write: if isAdmin() || (isVerified() && getRole() in ["SENIOR", "CREATOR"]); }
 
     // Default deny
     match /{document=**} {
