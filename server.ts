@@ -469,7 +469,6 @@ async function runSascarAutomation() {
                 const rawLng = pos.longitude ?? 0;
                 
                 const odometerKm = pos.odometroExato ? parseSascarNumber(pos.odometroExato) / 1000 : parseSascarNumber(pos.odometro ?? 0);
-                const litrometroLiters = (pos.consumoTotal !== undefined && pos.consumoTotal !== null) ? parseSascarNumber(pos.consumoTotal) / 1000 : parseSascarNumber(pos.litrometro ?? 0);
                 const rawInstantaneo = parseSascarNumber(pos.consumoInstantaneo || 0);
                 
                 const speed = pos.velocidade ?? 0;
@@ -477,8 +476,6 @@ async function runSascarAutomation() {
 
                 const updateData: any = {
                     odometer: odometerKm,
-                    litrometro: litrometroLiters,
-                    exactKmPerLiter: litrometroLiters > 0 ? odometerKm / litrometroLiters : undefined,
                     speed: Number(speed),
                     ignition: ignition,
                     consumoInstantaneo: rawInstantaneo,
@@ -974,18 +971,16 @@ async function startServer() {
           const rawLat = v.latitude ?? 0;
           const rawLng = v.longitude ?? 0;
           
-          // Log raw values for debugging fuel consumption issues
+          // Log raw values for debugging issues
           if (v.placa === 'BSX3G15' || v.idVeiculo === 'BSX3G15') {
-            console.log(`[Sascar Debug] Veículo BSX3G15 | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoTotal=${v.consumoTotal}, litrometro=${v.litrometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
+            console.log(`[Sascar Debug] Veículo BSX3G15 | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
           }
           if (index < 5) {
-            logToFile(`[Sascar Debug] Veículo ${v.placa || v.idVeiculo} | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoTotal=${v.consumoTotal}, litrometro=${v.litrometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
+            logToFile(`[Sascar Debug] Veículo ${v.placa || v.idVeiculo} | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
           }
 
           // Sascar: odometroExato is in meters, odometro is in km.
-          // consumoTotal is usually in milliliters.
           const odometerKm = v.odometroExato ? parseSascarNumber(v.odometroExato) / 1000 : parseSascarNumber(v.odometro ?? 0);
-          const litrometroLiters = (v.consumoTotal !== undefined && v.consumoTotal !== null) ? parseSascarNumber(v.consumoTotal) / 1000 : parseSascarNumber(v.litrometro ?? 0);
           const rawInstantaneo = parseSascarNumber(v.consumoInstantaneo || 0);
 
           const speed = Number(v.velocidade ?? 0);
@@ -1000,8 +995,6 @@ async function startServer() {
               latitude: Number(rawLat),
               longitude: Number(rawLng),
               odometer: odometerKm,
-              litrometro: litrometroLiters,
-              exactKmPerLiter: litrometroLiters > 0 ? odometerKm / litrometroLiters : undefined,
               speed: speed,
               ignition: ignition,
               consumoInstantaneo: rawInstantaneo,

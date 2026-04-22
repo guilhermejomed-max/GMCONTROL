@@ -35,18 +35,14 @@ async function run() {
   console.log("Fetching obterUltimaPosicaoTodosVeiculos...");
   const res1 = await fetchSoap('obterUltimaPosicaoTodosVeiculos', '');
   if (res1) {
-    const match = res1.match(/<litrometro2>(.*?)<\/litrometro2>/);
     const match2 = res1.match(/<consumoCombustivel>(.*?)<\/consumoCombustivel>/);
-    console.log("obterUltimaPosicaoTodosVeiculos litrometro2:", match ? match[1] : "not found");
     console.log("obterUltimaPosicaoTodosVeiculos consumoCombustivel:", match2 ? match2[1] : "not found");
   }
 
   console.log("Fetching obterPacotePosicoesComPlaca...");
   const res2 = await fetchSoap('obterPacotePosicoesComPlaca', '<quantidade>10</quantidade>');
   if (res2) {
-    const match = res2.match(/<litrometro2>(.*?)<\/litrometro2>/);
     const match2 = res2.match(/<consumoCombustivel>(.*?)<\/consumoCombustivel>/);
-    console.log("obterPacotePosicoesComPlaca litrometro2:", match ? match[1] : "not found");
     console.log("obterPacotePosicoesComPlaca consumoCombustivel:", match2 ? match2[1] : "not found");
   }
 

@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth, storage } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod, WasteType, WasteDisposal } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -1921,7 +1921,7 @@ export const storageService = {
     }
   },
 
-  addSector: async (orgId: string, data: Omit<ServiceSector, 'id'>) => {
+  addSector: async (orgId: string, data: { id?: string, name: string }) => {
     const id = Date.now().toString();
     const item = { ...data, id };
     if (mockUser || !db) { LocalDB.add(`sectors`, item); return; }
@@ -2071,6 +2071,62 @@ export const storageService = {
   },
 
   // Helper para comprimir imagem antes do upload
+  subscribeToWasteTypes: (orgId: string, callback: (types: WasteType[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`waste_types`, callback, []);
+    return db.collection("waste_types").onSnapshot((snapshot) => {
+      const types: WasteType[] = [];
+      snapshot.forEach((doc) => types.push({ ...doc.data(), id: doc.id } as WasteType));
+      callback(types);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "waste_types"));
+  },
+
+  addWasteType: async (orgId: string, data: Omit<WasteType, 'id'>) => {
+    const id = Date.now().toString();
+    const item = { ...data, id };
+    if (mockUser || !db) { LocalDB.add(`waste_types`, item); return; }
+    try {
+      await db.collection("waste_types").doc(id).set(sanitize(item));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `waste_types/${id}`);
+    }
+  },
+
+  deleteWasteType: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`waste_types`, id); return; }
+    try {
+      await db.collection("waste_types").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `waste_types/${id}`);
+    }
+  },
+
+  subscribeToWasteDisposals: (orgId: string, callback: (disposals: WasteDisposal[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`waste_disposals`, (data) => callback(data.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())), []);
+    return db.collection("waste_disposals").orderBy("date", "desc").onSnapshot((snapshot) => {
+      const disposals: WasteDisposal[] = [];
+      snapshot.forEach((doc) => disposals.push({ ...doc.data(), id: doc.id } as WasteDisposal));
+      callback(disposals);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "waste_disposals"));
+  },
+
+  addWasteDisposal: async (orgId: string, disposal: WasteDisposal) => {
+    if (mockUser || !db) { LocalDB.add(`waste_disposals`, disposal); return; }
+    try {
+      await db.collection("waste_disposals").doc(disposal.id).set(sanitize(disposal));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `waste_disposals/${disposal.id}`);
+    }
+  },
+
+  deleteWasteDisposal: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`waste_disposals`, id); return; }
+    try {
+      await db.collection("waste_disposals").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `waste_disposals/${id}`);
+    }
+  },
+
   compressImage: async (file: File): Promise<Blob | File> => {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -2149,6 +2205,37 @@ export const storageService = {
         return downloadUrl;
     } catch (error: any) {
         console.warn("[StorageService] Falha no upload real, usando fallback local imediato.");
+        return await getFallbackDataUrl(file);
+    }
+  },
+
+  uploadFile: async (path: string, file: File): Promise<string> => {
+    const getFallbackDataUrl = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+        });
+    };
+
+    if (mockUser || !storage) {
+        return await getFallbackDataUrl(file);
+    }
+    
+    try {
+        const fileRef = storage.ref().child(path);
+        const TIMEOUT_MS = 20000;
+        const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error(`Timeout de ${TIMEOUT_MS/1000}s`)), TIMEOUT_MS)
+        );
+
+        const uploadTask = fileRef.put(file);
+        await Promise.race([uploadTask, timeoutPromise]);
+        
+        const downloadUrl = await fileRef.getDownloadURL();
+        return downloadUrl;
+    } catch (error: any) {
+        console.warn("[StorageService] Falha no upload de arquivo, usando fallback local.");
         return await getFallbackDataUrl(file);
     }
   }

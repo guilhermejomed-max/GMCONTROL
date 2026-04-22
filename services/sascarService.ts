@@ -157,7 +157,6 @@ export const sascarService = {
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
                 odometer: v.odometro ? parseFloat(v.odometro) : 0,
-                totalFuelConsumed: v.litrometro !== undefined && v.litrometro !== null ? parseFloat(v.litrometro) : (v.litrometro2 !== undefined && v.litrometro2 !== null ? parseFloat(v.litrometro2) : (v.consumoCombustivel !== undefined && v.consumoCombustivel !== null ? parseFloat(v.consumoCombustivel) : 0)),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {
@@ -228,7 +227,6 @@ export const sascarService = {
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
                 odometer: v.odometro ? parseFloat(v.odometro) : 0,
-                totalFuelConsumed: v.litrometro !== undefined && v.litrometro !== null ? parseFloat(v.litrometro) : (v.litrometro2 !== undefined && v.litrometro2 !== null ? parseFloat(v.litrometro2) : (v.consumoCombustivel !== undefined && v.consumoCombustivel !== null ? parseFloat(v.consumoCombustivel) : 0)),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {

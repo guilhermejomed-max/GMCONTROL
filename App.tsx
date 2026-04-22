@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { WasteManagement } from './components/WasteManagement';
 import { PartnerManager } from './components/PartnerManager';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
@@ -400,12 +401,10 @@ export const App = () => {
     if (!user || activeModule !== 'MECHANICAL') return;
     const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
     const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
-    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
     
     return () => {
         unsubMaintenancePlans();
         unsubPartners();
-        unsubCollaborators();
     };
   }, [user, activeModule]);
 
@@ -426,12 +425,14 @@ export const App = () => {
     const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
     const unsubOccurrenceReasons = storageService.subscribeToOccurrenceReasons(orgId, setOccurrenceReasons);
     const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
+    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
     
     return () => {
         unsubArrivalAlerts();
         unsubDrivers();
         unsubOccurrenceReasons();
         unsubOccurrences();
+        unsubCollaborators();
     };
   }, [user, activeModule, currentTab]);
 
@@ -998,6 +999,7 @@ export const App = () => {
       case 'brand-models': return 'Marcas e Modelos';
       case 'location': return 'Rastreamento';
       case 'service-orders': return 'Oficina';
+      case 'waste-disposal': return 'Descarte de Resíduos';
       case 'service': return 'Almoxarifado';
       case 'settings': return 'Configurações';
       case 'drivers': return 'Motoristas';
@@ -1041,11 +1043,6 @@ export const App = () => {
 
         if (entry.odometer > (vehicle.odometer || 0)) {
           updatedVehicle.odometer = entry.odometer;
-          needsUpdate = true;
-        }
-
-        if (entry.litrometro && entry.litrometro > (vehicle.totalFuelConsumed || 0)) {
-          updatedVehicle.totalFuelConsumed = entry.litrometro;
           needsUpdate = true;
         }
 
@@ -1647,6 +1644,13 @@ export const App = () => {
               />
             )}
             {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} items={stockItems} />}
+            {currentTab === 'waste-disposal' && allowedModules.includes('MECHANICAL') && (
+              <WasteManagement 
+                orgId={orgId} 
+                partners={partners} 
+                collaborators={collaborators} 
+              />
+            )}
             {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance' || currentTab === 'reports-fuel') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
               <ReportsHub 
                 tires={tires} 

@@ -137,11 +137,11 @@ service cloud.firestore {
       allow write: if hasModuleAccess("VEHICLES");
     }
     match /occurrences/{id} {
-      allow read, write: if hasModuleAccess("VEHICLES");
+      allow read, create, update, delete: if hasModuleAccess("VEHICLES");
     }
     match /occurrence_reasons/{id} {
       allow read: if isSignedIn();
-      allow write: if isVerified();
+      allow write, delete: if isVerified();
     }
 
     // --- MECHANICAL MODULE ---
@@ -206,6 +206,16 @@ service cloud.firestore {
     match /payment_methods/{id} {
       allow read: if isSignedIn();
       allow write: if isVerified() && isValidPaymentMethod(request.resource.data);
+    }
+
+    // --- WASTE MANAGEMENT ---
+    match /waste_types/{id} {
+      allow read: if isSignedIn();
+      allow write: if isVerified() && hasModuleAccess("MECHANICAL");
+    }
+    match /waste_disposals/{id} {
+      allow read: if hasModuleAccess("MECHANICAL");
+      allow write: if hasModuleAccess("MECHANICAL");
     }
 
     // --- SYSTEM ---

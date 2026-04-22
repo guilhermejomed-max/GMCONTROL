@@ -200,7 +200,6 @@ export interface Vehicle {
   speed?: number;
   ignition?: boolean;
   consumoInstantaneo?: number;
-  totalFuelConsumed?: number; // Litrômetro (consumo total acumulado)
   brand?: string;
   engine?: string;
   transmission?: string;
@@ -579,7 +578,6 @@ export interface FuelEntry {
   vehiclePlate: string;
   date: string;
   odometer: number;
-  litrometro?: number; // Litrômetro no momento do abastecimento
   liters: number;
   kg?: number; // Added for Gas fueling
   unitPrice: number;
@@ -607,7 +605,7 @@ export interface ServiceSector {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector' | 'waste-disposal';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -634,4 +632,31 @@ export interface FinancialRecord {
   relatedId?: string; // ID da OS, Abastecimento, etc.
   createdAt: string;
   createdBy: string;
+}
+
+export type WasteUnit = 'KG' | 'LITERS' | 'UNITS' | 'METERS';
+
+export interface WasteType {
+  id: string;
+  name: string;
+  unit: WasteUnit;
+  description?: string;
+}
+
+export interface WasteDisposal {
+  id: string;
+  wasteTypeId: string;
+  wasteTypeName: string;
+  quantity: number;
+  unit: WasteUnit;
+  date: string;
+  responsibleId: string;
+  responsibleName: string;
+  partnerId: string; // Partner receiving the waste
+  partnerName: string;
+  notes?: string;
+  certificateNumber?: string; // MTR or similar
+  cost?: number; // Cost of disposal
+  attachmentUrl?: string;
+  createdAt: string;
 }

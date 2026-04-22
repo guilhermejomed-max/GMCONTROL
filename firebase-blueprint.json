@@ -469,6 +469,41 @@
         "branchId": { "type": "string" }
       },
       "required": ["id", "name"]
+    },
+    "WasteType": {
+      "title": "WasteType",
+      "description": "Types of waste generated in the workshop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "unit": { "type": "string", "enum": ["KG", "LITERS", "UNITS", "METERS"] },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "name", "unit"]
+    },
+    "WasteDisposal": {
+      "title": "WasteDisposal",
+      "description": "Waste disposal transaction records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "wasteTypeId": { "type": "string" },
+        "wasteTypeName": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "responsibleId": { "type": "string" },
+        "responsibleName": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "partnerName": { "type": "string" },
+        "notes": { "type": "string" },
+        "certificateNumber": { "type": "string" },
+        "cost": { "type": "number" },
+        "attachmentUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "wasteTypeId", "quantity", "unit", "date", "responsibleId", "partnerId", "createdAt"]
     }
   },
   "firestore": {
@@ -591,6 +626,14 @@
     "/payment_methods/{id}": {
       "schema": "PaymentMethod",
       "description": "Payment methods"
+    },
+    "/waste_types/{id}": {
+      "schema": "WasteType",
+      "description": "Waste types"
+    },
+    "/waste_disposals/{id}": {
+      "schema": "WasteDisposal",
+      "description": "Waste disposal transactions"
     },
     "/branches/{id}": {
       "schema": "Branch",
