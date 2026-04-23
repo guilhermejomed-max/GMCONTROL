@@ -82,7 +82,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'partners', label: 'Parceiros/Fornecedores', icon: Users, modules: ['MECHANICAL', 'TIRES'] },
 
     // --- COMPARTILHADOS ---
-    { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'SETTINGS', 'FINANCIAL'] }
+    { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'] }
   ];
 
   const menuItems = allMenuItems.filter(item => {
@@ -99,17 +99,13 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return <Disc className="h-4 w-4 text-white" />;
     if (mod === 'VEHICLES') return <Truck className="h-4 w-4 text-white" />;
     if (mod === 'FUEL') return <Fuel className="h-4 w-4 text-white" />;
-    if (mod === 'FINANCIAL') return <DollarSign className="h-4 w-4 text-white" />;
-    if (mod === 'SETTINGS') return <Settings className="h-4 w-4 text-white" />;
-    return <Package className="h-4 w-4 text-white" />;
+    return <Wrench className="h-4 w-4 text-white" />;
   };
 
   const getModuleLabelFor = (mod: ModuleType) => {
     if (mod === 'TIRES') return 'Pneus';
-    if (mod === 'VEHICLES') return 'Veículos';
+    if (mod === 'VEHICLES') return 'Veículo';
     if (mod === 'FUEL') return 'Abastecimento';
-    if (mod === 'FINANCIAL') return 'Financeiro';
-    if (mod === 'SETTINGS') return 'Configurações';
     return 'Oficina';
   };
 
@@ -117,8 +113,6 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return 'bg-blue-600';
     if (mod === 'VEHICLES') return 'bg-emerald-600';
     if (mod === 'FUEL') return 'bg-amber-600';
-    if (mod === 'FINANCIAL') return 'bg-indigo-600';
-    if (mod === 'SETTINGS') return 'bg-slate-600';
     return 'bg-orange-600';
   };
 
