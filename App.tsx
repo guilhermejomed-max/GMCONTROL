@@ -1048,6 +1048,18 @@ export const App = () => {
     }
   };
 
+  const handleUpdateUserPhoto = async (base64: string) => {
+    if (!user?.uid) return;
+    try {
+      await storageService.updateTeamMember(orgId, user.uid, { photoUrl: base64 });
+      setUser(prev => ({ ...prev, photoUrl: base64 }));
+      addToast('success', 'Perfil Atualizado', 'Sua foto de perfil foi alterada com sucesso.');
+    } catch (error) {
+      console.error(error);
+      addToast('error', 'Erro', 'Não foi possível atualizar sua foto.');
+    }
+  };
+
   if (loadingAuth) {
       return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><Loader2 className="h-10 w-10 text-blue-500 animate-spin" /></div>;
   }
@@ -1332,7 +1344,9 @@ export const App = () => {
           onExportData={() => {}}
           onImportData={() => {}}
           userLevel={userRole}
-          userName={user.displayName || user.email || 'Usuário'}
+          userName={user.displayName || user.name || user.email || 'Usuário'}
+          userPhotoUrl={user.photoUrl}
+          onUpdatePhoto={handleUpdateUserPhoto}
           settings={settings}
           activeModule={activeModule}
           allowedModules={allowedModules}
