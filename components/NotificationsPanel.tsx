@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Tire, SystemSettings, Vehicle, ArrivalAlert, MaintenanceSchedule, MaintenancePlan } from '../types';
-import { X, MapPin, CheckCircle2, Clock, Trash2, Bell, Wrench, CalendarClock, AlertTriangle, Gauge, Disc } from 'lucide-react';
+import { Tire, SystemSettings, Vehicle, ArrivalAlert, MaintenanceSchedule, MaintenancePlan, AppNotification } from '../types';
+import { X, MapPin, CheckCircle2, Clock, Trash2, Bell, Wrench, CalendarClock, AlertTriangle, Gauge, Disc, User } from 'lucide-react';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
@@ -14,7 +14,9 @@ interface NotificationsPanelProps {
   arrivalAlerts: ArrivalAlert[];
   maintenanceSchedules?: MaintenanceSchedule[];
   maintenancePlans?: MaintenancePlan[];
+  notifications?: AppNotification[];
   onDeleteAlert?: (id: string) => Promise<void>;
+  onMarkRead?: (id: string) => Promise<void>;
   onDeleteAllAlerts?: () => Promise<void>;
 }
 
@@ -29,7 +31,9 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   arrivalAlerts: allArrivalAlerts, 
   maintenanceSchedules: allMaintenanceSchedules = [], 
   maintenancePlans = [], 
+  notifications: allNotifications = [],
   onDeleteAlert, 
+  onMarkRead,
   onDeleteAllAlerts 
 }) => {
   const tires = useMemo(() => {
@@ -109,6 +113,10 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     return arrivalAlerts.filter(alert => !dismissedIds.has(alert.id) && alert.status === 'ARRIVED');
   }, [arrivalAlerts, dismissedIds]);
 
+  const unreadNotifications = useMemo(() => {
+    return allNotifications.filter(n => !n.read && !dismissedIds.has(n.id));
+  }, [allNotifications, dismissedIds]);
+
   const dismissNotification = (id: string) => {
     setDismissedIds(prev => new Set(prev).add(id));
   };
@@ -121,7 +129,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     });
   };
 
-  const totalAlerts = visibleMaintenance.length + visibleTires.length + visibleArrivals.length;
+  const totalAlerts = visibleMaintenance.length + visibleTires.length + visibleArrivals.length + unreadNotifications.length;
 
   if (!isOpen) return null;
 
@@ -224,6 +232,39 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Destino: <span className="font-semibold">{alert.targetName}</span></p>
                 </div>
                 <button onClick={() => dismissNotification(alert.id)} className="text-slate-300 hover:text-slate-500"><X className="h-4 w-4"/></button>
+              </div>
+            )}
+          </NotificationGroup>
+
+          {/* SYSTEM MENTIONS */}
+          <NotificationGroup title="Menções e Equipe" items={unreadNotifications}>
+            {(note: AppNotification) => (
+              <div 
+                key={note.id} 
+                className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-sm flex items-start gap-3 relative group transition-all hover:shadow-md cursor-pointer hover:bg-blue-50/30 dark:hover:bg-blue-900/10"
+                onClick={() => onMarkRead?.(note.id)}
+              >
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                <div className="p-2 rounded-xl shrink-0 bg-blue-50 dark:bg-blue-900/20 text-blue-600">
+                  <User className="h-5 w-5"/>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-slate-800 dark:text-white text-sm">{note.senderName}</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 font-medium">{note.text}</p>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    {new Date(note.createdAt).toLocaleDateString('pt-BR')} às {new Date(note.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <button 
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     onMarkRead?.(note.id);
+                   }} 
+                   className="text-slate-300 hover:text-blue-500"
+                   title="Marcar como lida"
+                >
+                  <CheckCircle2 className="h-4 w-4"/>
+                </button>
               </div>
             )}
           </NotificationGroup>

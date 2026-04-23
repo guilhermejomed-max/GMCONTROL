@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   AlertTriangle, 
   Plus, 
@@ -18,7 +18,13 @@ import {
   Camera,
   Image as ImageIcon,
   Upload,
-  Loader
+  Loader,
+  MessageSquare,
+  History,
+  Building2,
+  Save,
+  Send,
+  Smile
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { Occurrence, OccurrenceReason, Vehicle, TeamMember, ServiceSector, Driver } from '../types';
@@ -33,10 +39,38 @@ interface OccurrencesProps {
   reasons: OccurrenceReason[];
   sectors: ServiceSector[];
   drivers: Driver[];
+  collaborators: import('../types').Collaborator[];
+  teamMembers?: TeamMember[];
   paymentMethods: import('../types').PaymentMethod[];
+  userLevel?: string;
   onGenerateOS: (occurrenceId: string, vehicleId: string) => void;
   onNotification?: (type: 'success' | 'error' | 'info', title: string, message: string) => void;
 }
+
+const TREATMENT_SUGGESTIONS = [
+  'Acionando Guincho especializado',
+  'Mecânico em deslocamento para o local',
+  'Em atendimento mecânico no local',
+  'Veículo se deslocando para oficina própria',
+  'Veículo se deslocando para oficina credenciada',
+  'Aguardando orçamento de peças',
+  'Aguardando aprovação de serviço',
+  'Pneu trocado no local',
+  'Problema elétrico resolvido',
+  'Motorista orientado sobre procedimento',
+  'Célula de carga verificada',
+  'Sistema de ar revisado'
+];
+
+const REJECTION_REASONS = [
+  'Setor Responsável Incorreto',
+  'Falta de Ferramental no Local',
+  'Peça Indisponível no Estoque',
+  'Necessário envio para Oficina Externa',
+  'Atendimento já realizado por outro setor',
+  'Dados da Ocorrência Insuficientes',
+  'Motorista não localizado'
+];
 
 export const Occurrences: React.FC<OccurrencesProps> = ({ 
   orgId, 
@@ -46,7 +80,10 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   reasons, 
   sectors, 
   drivers, 
+  collaborators,
+  teamMembers = [],
   paymentMethods,
+  userLevel = 'VIEWER',
   onGenerateOS,
   onNotification
 }) => {
@@ -62,6 +99,26 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
   const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(null);
   const [editingReason, setEditingReason] = useState<OccurrenceReason | null>(null);
+  const [selectedOccurrenceForDetails, setSelectedOccurrenceForDetails] = useState<Occurrence | null>(null);
+  const [selectedOccurrenceForTreatment, setSelectedOccurrenceForTreatment] = useState<Occurrence | null>(null);
+  const [selectedOccurrenceForRejection, setSelectedOccurrenceForRejection] = useState<Occurrence | null>(null);
+  const [customTreatment, setCustomTreatment] = useState('');
+  
+  // Chat state
+  const [chatMessage, setChatMessage] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Generic Mentions state
+  const [mentionTargetField, setMentionTargetField] = useState<'treatment' | 'description' | 'chat' | null>(null);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+
+  // Rejection form states
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [redirectSectorId, setRedirectSectorId] = useState('');
+  const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
   // Form states
   const [occurrenceForm, setOccurrenceForm] = useState<{
@@ -70,6 +127,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
     description: string;
     responsibleSector: string;
     responsibleSectorId: string;
+    assignedUserId: string;
+    assignedUserName: string;
     driverPhone: string;
     photoUrls: string[];
     externalCost: string;
@@ -80,6 +139,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
     description: '',
     responsibleSector: '',
     responsibleSectorId: '',
+    assignedUserId: '',
+    assignedUserName: '',
     driverPhone: '',
     photoUrls: [],
     externalCost: '',
@@ -101,6 +162,22 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
     setVehicles(initialVehicles);
   }, [initialVehicles]);
 
+  // Deriving the selected occurrence from the live occurrences array to ensure data is always fresh
+  const currentOccurrenceDetail = useMemo(() => {
+    if (!selectedOccurrenceForDetails) return null;
+    return occurrences.find(o => o.id === selectedOccurrenceForDetails.id) || selectedOccurrenceForDetails;
+  }, [occurrences, selectedOccurrenceForDetails]);
+
+  const currentOccurrenceForTreatment = useMemo(() => {
+    if (!selectedOccurrenceForTreatment) return null;
+    return occurrences.find(o => o.id === selectedOccurrenceForTreatment.id) || selectedOccurrenceForTreatment;
+  }, [occurrences, selectedOccurrenceForTreatment]);
+
+  const currentOccurrenceForRejection = useMemo(() => {
+    if (!selectedOccurrenceForRejection) return null;
+    return occurrences.find(o => o.id === selectedOccurrenceForRejection.id) || selectedOccurrenceForRejection;
+  }, [occurrences, selectedOccurrenceForRejection]);
+
   const handleAddOccurrence = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedVehicle = vehicles.find(v => v.id === occurrenceForm.vehicleId);
@@ -118,6 +195,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
             description: occurrenceForm.description,
             responsibleSector: occurrenceForm.responsibleSector,
             responsibleSectorId: occurrenceForm.responsibleSectorId,
+            assignedUserId: occurrenceForm.assignedUserId,
+            assignedUserName: occurrenceForm.assignedUserName,
             driverPhone: occurrenceForm.driverPhone,
             photoUrls: occurrenceForm.photoUrls,
             externalCost: occurrenceForm.externalCost ? parseFloat(occurrenceForm.externalCost) : undefined,
@@ -138,11 +217,14 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
           description: occurrenceForm.description,
           responsibleSector: occurrenceForm.responsibleSector,
           responsibleSectorId: occurrenceForm.responsibleSectorId,
+          assignedUserId: occurrenceForm.assignedUserId,
+          assignedUserName: occurrenceForm.assignedUserName,
           driverPhone: occurrenceForm.driverPhone,
           photoUrls: occurrenceForm.photoUrls,
           externalCost: occurrenceForm.externalCost ? parseFloat(occurrenceForm.externalCost) : undefined,
           paymentMethod: occurrenceForm.paymentMethod,
           status: 'OPEN',
+          treatments: [],
           createdAt: new Date().toISOString(),
           userId: user.uid || user.id,
           userName: user.displayName || user.name,
@@ -163,6 +245,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       description: '', 
       responsibleSector: '', 
       responsibleSectorId: '', 
+      assignedUserId: '',
+      assignedUserName: '',
       driverPhone: '', 
       photoUrls: [],
       externalCost: '',
@@ -227,17 +311,222 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
     setReasonForm({ name: '', description: '' });
   };
 
-  const handleResolveOccurrence = async (occurrence: Occurrence) => {
+  const handleUpdateStatus = async (occ: Occurrence, newStatus: 'ACCEPTED' | 'REJECTED' | 'RESOLVED', rejectionReason?: string) => {
     try {
-      await storageService.updateOccurrence(orgId, occurrence.id, {
-        status: 'RESOLVED',
-        resolvedAt: new Date().toISOString()
+      await storageService.updateOccurrence(orgId, occ.id, {
+        status: newStatus,
+        rejectionReason,
+        resolvedAt: newStatus === 'RESOLVED' ? new Date().toISOString() : occ.resolvedAt
       });
-      onNotification?.('success', 'Ocorrência Finalizada', 'Status atualizado com sucesso.');
+      onNotification?.('success', 'Status Atualizado', `A ocorrência agora está como ${newStatus}.`);
     } catch (err) {
-      onNotification?.('error', 'Erro ao Finalizar', 'Falha ao atualizar status.');
+      onNotification?.('error', 'Erro', 'Não foi possível atualizar o status.');
     }
   };
+
+  const processMentions = async (text: string, plate: string) => {
+    const notifiedIds = new Set<string>();
+
+    for (const member of teamMembers) {
+      const currentUserId = user.uid || user.id;
+      if (member.id === currentUserId) continue;
+
+      const escapedName = member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Look for the name with @ prefix, allow some slack after the name
+      const regex = new RegExp(`@${escapedName}`, 'gi');
+
+      if (regex.test(text) && !notifiedIds.has(member.id)) {
+        console.log(`Disparando notificação para ${member.name} (ID: ${member.id}) sobre placa ${plate}`);
+        const currentUserName = user.displayName || user.name || user.email || 'Usuário';
+
+        await storageService.addNotification(orgId, {
+          id: 'not-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          recipientId: member.id,
+          senderId: currentUserId,
+          senderName: currentUserName,
+          text: `Você foi marcado na ocorrencia da placa: ${plate}`,
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+        notifiedIds.add(member.id);
+      }
+    }
+  };
+
+  const handleAddTreatment = async (occ: Occurrence, treatmentDescription: string) => {
+    if (!treatmentDescription.trim()) return;
+    
+    try {
+      const newTreatment = {
+        id: Date.now().toString(),
+        description: treatmentDescription,
+        userId: user.uid || user.id,
+        userName: user.displayName || user.name || user.email || 'Usuário',
+        createdAt: new Date().toISOString()
+      };
+
+      await storageService.addOccurrenceTreatment(orgId, occ.id, newTreatment);
+
+      // Notify mentioned people
+      await processMentions(treatmentDescription, occ.vehiclePlate);
+
+      onNotification?.('success', 'Tratativa Adicionada', 'A tratativa foi registrada com sucesso.');
+      setCustomTreatment('');
+    } catch (err) {
+      onNotification?.('error', 'Erro', 'Não foi possível salvar a tratativa.');
+    }
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!selectedOccurrenceForRejection || !rejectionReason.trim()) return;
+    
+    setIsSubmittingRejection(true);
+    try {
+      const rejectionTreatment = {
+        id: 'sys-' + Date.now().toString(),
+        description: `⚠️ REJEITADA: Ocorrência recusada por ${user.displayName || user.name} motivo: "${rejectionReason}"`,
+        userId: 'SYSTEM',
+        userName: 'Sistema de Fluxo',
+        createdAt: new Date().toISOString()
+      };
+
+      if (redirectSectorId) {
+        const targetSector = sectors.find(s => s.id === redirectSectorId);
+        if (targetSector) {
+          rejectionTreatment.description = `⚠️ RE-DIRECIONADO: Ocorrência recusada por ${user.displayName || user.name} motivo: "${rejectionReason}". Enviado para o setor: ${targetSector.name}`;
+          
+          await storageService.addOccurrenceRejection(
+            orgId,
+            selectedOccurrenceForRejection.id,
+            rejectionTreatment,
+            targetSector.name,
+            targetSector.id
+          );
+        }
+      } else {
+        await storageService.addOccurrenceRejection(
+          orgId,
+          selectedOccurrenceForRejection.id,
+          rejectionTreatment,
+          undefined,
+          undefined
+        );
+      }
+
+      const successMsg = redirectSectorId ? 'Ocorrência Redirecionada' : 'Ocorrência Recusada';
+      onNotification?.('success', successMsg, 'O status foi atualizado com sucesso.');
+      
+      setSelectedOccurrenceForRejection(null);
+      setRejectionReason('');
+      setRedirectSectorId('');
+    } catch (err) {
+      onNotification?.('error', 'Erro ao Atualizar', 'Falha ao processar a recusa.');
+    } finally {
+      setIsSubmittingRejection(false);
+    }
+  };
+
+  const handleMentionChange = (value: string, pos: number, field: 'treatment' | 'description' | 'chat') => {
+    setCursorPosition(pos);
+    setMentionTargetField(field);
+
+    if (field === 'treatment') setCustomTreatment(value);
+    else if (field === 'chat') setChatMessage(value);
+    else setOccurrenceForm(prev => ({ ...prev, description: value }));
+
+    // Optimized mention detection
+    const beforeCursor = value.slice(0, pos);
+    const lastAt = beforeCursor.lastIndexOf('@');
+
+    // Trigger if @ is found and it's the start of a word
+    if (lastAt !== -1) {
+      const charBeforeAt = lastAt > 0 ? beforeCursor[lastAt - 1] : null;
+      if (!charBeforeAt || charBeforeAt === ' ' || charBeforeAt === '\n') {
+        const query = beforeCursor.slice(lastAt + 1);
+        // Don't close if query has spaces, but only if it's a short search
+        if (!query.includes(' ') || query.length < 2) {
+          console.log(`[Mentions] Triggered for field ${field}. Members: ${teamMembers.length}, Query: "${query}"`);
+          setMentionSearch(query.trim());
+          setShowMentionSuggestions(true);
+          return;
+        }
+      }
+    }
+    setShowMentionSuggestions(false);
+  };
+
+  const insertMention = (member: TeamMember) => {
+    if (!mentionTargetField) return;
+
+    let currentText = '';
+    if (mentionTargetField === 'treatment') currentText = customTreatment;
+    else if (mentionTargetField === 'chat') currentText = chatMessage;
+    else currentText = occurrenceForm.description;
+
+    const beforeAt = currentText.slice(0, currentText.lastIndexOf('@', cursorPosition - 1));
+    const afterAt = currentText.slice(cursorPosition);
+    const newValue = `${beforeAt}@${member.name} ${afterAt}`;
+
+    if (mentionTargetField === 'treatment') setCustomTreatment(newValue);
+    else if (mentionTargetField === 'chat') setChatMessage(newValue);
+    else setOccurrenceForm(prev => ({ ...prev, description: newValue }));
+
+    setShowMentionSuggestions(false);
+    setMentionTargetField(null);
+  };
+
+  const handleTreatmentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    handleMentionChange(e.target.value, e.target.selectionStart, 'treatment');
+  };
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    handleMentionChange(e.target.value, e.target.selectionStart, 'description');
+  };
+
+  const handleChatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleMentionChange(e.target.value, e.target.selectionStart, 'chat');
+  };
+
+  const handleSendMessage = async (occ: Occurrence) => {
+    if (!chatMessage.trim()) return;
+    
+    setIsSendingMessage(true);
+    try {
+      const newMessage = {
+        id: Date.now().toString(),
+        text: chatMessage,
+        userId: user.uid || user.id,
+        userName: user.displayName || user.name || user.email || 'Usuário',
+        createdAt: new Date().toISOString()
+      };
+
+      await storageService.addOccurrenceChat(orgId, occ.id, newMessage);
+      
+      // Notify mentioned people
+      await processMentions(chatMessage, occ.vehiclePlate);
+
+      setChatMessage('');
+    } catch (err) {
+      onNotification?.('error', 'Erro', 'Não foi possível enviar a mensagem.');
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selectedOccurrenceForDetails?.chat]);
+
+  // Responsible selection options (Team + Collaborators)
+  const responsibleOptions = useMemo(() => {
+    const options = [
+      ...teamMembers.map(m => ({ id: m.id, name: m.name, type: 'Equipe' })),
+      ...collaborators.map(c => ({ id: c.id, name: c.name, type: 'Prestador/Ajudante' }))
+    ];
+    return options.sort((a, b) => a.name.localeCompare(b.name));
+  }, [teamMembers, collaborators]);
 
   const handleDeleteOccurrence = async (occurrence: Occurrence) => {
     if (window.confirm('Tem certeza que deseja excluir esta ocorrência definitivamente?')) {
@@ -265,14 +554,15 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header Area */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <AlertTriangle className="w-8 h-8 text-amber-500" />
-            Módulo de Ocorrências
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            <AlertTriangle className="w-7 h-7 text-amber-500" />
+            Gestão de Ocorrências
           </h1>
-          <p className="text-gray-500">Gestão de quebras e problemas em veículos</p>
+          <p className="text-sm text-gray-500 mt-1 font-medium">Controle de quebras, reparos e fluxos do time de manutenção</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -282,7 +572,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               setReasonForm({ name: '', description: '' });
               setIsReasonModalOpen(true);
             }}
-            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 font-medium"
+            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm hover:shadow flex items-center gap-2 font-bold text-sm"
           >
             <Plus className="w-4 h-4" />
             Novo Motivo
@@ -296,6 +586,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                 description: '', 
                 responsibleSector: '', 
                 responsibleSectorId: '', 
+                assignedUserId: '',
+                assignedUserName: '',
                 driverPhone: '', 
                 photoUrls: [],
                 externalCost: '',
@@ -303,98 +595,99 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               });
               setIsOccurrenceModalOpen(true);
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium shadow-sm"
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all hover:shadow-md flex items-center gap-2 font-bold text-sm"
           >
             <Plus className="w-4 h-4" />
-            Registrar Ocorrência
+            Abrir Ocorrência
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex gap-6 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('list')}
-          className={`px-6 py-3 font-medium text-sm transition-colors relative ${
-            activeTab === 'list' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+          className={`pb-3 border-b-2 font-bold text-sm transition-colors relative ${
+            activeTab === 'list' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
-          Ocorrências
-          {activeTab === 'list' && (
-            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-          )}
+          Lista de Ocorrências
         </button>
         <button
           onClick={() => setActiveTab('reasons')}
-          className={`px-6 py-3 font-medium text-sm transition-colors relative ${
-            activeTab === 'reasons' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+          className={`pb-3 border-b-2 font-bold text-sm transition-colors relative ${
+            activeTab === 'reasons' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
-          Motivos Cadastrados
-          {activeTab === 'reasons' && (
-            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-          )}
+          Catálogo de Motivos
         </button>
       </div>
 
       {activeTab === 'list' ? (
-        <>
-          {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <div className="space-y-4">
+          {/* Filters Bar - Bento style */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Buscar por placa, motivo..."
+                placeholder="Buscar por placa, motivo, código..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm font-medium placeholder:text-gray-400"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="text-gray-400 w-4 h-4" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="flex-1 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="ALL">Todos os Status</option>
-                <option value="OPEN">Abertas</option>
-                <option value="RESOLVED">Resolvidas</option>
-              </select>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
+                <Filter className="text-gray-400 w-4 h-4" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="bg-transparent border-none text-sm font-bold text-gray-700 outline-none focus:ring-0 cursor-pointer pr-4"
+                >
+                  <option value="ALL">Todos os status</option>
+                  <option value="OPEN">Abertas</option>
+                  <option value="ACCEPTED">Em Andamento</option>
+                  <option value="RESOLVED">Resolvidas</option>
+                  <option value="REJECTED">Recusadas</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Occurrences List */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-200">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-[#FAFAFA] border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Veículo</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Motivo</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Aberto por</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Custos</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">OS</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Data</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Ações</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Veículo</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Motivo / Descrição</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Equipe</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Valores</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Fluxo</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Status</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
                   {(showAllOccurrences ? filteredOccurrences : filteredOccurrences.slice(0, 10)).map((occ) => (
-                    <tr key={occ.id} className="hover:bg-gray-50 transition-colors">
+                    <tr 
+                      key={occ.id} 
+                      onClick={() => setSelectedOccurrenceForDetails(occ)}
+                      className="hover:bg-[#FCFDFF] group transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                            <Truck className="w-5 h-5 text-gray-500" />
+                          <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:border-blue-100 group-hover:bg-blue-50 transition-colors">
+                            <Truck className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{occ.vehiclePlate}</div>
-                            <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                            <div className="font-bold text-gray-900 text-[13px]">{occ.vehiclePlate}</div>
+                            <div className="text-[10px] text-gray-500 flex items-center gap-1 font-medium mt-0.5">
                               {occ.driverPhone ? (
                                 <>
-                                  <Phone className="w-2.5 h-2.5" />
+                                  <Phone className="w-2.5 h-2.5 text-gray-400" />
                                   {occ.driverPhone}
                                 </>
                               ) : (
@@ -405,88 +698,133 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{occ.reasonName}</div>
-                        <div className="text-xs text-gray-500 truncate max-w-xs">{occ.description}</div>
+                        <div className="font-bold text-gray-800 text-[13px]">{occ.reasonName}</div>
+                        <div className="text-[11px] text-gray-500 truncate max-w-[200px] mt-0.5" title={occ.description || 'Sem descrição'}>
+                          {occ.description || 'Sem descrição...'}
+                        </div>
                         {occ.photoUrls && occ.photoUrls.length > 0 && (
-                          <div className="flex gap-1 mt-1">
-                            {occ.photoUrls.map((url, i) => (
+                          <div className="flex gap-1 mt-2">
+                            {occ.photoUrls.slice(0, 3).map((url, i) => (
                               <div 
                                 key={i} 
-                                className="w-6 h-6 rounded bg-gray-100 border border-gray-200 overflow-hidden cursor-pointer"
-                                onClick={() => window.open(url, '_blank')}
-                                title="Clique para ver imagem cheia"
+                                className="w-5 h-5 rounded overflow-hidden shadow-sm border border-gray-200/50"
                               >
-                                <img src={url} alt="Evidência" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                <img src={url} alt="Evidência" className="w-full h-full object-cover" />
                               </div>
                             ))}
+                            {occ.photoUrls.length > 3 && (
+                              <div className="w-5 h-5 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-[8px] font-bold text-gray-500">
+                                +{occ.photoUrls.length - 3}
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <User className="w-3.5 h-3.5 text-gray-400" />
-                          {occ.userName}
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-100 rounded-md text-[11px] font-bold text-gray-700">
+                          <User className="w-3 h-3 text-gray-400" />
+                          {occ.userName.split(' ')[0]}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         {occ.externalCost ? (
                           <div className="space-y-0.5">
-                            <div className="text-sm font-bold text-gray-900">
+                            <div className="text-[13px] font-bold text-gray-900 tracking-tight">
                               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(occ.externalCost)}
                             </div>
                             {occ.paymentMethod && (
-                              <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{occ.paymentMethod}</div>
+                              <div className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{occ.paymentMethod}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">N/A</span>
+                          <span className="text-[11px] text-gray-400 italic">N/A</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         {occ.linkedServiceOrderNumber ? (
-                          <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-bold whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[10px] font-bold whitespace-nowrap">
                             <FileText className="w-3 h-3" />
                             #{occ.linkedServiceOrderNumber}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">-</span>
+                          <span className="text-[11px] text-gray-400 italic">...</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${
-                          occ.status === 'OPEN' 
-                            ? 'bg-red-500 text-white' 
-                            : 'bg-green-500 text-white'
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${
+                          occ.status === 'OPEN' ? 'bg-amber-50 text-amber-700 border-amber-200/50' :
+                          occ.status === 'ACCEPTED' ? 'bg-blue-50 text-blue-700 border-blue-200/50' :
+                          occ.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-200/50' :
+                          'bg-green-50 text-green-700 border-green-200/50'
                         }`}>
-                          {occ.status === 'OPEN' ? (
-                            <><Clock className="w-3 h-3" /> PENDENTE</>
-                          ) : (
-                            <><CheckCircle2 className="w-3 h-3" /> FINALIZADO</>
-                          )}
+                          {occ.status === 'OPEN' && 'PENDENTE'}
+                          {occ.status === 'ACCEPTED' && 'EM ANDAMENTO'}
+                          {occ.status === 'REJECTED' && 'RECUSADO'}
+                          {occ.status === 'RESOLVED' && 'RESOLVIDO'}
                         </span>
-                        {occ.responsibleSector && (
-                          <div className="mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            {occ.responsibleSector}
+                        {(occ.responsibleSector || occ.assignedUserName) && (
+                          <div className="mt-1.5 flex flex-col gap-0.5">
+                            {occ.responsibleSector && (
+                              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                {occ.responsibleSector}
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{new Date(occ.createdAt).toLocaleDateString('pt-BR')}</div>
-                        <div className="text-xs text-gray-500">{new Date(occ.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-                      </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {occ.status === 'OPEN' && (
+                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          {/* Workflow Actions */}
+                          {occ.status === 'OPEN' && (occ.assignedUserId === user.uid || (occ.responsibleSectorId && user.sectorId === occ.responsibleSectorId) || userLevel === 'CREATOR' || userLevel === 'ADMIN') && (
+                            <>
+                              <button
+                                onClick={() => handleUpdateStatus(occ, 'ACCEPTED')}
+                                className="px-2 py-1.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg hover:bg-blue-100 transition-colors"
+                                title="Aceitar Responsabilidade"
+                              >
+                                ASSUMIR
+                              </button>
+                              <button
+                                onClick={() => setSelectedOccurrenceForRejection(occ)}
+                                className="px-2 py-1.5 bg-red-50 text-red-700 text-[10px] font-bold rounded-lg hover:bg-red-100 transition-colors"
+                                title="Recusar Responsabilidade"
+                              >
+                                RECUSAR
+                              </button>
+                            </>
+                          )}
+
+                          {occ.status === 'ACCEPTED' && (
                             <button
-                              onClick={() => {
-                                onGenerateOS(occ.id, occ.vehicleId);
-                              }}
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
-                              title="Gerar OS a partir deste chamado"
+                              onClick={() => setSelectedOccurrenceForTreatment(occ)}
+                              className="px-2.5 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1 transition-all shadow-sm"
                             >
-                              <Plus className="w-3 h-3" /> GERAR OS
+                              <MessageSquare className="w-3 h-3" /> TRATATIVA
                             </button>
                           )}
+
+                          {(occ.status === 'OPEN' || occ.status === 'ACCEPTED') && (
+                            <button
+                              onClick={() => handleUpdateStatus(occ, 'RESOLVED')}
+                              className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-50 rounded-lg transition-colors ml-1"
+                              title="Marcar como Resolvido"
+                            >
+                              <CheckCircle2 className="w-5 h-5" />
+                            </button>
+                          )}
+
+                          {occ.status === 'OPEN' && (
+                            <button
+                              onClick={() => onGenerateOS(occ.id, occ.vehicleId)}
+                              className="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-blue-50 hover:text-blue-600 text-gray-500 rounded-lg transition-colors border border-gray-200 hover:border-blue-200"
+                              title="Gerar OS a partir deste chamado"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          <div className="w-px h-6 bg-gray-200 mx-1" />
+
                           <button
                             onClick={() => {
                               setEditingOccurrence(occ);
@@ -496,6 +834,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                                 description: occ.description || '',
                                 responsibleSector: occ.responsibleSector || '',
                                 responsibleSectorId: occ.responsibleSectorId || '',
+                                assignedUserId: occ.assignedUserId || '',
+                                assignedUserName: occ.assignedUserName || '',
                                 driverPhone: occ.driverPhone || '',
                                 photoUrls: occ.photoUrls || [],
                                 externalCost: occ.externalCost ? occ.externalCost.toString() : '',
@@ -503,15 +843,15 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                               });
                               setIsOccurrenceModalOpen(true);
                             }}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           >
-                            <Edit2 className="w-5 h-5" />
+                            <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteOccurrence(occ)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -519,8 +859,11 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   ))}
                   {filteredOccurrences.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                        Nenhuma ocorrência encontrada.
+                      <td colSpan={7} className="px-6 py-16 text-center text-gray-500">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <AlertTriangle className="w-8 h-8 text-gray-300" />
+                          <p className="text-sm font-medium">Nenhuma ocorrência encontrada.</p>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -538,71 +881,76 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               </div>
             )}
           </div>
-        </>
+        </div>
       ) : (
         /* Reasons List */
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(showAllReasons ? reasons : reasons.slice(0, 9)).map((reason) => (
-              <div key={reason.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-blue-600" />
+              <div key={reason.id} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200/50 transition-all group">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
+                    <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setEditingReason(reason);
+                        setReasonForm({
+                          name: reason.name,
+                          description: reason.description || ''
+                        });
+                        setIsReasonModalOpen(true);
+                      }}
+                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteReason(reason.id)}
+                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      setEditingReason(reason);
-                      setReasonForm({
-                        name: reason.name,
-                        description: reason.description || ''
-                      });
-                      setIsReasonModalOpen(true);
-                    }}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteReason(reason.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <h3 className="text-sm font-bold text-gray-900 tracking-tight mb-2">{reason.name}</h3>
+                <p className="text-gray-500 text-xs font-medium leading-relaxed line-clamp-3">
+                  {reason.description || 'Sem descrição detalhada.'}
+                </p>
+              </div>
+            ))}
+            {reasons.length === 0 && (
+              <div className="col-span-full py-16 text-center text-gray-500">
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <FileText className="w-8 h-8 text-gray-300" />
+                  <p className="text-sm font-medium">Nenhum motivo cadastrado.</p>
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{reason.name}</h3>
-              <p className="text-gray-500 text-sm line-clamp-2">{reason.description || 'Sem descrição.'}</p>
-            </div>
-          ))}
-          {reasons.length === 0 && (
-            <div className="col-span-full py-12 text-center text-gray-500">
-              Nenhum motivo cadastrado.
+            )}
+          </div>
+          {reasons.length > 9 && (
+            <div className="flex justify-center">
+              <button 
+                onClick={() => setShowAllReasons(!showAllReasons)}
+                className="px-8 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2 shadow-sm"
+              >
+                {showAllReasons ? 'Ver Menos' : `Ver Todos os Motivos (${reasons.length})`}
+              </button>
             </div>
           )}
         </div>
-        {reasons.length > 9 && (
-          <div className="flex justify-center">
-            <button 
-              onClick={() => setShowAllReasons(!showAllReasons)}
-              className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2"
-            >
-              {showAllReasons ? 'Ver Menos' : `Ver Todos os Motivos (${reasons.length})`}
-            </button>
-          </div>
-        )}
-      </div>
     )}
 
       {/* Occurrence Modal */}
       <AnimatePresence>
         {isOccurrenceModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[95vh] flex flex-col"
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[95vh] flex flex-col"
             >
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
                 <h2 className="text-xl font-bold text-gray-900">
@@ -670,18 +1018,44 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                    Telefone do Motorista (p/ facilita contato)
-                  </label>
-                  <input
-                    type="text"
-                    value={occurrenceForm.driverPhone}
-                    onChange={(e) => setOccurrenceForm({ ...occurrenceForm, driverPhone: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="Ex: (11) 98888-7777"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                       <User className="w-4 h-4 text-gray-400" />
+                       Responsável pelo Serviço
+                    </label>
+                    <select
+                      value={occurrenceForm.assignedUserId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const resp = responsibleOptions.find(o => o.id === id);
+                        setOccurrenceForm({ 
+                          ...occurrenceForm, 
+                          assignedUserId: id,
+                          assignedUserName: resp ? resp.name : ''
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="">Selecione um responsável...</option>
+                      {responsibleOptions.map(opt => (
+                        <option key={opt.id} value={opt.id}>{opt.name} ({opt.type})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      Telefone do Motorista
+                    </label>
+                    <input
+                      type="text"
+                      value={occurrenceForm.driverPhone}
+                      onChange={(e) => setOccurrenceForm({ ...occurrenceForm, driverPhone: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Ex: (11) 98888-7777"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -711,14 +1085,45 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   </div>
                 </div>
 
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Descrição / Detalhes</label>
                   <textarea
                     value={occurrenceForm.description}
-                    onChange={(e) => setOccurrenceForm({ ...occurrenceForm, description: e.target.value })}
+                    onChange={handleDescriptionChange}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
-                    placeholder="Descreva o que aconteceu..."
+                    placeholder="Descreva o que aconteceu... use @ para marcar alguém"
                   />
+
+                  {/* Mentions for Description */}
+                  <AnimatePresence>
+                    {showMentionSuggestions && mentionTargetField === 'description' && teamMembers.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="absolute bottom-full left-0 mb-1 w-full bg-white border border-gray-200 rounded-xl shadow-2xl z-[80] max-h-40 overflow-y-auto custom-scrollbar"
+                      >
+                        {teamMembers
+                          .filter(m => !mentionSearch || m.name.toLowerCase().includes(mentionSearch.toLowerCase()))
+                          .map(member => (
+                          <button
+                            key={member.id}
+                            type="button"
+                            onClick={() => insertMention(member)}
+                            className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm flex items-center gap-2 border-b border-gray-50 last:border-0"
+                          >
+                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-[10px] font-bold">
+                              {member.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-800">{member.name}</div>
+                              <div className="text-[10px] text-gray-500">{member.role}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Photo Upload Section */}
@@ -779,6 +1184,502 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Details / History Modal (Slide-out Side Sheet) */}
+      <AnimatePresence>
+        {currentOccurrenceDetail && (
+          <div className="fixed inset-0 z-[9999] flex justify-end bg-black/40 backdrop-blur-[2px]">
+            {/* Click outside to close (optional - requires wrapper, but here we just leave backdrop) */}
+            <div className="absolute inset-0" onClick={() => setSelectedOccurrenceForDetails(null)} />
+            
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="bg-white shadow-2xl w-full max-w-4xl h-full overflow-hidden flex flex-col relative z-10 border-l border-gray-200"
+            >
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100/50">
+                    <Truck className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Painel da Ocorrência</h2>
+                    <p className="text-xs text-gray-500 font-medium tracking-wide text-[10px] uppercase">
+                      ID: {currentOccurrenceDetail.id.slice(0, 8)} • PLACA: {currentOccurrenceDetail.vehiclePlate}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedOccurrenceForDetails(null)} 
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-slate-50/50">
+                {/* Details Section */}
+                <div className="w-full md:w-1/2 p-6 overflow-y-auto border-r border-gray-200 custom-scrollbar bg-white">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                        currentOccurrenceDetail.status === 'OPEN' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        currentOccurrenceDetail.status === 'ACCEPTED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        currentOccurrenceDetail.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-200' :
+                        'bg-green-50 text-green-700 border-green-200'
+                      }`}>
+                        {currentOccurrenceDetail.status}
+                      </div>
+                      <div className="text-[11px] font-medium text-gray-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(currentOccurrenceDetail.createdAt).toLocaleString('pt-BR')}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm shadow-black/5 hover:border-gray-300 transition-colors">
+                        <div className="text-[10px] text-gray-400 font-bold uppercase mb-1.5 tracking-wider">Motivo</div>
+                        <div className="text-sm font-bold text-gray-800 leading-tight">{currentOccurrenceDetail.reasonName}</div>
+                      </div>
+                      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm shadow-black/5 hover:border-gray-300 transition-colors">
+                        <div className="text-[10px] text-gray-400 font-bold uppercase mb-1.5 tracking-wider">Setor</div>
+                        <div className="text-sm font-bold text-gray-800 leading-tight">{currentOccurrenceDetail.responsibleSector || 'Não definido'}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] text-gray-400 font-bold uppercase mb-2 tracking-wider ml-1">Descrição</div>
+                      <div className="text-sm text-gray-700 bg-gray-50/80 p-5 rounded-2xl border border-gray-100 whitespace-pre-wrap leading-relaxed shadow-inner">
+                        {currentOccurrenceDetail.description || <span className="italic text-gray-400">Sem descrição detalhada.</span>}
+                      </div>
+                    </div>
+
+                    {currentOccurrenceDetail.rejectionReason && (
+                      <div className="bg-red-50/80 p-5 rounded-2xl border border-red-100/50">
+                        <div className="text-[10px] text-red-500 font-bold uppercase mb-2 flex items-center gap-1.5 tracking-wider">
+                           <AlertTriangle className="w-3.5 h-3.5" /> Justificativa de Recusa
+                        </div>
+                        <p className="text-sm text-red-800 italic leading-relaxed">"{currentOccurrenceDetail.rejectionReason}"</p>
+                      </div>
+                    )}
+
+                    {currentOccurrenceDetail.photoUrls && currentOccurrenceDetail.photoUrls.length > 0 && (
+                      <div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase mb-2 tracking-wider ml-1">Anexos</div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {currentOccurrenceDetail.photoUrls.map((url, i) => (
+                            <img 
+                              key={i} 
+                              src={url} 
+                              alt="Evidência" 
+                              className="w-full h-28 object-cover rounded-xl border border-gray-200 cursor-pointer hover:opacity-90 hover:shadow-md transition-all"
+                              onClick={() => window.open(url, '_blank')}
+                              referrerPolicy="no-referrer"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <div className="text-[10px] text-gray-400 font-bold uppercase mb-3 flex justify-between items-center tracking-wider ml-1 border-b border-gray-100 pb-2">
+                        Histórico de Tratativas
+                        <History className="w-3.5 h-3.5 text-blue-500" />
+                      </div>
+                      <div className="space-y-4">
+                        {currentOccurrenceDetail.treatments && currentOccurrenceDetail.treatments.length > 0 ? (
+                          currentOccurrenceDetail.treatments.map((t, index) => (
+                            <div key={t.id} className="relative pl-4">
+                              {/* Timeline line */}
+                              {index !== currentOccurrenceDetail.treatments!.length - 1 && (
+                                <div className="absolute left-0 top-3 bottom-0 w-0.5 bg-gray-100 -ml-px h-full translate-y-3" />
+                              )}
+                              {/* Timeline dot */}
+                              <div className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-blue-400 ring-4 ring-white -ml-1 border border-blue-500" />
+                              
+                              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm group hover:border-blue-200 transition-colors">
+                                <p className="text-[13px] text-gray-700 mb-2.5 leading-relaxed">{t.description}</p>
+                                <div className="flex justify-between items-center text-[10px] font-medium">
+                                  <span className="text-gray-900 border px-2 py-0.5 rounded-full bg-gray-50">{t.userName}</span>
+                                  <span className="text-gray-400 group-hover:text-blue-500 transition-colors">{new Date(t.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-8 bg-gray-50/50 rounded-2xl border border-gray-100 border-dashed text-center px-4">
+                            <History className="w-6 h-6 text-gray-300 mb-2" />
+                            <p className="text-xs text-gray-400 font-medium">Nenhuma tratativa registrada ainda.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-10 pt-4 border-t border-gray-200 flex flex-col gap-3 pb-8">
+                    {!currentOccurrenceDetail.linkedServiceOrderId && (
+                       <button
+                        onClick={() => {
+                          onGenerateOS(currentOccurrenceDetail!.id, currentOccurrenceDetail!.vehicleId);
+                          setSelectedOccurrenceForDetails(null);
+                        }}
+                        className="w-full py-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow"
+                      >
+                        <Plus className="w-4 h-4" /> Transformar em O.S.
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSelectedOccurrenceForDetails(null)}
+                      className="w-full py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-bold text-sm"
+                    >
+                      Fechar Painel
+                    </button>
+                  </div>
+                </div>
+
+                {/* Chat Section */}
+                <div className="w-full md:w-1/2 flex flex-col bg-[#F9FAFB] relative shadow-inner">
+                  <div className="p-4 border-b border-gray-200 bg-white flex items-center gap-3 shrink-0 shadow-sm z-10">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <MessageSquare className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 tracking-tight">Discussão Interna</h3>
+                      <p className="text-[10px] text-gray-500 font-medium">Equipe de Manutenção e Frota</p>
+                    </div>
+                  </div>
+
+                  {/* Messages Area */}
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
+                    {currentOccurrenceDetail.chat && currentOccurrenceDetail.chat.length > 0 ? (
+                      currentOccurrenceDetail.chat.map((msg, i) => {
+                        const isMe = msg.userId === (user.uid || user.id);
+                        return (
+                          <div key={msg.id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group animate-in fade-in slide-in-from-bottom-2`}>
+                            <div className={`flex flex-col max-w-[85%] ${isMe ? 'items-end' : 'items-start'}`}>
+                              <span className={`text-[10px] font-bold mb-1 tracking-wide uppercase ${isMe ? 'text-blue-500 pr-1' : 'text-gray-500 pl-1'}`}>
+                                {msg.userName}
+                              </span>
+                              
+                              <div className={`relative px-4 py-3 shadow-sm ${
+                                isMe 
+                                  ? 'bg-blue-600 text-white rounded-[20px] rounded-tr-sm' 
+                                  : 'bg-white text-gray-800 rounded-[20px] rounded-tl-sm border border-gray-200/60 shadow-black/5'
+                              }`}>
+                                <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                                
+                                <div className={`text-[9px] mt-2 flex items-center gap-1 font-medium select-none ${isMe ? 'text-blue-200/80' : 'text-gray-400'}`}>
+                                  {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  {isMe && <CheckCircle2 className="w-3 h-3 opacity-90" />}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3 opacity-60 p-8 text-center">
+                        <div className="w-16 h-16 rounded-full bg-white border-2 border-dashed border-gray-200 flex items-center justify-center mb-2">
+                          <MessageSquare className="w-6 h-6 text-gray-300" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-500">Nenhuma mensagem ainda.</p>
+                        <p className="text-xs">Este é o canal direto para resolver dúvidas desta ocorrência.</p>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Input Area */}
+                  <div className="p-4 bg-white border-t border-gray-200 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-end gap-3 relative">
+                      {/* Mentions for Chat */}
+                      <AnimatePresence>
+                        {showMentionSuggestions && mentionTargetField === 'chat' && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="absolute bottom-full left-0 right-0 mb-3 bg-white border border-gray-200 rounded-2xl shadow-2xl z-[9999] max-h-60 overflow-y-auto custom-scrollbar ring-1 ring-black/5 overflow-hidden"
+                          >
+                            <div className="px-4 py-2 bg-gray-50/80 sticky top-0 backdrop-blur-md border-b border-gray-100 flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                              <User className="w-3 flex-shrink-0" /> Mencionar Equipe
+                            </div>
+                            {teamMembers.length === 0 ? (
+                              <div className="p-4 text-center">
+                                <Loader className="w-4 h-4 animate-spin text-gray-400 mx-auto mb-2" />
+                                <p className="text-xs text-gray-500">Buscando equipe...</p>
+                              </div>
+                            ) : teamMembers.filter(m => !mentionSearch || m.name.toLowerCase().includes(mentionSearch.toLowerCase())).length === 0 ? (
+                              <div className="p-4 text-center border-t border-dashed border-gray-100">
+                                <p className="text-xs text-gray-400">Nenhum membro encontrado</p>
+                              </div>
+                            ) : (
+                              teamMembers
+                                .filter(m => !mentionSearch || m.name.toLowerCase().includes(mentionSearch.toLowerCase()))
+                                .map((member, idx) => (
+                                <button
+                                  key={member.id}
+                                  onClick={() => insertMention(member)}
+                                  className="w-full text-left px-4 py-3 hover:bg-gray-50 focus:bg-gray-50 outline-none text-sm flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors group"
+                                >
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold ring-2 ring-white group-hover:scale-105 transition-transform">
+                                    {member.name.charAt(0)}
+                                  </div>
+                                  <div className="flex-1 overflow-hidden">
+                                    <div className="font-bold text-gray-900 leading-none mb-1 truncate">{member.name}</div>
+                                    <div className="text-[10px] text-gray-500 font-medium uppercase truncate">{member.role}</div>
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-inner">
+                        <textarea 
+                          rows={1}
+                          value={chatMessage}
+                          onChange={(e: any) => handleChatChange(e)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && !showMentionSuggestions) {
+                              e.preventDefault();
+                              handleSendMessage(currentOccurrenceDetail);
+                            }
+                          }}
+                          placeholder="Digite aqui... use @ para mencionar"
+                          className="w-full bg-transparent p-3.5 text-[13px] outline-none resize-none custom-scrollbar min-h-[44px] max-h-32"
+                        />
+                      </div>
+                      <button 
+                        onClick={() => handleSendMessage(currentOccurrenceDetail)}
+                        disabled={!chatMessage.trim() || isSendingMessage}
+                        className="w-[48px] h-[48px] flex items-center justify-center bg-blue-600 text-white rounded-2xl hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all hover:shadow-lg hover:shadow-blue-600/20 active:scale-95 shrink-0"
+                      >
+                        {isSendingMessage ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Treatment Selection Modal */}
+      <AnimatePresence>
+        {selectedOccurrenceForTreatment && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              exit={{ opacity: 0, translateY: 20 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-blue-50">
+                <h2 className="text-lg font-bold text-blue-900 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Nova Tratativa
+                </h2>
+                <button onClick={() => setSelectedOccurrenceForTreatment(null)} className="p-2 hover:bg-blue-100 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-blue-500" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Opções Sugeridas:</div>
+                <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                  {TREATMENT_SUGGESTIONS.map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        handleAddTreatment(selectedOccurrenceForTreatment, suggestion);
+                        setSelectedOccurrenceForTreatment(null);
+                      }}
+                      className="text-left p-3 text-sm bg-gray-50 hover:bg-blue-50 hover:text-blue-700 rounded-xl border border-gray-100 hover:border-blue-200 transition-all font-medium"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="border-t pt-4 mt-4 relative">
+                   <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Personalizada:</label>
+                   <textarea
+                    value={customTreatment}
+                    onChange={handleTreatmentChange}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+                    placeholder="Descreva outra ação... use @ para marcar alguém"
+                   />
+
+                   {/* Mentions Suggestions for Treatment */}
+                   <AnimatePresence>
+                     {showMentionSuggestions && mentionTargetField === 'treatment' && (
+                       <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        className="absolute bottom-full left-0 mb-2 w-full bg-white border border-gray-200 rounded-xl shadow-2xl z-[9999] max-h-60 overflow-y-auto custom-scrollbar ring-1 ring-black/5"
+                       >
+                         <div className="p-2 border-b border-gray-50 bg-gray-50/50 sticky top-0 backdrop-blur-sm">
+                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Mencionar Equipe</span>
+                         </div>
+                         {teamMembers.length === 0 ? (
+                            <div className="p-4 text-center">
+                              <p className="text-xs text-gray-500 italic">Carregando membros da equipe...</p>
+                            </div>
+                          ) : teamMembers.filter(m => !mentionSearch || m.name.toLowerCase().includes(mentionSearch.toLowerCase())).length === 0 ? (
+                            <div className="p-4 text-center">
+                              <p className="text-xs text-gray-400 italic">Nenhum membro encontrado para "{mentionSearch}"</p>
+                            </div>
+                          ) : (
+                           teamMembers
+                             .filter(m => !mentionSearch || m.name.toLowerCase().includes(mentionSearch.toLowerCase()))
+                             .map(member => (
+                             <button
+                              key={member.id}
+                              onClick={() => insertMention(member)}
+                              className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors"
+                             >
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold ring-2 ring-white">
+                                 {member.name.charAt(0)}
+                               </div>
+                               <div>
+                                 <div className="font-bold text-gray-800 leading-none mb-1">{member.name}</div>
+                                 <div className="text-[10px] text-gray-500 font-medium uppercase">{member.role}</div>
+                               </div>
+                             </button>
+                           ))
+                         )}
+                       </motion.div>
+                     )}
+                   </AnimatePresence>
+                </div>
+                
+                {!selectedOccurrenceForTreatment.linkedServiceOrderId && (
+                   <button
+                    onClick={() => {
+                      onGenerateOS(selectedOccurrenceForTreatment.id, selectedOccurrenceForTreatment.vehicleId);
+                      setSelectedOccurrenceForTreatment(null);
+                    }}
+                    className="w-full py-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 border border-indigo-100"
+                  >
+                    <Plus className="w-4 h-4" /> ABRIR O.S. POR ESTE CHAMADO
+                  </button>
+                )}
+              </div>
+
+              <div className="p-4 border-t bg-gray-50 flex gap-3">
+                <button
+                  onClick={() => setSelectedOccurrenceForTreatment(null)}
+                  className="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  disabled={!customTreatment.trim()}
+                  onClick={() => {
+                    handleAddTreatment(selectedOccurrenceForTreatment, customTreatment);
+                    setCustomTreatment('');
+                    setSelectedOccurrenceForTreatment(null);
+                  }}
+                  className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  Salvar Custom
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Rejection Modal */}
+      <AnimatePresence>
+        {selectedOccurrenceForRejection && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-red-50">
+                <h2 className="text-lg font-bold text-red-900 flex items-center gap-2">
+                  <X className="w-5 h-5" />
+                  Recusar Ocorrência
+                </h2>
+                <button onClick={() => setSelectedOccurrenceForRejection(null)} className="p-2 hover:bg-red-100 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-red-500" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Motivo da Recusa:</label>
+                  <div className="space-y-2">
+                    <select
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      <option value="">Selecione um motivo...</option>
+                      {REJECTION_REASONS.map((r, i) => <option key={i} value={r}>{r}</option>)}
+                      <option value="OUTRO">Outro (Descrever abaixo)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {rejectionReason === 'OUTRO' && (
+                  <textarea
+                    placeholder="Descreva detalhadamente o motivo..."
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500 min-h-[80px]"
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                  />
+                )}
+
+                <div className="pt-2 border-t border-gray-100">
+                  <label className="block text-xs font-bold text-indigo-600 uppercase mb-2 flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    Redirecionar para outro setor? (Opcional)
+                  </label>
+                  <select
+                    value={redirectSectorId}
+                    onChange={(e) => setRedirectSectorId(e.target.value)}
+                    className="w-full p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-900"
+                  >
+                    <option value="">Não redirecionar</option>
+                    {sectors.filter(s => s.id !== selectedOccurrenceForRejection.responsibleSectorId).map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-indigo-400 italic">
+                    Ao redirecionar, a ocorrência voltará para o status "ABERTA" no novo setor.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 border-t bg-gray-50 flex gap-3">
+                <button
+                  onClick={() => setSelectedOccurrenceForRejection(null)}
+                  className="flex-1 py-2 text-gray-500 font-bold hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  disabled={!rejectionReason || isSubmittingRejection}
+                  onClick={handleConfirmRejection}
+                  className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  {isSubmittingRejection ? <Loader className="w-4 h-4 animate-spin" /> : 'Confirmar Recusa'}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

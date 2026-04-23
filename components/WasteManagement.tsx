@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { WasteDisposal, WasteType, Partner, Collaborator, WasteUnit } from '../types';
+import { WasteDisposal, WasteType, Partner, Collaborator, WasteUnit, WasteDisposalItem } from '../types';
 import { storageService } from '../services/storageService';
 import { 
   Trash2, 
@@ -19,7 +19,9 @@ import {
   ArrowRight,
   Paperclip,
   ExternalLink,
-  Loader2
+  Loader2,
+  ListPlus,
+  Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -39,9 +41,13 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [items, setItems] = useState<WasteDisposalItem[]>([]);
+  const [currentItem, setCurrentItem] = useState({
     wasteTypeId: '',
-    quantity: '',
+    quantity: ''
+  });
+
+  const [metadata, setMetadata] = useState({
     date: new Date().toISOString().split('T')[0],
     responsibleId: '',
     partnerId: '',
@@ -65,25 +71,45 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
 
   const filteredDisposals = useMemo(() => {
     return disposals.filter(d => 
-      d.wasteTypeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      d.items.some(item => item.wasteTypeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       d.partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       d.responsibleName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (d.certificateNumber && d.certificateNumber.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [disposals, searchTerm]);
 
+  const handleAddItem = () => {
+    if (!currentItem.wasteTypeId || !currentItem.quantity) return;
+    
+    const type = wasteTypes.find(t => t.id === currentItem.wasteTypeId);
+    if (!type) return;
+
+    const newItem: WasteDisposalItem = {
+      wasteTypeId: type.id,
+      wasteTypeName: type.name,
+      quantity: Number(currentItem.quantity),
+      unit: type.unit
+    };
+
+    setItems([...items, newItem]);
+    setCurrentItem({ wasteTypeId: '', quantity: '' });
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.wasteTypeId || !formData.quantity || !formData.responsibleId || !formData.partnerId) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+    if (items.length === 0 || !metadata.responsibleId || !metadata.partnerId) {
+      alert('Por favor, adicione pelo menos um item e preencha o responsável e parceiro.');
       return;
     }
 
-    const type = wasteTypes.find(t => t.id === formData.wasteTypeId);
-    const responsible = collaborators.find(c => c.id === formData.responsibleId);
-    const partner = partners.find(p => p.id === formData.partnerId);
+    const responsible = collaborators.find(c => c.id === metadata.responsibleId);
+    const partner = partners.find(p => p.id === metadata.partnerId);
 
-    if (!type || !responsible || !partner) return;
+    if (!responsible || !partner) return;
 
     setUploading(true);
     try {
@@ -95,27 +121,22 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
 
       const newDisposal: WasteDisposal = {
         id: Date.now().toString(),
-        wasteTypeId: type.id,
-        wasteTypeName: type.name,
-        quantity: Number(formData.quantity),
-        unit: type.unit,
-        date: formData.date,
+        items,
+        date: metadata.date,
         responsibleId: responsible.id,
         responsibleName: responsible.name,
         partnerId: partner.id,
         partnerName: partner.name,
-        notes: formData.notes,
-        certificateNumber: formData.certificateNumber,
-        cost: formData.cost ? Number(formData.cost) : undefined,
+        notes: metadata.notes,
+        certificateNumber: metadata.certificateNumber,
+        cost: metadata.cost ? Number(metadata.cost) : undefined,
         attachmentUrl,
         createdAt: new Date().toISOString()
       };
 
       await storageService.addWasteDisposal(orgId, newDisposal);
       setIsModalOpen(false);
-      setFormData({
-        wasteTypeId: '',
-        quantity: '',
+      setMetadata({
         date: new Date().toISOString().split('T')[0],
         responsibleId: '',
         partnerId: '',
@@ -123,6 +144,8 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
         certificateNumber: '',
         cost: ''
       });
+      setItems([]);
+      setCurrentItem({ wasteTypeId: '', quantity: '' });
       setSelectedFile(null);
     } catch (error) {
       console.error("Error adding disposal:", error);
@@ -135,7 +158,9 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
   const getStats = useMemo(() => {
     const totalByUnit: Record<string, number> = {};
     disposals.forEach(d => {
-      totalByUnit[d.unit] = (totalByUnit[d.unit] || 0) + d.quantity;
+      d.items.forEach(item => {
+        totalByUnit[item.unit] = (totalByUnit[item.unit] || 0) + item.quantity;
+      });
     });
     return totalByUnit;
   }, [disposals]);
@@ -202,8 +227,8 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Item / Data</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Quantidade</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Itens / Data</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Quantidades</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Destino / Parceiro</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Responsável</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Certificado / Laudo</th>
@@ -215,21 +240,31 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                 <tr key={disposal.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600">
-                        <FileText className="h-4 w-4" />
+                      <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 self-start">
+                        <Package className="h-4 w-4" />
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800 dark:text-white">{disposal.wasteTypeName}</p>
-                        <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                      <div className="min-w-0">
+                        <div className="space-y-1">
+                          {disposal.items.map((item, idx) => (
+                            <p key={idx} className="font-bold text-slate-800 dark:text-white truncate">
+                              {item.wasteTypeName}
+                            </p>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
                           <Calendar className="h-3 w-3" /> {new Date(disposal.date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full text-xs font-black">
-                      {disposal.quantity} {disposal.unit}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      {disposal.items.map((item, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-black w-fit">
+                          {item.quantity} {item.unit}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
@@ -300,68 +335,106 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 overflow-hidden border border-slate-200 dark:border-slate-800"
+              className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
                   <Plus className="h-5 w-5 text-orange-600" />
-                  Lançar Descarte
+                  Lançar Descarte Multi-Item
                 </h3>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                   <X className="h-5 w-5 text-slate-500" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="col-span-2">
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Item de Resíduo *</label>
-                      <select
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
-                        value={formData.wasteTypeId}
-                        onChange={(e) => setFormData({...formData, wasteTypeId: e.target.value})}
-                        required
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Item Section */}
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+                   <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <ListPlus className="h-4 w-4" /> Adicionar Itens ao Descarte
+                   </h4>
+                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+                      <div className="sm:col-span-3">
+                         <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Item de Resíduo</label>
+                         <select
+                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
+                            value={currentItem.wasteTypeId}
+                            onChange={(e) => setCurrentItem({...currentItem, wasteTypeId: e.target.value})}
+                         >
+                            <option value="">Selecione...</option>
+                            {wasteTypes.map(t => (
+                              <option key={t.id} value={t.id}>{t.name} ({t.unit})</option>
+                            ))}
+                         </select>
+                      </div>
+                      <div className="sm:col-span-1">
+                         <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Qtd</label>
+                         <input
+                            type="number"
+                            step="0.01"
+                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm text-center"
+                            value={currentItem.quantity}
+                            onChange={(e) => setCurrentItem({...currentItem, quantity: e.target.value})}
+                            placeholder="0"
+                         />
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={handleAddItem}
+                        className="p-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all flex items-center justify-center"
                       >
-                        <option value="">Selecione o Item...</option>
-                        {wasteTypes.map(t => (
-                          <option key={t.id} value={t.id}>{t.name} ({t.unit})</option>
-                        ))}
-                      </select>
+                         <Plus className="h-5 w-5" />
+                      </button>
                    </div>
 
-                   <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Quantidade *</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm text-center"
-                        value={formData.quantity}
-                        onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                        required
-                        placeholder="0.00"
-                      />
-                   </div>
+                   {/* Items List */}
+                   {items.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                         {items.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm animate-in fade-in slide-in-from-left-4">
+                               <div className="flex items-center gap-3">
+                                  <div className="p-1 px-2 bg-orange-50 dark:bg-orange-900/20 rounded text-[10px] font-black text-orange-600">
+                                     {item.unit}
+                                  </div>
+                                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{item.wasteTypeName}</span>
+                               </div>
+                               <div className="flex items-center gap-4">
+                                  <span className="text-sm font-black text-slate-900 dark:text-white">{item.quantity}</span>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleRemoveItem(idx)}
+                                    className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors"
+                                  >
+                                     <X className="h-4 w-4" />
+                                  </button>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   )}
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Data *</label>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Data do Descarte *</label>
                       <input
                         type="date"
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
-                        value={formData.date}
-                        onChange={(e) => setFormData({...formData, date: e.target.value})}
+                        value={metadata.date}
+                        onChange={(e) => setMetadata({...metadata, date: e.target.value})}
                         required
                       />
                    </div>
 
-                   <div className="col-span-2">
+                   <div>
                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Destino (Parceiro) *</label>
                       <select
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
-                        value={formData.partnerId}
-                        onChange={(e) => setFormData({...formData, partnerId: e.target.value})}
+                        value={metadata.partnerId}
+                        onChange={(e) => setMetadata({...metadata, partnerId: e.target.value})}
                         required
                       >
-                        <option value="">Selecione o Parceiro...</option>
+                        <option value="">Selecione...</option>
                         {partners.map(p => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
@@ -372,8 +445,8 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Responsável *</label>
                       <select
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
-                        value={formData.responsibleId}
-                        onChange={(e) => setFormData({...formData, responsibleId: e.target.value})}
+                        value={metadata.responsibleId}
+                        onChange={(e) => setMetadata({...metadata, responsibleId: e.target.value})}
                         required
                       >
                         <option value="">Selecione o Responsável...</option>
@@ -388,20 +461,20 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                       <input
                         type="text"
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
-                        value={formData.certificateNumber}
-                        onChange={(e) => setFormData({...formData, certificateNumber: e.target.value})}
+                        value={metadata.certificateNumber}
+                        onChange={(e) => setMetadata({...metadata, certificateNumber: e.target.value})}
                         placeholder="Opcional"
                       />
                    </div>
 
                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Custo Logístico (R$)</label>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Custo Logístico Total (R$)</label>
                       <input
                         type="number"
                         step="0.01"
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
-                        value={formData.cost}
-                        onChange={(e) => setFormData({...formData, cost: e.target.value})}
+                        value={metadata.cost}
+                        onChange={(e) => setMetadata({...metadata, cost: e.target.value})}
                         placeholder="0,00"
                       />
                    </div>
@@ -436,14 +509,14 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Observações</label>
                       <textarea
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm min-h-[100px]"
-                        value={formData.notes}
-                        onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                        value={metadata.notes}
+                        onChange={(e) => setMetadata({...metadata, notes: e.target.value})}
                         placeholder="Detalhes adicionais sobre o descarte..."
                       />
                    </div>
                 </div>
 
-                <div className="pt-4 flex gap-3">
+                <div className="pt-4 flex gap-3 sticky bottom-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 py-4 -mx-6 px-6 mt-6">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
@@ -454,7 +527,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                   </button>
                   <button
                     type="submit"
-                    disabled={uploading}
+                    disabled={uploading || items.length === 0}
                     className="flex-[2] px-6 py-4 bg-orange-600 text-white rounded-2xl font-extrabold shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {uploading ? (

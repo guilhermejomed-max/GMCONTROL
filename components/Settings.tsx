@@ -36,6 +36,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   const [regPassword, setRegPassword] = useState('');
   const [regRole, setRegRole] = useState<UserLevel>('JUNIOR');
   const [regBranchId, setRegBranchId] = useState<string>('');
+  const [regSectorId, setRegSectorId] = useState<string>('');
   
   // Permission States
   const [regModules, setRegModules] = useState<ModuleType[]>(['TIRES']);
@@ -253,6 +254,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setRegPassword('');
     setRegRole('JUNIOR');
     setRegBranchId('');
+    setRegSectorId('');
     setRegModules(['TIRES']);
     setRegPermissions([]);
     setEditingMemberId(null);
@@ -265,6 +267,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setRegLastName(rest.join(' '));
     setRegRole(member.role);
     setRegBranchId(member.branchId || '');
+    setRegSectorId(member.sectorId || '');
     setRegModules(member.allowedModules || ['TIRES']);
     setRegPermissions(member.permissions || []);
     setEditingMemberId(member.id);
@@ -283,11 +286,14 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
 
     setIsSubmittingMember(true);
     try {
+      const selectedSector = sectors.find(s => s.id === regSectorId);
       if (editingMemberId) {
          await storageService.updateTeamMember(orgId, editingMemberId, {
             name: `${regFirstName} ${regLastName}`.trim(),
             role: regRole,
             branchId: regBranchId || null,
+            sectorId: regSectorId || undefined,
+            sectorName: selectedSector?.name || undefined,
             allowedModules: regModules,
             permissions: regPermissions
          });
@@ -301,7 +307,9 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             regRole,
             regModules,
             regPermissions,
-            regBranchId || undefined
+            regBranchId || undefined,
+            regSectorId || undefined,
+            selectedSector?.name || undefined
          );
          alert(`Usuário criado!\nLogin: ${createdUsername}`);
       }
@@ -1173,8 +1181,9 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <div><label className="block text-xs font-bold text-slate-500 mb-1">Sobrenome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regLastName || ''} onChange={e => setRegLastName(e.target.value)} /></div>
                         <div><label className="block text-xs font-bold text-slate-500 mb-1">Senha {editingMemberId && '(Deixe em branco para manter)'}</label><div className="relative"><Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input type="text" placeholder="******" minLength={6} className="w-full pl-9 p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regPassword || ''} onChange={e => setRegPassword(e.target.value)} /></div></div>
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div><label className="block text-xs font-bold text-slate-500 mb-1">Nível de Acesso Hierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option><option value="INSPECTOR">Inspetor (Acesso Restrito)</option></select></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Setor Vinculado (Ocorrências)</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regSectorId || ''} onChange={e => setRegSectorId(e.target.value)}><option value="">Nenhum Setor</option>{sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
                         <div><label className="block text-xs font-bold text-slate-500 mb-1">Filial Vinculada</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regBranchId || ''} onChange={e => setRegBranchId(e.target.value)}><option value="">Todas as Filiais</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
                      </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200">
@@ -1197,6 +1206,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                      <tr>
                         <th className="p-3 rounded-tl-lg">Nome / Usuário</th>
                         <th className="p-3">Nível</th>
+                        <th className="p-3">Setor</th>
                         <th className="p-3">Filial</th>
                         <th className="p-3">Módulos</th>
                         <th className="p-3 text-center">Último Acesso</th>
@@ -1208,6 +1218,15 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <tr key={member.id} className="hover:bg-slate-50 group">
                            <td className="p-3"><div className="font-bold text-slate-800">{member.name}</div><div className="text-xs text-slate-500 font-mono">{member.username}</div></td>
                            <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${member.role === 'SENIOR' ? 'bg-red-100 text-red-700' : member.role === 'PLENO' ? 'bg-blue-100 text-blue-700' : member.role === 'INSPECTOR' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>{member.role}</span></td>
+                           <td className="p-3">
+                              {member.sectorName ? (
+                                 <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
+                                    {member.sectorName}
+                                 </span>
+                              ) : (
+                                 <span className="text-xs text-slate-400 italic">-</span>
+                               )}
+                           </td>
                            <td className="p-3"><span className="text-xs text-slate-600 font-medium bg-slate-100 px-2 py-1 rounded">{member.branchId ? branches.find(b => b.id === member.branchId)?.name || 'Desconhecida' : 'Todas'}</span></td>
                            <td className="p-3"><div className="flex gap-1">{member.allowedModules?.includes('TIRES') && <span className="w-2 h-2 rounded-full bg-blue-500" title="Pneus"></span>}{member.allowedModules?.includes('MECHANICAL') && <span className="w-2 h-2 rounded-full bg-green-500" title="Almoxarifado"></span>}{member.allowedModules?.includes('VEHICLES') && <span className="w-2 h-2 rounded-full bg-emerald-500" title="Veículos"></span>}</div></td>
                            <td className="p-3 text-center">
