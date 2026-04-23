@@ -1437,11 +1437,14 @@ export const storageService = {
     if (mockUser || !db) return () => {};
     return db.collection("notifications")
       .where("recipientId", "==", recipientId)
-      .orderBy("createdAt", "desc")
-      .limit(20)
       .onSnapshot((snapshot) => {
-        const notifications: import('../types').AppNotification[] = [];
+        let notifications: import('../types').AppNotification[] = [];
         snapshot.forEach((doc) => notifications.push(doc.data() as import('../types').AppNotification));
+        
+        // In-memory sort and limit to bypass missing composite index
+        notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        notifications = notifications.slice(0, 20);
+        
         callback(notifications);
       }, (error) => handleFirestoreError(error, OperationType.LIST, "notifications"));
   },
