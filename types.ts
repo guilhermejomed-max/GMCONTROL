@@ -1,21 +1,46 @@
 
 export const AVAILABLE_PERMISSIONS = [
-  { id: 'view_financial', label: 'Ver Fiscal & Custos' },
-  { id: 'view_reports', label: 'Ver Relatórios/Dashboard' },
-  { id: 'delete_records', label: 'Excluir Registros' },
-  { id: 'manage_team', label: 'Gerenciar Equipe' },
-  { id: 'manage_settings', label: 'Gerenciar Configurações' },
-  { id: 'edit_tires', label: 'Cadastrar/Editar Pneus' },
-  { id: 'inspect_tires', label: 'Inspecionar Pneus' },
-  { id: 'move_tires', label: 'Movimentar Pneus (Montar/Desmontar)' },
-  { id: 'send_retread', label: 'Enviar para Recapagem' },
-  { id: 'manage_stock', label: 'Editar Estoque (Almoxarifado)' },
-  { id: 'create_service_order', label: 'Abrir Ordem de Serviço' },
-  { id: 'close_service_order', label: 'Fechar Ordem de Serviço' },
-  { id: 'edit_vehicles', label: 'Cadastrar/Editar Veículos' },
-  { id: 'view_tracking', label: 'Ver Rastreamento/Telemetria' },
-  { id: 'add_fuel', label: 'Lançar Abastecimento' },
-  { id: 'edit_fuel_station', label: 'Gerenciar Postos' },
+  // PNEUS
+  { id: 'edit_tires', label: 'Cadastrar/Editar Pneus', category: 'Pneus' },
+  { id: 'inspect_tires', label: 'Inspecionar Pneus', category: 'Pneus' },
+  { id: 'move_tires', label: 'Movimentar Pneus', category: 'Pneus' },
+  { id: 'send_retread', label: 'Enviar para Recapagem', category: 'Pneus' },
+  { id: 'manage_scrap', label: 'Gerenciar Sucata/Descarte', category: 'Pneus' },
+  { id: 'view_esg', label: 'Ver Painel ESG', category: 'Pneus' },
+  { id: 'view_forecast_tires', label: 'Previsão de Compra', category: 'Pneus' },
+  { id: 'view_ranking_retreaders', label: 'Ranking de Fornecedores', category: 'Pneus' },
+
+  // VEÍCULOS
+  { id: 'edit_vehicles', label: 'Cadastrar/Editar Veículos', category: 'Veículos' },
+  { id: 'view_tracking', label: 'Ver Rastreamento', category: 'Veículos' },
+  { id: 'manage_drivers', label: 'Gerenciar Motoristas', category: 'Veículos' },
+  { id: 'manage_brands', label: 'Gerenciar Marcas/Modelos', category: 'Veículos' },
+  { id: 'manage_vehicle_types', label: 'Gerenciar Tipos de Veículos', category: 'Veículos' },
+  { id: 'occurrences_view', label: 'Ver Ocorrências', category: 'Veículos' },
+  { id: 'occurrences_manage', label: 'Gerenciar Ocorrências', category: 'Veículos' },
+  { id: 'manage_partners', label: 'Gerenciar Parceiros', category: 'Veículos' },
+
+  // OFICINA & MANUTENÇÃO
+  { id: 'create_service_order', label: 'Abrir Ordem de Serviço', category: 'Oficina' },
+  { id: 'close_service_order', label: 'Concluir Ordem de Serviço', category: 'Oficina' },
+  { id: 'manage_maintenance_plans', label: 'Planos de Manutenção', category: 'Oficina' },
+  { id: 'manage_stock', label: 'Gerenciar Almoxarifado', category: 'Oficina' },
+  { id: 'manage_waste', label: 'Gestão de Resíduos', category: 'Oficina' },
+
+  // COMBUSTÍVEL
+  { id: 'add_fuel', label: 'Lançar Abastecimento', category: 'Combustível' },
+  { id: 'edit_fuel_station', label: 'Gerenciar Postos', category: 'Combustível' },
+  { id: 'manage_fuel_types', label: 'Tipos de Combustíveis', category: 'Combustível' },
+
+  // ADMINISTRAÇÃO
+  { id: 'view_financial', label: 'Ver Financeiro & Custos', category: 'Administração' },
+  { id: 'view_reports', label: 'Ver Relatórios/Dashboard', category: 'Administração' },
+  { id: 'view_strategic_analysis', label: 'Análise Estratégica', category: 'Administração' },
+  { id: 'manage_team', label: 'Gerenciar Equipe', category: 'Administração' },
+  { id: 'manage_settings', label: 'Configurações', category: 'Administração' },
+  { id: 'manage_branches', label: 'Gerenciar Filiais', category: 'Administração' },
+  { id: 'delete_records', label: 'Excluir Registros (Geral)', category: 'Administração' },
+  { id: 'view_logs', label: 'Ver Auditoria de Logs', category: 'Administração' },
 ];
 
 export interface Branch {
@@ -39,7 +64,7 @@ export enum TireStatus {
 
 export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR' | 'INSPECTOR' | 'ADMIN' | 'MECHANIC' | 'MANAGER' | 'DRIVER' | 'STOCK' | 'FINANCIAL';
 
-export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL' | 'FINANCIAL' | 'SETTINGS' | 'AUDIT';
+export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL';
 
 export interface TireHistoryLog {
   date: string;
@@ -301,6 +326,11 @@ export interface TeamMember {
   username: string;
   email: string;
   role: UserLevel;
+  photoUrl?: string; // Novo: Foto do perfil
+  phone?: string; // Novo: Telefone
+  cpf?: string; // Novo: CPF
+  birthDate?: string; // Novo: Data de Nascimento
+  notes?: string; // Novo: Observações/Bio
   allowedModules?: ModuleType[];
   permissions?: string[];
   createdAt: string;
@@ -367,7 +397,7 @@ export interface ServiceOrder {
   orderNumber: number;
   vehicleId: string;
   vehiclePlate: string;
-  occurrenceId?: string; // NOVO: Vínculo com a Ocorrência que gerou a OS
+  occurrenceId?: string; // Vínculo com a Ocorrência que gerou a OS
   maintenancePlanId?: string; // Added maintenancePlanId, removed tireId/tireFireNumber
   tireId?: string; // Re-added for linking O.S. to specific tire
   tireFireNumber?: string; // Re-added for linking O.S. to specific tire
@@ -389,7 +419,6 @@ export interface ServiceOrder {
   serviceType?: 'INTERNAL' | 'EXTERNAL' | 'BOTH'; // Updated: Internal, External or Both
   providerName?: string; // New: Provider name
   externalServiceCost?: number; // New: External service cost
-  occurrenceId?: string; // Link to the original Occurrence
   date?: string; // Data da O.S. (pode ser diferente de createdAt)
   createdBy: string;
   createdAt: string;

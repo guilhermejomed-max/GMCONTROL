@@ -35,25 +35,25 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      let email = request.auth.token.email;
       return isSignedIn() && (
         request.auth.uid == "tnfDueAojpU7PJThDm6VAT1jRRA3" ||
-        request.auth.token.email == "guilherme.jomed@gmail.com" ||
-        request.auth.token.email == "gui@gmail.com" ||
-        request.auth.token.email == "michel.henrique@sys.gmcontrol.com" ||
-        request.auth.token.email == "danilo.silva@sys.gmcontrol.com" ||
-        request.auth.token.email == "guilherme.martins@sys.gmcontrol.com" ||
-        (request.auth.token.email != null && request.auth.token.email.matches(".*@sys\\.gmcontrol\\.com$"))
+        email == "guilherme.jomed@gmail.com" ||
+        email == "gui@gmail.com" ||
+        email == "guilherme.martins@sys.gmcontrol.com" ||
+        (email != null && email.matches(".*@sys\\.gmcontrol\\.com$"))
       );
     }
 
     function getUserData() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
-        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "FINANCIAL"], "role": "SENIOR"};
+        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"], "role": "SENIOR"};
     }
 
     function hasModuleAccess(module) {
-      return isServer() || isAdmin() || (isSignedIn() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "FINANCIAL"]));
+      let defaultModules = ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"];
+      return isServer() || isAdmin() || (isSignedIn() && module in getUserData().get('allowedModules', defaultModules));
     }
 
     function getRole() {
@@ -62,9 +62,9 @@ service cloud.firestore {
 
     // --- USERS COLLECTION ---
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin() || getRole() in ["SENIOR", "CREATOR"]);
       allow list: if isSignedIn();
-      allow write: if isVerified() && (request.auth.uid == userId || isAdmin());
+      allow write: if isVerified() && (request.auth.uid == userId || isAdmin() || getRole() in ["SENIOR", "CREATOR"]);
     }
 
     // Validation Helpers
@@ -144,7 +144,7 @@ service cloud.firestore {
     }
     match /occurrence_reasons/{id} {
       allow read: if isSignedIn();
-      allow write, delete: if isSignedIn() && (isVerified() || isAdmin());
+      allow write, delete: if isSignedIn() && (isAdmin() || getRole() in ["SENIOR", "CREATOR"]);
     }
 
     // --- MECHANICAL MODULE ---

@@ -299,10 +299,13 @@ export const App = () => {
                 // Merge auth user with profile data
                 setUser({ ...u, ...profile });
                 setUserRole(profile.role);
-                const userModules = profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'];
-                setAllowedModules(userModules);
+                const userModules = (profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'])
+                  .filter((m: any) => ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'].includes(m)) as ModuleType[];
                 
-                const initialModule = userModules[0] || 'TIRES';
+                const finalModules = userModules.length > 0 ? userModules : ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'] as ModuleType[];
+                setAllowedModules(finalModules);
+                
+                const initialModule = finalModules[0] || 'TIRES';
                 setActiveModule(initialModule);
                 
                 if (profile.branchId) {

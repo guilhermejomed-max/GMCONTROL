@@ -433,7 +433,19 @@ export const storageService = {
     }
   },
 
-  registerTeamMember: async (orgId: string, firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[], branchId?: string | null, sectorId?: string, sectorName?: string) => {
+  registerTeamMember: async (
+    orgId: string, 
+    firstName: string, 
+    lastName: string, 
+    pass: string, 
+    role: UserLevel, 
+    modules: ModuleType[], 
+    permissions: string[], 
+    branchId?: string | null, 
+    sectorId?: string, 
+    sectorName?: string,
+    extraData?: Partial<TeamMember>
+  ) => {
     const baseUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
     let username = baseUsername;
     let email = `${username}${INTERNAL_DOMAIN}`;
@@ -482,7 +494,8 @@ export const storageService = {
                     createdAt: now,
                     branchId,
                     sectorId,
-                    sectorName
+                    sectorName,
+                    ...extraData
                 };
                 console.log("[Firebase] Saving user profile to Firestore...");
                 try {
@@ -503,7 +516,10 @@ export const storageService = {
     // Fallback to LocalDB only if Firebase is not available
     console.warn("[LocalDB] Falling back to LocalDB for user registration");
     const id = (mockUser ? 'mock-' : 'local-') + Date.now();
-    const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined, branchId, sectorId, sectorName };
+    const member: TeamMember = { 
+      id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined, branchId, sectorId, sectorName,
+      ...extraData 
+    };
     LocalDB.add(`users`, member);
     return username;
   },
