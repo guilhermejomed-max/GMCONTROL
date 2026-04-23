@@ -723,7 +723,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                       <td className="px-6 py-4">
                         <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-100 rounded-md text-[11px] font-bold text-gray-700">
                           <User className="w-3 h-3 text-gray-400" />
-                          {occ.userName.split(' ')[0]}
+                          {(occ.userName || 'Sistema').split(' ')[0]}
                         </div>
                       </td>
                       <td className="px-6 py-4">
