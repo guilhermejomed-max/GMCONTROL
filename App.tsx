@@ -230,6 +230,8 @@ export const App = () => {
   const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
   const [occurrenceReasons, setOccurrenceReasons] = useState<OccurrenceReason[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<import('./types').PaymentMethod[]>([]);
+  const [teamMembers, setTeamMembers] = useState<import('./types').TeamMember[]>([]);
+  const [notifications, setNotifications] = useState<import('./types').AppNotification[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
@@ -294,6 +296,8 @@ export const App = () => {
             // Fetch profile to get role
             const profile = await storageService.getUserProfile(u.uid);
             if (profile) {
+                // Merge auth user with profile data
+                setUser({ ...u, ...profile });
                 setUserRole(profile.role);
                 const userModules = profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'];
                 setAllowedModules(userModules);
@@ -426,6 +430,29 @@ export const App = () => {
     const unsubOccurrenceReasons = storageService.subscribeToOccurrenceReasons(orgId, setOccurrenceReasons);
     const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
     const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
+    const unsubTeam = storageService.subscribeToTeam(orgId, setTeamMembers);
+    
+    let unsubNotifications = () => {};
+    if (user?.uid) {
+      unsubNotifications = storageService.subscribeToNotifications(orgId, user.uid, (newNotes) => {
+        setNotifications(prev => {
+          // Detect actual NEW unread notes to toast
+          const unread = newNotes.filter(n => !n.read);
+          const lastRead = prev.filter(n => !n.read);
+          
+          if (unread.length > lastRead.length) {
+            const latest = unread[0];
+            if (latest && latest.senderId !== user.uid) {
+              const alreadyToasted = prev.some(n => n.id === latest.id);
+              if (!alreadyToasted) {
+                addToast('info', `Novo Alerta: ${latest.senderName}`, latest.text);
+              }
+            }
+          }
+          return newNotes;
+        });
+      });
+    }
     
     return () => {
         unsubArrivalAlerts();
@@ -433,6 +460,8 @@ export const App = () => {
         unsubOccurrenceReasons();
         unsubOccurrences();
         unsubCollaborators();
+        unsubTeam();
+        unsubNotifications();
     };
   }, [user, activeModule, currentTab]);
 
@@ -1379,11 +1408,13 @@ export const App = () => {
                           <Bell className="h-5 w-5" />
                           {(arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
                             maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
-                            tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length) > 0 && (
+                            tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length +
+                            notifications.filter(n => !n.read).length) > 0 && (
                               <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-950 animate-pulse">
                                   {arrivalAlerts.filter(a => a.status === 'PENDING' || a.status === 'ARRIVED').length + 
                                    maintenanceSchedules.filter(s => s.status === 'OVERDUE').length +
-                                   tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length}
+                                   tires.filter(t => t.currentTreadDepth <= (settings?.minTreadDepth || 3)).length +
+                                   notifications.filter(n => !n.read).length}
                               </span>
                           )}
                       </button>
@@ -1697,7 +1728,23 @@ export const App = () => {
                 onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} 
               />
             )}
-            {currentTab === 'occurrences' && <Occurrences orgId={orgId} user={user} occurrences={occurrences} vehicles={vehicles} reasons={occurrenceReasons} sectors={sectors} drivers={drivers} paymentMethods={paymentMethods} onGenerateOS={handleGenerateOSFromOccurrence} onNotification={addToast} />}
+            {currentTab === 'occurrences' && (
+              <Occurrences 
+                orgId={orgId} 
+                user={user} 
+                occurrences={occurrences} 
+                vehicles={vehicles} 
+                reasons={occurrenceReasons} 
+                sectors={sectors} 
+                drivers={drivers} 
+                collaborators={collaborators}
+                paymentMethods={paymentMethods} 
+                userLevel={userRole}
+                onGenerateOS={handleGenerateOSFromOccurrence} 
+                onNotification={addToast} 
+                teamMembers={teamMembers}
+              />
+            )}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
         </div>
       </main>
@@ -1713,7 +1760,9 @@ export const App = () => {
         arrivalAlerts={arrivalAlerts} 
         maintenanceSchedules={maintenanceSchedules}
         maintenancePlans={maintenancePlans}
+        notifications={notifications}
         onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
+        onMarkRead={(id) => storageService.markNotificationAsRead(orgId, id)}
       />
       <ToastNotifications toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
 

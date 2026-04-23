@@ -335,13 +335,31 @@
         "vehicleId": { "type": "string" },
         "reasonId": { "type": "string" },
         "description": { "type": "string" },
-        "status": { "type": "string", "enum": ["OPEN", "RESOLVED"] },
+        "responsibleSector": { "type": "string" },
+        "responsibleSectorId": { "type": "string" },
+        "assignedUserId": { "type": "string" },
+        "assignedUserName": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "ACCEPTED", "REJECTED", "RESOLVED"] },
+        "rejectionReason": { "type": "string" },
+        "treatments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" },
+              "userId": { "type": "string" },
+              "userName": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
         "createdAt": { "type": "string", "format": "date-time" },
         "resolvedAt": { "type": "string", "format": "date-time" },
         "userId": { "type": "string" },
         "branchId": { "type": "string" }
       },
-      "required": ["id", "vehicleId", "reasonId", "status", "createdAt", "userId"]
+      "required": ["id", "vehicleId", "reasonId", "status", "createdAt", "userId", "treatments"]
     },
     "FuelEntry": {
       "title": "FuelEntry",

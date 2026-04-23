@@ -1045,11 +1045,12 @@ async function startServer() {
     
     // Iniciar automação Sascar a cada 15 minutos para ser mais ágil sem sobrecarregar
     const FIFTEEN_MINUTES = 15 * 60 * 1000;
-    setInterval(runSascarAutomation, FIFTEEN_MINUTES);
+    // Removal of automatic interval as requested by user
+    // setInterval(runSascarAutomation, FIFTEEN_MINUTES);
     logToFile("[Server] Automação Sascar agendada para cada 15 minutos.");
     
     // Executar uma vez após 10 segundos do boot para garantir que os dados estejam frescos
-    setTimeout(runSascarAutomation, 10000);
+    // setTimeout(runSascarAutomation, 10000);
   });
 
   return app;

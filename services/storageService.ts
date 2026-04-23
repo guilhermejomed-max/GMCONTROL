@@ -140,6 +140,12 @@ const LocalDB = {
         const updated = current.map((i: any) => i.id === id ? { ...i, ...updates } : i);
         LocalDB.set(collection, updated);
     },
+
+    getOne: <T>(collection: string, id: string): T | null => {
+        const key = `gm_local_${collection}`;
+        const current = JSON.parse(localStorage.getItem(key) || '[]');
+        return current.find((i: any) => i.id === id) || null;
+    },
     
     delete: (collection: string, id: string) => {
         const key = `gm_local_${collection}`;
@@ -427,7 +433,7 @@ export const storageService = {
     }
   },
 
-  registerTeamMember: async (orgId: string, firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[], branchId?: string | null) => {
+  registerTeamMember: async (orgId: string, firstName: string, lastName: string, pass: string, role: UserLevel, modules: ModuleType[], permissions: string[], branchId?: string | null, sectorId?: string, sectorName?: string) => {
     const baseUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
     let username = baseUsername;
     let email = `${username}${INTERNAL_DOMAIN}`;
@@ -474,7 +480,9 @@ export const storageService = {
                     allowedModules: modules, 
                     permissions, 
                     createdAt: now,
-                    branchId
+                    branchId,
+                    sectorId,
+                    sectorName
                 };
                 console.log("[Firebase] Saving user profile to Firestore...");
                 try {
@@ -495,7 +503,7 @@ export const storageService = {
     // Fallback to LocalDB only if Firebase is not available
     console.warn("[LocalDB] Falling back to LocalDB for user registration");
     const id = (mockUser ? 'mock-' : 'local-') + Date.now();
-    const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined, branchId };
+    const member: TeamMember = { id, name, username, email, role, allowedModules: modules, permissions, createdAt: now, lastLogin: undefined, branchId, sectorId, sectorName };
     LocalDB.add(`users`, member);
     return username;
   },
@@ -513,7 +521,14 @@ export const storageService = {
     if (mockUser || !db) return LocalDB.subscribe(`users`, callback);
     return db.collection("users").onSnapshot((snapshot) => {
       const members: TeamMember[] = [];
-      snapshot.forEach((doc) => members.push(doc.data() as TeamMember));
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        members.push({
+          ...data,
+          id: doc.id,
+          name: data.name || data.displayName || data.email?.split('@')[0] || 'Usuário'
+        } as TeamMember);
+      });
       callback(members);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "users"));
   },
@@ -1417,6 +1432,38 @@ export const storageService = {
     }, (error) => handleFirestoreError(error, OperationType.LIST, "collaborators"));
   },
 
+  // Notifications
+  subscribeToNotifications: (orgId: string, recipientId: string, callback: (notifications: import('../types').AppNotification[]) => void) => {
+    if (mockUser || !db) return () => {};
+    return db.collection("notifications")
+      .where("recipientId", "==", recipientId)
+      .orderBy("createdAt", "desc")
+      .limit(20)
+      .onSnapshot((snapshot) => {
+        const notifications: import('../types').AppNotification[] = [];
+        snapshot.forEach((doc) => notifications.push(doc.data() as import('../types').AppNotification));
+        callback(notifications);
+      }, (error) => handleFirestoreError(error, OperationType.LIST, "notifications"));
+  },
+
+  addNotification: async (orgId: string, notification: import('../types').AppNotification) => {
+    if (mockUser || !db) return;
+    try {
+      await db.collection("notifications").doc(notification.id).set(sanitize(notification));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `notifications/${notification.id}`);
+    }
+  },
+
+  markNotificationAsRead: async (orgId: string, id: string) => {
+    if (mockUser || !db) return;
+    try {
+      await db.collection("notifications").doc(id).update({ read: true });
+    } catch (error) {
+       handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`);
+    }
+  },
+
   addCollaborator: async (orgId: string, collaborator: Collaborator) => {
     if (mockUser || !db) { LocalDB.add(`collaborators`, collaborator); logActivity(orgId, "Novo Colaborador", `Cadastrou ${collaborator.name}`, 'MECHANICAL'); return; }
     try {
@@ -1558,6 +1605,77 @@ export const storageService = {
       await db.collection("occurrences").doc(id).update(sanitize(updates));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `occurrences/${id}`);
+    }
+  },
+
+  addOccurrenceChat: async (orgId: string, occurrenceId: string, message: any) => {
+    if (mockUser || !db) {
+      const occ = LocalDB.getOne<Occurrence>('occurrences', occurrenceId);
+      if (occ) {
+        LocalDB.update('occurrences', occurrenceId, { chat: [...(occ.chat || []), message] });
+      }
+      return;
+    }
+    try {
+      await db.collection("occurrences").doc(occurrenceId).update({
+        chat: firebase.firestore.FieldValue.arrayUnion(message)
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `occurrences/${occurrenceId}/chat`);
+    }
+  },
+
+  addOccurrenceTreatment: async (orgId: string, occurrenceId: string, treatment: any) => {
+    if (mockUser || !db) {
+      const occ = LocalDB.getOne<Occurrence>('occurrences', occurrenceId);
+      if (occ) {
+        LocalDB.update('occurrences', occurrenceId, { 
+          treatments: [...(occ.treatments || []), treatment],
+          status: 'RESOLVED' 
+        });
+      }
+      return;
+    }
+    try {
+      await db.collection("occurrences").doc(occurrenceId).update({
+        treatments: firebase.firestore.FieldValue.arrayUnion(treatment),
+        status: 'RESOLVED'
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `occurrences/${occurrenceId}/treatments`);
+    }
+  },
+
+  addOccurrenceRejection: async (orgId: string, occurrenceId: string, rejectionTreatment: any, newSector?: string, newSectorId?: string) => {
+    if (mockUser || !db) {
+      const occ = LocalDB.getOne<Occurrence>('occurrences', occurrenceId);
+      if (occ) {
+        const payload: any = { treatments: [...(occ.treatments || []), rejectionTreatment] };
+        if (newSectorId) {
+          payload.responsibleSector = newSector;
+          payload.responsibleSectorId = newSectorId;
+          payload.status = 'OPEN'; // reset to open for new sector
+        } else {
+          payload.status = 'REJECTED';
+        }
+        LocalDB.update('occurrences', occurrenceId, payload);
+      }
+      return;
+    }
+    try {
+      const updates: any = {
+        treatments: firebase.firestore.FieldValue.arrayUnion(rejectionTreatment)
+      };
+      if (newSectorId) {
+        updates.responsibleSector = newSector;
+        updates.responsibleSectorId = newSectorId;
+        updates.status = 'OPEN';
+      } else {
+        updates.status = 'REJECTED';
+      }
+      await db.collection("occurrences").doc(occurrenceId).update(updates);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `occurrences/${occurrenceId}/rejection`);
     }
   },
 

@@ -307,6 +307,8 @@ export interface TeamMember {
   lastLogin?: string; // Novo campo
   password?: string; // Para persistência local mock
   branchId?: string | null; // Filial vinculada
+  sectorId?: string; // Novo: Setor vinculado
+  sectorName?: string; // Novo: Nome do setor vinculado
 }
 
 export interface StockItem {
@@ -530,6 +532,22 @@ export interface OccurrenceReason {
   branchId?: string;
 }
 
+export interface Treatment {
+  id: string;
+  description: string;
+  userId: string;
+  userName: string;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+  createdAt: string;
+}
+
 export interface Occurrence {
   id: string;
   vehicleId: string;
@@ -537,9 +555,14 @@ export interface Occurrence {
   reasonId: string;
   reasonName: string;
   description?: string;
-  responsibleSector?: string; // Changed from fixed enum to dynamic string from ServiceSector
-  responsibleSectorId?: string; // Store ID as well for better linking
-  status: 'OPEN' | 'RESOLVED';
+  responsibleSector?: string;
+  responsibleSectorId?: string;
+  assignedUserId?: string;
+  assignedUserName?: string;
+  status: 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'RESOLVED';
+  rejectionReason?: string;
+  treatments: Treatment[];
+  chat?: ChatMessage[];
   createdAt: string;
   resolvedAt?: string;
   userId: string;
@@ -662,5 +685,16 @@ export interface WasteDisposal {
   certificateNumber?: string; // MTR or similar
   cost?: number; // Cost of disposal
   attachmentUrl?: string;
+  createdAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  recipientId: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  link?: string;
+  read: boolean;
   createdAt: string;
 }

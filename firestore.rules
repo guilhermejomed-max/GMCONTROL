@@ -38,6 +38,7 @@ service cloud.firestore {
         request.auth.uid == "tnfDueAojpU7PJThDm6VAT1jRRA3" ||
         request.auth.token.email == "guilherme.jomed@gmail.com" ||
         request.auth.token.email == "gui@gmail.com" ||
+        request.auth.token.email == "michel.henrique@sys.gmcontrol.com" ||
         request.auth.token.email == "danilo.silva@sys.gmcontrol.com" ||
         request.auth.token.email == "guilherme.martins@sys.gmcontrol.com" ||
         (request.auth.token.email != null && request.auth.token.email.matches(".*@sys\\.gmcontrol\\.com$"))
@@ -60,7 +61,8 @@ service cloud.firestore {
 
     // --- USERS COLLECTION ---
     match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn();
       allow write: if isVerified() && (request.auth.uid == userId || isAdmin());
     }
 
@@ -216,6 +218,13 @@ service cloud.firestore {
     match /waste_disposals/{id} {
       allow read: if hasModuleAccess("MECHANICAL");
       allow write: if hasModuleAccess("MECHANICAL");
+    }
+
+    // --- NOTIFICATIONS ---
+    match /notifications/{id} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.recipientId || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && request.auth.uid == resource.data.recipientId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
     }
 
     // --- SYSTEM ---
