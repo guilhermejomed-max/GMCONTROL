@@ -927,21 +927,24 @@ export const App = () => {
   const handleAddServiceOrder = async (partialOrder: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => {
       const maxOrderNum = serviceOrders.reduce((max, o) => Math.max(max, o.orderNumber), 0);
       
+      const linkedOccId = partialOrder.occurrenceId || preselectedOccurrenceId;
+      
       const newOrder: ServiceOrder = {
           ...partialOrder,
           id: Date.now().toString(),
           orderNumber: maxOrderNum + 1,
           createdAt: new Date().toISOString(),
           createdBy: user?.displayName || user?.email || 'Usuário do Sistema',
-          branchId: partialOrder.branchId || selectedBranchId
+          branchId: partialOrder.branchId || selectedBranchId,
+          occurrenceId: linkedOccId || undefined
       };
 
       await storageService.addServiceOrder(orgId, newOrder);
       addToast('success', 'Ordem Criada', `O.S. #${newOrder.orderNumber} aberta com sucesso.`);
 
       // Link to occurrence if exists
-      if (preselectedOccurrenceId) {
-          await storageService.updateOccurrence(orgId, preselectedOccurrenceId, {
+      if (linkedOccId) {
+          await storageService.updateOccurrence(orgId, linkedOccId, {
               linkedServiceOrderId: newOrder.id,
               linkedServiceOrderNumber: newOrder.orderNumber.toString()
           });
@@ -1739,6 +1742,7 @@ export const App = () => {
                 drivers={drivers} 
                 collaborators={collaborators}
                 paymentMethods={paymentMethods} 
+                serviceOrders={serviceOrders}
                 userLevel={userRole}
                 onGenerateOS={handleGenerateOSFromOccurrence} 
                 onNotification={addToast} 

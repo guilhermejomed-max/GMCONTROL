@@ -8,8 +8,9 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      // Allowing isSignedIn to pass as verified temporarily since the main admin account (gui@gmail.com) is not email-verified.
-      return isSignedIn(); 
+      // Allowing isSignedIn to pass as verified temporarily since many users don't have verified emails yet.
+      // We still check for request.auth to ensure they are logged in.
+      return request.auth != null;
     }
 
     function incoming() {
@@ -143,7 +144,7 @@ service cloud.firestore {
     }
     match /occurrence_reasons/{id} {
       allow read: if isSignedIn();
-      allow write, delete: if isVerified();
+      allow write, delete: if isSignedIn() && (isVerified() || isAdmin());
     }
 
     // --- MECHANICAL MODULE ---

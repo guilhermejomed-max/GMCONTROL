@@ -8,7 +8,9 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        hmr: false,
+        hmr: {
+          overlay: false
+        },
         proxy: {
           '/proxy-sascar': {
             target: 'https://sasintegra.sascar.com.br/SasIntegra',

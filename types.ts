@@ -367,6 +367,7 @@ export interface ServiceOrder {
   orderNumber: number;
   vehicleId: string;
   vehiclePlate: string;
+  occurrenceId?: string; // NOVO: Vínculo com a Ocorrência que gerou a OS
   maintenancePlanId?: string; // Added maintenancePlanId, removed tireId/tireFireNumber
   tireId?: string; // Re-added for linking O.S. to specific tire
   tireFireNumber?: string; // Re-added for linking O.S. to specific tire
@@ -559,7 +560,8 @@ export interface Occurrence {
   responsibleSectorId?: string;
   assignedUserId?: string;
   assignedUserName?: string;
-  status: 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'RESOLVED';
+  status: 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'RESOLVED' | 'PENDING_DELETION'; // NOVO: Estado de exclusão pendente
+  deletionRequestedBy?: string; // NOVO: Quem pediu exclusão
   rejectionReason?: string;
   treatments: Treatment[];
   chat?: ChatMessage[];
