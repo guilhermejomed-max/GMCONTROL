@@ -677,17 +677,19 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         </div>
         
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setEditingReason(null);
-              setReasonForm({ name: '', description: '' });
-              setIsReasonModalOpen(true);
-            }}
-            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm hover:shadow flex items-center gap-2 font-bold text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Motivo
-          </button>
+          {(userLevel === 'SENIOR' || userLevel === 'ADMIN' || userLevel === 'CREATOR') && (
+            <button
+              onClick={() => {
+                setEditingReason(null);
+                setReasonForm({ name: '', description: '' });
+                setIsReasonModalOpen(true);
+              }}
+              className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm hover:shadow flex items-center gap-2 font-bold text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Motivo
+            </button>
+          )}
           <button
             onClick={() => {
               setEditingOccurrence(null);
@@ -1033,27 +1035,29 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
                     <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        setEditingReason(reason);
-                        setReasonForm({
-                          name: reason.name,
-                          description: reason.description || ''
-                        });
-                        setIsReasonModalOpen(true);
-                      }}
-                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteReason(reason.id)}
-                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {(userLevel === 'SENIOR' || userLevel === 'ADMIN' || userLevel === 'CREATOR') && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingReason(reason);
+                          setReasonForm({
+                            name: reason.name,
+                            description: reason.description || ''
+                          });
+                          setIsReasonModalOpen(true);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReason(reason.id)}
+                        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <h3 className="text-sm font-bold text-gray-900 tracking-tight mb-2">{reason.name}</h3>
                 <p className="text-gray-500 text-xs font-medium leading-relaxed line-clamp-3">

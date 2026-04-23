@@ -41,6 +41,13 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   // Permission States
   const [regModules, setRegModules] = useState<ModuleType[]>(['TIRES']);
   const [regPermissions, setRegPermissions] = useState<string[]>([]);
+  
+  // Custom Profile States
+  const [regPhotoUrl, setRegPhotoUrl] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regCpf, setRegCpf] = useState('');
+  const [regBirthDate, setRegBirthDate] = useState('');
+  const [regNotes, setRegNotes] = useState('');
 
   const [isSubmittingMember, setIsSubmittingMember] = useState(false);
 
@@ -257,6 +264,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setRegSectorId('');
     setRegModules(['TIRES']);
     setRegPermissions([]);
+    setRegPhotoUrl('');
+    setRegPhone('');
+    setRegCpf('');
+    setRegBirthDate('');
+    setRegNotes('');
     setEditingMemberId(null);
     setIsMemberFormOpen(false);
   };
@@ -270,6 +282,11 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setRegSectorId(member.sectorId || '');
     setRegModules(member.allowedModules || ['TIRES']);
     setRegPermissions(member.permissions || []);
+    setRegPhotoUrl(member.photoUrl || '');
+    setRegPhone(member.phone || '');
+    setRegCpf(member.cpf || '');
+    setRegBirthDate(member.birthDate || '');
+    setRegNotes(member.notes || '');
     setEditingMemberId(member.id);
     setIsMemberFormOpen(true);
     setRegPassword(''); 
@@ -287,16 +304,23 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     setIsSubmittingMember(true);
     try {
       const selectedSector = sectors.find(s => s.id === regSectorId);
+      const memberData: Partial<TeamMember> = {
+        name: `${regFirstName} ${regLastName}`.trim(),
+        role: regRole,
+        branchId: regBranchId || null,
+        sectorId: regSectorId || undefined,
+        sectorName: selectedSector?.name || undefined,
+        allowedModules: regModules,
+        permissions: regPermissions,
+        photoUrl: regPhotoUrl || undefined,
+        phone: regPhone || undefined,
+        cpf: regCpf || undefined,
+        birthDate: regBirthDate || undefined,
+        notes: regNotes || undefined
+      };
+
       if (editingMemberId) {
-         await storageService.updateTeamMember(orgId, editingMemberId, {
-            name: `${regFirstName} ${regLastName}`.trim(),
-            role: regRole,
-            branchId: regBranchId || null,
-            sectorId: regSectorId || undefined,
-            sectorName: selectedSector?.name || undefined,
-            allowedModules: regModules,
-            permissions: regPermissions
-         });
+         await storageService.updateTeamMember(orgId, editingMemberId, memberData);
          alert("Usuário atualizado com sucesso!");
       } else {
          const createdUsername = await storageService.registerTeamMember(
@@ -309,7 +333,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             regPermissions,
             regBranchId || undefined,
             regSectorId || undefined,
-            selectedSector?.name || undefined
+            selectedSector?.name || undefined,
+            memberData
          );
          alert(`Usuário criado!\nLogin: ${createdUsername}`);
       }
@@ -334,6 +359,20 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
 
   const togglePermission = (perm: string) => {
      setRegPermissions(prev => prev.includes(perm) ? prev.filter(p => p !== perm) : [...prev, perm]);
+  };
+
+  const handleMemberPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert("A foto deve ter no máximo 500KB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setRegPhotoUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1176,15 +1215,47 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                <div className="bg-slate-50 p-6 rounded-xl border border-purple-100 mb-8 animate-in zoom-in-95">
                   <div className="flex justify-between items-center mb-4"><h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">{editingMemberId ? <PenLine className="h-4 w-4"/> : <Plus className="h-4 w-4" />} {editingMemberId ? 'Editar Usuário' : 'Novo Usuário'}</h4><button onClick={resetMemberForm} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5"/></button></div>
                   <form onSubmit={handleMemberSubmit} className="space-y-6">
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Nome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regFirstName || ''} onChange={e => setRegFirstName(e.target.value)} /></div>
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Sobrenome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regLastName || ''} onChange={e => setRegLastName(e.target.value)} /></div>
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Senha {editingMemberId && '(Deixe em branco para manter)'}</label><div className="relative"><Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input type="text" placeholder="******" minLength={6} className="w-full pl-9 p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regPassword || ''} onChange={e => setRegPassword(e.target.value)} /></div></div>
+                     <div className="flex flex-col md:flex-row gap-6">
+                        <div className="flex flex-col items-center gap-3">
+                           <div className="h-24 w-24 rounded-2xl bg-white border-2 border-dashed border-purple-200 flex items-center justify-center overflow-hidden relative group shadow-sm transition-all hover:border-purple-400">
+                              {regPhotoUrl ? (
+                                 <>
+                                    <img src={regPhotoUrl} alt="Preview" className="w-full h-full object-cover" />
+                                    <button type="button" onClick={() => setRegPhotoUrl('')} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold transition-opacity">Remover</button>
+                                 </>
+                              ) : (
+                                 <div className="flex flex-col items-center text-purple-300">
+                                    <ImageIcon className="h-8 w-8 mb-1" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">Foto</span>
+                                 </div>
+                              )}
+                              <input type="file" accept="image/*" onChange={handleMemberPhotoUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                           </div>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase">Pergaminho/JPG</p>
+                        </div>
+
+                        <div className="flex-1 space-y-4">
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Nome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium" value={regFirstName || ''} onChange={e => setRegFirstName(e.target.value)} /></div>
+                              <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Sobrenome</label><input type="text" required className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium" value={regLastName || ''} onChange={e => setRegLastName(e.target.value)} /></div>
+                           </div>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Telefone</label><input type="text" placeholder="(00) 00000-0000" className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium" value={regPhone || ''} onChange={e => setRegPhone(e.target.value)} /></div>
+                              <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">CPF</label><input type="text" placeholder="000.000.000-00" className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium" value={regCpf || ''} onChange={e => setRegCpf(e.target.value)} /></div>
+                           </div>
+                        </div>
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Nível de Acesso Hierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option><option value="INSPECTOR">Inspetor (Acesso Restrito)</option></select></div>
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Setor Vinculado (Ocorrências)</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regSectorId || ''} onChange={e => setRegSectorId(e.target.value)}><option value="">Nenhum Setor</option>{sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1">Filial Vinculada</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-lg outline-none focus:border-purple-500" value={regBranchId || ''} onChange={e => setRegBranchId(e.target.value)}><option value="">Todas as Filiais</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Data Nasc.</label><input type="date" className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium" value={regBirthDate || ''} onChange={e => setRegBirthDate(e.target.value)} /></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Senha {editingMemberId && '(Em branco p/ manter)'}</label><div className="relative"><Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input type="text" placeholder="******" minLength={6} className="w-full pl-9 p-2.5 bg-white text-black border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium" value={regPassword || ''} onChange={e => setRegPassword(e.target.value)} /></div></div>
+                        <div className="md:col-span-2"><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Bio / Notas</label><input type="text" placeholder="Breve resumo sobre o colaborador..." className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium" value={regNotes || ''} onChange={e => setRegNotes(e.target.value)} /></div>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 pt-6">
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">NívelHierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl shadow-sm outline-none focus:border-purple-500 font-bold" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option><option value="INSPECTOR">Inspetor (Restrito)</option></select></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Setor</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl shadow-sm outline-none focus:border-purple-500 font-bold" value={regSectorId || ''} onChange={e => setRegSectorId(e.target.value)}><option value="">Nenhum Setor</option>{sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Filial</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl shadow-sm outline-none focus:border-purple-500 font-bold" value={regBranchId || ''} onChange={e => setRegBranchId(e.target.value)}><option value="">Todas as Filiais</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
                      </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200">
                         <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulos Permitidos</label><div className="space-y-2">
@@ -1192,8 +1263,44 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('MECHANICAL')} onChange={() => toggleModule('MECHANICAL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Manutenção</span></label>
                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('VEHICLES')} onChange={() => toggleModule('VEHICLES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Gestão de Veículos</span></label>
                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('FUEL')} onChange={() => toggleModule('FUEL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Combustível</span></label>
+                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('FINANCIAL')} onChange={() => toggleModule('FINANCIAL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Financeiro</span></label>
+                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('SETTINGS')} onChange={() => toggleModule('SETTINGS')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Configurações</span></label>
+                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('AUDIT')} onChange={() => toggleModule('AUDIT')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Auditoria</span></label>
                         </div></div>
-                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Lock className="h-3 w-3"/> Permissões Específicas</label><div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">{AVAILABLE_PERMISSIONS.map(perm => (<label key={perm.id} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-50 rounded"><input type="checkbox" checked={regPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} className="w-4 h-4 text-purple-600 rounded" /><span className="text-xs text-slate-700">{perm.label}</span></label>))}</div></div>
+                        <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1">
+                              <Lock className="h-3 w-3"/> Permissões Detalhadas
+                           </label>
+                           <div className="space-y-4 max-h-60 overflow-y-auto custom-scrollbar bg-slate-50/50 p-3 rounded-xl border border-slate-200 shadow-inner">
+                              {Object.entries(
+                                 AVAILABLE_PERMISSIONS.reduce((acc, perm) => {
+                                    const cat = (perm as any).category || 'Outros';
+                                    if (!acc[cat]) acc[cat] = [];
+                                    acc[cat].push(perm);
+                                    return acc;
+                                 }, {} as Record<string, typeof AVAILABLE_PERMISSIONS>)
+                              ).map(([category, perms]) => (
+                                 <div key={category} className="space-y-1">
+                                    <h5 className="text-[10px] font-black text-purple-600 uppercase tracking-widest px-1.5 mb-1 flex items-center gap-2">
+                                       <div className="h-1 w-2 rounded-full bg-purple-400" /> {category}
+                                    </h5>
+                                    <div className="grid grid-cols-1 gap-1">
+                                       {perms.map(perm => (
+                                          <label key={perm.id} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100 group">
+                                             <input 
+                                                type="checkbox" 
+                                                checked={regPermissions.includes(perm.id)} 
+                                                onChange={() => togglePermission(perm.id)} 
+                                                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 transition-all cursor-pointer" 
+                                             />
+                                             <span className="text-[11px] text-slate-600 font-semibold group-hover:text-slate-900 transition-colors tracking-tight">{perm.label}</span>
+                                          </label>
+                                       ))}
+                                    </div>
+                                 </div>
+                              ))}
+                           </div>
+                        </div>
                      </div>
                      <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={resetMemberForm} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button><button type="submit" disabled={isSubmittingMember} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-colors">{isSubmittingMember ? 'Salvando...' : editingMemberId ? 'Atualizar Usuário' : 'Criar Acesso'}</button></div>
                   </form>
@@ -1216,8 +1323,40 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   <tbody className="divide-y divide-slate-100">
                      {teamMembers.map(member => (
                         <tr key={member.id} className="hover:bg-slate-50 group">
-                           <td className="p-3"><div className="font-bold text-slate-800">{member.name}</div><div className="text-xs text-slate-500 font-mono">{member.username}</div></td>
-                           <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${member.role === 'SENIOR' ? 'bg-red-100 text-red-700' : member.role === 'PLENO' ? 'bg-blue-100 text-blue-700' : member.role === 'INSPECTOR' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>{member.role}</span></td>
+                           <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                 <div className="h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
+                                    {member.photoUrl ? (
+                                       <img src={member.photoUrl} alt="User" className="w-full h-full object-cover" />
+                                    ) : (
+                                       <div className="w-full h-full flex items-center justify-center bg-purple-50 text-purple-400">
+                                          <Users className="h-5 w-5" />
+                                        </div>
+                                     )}
+                                  </div>
+                                  <div className="min-w-0">
+                                     <div className="font-bold text-slate-800 truncate">{member.name}</div>
+                                     <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                                        <Shield className="h-3 w-3" /> {member.username}
+                                     </div>
+                                  </div>
+                               </div>
+                            </td>
+                            <td className="p-3">
+                               <div className="space-y-1">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                                     member.role === 'SENIOR' ? 'bg-red-50 text-red-600 border border-red-100' : 
+                                     member.role === 'PLENO' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 
+                                     member.role === 'INSPECTOR' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 
+                                     'bg-green-50 text-green-600 border border-green-100'
+                                  }`}>
+                                     {member.role}
+                                  </span>
+                                  {member.phone && (
+                                     <div className="text-[10px] text-slate-400 font-medium">{member.phone}</div>
+                                  )}
+                               </div>
+                            </td>
                            <td className="p-3">
                               {member.sectorName ? (
                                  <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">

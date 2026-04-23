@@ -13,6 +13,8 @@ interface SidebarProps {
   onImportData: (e: ChangeEvent<HTMLInputElement>) => void;
   userLevel: UserLevel;
   userName: string;
+  userPhotoUrl?: string;
+  onUpdatePhoto?: (base64: string) => void;
   settings?: SystemSettings;
   activeModule: ModuleType;
   allowedModules: ModuleType[];
@@ -30,6 +32,8 @@ export const Sidebar: FC<SidebarProps> = ({
   onLogout, 
   userLevel, 
   userName, 
+  userPhotoUrl,
+  onUpdatePhoto,
   settings, 
   activeModule, 
   allowedModules,
@@ -78,7 +82,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'partners', label: 'Parceiros/Fornecedores', icon: Users, modules: ['MECHANICAL', 'TIRES'] },
 
     // --- COMPARTILHADOS ---
-    { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES'] }
+    { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'SETTINGS', 'FINANCIAL'] }
   ];
 
   const menuItems = allMenuItems.filter(item => {
@@ -95,6 +99,8 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return <Disc className="h-4 w-4 text-white" />;
     if (mod === 'VEHICLES') return <Truck className="h-4 w-4 text-white" />;
     if (mod === 'FUEL') return <Fuel className="h-4 w-4 text-white" />;
+    if (mod === 'FINANCIAL') return <DollarSign className="h-4 w-4 text-white" />;
+    if (mod === 'SETTINGS') return <Settings className="h-4 w-4 text-white" />;
     return <Package className="h-4 w-4 text-white" />;
   };
 
@@ -102,6 +108,8 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return 'Pneus';
     if (mod === 'VEHICLES') return 'Veículos';
     if (mod === 'FUEL') return 'Abastecimento';
+    if (mod === 'FINANCIAL') return 'Financeiro';
+    if (mod === 'SETTINGS') return 'Configurações';
     return 'Oficina';
   };
 
@@ -109,6 +117,8 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return 'bg-blue-600';
     if (mod === 'VEHICLES') return 'bg-emerald-600';
     if (mod === 'FUEL') return 'bg-amber-600';
+    if (mod === 'FINANCIAL') return 'bg-indigo-600';
+    if (mod === 'SETTINGS') return 'bg-slate-600';
     return 'bg-orange-600';
   };
 
@@ -226,13 +236,44 @@ export const Sidebar: FC<SidebarProps> = ({
             {darkMode ? 'Modo Claro' : 'Modo Escuro'}
           </button>
           
-          <div className="bg-slate-900/80 rounded-2xl p-4 flex items-center justify-between border border-slate-800">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">
+          <div className="bg-slate-900/80 rounded-2xl p-3 flex items-center gap-3 border border-slate-800">
+            <label className="relative group cursor-pointer">
+              <div className="h-10 w-10 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center transition-all group-hover:border-blue-500">
+                {userPhotoUrl ? (
+                  <img src={userPhotoUrl} alt="User" className="w-full h-full object-cover" />
+                ) : (
+                  <UserSquare2 className="h-6 w-6 text-slate-500" />
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <SwitchCamera className="h-4 w-4 text-white" />
+                </div>
+              </div>
+              <input 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 500 * 1024) {
+                    alert("A foto deve ter no máximo 500KB.");
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    if (onUpdatePhoto) onUpdatePhoto(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }} 
+              />
+            </label>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-white truncate leading-tight">
                 {userName.includes('@') 
                   ? userName.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase())
                   : userName}
               </p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{userLevel}</p>
             </div>
             <button onClick={onLogout} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all" title="Sair">
               <LogOut className="h-5 w-5" />
