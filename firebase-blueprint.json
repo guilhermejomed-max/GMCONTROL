@@ -488,10 +488,19 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "wasteTypeId": { "type": "string" },
-        "wasteTypeName": { "type": "string" },
-        "quantity": { "type": "number" },
-        "unit": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "wasteTypeId": { "type": "string" },
+              "wasteTypeName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unit": { "type": "string" }
+            },
+            "required": ["wasteTypeId", "quantity", "unit"]
+          }
+        },
         "date": { "type": "string", "format": "date" },
         "responsibleId": { "type": "string" },
         "responsibleName": { "type": "string" },
@@ -503,7 +512,7 @@
         "attachmentUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "wasteTypeId", "quantity", "unit", "date", "responsibleId", "partnerId", "createdAt"]
+      "required": ["id", "items", "date", "responsibleId", "partnerId", "createdAt"]
     }
   },
   "firestore": {

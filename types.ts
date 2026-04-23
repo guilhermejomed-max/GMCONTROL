@@ -643,12 +643,16 @@ export interface WasteType {
   description?: string;
 }
 
-export interface WasteDisposal {
-  id: string;
+export interface WasteDisposalItem {
   wasteTypeId: string;
   wasteTypeName: string;
   quantity: number;
   unit: WasteUnit;
+}
+
+export interface WasteDisposal {
+  id: string;
+  items: WasteDisposalItem[];
   date: string;
   responsibleId: string;
   responsibleName: string;
