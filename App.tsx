@@ -354,6 +354,29 @@ export const App = () => {
     const unsubClassifications = storageService.subscribeToClassifications(setClassifications);
     const unsubSectors = storageService.subscribeToSectors(setSectors);
     const unsubPaymentMethods = storageService.subscribeToPaymentMethods(orgId, setPaymentMethods);
+    const unsubTeam = storageService.subscribeToTeam(orgId, setTeamMembers);
+    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
+
+    let unsubNotifications = () => {};
+    if (user?.uid) {
+      unsubNotifications = storageService.subscribeToNotifications(orgId, user.uid, (newNotes) => {
+        setNotifications(prev => {
+          const unread = newNotes.filter(n => !n.read);
+          const lastRead = prev.filter(n => !n.read);
+          
+          if (unread.length > lastRead.length) {
+            const latest = unread[0];
+            if (latest && latest.senderId !== user.uid) {
+              const alreadyToasted = prev.some(n => n.id === latest.id);
+              if (!alreadyToasted) {
+                addToast('info', `Novo Alerta: ${latest.senderName}`, latest.text);
+              }
+            }
+          }
+          return newNotes;
+        });
+      });
+    }
     
     // One-time fetches for static data
     storageService.getBranches().then(setBranches);
@@ -368,6 +391,9 @@ export const App = () => {
         unsubClassifications();
         unsubSectors();
         unsubPaymentMethods();
+        unsubTeam();
+        unsubCollaborators();
+        unsubNotifications();
     };
   }, [user]);
 
@@ -425,46 +451,19 @@ export const App = () => {
     };
   }, [user, activeModule, limits.fuelEntries]);
 
-  // 6. Other Data (Lazy)
+  // 6. Other Data (Lazy - Occurrences and Fleet Specifics)
   useEffect(() => {
     if (!user || (activeModule !== 'VEHICLES' && activeModule !== 'MECHANICAL' && currentTab !== 'location' && currentTab !== 'occurrences' && currentTab !== 'service-orders')) return;
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
     const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
     const unsubOccurrenceReasons = storageService.subscribeToOccurrenceReasons(orgId, setOccurrenceReasons);
     const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
-    const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
-    const unsubTeam = storageService.subscribeToTeam(orgId, setTeamMembers);
-    
-    let unsubNotifications = () => {};
-    if (user?.uid) {
-      unsubNotifications = storageService.subscribeToNotifications(orgId, user.uid, (newNotes) => {
-        setNotifications(prev => {
-          // Detect actual NEW unread notes to toast
-          const unread = newNotes.filter(n => !n.read);
-          const lastRead = prev.filter(n => !n.read);
-          
-          if (unread.length > lastRead.length) {
-            const latest = unread[0];
-            if (latest && latest.senderId !== user.uid) {
-              const alreadyToasted = prev.some(n => n.id === latest.id);
-              if (!alreadyToasted) {
-                addToast('info', `Novo Alerta: ${latest.senderName}`, latest.text);
-              }
-            }
-          }
-          return newNotes;
-        });
-      });
-    }
     
     return () => {
         unsubArrivalAlerts();
         unsubDrivers();
         unsubOccurrenceReasons();
         unsubOccurrences();
-        unsubCollaborators();
-        unsubTeam();
-        unsubNotifications();
     };
   }, [user, activeModule, currentTab]);
 
