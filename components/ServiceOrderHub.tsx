@@ -583,6 +583,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                             {getStatusPill(order.status)}
                         </div>
                         <h3 className="font-black text-slate-800 dark:text-white leading-tight mt-1 group-hover:text-orange-600 transition-colors">{order.title}</h3>
+                        {order.occurrenceId && (
+                           <div className="flex items-center gap-1 text-[9px] font-bold text-red-500 bg-red-50 dark:bg-red-500/10 dark:text-red-400 px-1.5 py-0.5 rounded mt-1.5 border border-red-100 dark:border-red-500/20 w-max">
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              GERADA POR OCORRÊNCIA
+                           </div>
+                        )}
                     </div>
                     {/* License Plate Badge */}
                     <div 
@@ -665,7 +671,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                         )}
                     </div>
                     <div className="flex gap-1.5">
-                        {(userLevel === 'SENIOR' || userLevel === 'CREATOR') && (
+                        {((order.status === 'PENDENTE' || order.status === 'EM_ANDAMENTO') || (userLevel === 'SENIOR' || userLevel === 'CREATOR')) && (
                             <button 
                                 onClick={() => handleOpenEditModal(order)} 
                                 className="p-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 rounded-xl border border-slate-200 dark:border-slate-700 transition-all active:scale-90"

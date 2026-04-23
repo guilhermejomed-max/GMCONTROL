@@ -27,7 +27,7 @@ import {
   Smile
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
-import { Occurrence, OccurrenceReason, Vehicle, TeamMember, ServiceSector, Driver } from '../types';
+import { Occurrence, OccurrenceReason, Vehicle, TeamMember, ServiceSector, Driver, ServiceOrder } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { SearchableSelect } from './ui/SearchableSelect';
 
@@ -42,6 +42,7 @@ interface OccurrencesProps {
   collaborators: import('../types').Collaborator[];
   teamMembers?: TeamMember[];
   paymentMethods: import('../types').PaymentMethod[];
+  serviceOrders: ServiceOrder[];
   userLevel?: string;
   onGenerateOS: (occurrenceId: string, vehicleId: string) => void;
   onNotification?: (type: 'success' | 'error' | 'info', title: string, message: string) => void;
@@ -83,6 +84,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   collaborators,
   teamMembers = [],
   paymentMethods,
+  serviceOrders,
   userLevel = 'VIEWER',
   onGenerateOS,
   onNotification
@@ -119,6 +121,17 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   const [rejectionReason, setRejectionReason] = useState('');
   const [redirectSectorId, setRedirectSectorId] = useState('');
   const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
+
+  // New state for linking existing OS
+  const [isLinkingExistingOS, setIsLinkingExistingOS] = useState(false);
+  const [selectedOSIdToLink, setSelectedOSIdToLink] = useState('');
+
+  useEffect(() => {
+    if (!selectedOccurrenceForDetails && !selectedOccurrenceForTreatment) {
+      setIsLinkingExistingOS(false);
+      setSelectedOSIdToLink('');
+    }
+  }, [selectedOccurrenceForDetails, selectedOccurrenceForTreatment]);
 
   // Form states
   const [occurrenceForm, setOccurrenceForm] = useState<{
@@ -202,6 +215,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
             externalCost: occurrenceForm.externalCost ? parseFloat(occurrenceForm.externalCost) : undefined,
             paymentMethod: occurrenceForm.paymentMethod
           });
+        await processMentions(occurrenceForm.description, selectedVehicle.plate);
         onNotification?.('success', 'Ocorrência Atualizada', 'Dados salvos com sucesso.');
       } catch (err) {
         onNotification?.('error', 'Erro ao Salvar', 'Tente novamente em instantes.');
@@ -231,6 +245,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
           branchId: user.branchId || undefined
         };
         await storageService.addOccurrence(orgId, newOccurrence);
+        await processMentions(occurrenceForm.description, selectedVehicle.plate);
         onNotification?.('success', 'Ocorrência Registrada', 'Ocorrência aberta com sucesso.');
       } catch (err) {
         onNotification?.('error', 'Erro ao Registrar', 'Falha ao salvar no banco de dados.');
@@ -332,8 +347,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       if (member.id === currentUserId) continue;
 
       const escapedName = member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Look for the name with @ prefix, allow some slack after the name
-      const regex = new RegExp(`@${escapedName}`, 'gi');
+      const regex = new RegExp(`@${escapedName}`, 'i'); // Single 'i', test is safe.
 
       if (regex.test(text) && !notifiedIds.has(member.id)) {
         console.log(`Disparando notificação para ${member.name} (ID: ${member.id}) sobre placa ${plate}`);
@@ -344,7 +358,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
           recipientId: member.id,
           senderId: currentUserId,
           senderName: currentUserName,
-          text: `Você foi marcado na ocorrencia da placa: ${plate}`,
+          text: `Você foi marcado na ocorrência da placa: ${plate || 'Indisponível'}.`,
           read: false,
           createdAt: new Date().toISOString()
         });
@@ -374,6 +388,69 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       setCustomTreatment('');
     } catch (err) {
       onNotification?.('error', 'Erro', 'Não foi possível salvar a tratativa.');
+    }
+  };
+
+  const handleImportOSData = (occ: Occurrence) => {
+    if (!occ.linkedServiceOrderId) {
+      onNotification?.('info', 'Sem O.S. Vinculada', 'Esta ocorrência não possui uma Ordem de Serviço vinculada.');
+      return;
+    }
+    
+    const linkedOS = serviceOrders.find(os => os.id === occ.linkedServiceOrderId);
+    if (!linkedOS) {
+      onNotification?.('error', 'O.S. não encontrada', 'Não foi possível localizar os dados da O.S. vinculada.');
+      return;
+    }
+
+    const servicesStr = linkedOS.services?.map(s => s.name).join(', ') || 'Nenhum serviço registrado';
+    const partsStr = linkedOS.parts?.map(p => `${p.name} (${p.quantity}x)`).join(', ') || 'Nenhuma peça registrada';
+    const costStr = (linkedOS.totalCost !== undefined) ? `R$ ${linkedOS.totalCost.toLocaleString('pt-BR')}` : 'Não informado';
+    
+    const summary = `📄 RESUMO DA O.S. #${linkedOS.orderNumber}:\n` +
+      `--------------------------------\n` +
+      `📌 Status: ${linkedOS.status}\n` +
+      `🛠️ Serviços: ${servicesStr}\n` +
+      `📦 Peças: ${partsStr}\n` +
+      `💰 Custo Total: ${costStr}\n` +
+      `👤 Responsável: ${linkedOS.collaboratorName || 'Não informado'}\n` +
+      `📝 Detalhes: ${linkedOS.details || 'Sem observações'}`;
+
+    setCustomTreatment(prev => prev ? prev + '\n\n' + summary : summary);
+    onNotification?.('success', 'Dados Importados', 'Informações da O.S. foram adicionadas à tratativa.');
+  };
+
+  const handleLinkExistingOS = async (occ: Occurrence, osId: string) => {
+    if (!osId) return;
+    const os = serviceOrders.find(o => o.id === osId);
+    if (!os) return;
+
+    try {
+      await storageService.updateOccurrence(orgId, occ.id, {
+        linkedServiceOrderId: os.id,
+        linkedServiceOrderNumber: os.orderNumber.toString()
+      });
+      await storageService.updateServiceOrder(orgId, os.id, {
+        occurrenceId: occ.id
+      });
+      onNotification?.('success', 'Sucesso', `Ocorrência vinculada à O.S. #${os.orderNumber}`);
+      
+      // Update local state if needed (optional since App.tsx is sync)
+      setIsLinkingExistingOS(false);
+      setSelectedOSIdToLink('');
+      
+      if (selectedOccurrenceForDetails?.id === occ.id) {
+        setSelectedOccurrenceForDetails({
+          ...occ,
+          linkedServiceOrderId: os.id,
+          linkedServiceOrderNumber: os.orderNumber.toString()
+        });
+      }
+      if (selectedOccurrenceForTreatment?.id === occ.id) {
+        setSelectedOccurrenceForTreatment(null);
+      }
+    } catch (err) {
+      onNotification?.('error', 'Erro', 'Não foi possível vincular a O.S.');
     }
   };
 
@@ -529,12 +606,46 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   }, [teamMembers, collaborators]);
 
   const handleDeleteOccurrence = async (occurrence: Occurrence) => {
-    if (window.confirm('Tem certeza que deseja excluir esta ocorrência definitivamente?')) {
+    if (userLevel !== 'SENIOR' && userLevel !== 'ADMIN' && userLevel !== 'CREATOR') {
+      if (occurrence.status === 'PENDING_DELETION') {
+        onNotification?.('error', 'Ops!', 'Esta exclusão já está aguardando aprovação de um sênior.');
+        return;
+      }
+      if (window.confirm('Você não tem permissão para excluir. Deseja enviar para aprovação de um Sênior?')) {
+        try {
+          await storageService.updateOccurrence(orgId, occurrence.id, { 
+            status: 'PENDING_DELETION',
+            deletionRequestedBy: user.displayName || user.name || user.email || 'Usuário'
+          });
+          onNotification?.('success', 'Sucesso', 'Solicitação de exclusão enviada para aprovação.');
+        } catch (err) {
+          onNotification?.('error', 'Erro', 'Falha ao solicitar exclusão.');
+        }
+      }
+      return;
+    }
+
+    if (window.confirm('Você é um usuário Sênior. Tem certeza que deseja excluir esta ocorrência definitivamente?')) {
       try {
         await storageService.deleteOccurrence(orgId, occurrence.id, occurrence.vehiclePlate);
+        if (selectedOccurrenceForDetails?.id === occurrence.id) setSelectedOccurrenceForDetails(null);
         onNotification?.('success', 'Sucesso', 'Ocorrência excluída.');
       } catch (err) {
         onNotification?.('error', 'Erro ao Excluir', 'Verifique suas permissões ou tente novamente.');
+      }
+    }
+  };
+
+  const handleRestoreOccurrence = async (occurrence: Occurrence) => {
+    if (window.confirm('Deseja cancelar a solicitação de exclusão e restaurar?')) {
+      try {
+        await storageService.updateOccurrence(orgId, occurrence.id, { 
+          status: 'OPEN',
+          deletionRequestedBy: ''
+        });
+        onNotification?.('success', 'Restaurada', 'A ocorrência voltou ao estado Aberta.');
+      } catch (err) {
+        onNotification?.('error', 'Erro', 'Falha ao restaurar ocorrência.');
       }
     }
   };
@@ -753,11 +864,13 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${
                           occ.status === 'OPEN' ? 'bg-amber-50 text-amber-700 border-amber-200/50' :
+                          occ.status === 'PENDING_DELETION' ? 'bg-red-50 text-red-600 border-red-200/50 animate-pulse' :
                           occ.status === 'ACCEPTED' ? 'bg-blue-50 text-blue-700 border-blue-200/50' :
                           occ.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-200/50' :
                           'bg-green-50 text-green-700 border-green-200/50'
                         }`}>
                           {occ.status === 'OPEN' && 'PENDENTE'}
+                          {occ.status === 'PENDING_DELETION' && 'EXCLUSÃO SOLICITADA'}
                           {occ.status === 'ACCEPTED' && 'EM ANDAMENTO'}
                           {occ.status === 'REJECTED' && 'RECUSADO'}
                           {occ.status === 'RESOLVED' && 'RESOLVIDO'}
@@ -771,53 +884,79 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                             )}
                           </div>
                         )}
+                        {occ.status === 'PENDING_DELETION' && occ.deletionRequestedBy && (
+                          <div className="text-[9px] font-bold text-red-500 uppercase mt-1">
+                            Por: {occ.deletionRequestedBy.split(' ')[0]}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                           {/* Workflow Actions */}
-                          {occ.status === 'OPEN' && (occ.assignedUserId === user.uid || (occ.responsibleSectorId && user.sectorId === occ.responsibleSectorId) || userLevel === 'CREATOR' || userLevel === 'ADMIN') && (
+                          {occ.status === 'PENDING_DELETION' && (userLevel === 'SENIOR' || userLevel === 'ADMIN' || userLevel === 'CREATOR') ? (
                             <>
                               <button
-                                onClick={() => handleUpdateStatus(occ, 'ACCEPTED')}
-                                className="px-2 py-1.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg hover:bg-blue-100 transition-colors"
-                                title="Aceitar Responsabilidade"
+                                onClick={() => handleRestoreOccurrence(occ)}
+                                className="px-2 py-1.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                                title="Cancelar Exclusão"
                               >
-                                ASSUMIR
+                                RESTAURAR
                               </button>
                               <button
-                                onClick={() => setSelectedOccurrenceForRejection(occ)}
-                                className="px-2 py-1.5 bg-red-50 text-red-700 text-[10px] font-bold rounded-lg hover:bg-red-100 transition-colors"
-                                title="Recusar Responsabilidade"
+                                onClick={() => handleDeleteOccurrence(occ)}
+                                className="px-2 py-1.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-lg hover:bg-red-200 transition-colors"
+                                title="Aprovar Exclusão"
                               >
-                                RECUSAR
+                                CONFIRMAR EXCLUSÃO
                               </button>
                             </>
-                          )}
+                          ) : occ.status === 'PENDING_DELETION' ? (
+                             <span className="text-[10px] items-center text-gray-400 italic pr-2">Aguardando Avaliação</span>
+                          ) : (
+                            <>
+                              {occ.status === 'OPEN' && (occ.assignedUserId === user.uid || (occ.responsibleSectorId && user.sectorId === occ.responsibleSectorId) || userLevel === 'CREATOR' || userLevel === 'ADMIN') && (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateStatus(occ, 'ACCEPTED')}
+                                    className="px-2 py-1.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg hover:bg-blue-100 transition-colors"
+                                    title="Aceitar Responsabilidade"
+                                  >
+                                    ASSUMIR
+                                  </button>
+                                  <button
+                                    onClick={() => setSelectedOccurrenceForRejection(occ)}
+                                    className="px-2 py-1.5 bg-red-50 text-red-700 text-[10px] font-bold rounded-lg hover:bg-red-100 transition-colors"
+                                    title="Recusar Responsabilidade"
+                                  >
+                                    RECUSAR
+                                  </button>
+                                </>
+                              )}
 
-                          {occ.status === 'ACCEPTED' && (
-                            <button
-                              onClick={() => setSelectedOccurrenceForTreatment(occ)}
-                              className="px-2.5 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1 transition-all shadow-sm"
-                            >
-                              <MessageSquare className="w-3 h-3" /> TRATATIVA
-                            </button>
-                          )}
+                              {occ.status === 'ACCEPTED' && (
+                                <button
+                                  onClick={() => setSelectedOccurrenceForTreatment(occ)}
+                                  className="px-2.5 py-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1 transition-all shadow-sm"
+                                >
+                                  <MessageSquare className="w-3 h-3" /> TRATATIVA
+                                </button>
+                              )}
 
-                          {(occ.status === 'OPEN' || occ.status === 'ACCEPTED') && (
-                            <button
-                              onClick={() => handleUpdateStatus(occ, 'RESOLVED')}
-                              className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-50 rounded-lg transition-colors ml-1"
-                              title="Marcar como Resolvido"
-                            >
-                              <CheckCircle2 className="w-5 h-5" />
-                            </button>
-                          )}
+                              {(occ.status === 'OPEN' || occ.status === 'ACCEPTED') && (
+                                <button
+                                  onClick={() => handleUpdateStatus(occ, 'RESOLVED')}
+                                  className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-50 rounded-lg transition-colors ml-1"
+                                  title="Marcar como Resolvido"
+                                >
+                                  <CheckCircle2 className="w-5 h-5" />
+                                </button>
+                              )}
 
                           {occ.status === 'OPEN' && (
                             <button
                               onClick={() => onGenerateOS(occ.id, occ.vehicleId)}
-                              className="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-blue-50 hover:text-blue-600 text-gray-500 rounded-lg transition-colors border border-gray-200 hover:border-blue-200"
-                              title="Gerar OS a partir deste chamado"
+                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors border ${occ.linkedServiceOrderId ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'}`}
+                              title={occ.linkedServiceOrderId ? "OS já gerada. Clique para gerar outra." : "Gerar OS a partir deste chamado"}
                             >
                               <Plus className="w-4 h-4" />
                             </button>
@@ -853,8 +992,10 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                        </div>
-                      </td>
+                        </>
+                      )}
+                    </div>
+                  </td>
                     </tr>
                   ))}
                   {filteredOccurrences.length === 0 && (
@@ -1324,15 +1465,54 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   
                   <div className="mt-10 pt-4 border-t border-gray-200 flex flex-col gap-3 pb-8">
                     {!currentOccurrenceDetail.linkedServiceOrderId && (
-                       <button
-                        onClick={() => {
-                          onGenerateOS(currentOccurrenceDetail!.id, currentOccurrenceDetail!.vehicleId);
-                          setSelectedOccurrenceForDetails(null);
-                        }}
-                        className="w-full py-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow"
-                      >
-                        <Plus className="w-4 h-4" /> Transformar em O.S.
-                      </button>
+                      <div className="space-y-3">
+                         <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                            <input 
+                              type="checkbox" 
+                              id="link_existing_details" 
+                              checked={isLinkingExistingOS}
+                              onChange={(e) => setIsLinkingExistingOS(e.target.checked)}
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <label htmlFor="link_existing_details" className="text-xs font-bold text-blue-800 uppercase cursor-pointer">VINCULAR A UMA O.S. JÁ ABERTA?</label>
+                         </div>
+
+                         {isLinkingExistingOS ? (
+                           <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                              <select 
+                                value={selectedOSIdToLink}
+                                onChange={(e) => setSelectedOSIdToLink(e.target.value)}
+                                className="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">Selecione a O.S. correspondente...</option>
+                                {serviceOrders
+                                  .filter(os => (os.status === 'PENDENTE' || os.status === 'EM_ANDAMENTO') && os.vehiclePlate === currentOccurrenceDetail.vehiclePlate)
+                                  .map(os => (
+                                    <option key={os.id} value={os.id}>
+                                      O.S. #{String(os.orderNumber).padStart(4, '0')} - {os.title}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                disabled={!selectedOSIdToLink}
+                                onClick={() => handleLinkExistingOS(currentOccurrenceDetail, selectedOSIdToLink)}
+                                className="w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-4 h-4" /> VINCULAR OCORRÊNCIA À O.S.
+                              </button>
+                           </div>
+                         ) : (
+                           <button
+                            onClick={() => {
+                              onGenerateOS(currentOccurrenceDetail!.id, currentOccurrenceDetail!.vehicleId);
+                              setSelectedOccurrenceForDetails(null);
+                            }}
+                            className="w-full py-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow"
+                          >
+                            <Plus className="w-4 h-4" /> ABRIR NOVA O.S. POR ESTE CHAMADO
+                          </button>
+                         )}
+                      </div>
                     )}
                     <button
                       onClick={() => setSelectedOccurrenceForDetails(null)}
@@ -1511,7 +1691,19 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                 </div>
 
                 <div className="border-t pt-4 mt-4 relative">
-                   <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Personalizada:</label>
+                   <div className="flex items-center justify-between mb-2">
+                     <label className="block text-xs font-bold text-gray-500 uppercase">Personalizada:</label>
+                     {selectedOccurrenceForTreatment.linkedServiceOrderId && (
+                       <button
+                         onClick={() => handleImportOSData(selectedOccurrenceForTreatment)}
+                         className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-[10px] font-bold border border-amber-200 transition-colors shadow-sm"
+                         title="Trazer detalhes do que foi feito na O.S."
+                       >
+                         <FileText className="w-3 h-3" />
+                         IMPORTAR DADOS DA O.S.
+                       </button>
+                     )}
+                   </div>
                    <textarea
                     value={customTreatment}
                     onChange={handleTreatmentChange}
@@ -1564,15 +1756,54 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                 </div>
                 
                 {!selectedOccurrenceForTreatment.linkedServiceOrderId && (
-                   <button
-                    onClick={() => {
-                      onGenerateOS(selectedOccurrenceForTreatment.id, selectedOccurrenceForTreatment.vehicleId);
-                      setSelectedOccurrenceForTreatment(null);
-                    }}
-                    className="w-full py-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 border border-indigo-100"
-                  >
-                    <Plus className="w-4 h-4" /> ABRIR O.S. POR ESTE CHAMADO
-                  </button>
+                  <div className="space-y-3 pt-2">
+                     <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                        <input 
+                          type="checkbox" 
+                          id="link_existing_treatment" 
+                          checked={isLinkingExistingOS}
+                          onChange={(e) => setIsLinkingExistingOS(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label htmlFor="link_existing_treatment" className="text-xs font-bold text-indigo-800 uppercase cursor-pointer">VINCULAR A UMA O.S. JÁ ABERTA?</label>
+                     </div>
+
+                     {isLinkingExistingOS ? (
+                       <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                          <select 
+                            value={selectedOSIdToLink}
+                            onChange={(e) => setSelectedOSIdToLink(e.target.value)}
+                            className="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="">Selecione a O.S. correspondente...</option>
+                            {serviceOrders
+                              .filter(os => (os.status === 'PENDENTE' || os.status === 'EM_ANDAMENTO') && os.vehiclePlate === selectedOccurrenceForTreatment.vehiclePlate)
+                              .map(os => (
+                                <option key={os.id} value={os.id}>
+                                  O.S. #{String(os.orderNumber).padStart(4, '0')} - {os.title}
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            disabled={!selectedOSIdToLink}
+                            onClick={() => handleLinkExistingOS(selectedOccurrenceForTreatment, selectedOSIdToLink)}
+                            className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="w-4 h-4" /> VINCULAR OCORRÊNCIA À O.S.
+                          </button>
+                       </div>
+                     ) : (
+                       <button
+                        onClick={() => {
+                          onGenerateOS(selectedOccurrenceForTreatment.id, selectedOccurrenceForTreatment.vehicleId);
+                          setSelectedOccurrenceForTreatment(null);
+                        }}
+                        className="w-full py-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 border border-indigo-100"
+                      >
+                        <Plus className="w-4 h-4" /> ABRIR NOVA O.S. POR ESTE CHAMADO
+                      </button>
+                     )}
+                  </div>
                 )}
               </div>
 
