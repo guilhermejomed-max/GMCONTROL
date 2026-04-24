@@ -200,6 +200,20 @@ function parseSascarOptionalNumber(...values: any[]): number | undefined {
   return undefined;
 }
 
+function parseSascarOdometerKm(vehicle: any): number {
+  const candidates = [
+    parseSascarOptionalNumber(vehicle.hodometro),
+    parseSascarOptionalNumber(vehicle.HODOMETRO),
+    parseSascarOptionalNumber(vehicle.hodometroTotal),
+    parseSascarOptionalNumber(vehicle.odometer),
+    parseSascarOptionalNumber(vehicle.odometro),
+    parseSascarOptionalNumber(vehicle.ODOMETRO),
+    parseSascarOptionalNumber(vehicle.odometroExato)
+  ].filter((value): value is number => value !== undefined && value > 0);
+
+  return candidates.length > 0 ? Math.max(...candidates) : 0;
+}
+
 function parseSascarVehicle(item: any): any {
     if (typeof item === 'string') {
         try { return JSON.parse(item); } catch(e) { return null; }
@@ -407,8 +421,10 @@ async function runSascarAutomation() {
         
         const plateToDocId = new Map<string, string>();
         const sascarIdToDocId = new Map<string, string>();
+        const docIdToVehicle = new Map<string, any>();
         
         vehicles.forEach(v => {
+            docIdToVehicle.set(v.id, v);
             if (v.plate) plateToDocId.set(v.plate.replace(/[^A-Z0-9]/gi, '').toUpperCase(), v.id);
             if (v.sascarCode) sascarIdToDocId.set(String(v.sascarCode), v.id);
         });
@@ -477,7 +493,9 @@ async function runSascarAutomation() {
                 const rawLat = parseSascarOptionalNumber(pos.latitude) ?? 0;
                 const rawLng = parseSascarOptionalNumber(pos.longitude) ?? 0;
                 
-                const odometerKm = pos.odometroExato ? parseSascarNumber(pos.odometroExato) / 1000 : parseSascarNumber(pos.odometro ?? 0);
+                const trackerOdometerKm = parseSascarOdometerKm(pos);
+                const currentOdometerKm = Number(docIdToVehicle.get(docId)?.odometer || 0);
+                const odometerKm = trackerOdometerKm > 0 ? Math.max(trackerOdometerKm, currentOdometerKm) : currentOdometerKm;
                 const rawInstantaneo = parseSascarNumber(pos.consumoInstantaneo || 0);
                 const litrometer = parseSascarOptionalNumber(pos.litrometro, pos.litrometro2, pos.litrometroTotal, pos.totalLitros, pos.totalCombustivel);
                 
@@ -990,8 +1008,7 @@ async function startServer() {
             logToFile(`[Sascar Debug] Veículo ${v.placa || v.idVeiculo} | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
           }
 
-          // Sascar: odometroExato is in meters, odometro is in km.
-          const odometerKm = v.odometroExato ? parseSascarNumber(v.odometroExato) / 1000 : parseSascarNumber(v.odometro ?? 0);
+          const odometerKm = parseSascarOdometerKm(v);
           const rawInstantaneo = parseSascarNumber(v.consumoInstantaneo || 0);
           const litrometer = parseSascarOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel);
 

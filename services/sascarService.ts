@@ -11,9 +11,17 @@ const parseOptionalNumber = (...values: any[]): number | undefined => {
 };
 
 const parseSascarOdometerKm = (vehicle: any): number => {
-  const exactMeters = parseOptionalNumber(vehicle.odometroExato);
-  if (exactMeters !== undefined && exactMeters > 0) return exactMeters / 1000;
-  return parseOptionalNumber(vehicle.odometro, vehicle.odometer) || 0;
+  const candidates = [
+    parseOptionalNumber(vehicle.hodometro),
+    parseOptionalNumber(vehicle.HODOMETRO),
+    parseOptionalNumber(vehicle.hodometroTotal),
+    parseOptionalNumber(vehicle.odometer),
+    parseOptionalNumber(vehicle.odometro),
+    parseOptionalNumber(vehicle.ODOMETRO),
+    parseOptionalNumber(vehicle.odometroExato)
+  ].filter((value): value is number => value !== undefined && value > 0);
+
+  return candidates.length > 0 ? Math.max(...candidates) : 0;
 };
 
 export const sascarService = {

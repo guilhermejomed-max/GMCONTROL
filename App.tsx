@@ -684,11 +684,17 @@ export const App = () => {
       return Number.isFinite(parsed) ? parsed : undefined;
     };
     const parseOdometerKm = (sv: any): number => {
-      const normalizedOdo = parseTelemetryNumber(sv.odometer);
-      if (normalizedOdo !== undefined && normalizedOdo > 0) return normalizedOdo;
-      const exactMeters = parseTelemetryNumber(sv.odometroExato);
-      if (exactMeters !== undefined && exactMeters > 0) return exactMeters / 1000;
-      return parseTelemetryNumber(sv.odometro) || 0;
+      const candidates = [
+        parseTelemetryNumber(sv.hodometro),
+        parseTelemetryNumber(sv.HODOMETRO),
+        parseTelemetryNumber(sv.hodometroTotal),
+        parseTelemetryNumber(sv.odometer),
+        parseTelemetryNumber(sv.odometro),
+        parseTelemetryNumber(sv.ODOMETRO),
+        parseTelemetryNumber(sv.odometroExato)
+      ].filter((value): value is number => value !== undefined && value > 0);
+
+      return candidates.length > 0 ? Math.max(...candidates) : 0;
     };
     
     if (showModal) addToast('info', 'Sincronizando', 'Buscando dados na Sascar...');
@@ -762,7 +768,10 @@ export const App = () => {
 
         if (localVehicle) {
           processedLocalIds.add(localVehicle.id);
-          const finalOdo = Math.round(parseOdometerKm(sv));
+          const trackerOdo = Math.round(parseOdometerKm(sv));
+          const finalOdo = trackerOdo > 0
+            ? Math.max(trackerOdo, localVehicle.odometer || 0)
+            : (localVehicle.odometer || 0);
           const lat = parseTelemetryNumber(sv.latitude ?? sv.lat) || 0;
           const lng = parseTelemetryNumber(sv.longitude ?? sv.lng) || 0;
 
@@ -782,7 +791,7 @@ export const App = () => {
             : localVehicle.litrometer;
           let newHistory = localVehicle.telemetryHistory ? [...localVehicle.telemetryHistory] : [];
           
-          if (finalOdo > 0 && hasValidLitrometer && currentLitrometer! >= 0) {
+          if (trackerOdo > 0 && finalOdo === trackerOdo && hasValidLitrometer && currentLitrometer! >= 0) {
             // Add new point
             const nowIso = new Date().toISOString();
             // Try not to add duplicates or very close points
