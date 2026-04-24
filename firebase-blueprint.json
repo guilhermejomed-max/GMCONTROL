@@ -129,6 +129,7 @@
         "minQuantity": { "type": "number" },
         "unit": { "type": "string" },
         "category": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Item image URL" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "branchId": { "type": "string" }
       },
@@ -546,6 +547,7 @@
         "unit": { "type": "string" },
         "caNumber": { "type": "string", "description": "Certificado de Aprovação (CA)" },
         "description": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Item image URL" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "quantity", "unit"]
@@ -566,6 +568,19 @@
         "doctorName": { "type": "string" },
         "doctorCrm": { "type": "string" },
         "asoExpirationDate": { "type": "string", "format": "date" },
+        "attachments": { "type": "array", "items": { "type": "string" }, "description": "Image attachments (Base64)" },
+        "vitalSigns": {
+          "type": "object",
+          "properties": {
+            "bloodPressure": { "type": "string" },
+            "temperature": { "type": "string" },
+            "saturation": { "type": "string" },
+            "glucose": { "type": "string" },
+            "heartRate": { "type": "string" }
+          }
+        },
+        "medicationGiven": { "type": "string" },
+        "referral": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

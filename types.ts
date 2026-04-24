@@ -353,6 +353,7 @@ export interface StockItem {
   minQuantity: number;
   unit: string;
   averageCost: number;
+  imageUrl?: string;
   updatedAt: string;
 }
 
@@ -751,6 +752,7 @@ export interface PpeStockItem {
   unit: string;
   caNumber?: string;
   description?: string;
+  imageUrl?: string;
   updatedAt: string;
 }
 
