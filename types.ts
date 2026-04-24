@@ -227,6 +227,8 @@ export interface Vehicle {
   lastAutoUpdateDate?: string; // Data da última atualização automática de KM (para carretas)
   sascarCode?: string; // Cód. Sascar para integração
   averageKmPerLiter?: number; // Média calculada
+  telemetryHistory?: TelemetryFuelPoint[]; // Histórico para média móvel de 100km
+  telemetryRollingAvgKml?: number; // Média de consumo 100km
   brandModelId?: string; // Reference to VehicleBrandModel
   branchId?: string; // Filial vinculada
   

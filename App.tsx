@@ -37,6 +37,7 @@ import { GlobalHeader } from './components/GlobalHeader';
 import { RHModule } from './components/RHModule';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
+import { telemetryFuelService } from './services/telemetryFuelService';
 import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence, WasteDisposal } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
@@ -753,10 +754,38 @@ export const App = () => {
           const finalLat = isInvalidPosition ? (localVehicle.lastLocation?.lat || 0) : lat;
           const finalLng = isInvalidPosition ? (localVehicle.lastLocation?.lng || 0) : lng;
 
+          // Telemetry fuel history
+          const currentLitrometer = Number(sv.litrometer || 0);
+          let newHistory = localVehicle.telemetryHistory ? [...localVehicle.telemetryHistory] : [];
+          
+          if (finalOdo > 0 && currentLitrometer >= 0) {
+            // Add new point
+            const nowIso = new Date().toISOString();
+            // Try not to add duplicates or very close points
+            const lastPoint = newHistory.length > 0 ? newHistory[newHistory.length - 1] : null;
+            if (!lastPoint || (finalOdo - lastPoint.odometer >= 1) || Math.abs(currentLitrometer - lastPoint.litrometer) >= 1) {
+              newHistory.push({
+                timestamp: nowIso,
+                odometer: finalOdo,
+                litrometer: currentLitrometer
+              });
+              
+              // Keep history bounded, e.g., last 1000 points
+              if (newHistory.length > 1000) {
+                newHistory = newHistory.slice(-1000);
+              }
+            }
+          }
+
+          const telemetryRollingResult = telemetryFuelService.calculateRollingAverage(newHistory, 100);
+          const newAvgKml = telemetryRollingResult ? telemetryRollingResult.avgKml : localVehicle.telemetryRollingAvgKml;
+
           updatesBatch.push({
             id: localVehicle.id,
             odometer: finalOdo,
-            litrometer: Number(sv.litrometer || 0),
+            litrometer: currentLitrometer,
+            telemetryHistory: newHistory,
+            telemetryRollingAvgKml: newAvgKml,
             totalFuelConsumed: Number(sv.totalFuelConsumed || 0),
             lastLocation: {
               ...localVehicle.lastLocation,
