@@ -64,7 +64,7 @@ export enum TireStatus {
 
 export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR' | 'INSPECTOR' | 'ADMIN' | 'MECHANIC' | 'MANAGER' | 'DRIVER' | 'STOCK' | 'FINANCIAL';
 
-export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL';
+export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL' | 'JMDSSMAQ';
 
 export interface TireHistoryLog {
   date: string;
@@ -237,6 +237,9 @@ export interface Vehicle {
   oilLiters?: number; // Qtd Litros Óleo
   lastPreventiveKm?: number; // KM da última preventiva
   lastPreventiveDate?: string; // Data da última preventiva
+
+  // --- Ownership ---
+  ownership?: 'OWNED' | 'LEASED';
 }
 
 export interface LocationPoint {
@@ -659,7 +662,7 @@ export interface ServiceSector {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector' | 'waste-disposal';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector' | 'waste-disposal' | 'ppe-disposal' | 'tire-disposal' | 'ambulatory' | 'ppe-stock';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -695,6 +698,7 @@ export interface WasteType {
   name: string;
   unit: WasteUnit;
   description?: string;
+  category: 'WASTE' | 'PPE' | 'TIRE';
 }
 
 export interface WasteDisposalItem {
@@ -717,6 +721,15 @@ export interface WasteDisposal {
   cost?: number; // Cost of disposal
   attachmentUrl?: string;
   createdAt: string;
+  
+  // Workflow fields
+  stage: 'AGENDAMENTO' | 'EMISSAO_MTR' | 'RETIRADA' | 'FINALIZADO';
+  driverName?: string;
+  vehiclePlate?: string;
+  mtrDetails?: string;
+
+  // Type of disposal
+  disposalType: 'WASTE' | 'PPE' | 'TIRE';
 }
 
 export interface AppNotification {
@@ -728,4 +741,45 @@ export interface AppNotification {
   link?: string;
   read: boolean;
   createdAt: string;
+}
+
+export interface PpeStockItem {
+  id: string;
+  name: string;
+  quantity: number;
+  minQuantity: number;
+  unit: string;
+  caNumber?: string;
+  description?: string;
+  updatedAt: string;
+}
+
+export type HealthRecordType = 'ADMISSION'|'PERIODIC'|'RETURN_TO_WORK'|'FUNCTION_CHANGE'|'DISMISSAL'|'CLINICAL_VISIT';
+
+export interface HealthRecord {
+  id: string;
+  collaboratorId: string;
+  collaboratorName?: string;
+  date: string;
+  type: HealthRecordType;
+  symptoms?: string;
+  diagnosis?: string;
+  observations?: string;
+  status: 'FIT' | 'UNFIT' | 'RESTRICTED';
+  doctorName?: string;
+  doctorCrm?: string;
+  asoExpirationDate?: string;
+  attachments?: string[];
+  // Novos campos para atendimento clínico
+  vitalSigns?: {
+    bloodPressure?: string;
+    temperature?: string;
+    saturation?: string;
+    glucose?: string;
+    heartRate?: string;
+  };
+  medicationGiven?: string;
+  referral?: string;
+  createdAt: string;
+  updatedAt: string;
 }

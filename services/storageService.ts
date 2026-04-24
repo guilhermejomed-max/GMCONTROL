@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth, storage } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod, WasteType, WasteDisposal } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod, WasteType, WasteDisposal, PpeStockItem, HealthRecord } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -2264,6 +2264,15 @@ export const storageService = {
     }
   },
 
+  updateWasteDisposal: async (orgId: string, id: string, updates: Partial<WasteDisposal>) => {
+    if (mockUser || !db) { LocalDB.update(`waste_disposals`, id, updates); return; }
+    try {
+      await db.collection("waste_disposals").doc(id).update(sanitize(updates));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `waste_disposals/${id}`);
+    }
+  },
+
   compressImage: async (file: File): Promise<Blob | File> => {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -2374,6 +2383,78 @@ export const storageService = {
     } catch (error: any) {
         console.warn("[StorageService] Falha no upload de arquivo, usando fallback local.");
         return await getFallbackDataUrl(file);
+    }
+  },
+
+  subscribeToPpeStock: (orgId: string, callback: (items: PpeStockItem[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`ppe_stock_items`, callback);
+    return db.collection("ppe_stock_items").onSnapshot((snapshot) => {
+      const items: PpeStockItem[] = [];
+      snapshot.forEach((doc) => items.push(doc.data() as PpeStockItem));
+      callback(items);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "ppe_stock_items"));
+  },
+
+  addPpeStockItem: async (orgId: string, item: PpeStockItem) => {
+    if (mockUser || !db) { LocalDB.add(`ppe_stock_items`, item); return; }
+    try {
+      await db.collection("ppe_stock_items").doc(item.id).set(sanitize(item));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `ppe_stock_items/${item.id}`);
+    }
+  },
+
+  updatePpeStockItem: async (orgId: string, id: string, data: Partial<PpeStockItem>) => {
+    if (mockUser || !db) { LocalDB.update(`ppe_stock_items`, id, data); return; }
+    try {
+      await db.collection("ppe_stock_items").doc(id).update(sanitize(data));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `ppe_stock_items/${id}`);
+    }
+  },
+
+  deletePpeStockItem: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`ppe_stock_items`, id); return; }
+    try {
+      await db.collection("ppe_stock_items").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `ppe_stock_items/${id}`);
+    }
+  },
+
+  subscribeToHealthRecords: (orgId: string, callback: (records: HealthRecord[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`medical_records`, callback);
+    return db.collection("medical_records").onSnapshot((snapshot) => {
+      const records: HealthRecord[] = [];
+      snapshot.forEach((doc) => records.push(doc.data() as HealthRecord));
+      callback(records);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "medical_records"));
+  },
+
+  addHealthRecord: async (orgId: string, record: HealthRecord) => {
+    if (mockUser || !db) { LocalDB.add(`medical_records`, record); return; }
+    try {
+      await db.collection("medical_records").doc(record.id).set(sanitize(record));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `medical_records/${record.id}`);
+    }
+  },
+
+  updateHealthRecord: async (orgId: string, id: string, data: Partial<HealthRecord>) => {
+    if (mockUser || !db) { LocalDB.update(`medical_records`, id, data); return; }
+    try {
+      await db.collection("medical_records").doc(id).update(sanitize(data));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `medical_records/${id}`);
+    }
+  },
+
+  deleteHealthRecord: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`medical_records`, id); return; }
+    try {
+      await db.collection("medical_records").doc(id).delete();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `medical_records/${id}`);
     }
   }
 };

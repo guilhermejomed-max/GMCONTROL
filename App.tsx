@@ -13,6 +13,8 @@ import { StrategicAnalysis } from './components/StrategicAnalysis';
 import { DemandForecast } from './components/DemandForecast';
 import { FinancialHub } from './components/FinancialHub';
 import { EsgPanel } from './components/EsgPanel';
+import { Ambulatory } from './components/Ambulatory';
+import { PpeStock } from './components/PpeStock';
 import { RetreaderRanking } from './components/RetreaderRanking';
 import ScrapHub from './components/ScrapHub';
 import { VehicleManager } from './components/VehicleManager';
@@ -236,7 +238,7 @@ export const App = () => {
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
   const [userRole, setUserRole] = useState<UserLevel>('SENIOR'); 
-  const [allowedModules, setAllowedModules] = useState<ModuleType[]>(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
+  const [allowedModules, setAllowedModules] = useState<ModuleType[]>(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ']);
   const [activeModule, setActiveModule] = useState<ModuleType>('TIRES');
   const [trackerSettings, setTrackerSettings] = useState<TrackerSettings | null>(null);
   
@@ -299,10 +301,10 @@ export const App = () => {
                 // Merge auth user with profile data
                 setUser({ ...u, ...profile });
                 setUserRole(profile.role);
-                const userModules = (profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'])
-                  .filter((m: any) => ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'].includes(m)) as ModuleType[];
+                const userModules = (profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ'])
+                  .filter((m: any) => ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ'].includes(m)) as ModuleType[];
                 
-                const finalModules = userModules.length > 0 ? userModules : ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'] as ModuleType[];
+                const finalModules = userModules.length > 0 ? userModules : ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ'] as ModuleType[];
                 setAllowedModules(finalModules);
                 
                 const initialModule = finalModules[0] || 'TIRES';
@@ -325,7 +327,7 @@ export const App = () => {
                 }
             } else if (u.email && (u.email.toLowerCase().trim() === 'gui@gmail.com' || u.email.toLowerCase().trim() === 'guilherme.jomed@gmail.com')) {
                 setUserRole('CREATOR');
-                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
+                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ']);
             } else if (u.email && u.email.toLowerCase().trim() === 'inspetor@gmcontrol.com') {
                 setUserRole('INSPECTOR');
                 setAllowedModules(['TIRES']);
@@ -333,7 +335,7 @@ export const App = () => {
                 setCurrentTab('movement');
             } else {
                 setUserRole('SENIOR');
-                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL']);
+                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ']);
             }
         } else {
             setSelectedBranchId(undefined);
@@ -1486,7 +1488,13 @@ export const App = () => {
                 hasMore={hasMore.tires}
               />
             )}
-            {currentTab === 'scrap' && allowedModules.includes('TIRES') && <ScrapHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} userLevel={userRole} />}
+            {currentTab === 'scrap' && allowedModules.includes('JMDSSMAQ') && (
+              <ScrapHub 
+                orgId={orgId} 
+                partners={partners} 
+                collaborators={collaborators} 
+              />
+            )}
             {currentTab === 'register' && allowedModules.includes('TIRES') && (
               <TireForm 
                 onAddTire={(tire) => storageService.addTire(orgId, tire)} 
@@ -1585,13 +1593,16 @@ export const App = () => {
                 orgId={orgId}
               />
             )}
-            {currentTab === 'esg-panel' && allowedModules.includes('TIRES') && (
+            {currentTab === 'esg-panel' && allowedModules.includes('JMDSSMAQ') && (
               <EsgPanel 
                 tires={tires} 
                 retreadOrders={retreadOrders} 
                 branches={branches}
                 defaultBranchId={selectedBranchId}
               />
+            )}
+            {currentTab === 'ambulatory' && allowedModules.includes('JMDSSMAQ') && (
+              <Ambulatory orgId={orgId} collaborators={collaborators} />
             )}
             {currentTab === 'maintenance' && allowedModules.includes('MECHANICAL') && (
               <MaintenanceDashboard 
@@ -1694,11 +1705,31 @@ export const App = () => {
               />
             )}
             {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} items={stockItems} />}
-            {currentTab === 'waste-disposal' && allowedModules.includes('MECHANICAL') && (
+            {currentTab === 'ppe-stock' && allowedModules.includes('JMDSSMAQ') && (
+              <PpeStock orgId={orgId} collaborators={collaborators} />
+            )}
+            {currentTab === 'waste-disposal' && (allowedModules.includes('MECHANICAL') || allowedModules.includes('JMDSSMAQ')) && (
               <WasteManagement 
                 orgId={orgId} 
                 partners={partners} 
                 collaborators={collaborators} 
+                type="WASTE"
+              />
+            )}
+            {currentTab === 'ppe-disposal' && allowedModules.includes('JMDSSMAQ') && (
+              <WasteManagement 
+                orgId={orgId} 
+                partners={partners} 
+                collaborators={collaborators} 
+                type="PPE"
+              />
+            )}
+            {currentTab === 'tire-disposal' && allowedModules.includes('TIRES') && (
+              <WasteManagement 
+                orgId={orgId} 
+                partners={partners} 
+                collaborators={collaborators} 
+                type="TIRE"
               />
             )}
             {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance' || currentTab === 'reports-fuel') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (

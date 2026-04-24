@@ -496,9 +496,10 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "unit": { "type": "string", "enum": ["KG", "LITERS", "UNITS", "METERS"] },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["WASTE", "PPE", "TIRE"] }
       },
-      "required": ["id", "name", "unit"]
+      "required": ["id", "name", "unit", "category"]
     },
     "WasteDisposal": {
       "title": "WasteDisposal",
@@ -528,9 +529,47 @@
         "certificateNumber": { "type": "string" },
         "cost": { "type": "number" },
         "attachmentUrl": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "disposalType": { "type": "string", "enum": ["WASTE", "PPE", "TIRE"] }
       },
-      "required": ["id", "items", "date", "responsibleId", "partnerId", "createdAt"]
+      "required": ["id", "items", "date", "responsibleId", "partnerId", "createdAt", "disposalType"]
+    },
+    "PpeStockItem": {
+      "title": "PpeStockItem",
+      "description": "PPE items in stock for Occupational Safety",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "minQuantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "caNumber": { "type": "string", "description": "Certificado de Aprovação (CA)" },
+        "description": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "quantity", "unit"]
+    },
+    "HealthRecord": {
+      "title": "HealthRecord",
+      "description": "Employee health and ambulatory records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "collaboratorId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["ADMISSION", "PERIODIC", "RETURN_TO_WORK", "FUNCTION_CHANGE", "DISMISSAL", "CLINICAL_VISIT"] },
+        "symptoms": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "observations": { "type": "string" },
+        "status": { "type": "string", "enum": ["FIT", "UNFIT", "RESTRICTED"] },
+        "doctorName": { "type": "string" },
+        "doctorCrm": { "type": "string" },
+        "asoExpirationDate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "collaboratorId", "date", "type", "status"]
     }
   },
   "firestore": {
@@ -661,6 +700,14 @@
     "/waste_disposals/{id}": {
       "schema": "WasteDisposal",
       "description": "Waste disposal transactions"
+    },
+    "/ppe_stock_items/{id}": {
+      "schema": "PpeStockItem",
+      "description": "PPE stock inventory"
+    },
+    "/medical_records/{id}": {
+      "schema": "HealthRecord",
+      "description": "Employee health and ambulatory records"
     },
     "/branches/{id}": {
       "schema": "Branch",

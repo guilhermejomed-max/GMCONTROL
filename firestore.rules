@@ -48,11 +48,11 @@ service cloud.firestore {
     function getUserData() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
-        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"], "role": "SENIOR"};
+        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "JMDSSMAQ"], "role": "SENIOR"};
     }
 
     function hasModuleAccess(module) {
-      let defaultModules = ["TIRES", "VEHICLES", "MECHANICAL", "FUEL"];
+      let defaultModules = ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "JMDSSMAQ"];
       return isServer() || isAdmin() || (isSignedIn() && module in getUserData().get('allowedModules', defaultModules));
     }
 
@@ -214,11 +214,23 @@ service cloud.firestore {
     // --- WASTE MANAGEMENT ---
     match /waste_types/{id} {
       allow read: if isSignedIn();
-      allow write: if isVerified() && hasModuleAccess("MECHANICAL");
+      allow write: if isVerified() && (hasModuleAccess("MECHANICAL") || hasModuleAccess("JMDSSMAQ") || hasModuleAccess("TIRES"));
     }
     match /waste_disposals/{id} {
-      allow read: if hasModuleAccess("MECHANICAL");
-      allow write: if hasModuleAccess("MECHANICAL");
+      allow read: if hasModuleAccess("MECHANICAL") || hasModuleAccess("JMDSSMAQ") || hasModuleAccess("TIRES");
+      allow write: if hasModuleAccess("MECHANICAL") || hasModuleAccess("JMDSSMAQ") || hasModuleAccess("TIRES");
+    }
+
+    // --- PPE STOCK ---
+    match /ppe_stock_items/{id} {
+      allow read: if hasModuleAccess("JMDSSMAQ");
+      allow write: if hasModuleAccess("JMDSSMAQ");
+    }
+
+    // --- MEDICAL RECORDS ---
+    match /medical_records/{id} {
+      allow read: if hasModuleAccess("JMDSSMAQ");
+      allow write: if hasModuleAccess("JMDSSMAQ");
     }
 
     // --- NOTIFICATIONS ---
