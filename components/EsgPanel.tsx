@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Tire, RetreadOrder } from '../types';
-import { Leaf, Droplet, Wind, Recycle, Award, Printer, Calendar, TrendingUp } from 'lucide-react';
+import { Tire, RetreadOrder, WasteDisposal } from '../types';
+import { Leaf, Droplet, Wind, Recycle, Award, Printer, Calendar, TrendingUp, Trash2, Truck, ShieldCheck, Box } from 'lucide-react';
 
 interface EsgPanelProps {
   tires: Tire[];
   retreadOrders: RetreadOrder[];
+  wasteDisposals?: WasteDisposal[];
   branches?: any[];
   defaultBranchId?: string;
 }
@@ -12,33 +13,38 @@ interface EsgPanelProps {
 export const EsgPanel: React.FC<EsgPanelProps> = ({ 
   tires: allTires, 
   retreadOrders: allRetreadOrders, 
+  wasteDisposals: allWasteDisposals = [],
   branches = [],
   defaultBranchId 
 }) => {
+  const [viewType, setViewType] = useState<'TIRES' | 'WASTE'>('TIRES');
+
   const tires = useMemo(() => {
-    // Pneus agora são universais
     return allTires;
   }, [allTires]);
 
   const retreadOrders = useMemo(() => {
     return defaultBranchId ? allRetreadOrders.filter(ro => ro.branchId === defaultBranchId) : allRetreadOrders;
   }, [allRetreadOrders, defaultBranchId]);
+
+  const wasteDisposals = useMemo(() => {
+    // Note: WasteDisposal doesn't have branchId in its interface but it has orgId. 
+    // If it had branchId we would filter here.
+    return allWasteDisposals;
+  }, [allWasteDisposals]);
+
   const [period, setPeriod] = useState<'ALL' | 'YTD'>('ALL');
 
   const stats = useMemo(() => {
     let totalRetreads = 0;
     
     if (period === 'ALL') {
-        // Count from all concluded retread orders
         const concluded = retreadOrders.filter(o => o.status === 'CONCLUIDO');
         totalRetreads = concluded.reduce((sum, order) => sum + order.tireIds.length, 0);
-        
-        // Fallback to tire retreadCount if orders are empty (legacy data)
         if (totalRetreads === 0) {
             totalRetreads = tires.reduce((sum, t) => sum + (t.retreadCount || 0), 0);
         }
     } else {
-        // YTD
         const currentYear = new Date().getFullYear();
         const concludedThisYear = retreadOrders.filter(o => 
             o.status === 'CONCLUIDO' && 
@@ -48,10 +54,6 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
         totalRetreads = concludedThisYear.reduce((sum, order) => sum + order.tireIds.length, 0);
     }
 
-    // Metrics based on industry standards
-    // 1 retread saves ~57 liters of oil
-    // 1 retread saves ~68 kg of CO2 emissions
-    // 1 retread = 1 carcass saved from landfill
     const oilSaved = totalRetreads * 57;
     const co2Reduced = totalRetreads * 68;
     const carcassesSaved = totalRetreads;
@@ -63,6 +65,37 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
         carcassesSaved
     };
   }, [tires, retreadOrders, period]);
+
+  const wasteStats = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const filtered = period === 'ALL' 
+      ? wasteDisposals 
+      : wasteDisposals.filter(d => new Date(d.date).getFullYear() === currentYear);
+
+    const finalized = filtered.filter(d => d.stage === 'FINALIZADO');
+    
+    let totalWasteKg = 0;
+    let totalPpeKg = 0;
+    let totalTiresDisposed = 0;
+    let totalCost = 0;
+
+    finalized.forEach(d => {
+      totalCost += (d.cost || 0);
+      d.items.forEach(item => {
+        if (d.disposalType === 'WASTE' && item.unit === 'KG') totalWasteKg += item.quantity;
+        if (d.disposalType === 'PPE' && item.unit === 'KG') totalPpeKg += item.quantity;
+        if (d.disposalType === 'TIRE') totalTiresDisposed += item.quantity;
+      });
+    });
+
+    return {
+      totalWasteKg,
+      totalPpeKg,
+      totalTiresDisposed,
+      totalCost,
+      finalizedCount: finalized.length
+    };
+  }, [wasteDisposals, period]);
 
   const handlePrint = () => {
     window.print();
@@ -80,11 +113,15 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
         </div>
         <div className="flex items-center gap-3">
            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner">
-               <button onClick={() => setPeriod('YTD')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${period === 'YTD' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Este Ano</button>
-               <button onClick={() => setPeriod('ALL')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${period === 'ALL' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Histórico Total</button>
+               <button onClick={() => setViewType('TIRES')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewType === 'TIRES' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Pneus</button>
+               <button onClick={() => setViewType('WASTE')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewType === 'WASTE' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Resíduos</button>
            </div>
-           <button onClick={handlePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2">
-               <Printer className="h-4 w-4" /> Imprimir Relatório
+           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner ml-2">
+               <button onClick={() => setPeriod('YTD')} className={`px-3 py-2 rounded-lg text-[10px] uppercase font-black transition-all ${period === 'YTD' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Este Ano</button>
+               <button onClick={() => setPeriod('ALL')} className={`px-3 py-2 rounded-lg text-[10px] uppercase font-black transition-all ${period === 'ALL' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Total</button>
+           </div>
+           <button onClick={handlePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 ml-2">
+               <Printer className="h-4 w-4" /> Imprimir
            </button>
         </div>
       </div>
@@ -104,7 +141,9 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                   </div>
                   <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4">Certificado de Sustentabilidade</h1>
                   <p className="text-emerald-100 text-lg md:text-xl max-w-2xl mx-auto font-medium">
-                      Reconhecimento pelo compromisso com a redução do impacto ambiental através da gestão eficiente e economia circular de pneus.
+                      {viewType === 'TIRES' 
+                        ? 'Reconhecimento pelo compromisso com a redução do impacto ambiental através da gestão eficiente e economia circular de pneus.'
+                        : 'Reconhecimento pela excelência na gestão ambiental e descarte responsável de resíduos sólidos e materiais contaminados.'}
                   </p>
                   <div className="mt-8 inline-flex items-center gap-2 bg-black/20 backdrop-blur-md px-6 py-2 rounded-full text-emerald-50 font-bold border border-white/10">
                       <Calendar className="h-4 w-4" />
@@ -116,69 +155,137 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
           {/* Metrics Grid */}
           <div className="p-8 md:p-12">
               <div className="text-center mb-12">
-                  <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Impacto Ambiental Evitado</h3>
-                  <p className="text-slate-500 dark:text-slate-400">Resultados gerados pela política de recapagem e extensão da vida útil dos pneus.</p>
+                  <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">
+                    {viewType === 'TIRES' ? 'Impacto Ambiental Evitado' : 'Impacto da Destinação Correta'}
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    {viewType === 'TIRES' 
+                      ? 'Resultados gerados pela política de recapagem e extensão da vida útil dos pneus.'
+                      : 'Resultados da gestão de resíduos da oficina e materiais de proteção individual.'}
+                  </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                  {/* Oil */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-emerald-200 transition-colors">
-                      <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-                          <Droplet className="h-32 w-32 text-emerald-600" />
-                      </div>
-                      <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
-                          <Droplet className="h-8 w-8" />
-                      </div>
-                      <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
-                          {stats.oilSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">L</span>
-                      </h4>
-                      <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Petróleo Economizado</p>
-                      <p className="text-xs text-slate-400 mt-4 relative z-10">Litros de petróleo que deixaram de ser extraídos para a fabricação de pneus novos.</p>
-                  </div>
+              {viewType === 'TIRES' ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                    {/* Oil */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-emerald-200 transition-colors">
+                        <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                            <Droplet className="h-32 w-32 text-emerald-600" />
+                        </div>
+                        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
+                            <Droplet className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
+                            {stats.oilSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">L</span>
+                        </h4>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Petróleo Economizado</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Litros de petróleo que deixaram de ser extraídos para a fabricação de pneus novos.</p>
+                    </div>
 
-                  {/* CO2 */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-blue-200 transition-colors">
-                      <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-                          <Wind className="h-32 w-32 text-blue-600" />
-                      </div>
-                      <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
-                          <Wind className="h-8 w-8" />
-                      </div>
-                      <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
-                          {(stats.co2Reduced / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-lg text-slate-400 font-bold">Ton</span>
-                      </h4>
-                      <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">CO₂ Reduzido</p>
-                      <p className="text-xs text-slate-400 mt-4 relative z-10">Toneladas de Dióxido de Carbono que deixaram de ser emitidas na atmosfera.</p>
-                  </div>
+                    {/* CO2 */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-blue-200 transition-colors">
+                        <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                            <Wind className="h-32 w-32 text-blue-600" />
+                        </div>
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
+                            <Wind className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
+                            {(stats.co2Reduced / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-lg text-slate-400 font-bold">Ton</span>
+                        </h4>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">CO₂ Reduzido</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Toneladas de Dióxido de Carbono que deixaram de ser emitidas na atmosfera.</p>
+                    </div>
 
-                  {/* Carcasses */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-purple-200 transition-colors">
-                      <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-                          <Recycle className="h-32 w-32 text-purple-600" />
-                      </div>
-                      <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
-                          <Recycle className="h-8 w-8" />
-                      </div>
-                      <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
-                          {stats.carcassesSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">un</span>
-                      </h4>
-                      <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Carcaças Salvas</p>
-                      <p className="text-xs text-slate-400 mt-4 relative z-10">Pneus que foram reaproveitados e não foram descartados em aterros sanitários.</p>
-                  </div>
-              </div>
+                    {/* Carcasses */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-purple-200 transition-colors">
+                        <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                            <Recycle className="h-32 w-32 text-purple-600" />
+                        </div>
+                        <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
+                            <Recycle className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
+                            {stats.carcassesSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">un</span>
+                        </h4>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Carcaças Salvas</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Pneus que foram reaproveitados e não foram descartados em aterros sanitários.</p>
+                    </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                    {/* General Waste */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-orange-200 transition-colors">
+                        <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                            <Trash2 className="h-32 w-32 text-orange-600" />
+                        </div>
+                        <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 text-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
+                            <Trash2 className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
+                            {wasteStats.totalWasteKg.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">KG</span>
+                        </h4>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Resíduos de Oficina</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Volume de resíduos químicos e industriais destinados a parceiros certificados.</p>
+                    </div>
+
+                    {/* PPE */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-blue-200 transition-colors">
+                        <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                            <ShieldCheck className="h-32 w-32 text-blue-600" />
+                        </div>
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
+                            <ShieldCheck className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
+                            {wasteStats.totalPpeKg.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">KG</span>
+                        </h4>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">EPIs Descartados</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Equipamentos de proteção individual que foram descartados seguindo normas ambientais.</p>
+                    </div>
+
+                    {/* Tires */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 text-center border border-slate-100 dark:border-slate-800 relative overflow-hidden group hover:border-emerald-200 transition-colors">
+                        <div className="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                            <Recycle className="h-32 w-32 text-emerald-600" />
+                        </div>
+                        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 relative z-10">
+                            <Recycle className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
+                            {wasteStats.totalTiresDisposed.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">un</span>
+                        </h4>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Sucatas de Pneus</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Pneus inservíveis retirados de circulação e encaminhados para moagem e reaproveitamento.</p>
+                    </div>
+                </div>
+              )}
 
               {/* Summary Statement */}
               <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 md:p-8 flex items-start gap-6">
                   <div className="p-4 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-emerald-600 shrink-0">
-                      <TrendingUp className="h-8 w-8" />
+                      {viewType === 'TIRES' ? <TrendingUp className="h-8 w-8" /> : <Truck className="h-8 w-8" />}
                   </div>
                   <div>
-                      <h4 className="text-lg font-black text-emerald-800 dark:text-emerald-400 mb-2">O Poder da Economia Circular</h4>
+                      <h4 className="text-lg font-black text-emerald-800 dark:text-emerald-400 mb-2">
+                        {viewType === 'TIRES' ? 'O Poder da Economia Circular' : 'Gestão Responsável de Resíduos'}
+                      </h4>
                       <p className="text-emerald-700 dark:text-emerald-500/80 leading-relaxed">
-                          Ao optar pela recapagem de <strong>{stats.totalRetreads} pneus</strong>, esta operação demonstrou um compromisso real com as práticas <strong>ESG (Environmental, Social, and Governance)</strong>. 
-                          A fabricação de um pneu novo consome em média 83 litros de petróleo, enquanto a recapagem consome apenas 26 litros. 
-                          Esta diferença de 57 litros por pneu, multiplicada pela eficiência da frota, resulta em um impacto ambiental massivamente positivo, 
-                          alinhando a empresa às exigências globais de sustentabilidade e redução da pegada de carbono.
+                          {viewType === 'TIRES' ? (
+                            <>
+                              Ao optar pela recapagem de <strong>{stats.totalRetreads} pneus</strong>, esta operação demonstrou um compromisso real com as práticas <strong>ESG (Environmental, Social, and Governance)</strong>. 
+                              A fabricação de um pneu novo consome em média 83 litros de petróleo, enquanto a recapagem consome apenas 26 litros. 
+                              Esta diferença de 57 litros por pneu, multiplicada pela eficiência da frota, resulta em um impacto ambiental massivamente positivo, 
+                              alinhando a empresa às exigências globais de sustentabilidade e redução da pegada de carbono.
+                            </>
+                          ) : (
+                            <>
+                              Através do monitoramento e destinação de <strong>{wasteStats.finalizedCount} remessas</strong> de resíduos industriais, garantimos que nenhum material contaminado afetasse o ecossistema local.
+                              O registro sistemático e o uso de MTR (Manifesto de Transporte de Resíduos) comprovam a rastreabilidade total do descarte, 
+                              protegendo a organização contra passivos ambientais e reforçando o pilar <strong>Environmental</strong> da governança corporativa.
+                              A gestão eficiente evitou o descarte irregular de <strong>{(wasteStats.totalWasteKg + wasteStats.totalPpeKg).toLocaleString('pt-BR')} kg</strong> de materiais.
+                            </>
+                          )}
                       </p>
                   </div>
               </div>

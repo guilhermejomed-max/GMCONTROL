@@ -2,7 +2,11 @@
 // Test
 import React, { useState, useEffect, FC, FormEvent, ChangeEvent } from 'react';
 import { Tire, TireStatus, SystemSettings, TireModelDefinition, Vehicle, Branch } from '../types';
-import { Save, Flame, Loader2, CheckCircle2, Plus, X, Search, Activity, Ruler, CircleDollarSign, BookOpen, Calendar, ArrowLeft, Tag, Layers, Truck, Building2 } from 'lucide-react';
+import { 
+  Save, Flame, Loader2, CheckCircle2, Plus, X, Search, Activity, Ruler, 
+  CircleDollarSign, BookOpen, Calendar, ArrowLeft, Tag, Layers, Truck, Building2,
+  Image as ImageIcon, Upload
+} from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 interface TireFormProps {
@@ -52,10 +56,30 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
     retreadCount: 0,
     vehicleId: autoMountVehicleId || '',
     position: autoMountPosition || '',
-    branchId: defaultBranchId || ''
+    branchId: defaultBranchId || '',
+    imageUrl: ''
   };
 
   const [formData, setFormData] = useState(editingTire || initialFormData);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 500 * 1024) {
+      alert("A foto deve ter no máximo 500KB.");
+      return;
+    }
+
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, imageUrl: reader.result as string }));
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     if (editingTire) {
@@ -122,7 +146,9 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
       
       const newTire: Tire = {
         id: editingTire ? editingTire.id : Date.now().toString(36),
+        orgId: 'initial', // Will be overwritten by storageService if needed, but required by type
         ...formData,
+        imageUrl: (formData as any).imageUrl,
         fireNumber: normalizedFireNumber,
         brand: formData.brand.trim().toUpperCase(),
         model: formData.model.trim().toUpperCase(),
@@ -300,6 +326,26 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
               <div>
                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">DOT (Semana/Ano)</label>
                  <input type="text" name="dot" value={formData.dot || ''} onChange={handleChange} maxLength={4} className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-blue-500 text-slate-800 dark:text-white text-center tracking-[0.5em]" placeholder="0000" />
+              </div>
+
+              <div>
+                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Foto do Pneu (Opcional)</label>
+                 <div className="flex items-center gap-4">
+                    <div className="h-20 w-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                       {formData.imageUrl ? (
+                          <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                       ) : (
+                          <ImageIcon className="h-8 w-8 text-slate-300" />
+                       )}
+                    </div>
+                    <label className="flex-1">
+                       <div className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-4 rounded-xl text-center cursor-pointer transition-colors border border-slate-200 dark:border-slate-700">
+                          <Upload className="h-5 w-5 mx-auto mb-1 text-blue-600" />
+                          <span className="text-[10px] font-black text-slate-500 uppercase">Carregar Foto</span>
+                       </div>
+                       <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                    </label>
+                 </div>
               </div>
            </div>
         </div>

@@ -17,8 +17,42 @@ interface SettingsProps {
 }
 
 export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUpdateSettings, branches, sectors, classifications, paymentMethods }) => {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'TEAM' | 'CATALOG' | 'OFICINA' | 'POINTS' | 'MANUAL' | 'BRANCHES'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<string>('GENERAL');
   
+  // Categorias do Menu
+  const MENU_GROUPS = [
+    {
+      title: 'Configurações',
+      items: [
+        { id: 'GENERAL', label: 'Parâmetros', icon: SettingsIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { id: 'CATALOG', label: 'Catálogo de Pneus', icon: BookOpen, color: 'text-orange-600', bg: 'bg-orange-50' },
+        { id: 'OFICINA', label: 'Oficina', icon: Wrench, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+      ]
+    },
+    {
+      title: 'Organização',
+      items: [
+        { id: 'BRANCHES', label: 'Filiais', icon: Building2, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+        { id: 'SECTOR', label: 'Setor', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50' },
+        { id: 'PAYMENTS', label: 'Pagamentos', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        { id: 'POINTS', label: 'Pontos de Destino', icon: MapPin, color: 'text-rose-600', bg: 'bg-rose-50' },
+      ]
+    },
+    {
+      title: 'Pessoas e Acesso',
+      items: [
+        { id: 'TEAM', label: 'Equipe', icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },
+      ]
+    },
+    {
+      title: 'Suporte',
+      items: [
+        { id: 'MANUAL', label: 'Manual', icon: FileText, color: 'text-sky-600', bg: 'bg-sky-50' },
+        { id: 'logs', label: 'Auditoria Global', icon: ClipboardList, color: 'text-amber-600', bg: 'bg-amber-50' },
+      ]
+    }
+  ];
+
   // General Settings State
   const [formData, setFormData] = useState<SystemSettings>(currentSettings);
   const [isSaving, setIsSaving] = useState(false);
@@ -480,6 +514,30 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     doc.save(`Manual_${moduleName.replace(/ /g, '_')}.pdf`);
   };
 
+  const handleAddWasteType = async () => {
+    if (!newWasteTypeName.trim()) return;
+    try {
+      await storageService.addWasteType(orgId, {
+        name: newWasteTypeName.trim(),
+        unit: newWasteTypeUnit,
+        category: newWasteTypeCategory,
+        orgId
+      });
+      setNewWasteTypeName('');
+    } catch (error) {
+      console.error("Failed to add waste type", error);
+    }
+  };
+
+  const handleDeleteWasteType = async (id: string) => {
+    if (!confirm("Deseja remover este item de resíduo?")) return;
+    try {
+      await storageService.deleteWasteType(orgId, id);
+    } catch (error) {
+      console.error("Failed to delete waste type", error);
+    }
+  };
+
   const ManualCard = ({ title, description }: { title: string, description: string }) => (
     <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col h-full hover:border-sky-300 transition-colors">
       <div className="flex-1">
@@ -493,10 +551,50 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="flex flex-col lg:flex-row gap-6 min-h-[600px]">
       
-      {/* LOGS MODAL */}
-      {logsModalOpen && (
+      {/* SIDEBAR NAVIGATION */}
+      <div className="w-full lg:w-72 flex-shrink-0">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden sticky top-6">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+             <h3 className="font-bold text-slate-800 dark:text-white uppercase text-[10px] tracking-widest">Configuração do Sistema</h3>
+          </div>
+          <div className="p-3 space-y-6">
+             {MENU_GROUPS.map((group) => (
+               <div key={group.title}>
+                 <h4 className="px-3 mb-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{group.title}</h4>
+                 <div className="space-y-1">
+                   {group.items.map((item) => (
+                     <button
+                       key={item.id}
+                       onClick={() => {
+                         if (item.id === 'logs') openGlobalLogs();
+                         else setActiveTab(item.id);
+                       }}
+                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                         activeTab === item.id 
+                           ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' 
+                           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
+                       }`}
+                     >
+                       <div className={`p-1.5 rounded-lg ${item.bg} ${item.color}`}>
+                          <item.icon className="h-4 w-4" />
+                       </div>
+                       {item.label}
+                     </button>
+                   ))}
+                 </div>
+               </div>
+             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENT AREA */}
+      <div className="flex-1">
+        
+       {/* LOGS MODAL (Mantive a lógica do modal original por compatibilidade) */}
+       {logsModalOpen && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95">
                <div className="p-4 border-b border-slate-100 bg-slate-50">
@@ -567,34 +665,10 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
          </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
            <h2 className="text-2xl font-bold text-slate-800">Configurações do Sistema</h2>
            <p className="text-slate-500 text-sm">Gerencie parâmetros globais e controle de acesso.</p>
-        </div>
-        
-        <div className="flex bg-slate-100 p-1 rounded-lg overflow-x-auto">
-           <button onClick={() => setActiveTab('GENERAL')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'GENERAL' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <SettingsIcon className="h-4 w-4" /> Parâmetros
-           </button>
-           <button onClick={() => setActiveTab('CATALOG')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'CATALOG' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <BookOpen className="h-4 w-4" /> Catálogo de Pneus
-           </button>
-           <button onClick={() => setActiveTab('OFICINA')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'OFICINA' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <Wrench className="h-4 w-4" /> Oficina
-           </button>
-           <button onClick={() => setActiveTab('POINTS')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'POINTS' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <MapPin className="h-4 w-4" /> Pontos de Destino
-           </button>
-           <button onClick={() => setActiveTab('TEAM')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'TEAM' ? 'bg-white shadow-sm text-purple-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <Users className="h-4 w-4" /> Equipe
-           </button>
-           <button onClick={() => setActiveTab('MANUAL')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'MANUAL' ? 'bg-white shadow-sm text-sky-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <FileText className="h-4 w-4" /> Manual
-           </button>
-           <button onClick={() => setActiveTab('BRANCHES')} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'BRANCHES' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
-             <Building2 className="h-4 w-4" /> Filiais
-           </button>
         </div>
       </div>
 
@@ -672,20 +746,19 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  </div>
               </div>
 
-              <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
-                  <button type="button" onClick={async () => { if(confirm("Tem certeza? Isso apagará todos os dados (pneus, serviços, estoques, logs, etc.), mantendo apenas os veículos cadastrados (com hodômetro zerado). Esta ação é irreversível.")) { await storageService.resetData(orgId); alert("Dados resetados com sucesso! A página será recarregada."); window.location.reload(); } }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-sm flex items-center gap-2 text-sm">
-                     <Trash2 className="h-4 w-4" /> Resetar Dados
-                  </button>
+              <div className="pt-6 border-t border-slate-100 flex justify-end items-center">
                  <button type="submit" disabled={isSaving} className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
                     {saveSuccess ? <Check className="h-5 w-5" /> : <Save className="h-5 w-5" />} {saveSuccess ? 'Salvo!' : 'Salvar Alterações'}
                  </button>
               </div>
            </form>
         </div>
+        </>
+      )}
 
-        <div className="space-y-6 mt-6">
-           {/* Payment Methods Section */}
-           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+      {/* PAYMENTS TAB */}
+      {activeTab === 'PAYMENTS' && (
+         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
              <div className="flex items-center gap-2 mb-6">
                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                  <DollarSign className="w-5 h-5" />
@@ -732,16 +805,18 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  </div>
                ))}
              </div>
-           </div>
+         </div>
+      )}
 
-           {/* Sectors Section */}
-           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
+      {/* SECTOR TAB */}
+      {activeTab === 'SECTOR' && (
+         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
              <div className="flex items-center gap-2 mb-6">
                <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
                  <Grid className="w-5 h-5" />
                </div>
                <div>
-                 <h3 className="text-lg font-bold text-slate-800">Setores / Departamentos</h3>
+                 <h3 className="text-lg font-bold text-slate-800">Setor / Departamentos</h3>
                  <p className="text-sm text-slate-500">Departamentos responsáveis pelas ocorrências.</p>
                </div>
              </div>
@@ -782,9 +857,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  </div>
                ))}
              </div>
-           </div>
-        </div>
-        </>
+         </div>
       )}
 
       {/* CATALOG TAB */}
@@ -877,273 +950,284 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
 
       {/* OFICINA TAB */}
       {activeTab === 'OFICINA' && (
-         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
-            <div className="flex justify-between items-start mb-6">
-               <div>
-                  <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                     <Wrench className="h-5 w-5 text-indigo-600" /> Configurações da Oficina
-                  </h3>
-                  <p className="text-slate-500 text-sm mt-1">Gerencie tipos de serviço e procedimentos padrões.</p>
+         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            {/* Header Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-4">
+               <div className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shadow-sm">
+                    <Wrench className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Configurações da Oficina</h3>
+                    <p className="text-sm text-slate-500 font-medium">Gestão de resíduos, operações e procedimentos técnicos.</p>
+                  </div>
                </div>
-               <button onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
-                  {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Configurações
+               <button 
+                  onClick={(e) => handleSaveSettings(e)} 
+                  disabled={isSaving} 
+                  className={`w-full md:w-auto px-6 py-2.5 rounded-xl font-bold text-white shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}
+               >
+                  {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} 
+                  {saveSuccess ? 'Alterações Salvas' : 'Salvar Preferências'}
                </button>
             </div>
 
-            <div className="space-y-8 divide-y divide-slate-100">
-                {/* ITENS PARA DESCARTE */}
-                <section className="pt-4">
-                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Trash2 className="h-4 w-4" /> Itens para Descarte (Resíduos)
-                    </h4>
-                    <div className="flex flex-col md:flex-row gap-6">
-                        <div className="w-full md:w-1/3">
-                            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cadastrar Novo Item de Resíduo</label>
-                                <div className="space-y-3">
-                                    <input 
-                                        type="text" 
-                                        className="w-full p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
-                                        placeholder="Ex: Óleo Usado, Baterias..." 
-                                        value={newWasteTypeName}
-                                        onChange={(e) => setNewWasteTypeName(e.target.value)}
-                                    />
-                                    <div className="flex gap-2">
-                                        <select 
-                                            className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500"
-                                            value={newWasteTypeUnit}
-                                            onChange={(e) => setNewWasteTypeUnit(e.target.value as WasteUnit)}
-                                        >
-                                            <option value="KG">Quilos (KG)</option>
-                                            <option value="LITERS">Litros (L)</option>
-                                            <option value="UNITS">Unidades (UN)</option>
-                                            <option value="METERS">Metros (M)</option>
-                                        </select>
-                                        <select 
-                                            className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500 font-bold"
-                                            value={newWasteTypeCategory}
-                                            onChange={(e) => setNewWasteTypeCategory(e.target.value as any)}
-                                        >
-                                            <option value="WASTE">Resíduos</option>
-                                            <option value="PPE">EPI</option>
-                                            <option value="TIRE">Pneus</option>
-                                        </select>
+            <div className="grid grid-cols-1 gap-8">
+                {/* 1. ITENS PARA DESCARTE */}
+                <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                           <div className="p-2 bg-indigo-500 rounded-lg text-white">
+                             <Trash2 className="w-4 h-4" />
+                           </div>
+                           <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                               Catálogo de Resíduos
+                           </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 uppercase tracking-widest leading-none">
+                           {wasteTypes.length} Itens Cadastrados
+                        </span>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="flex flex-col xl:flex-row gap-8">
+                            {/* Formulário lateral */}
+                            <div className="w-full xl:w-80 shrink-0">
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60 sticky top-6">
+                                    <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-4">Adicionar Novo Item</h5>
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-500 ml-1">DESCRIÇÃO DO RESÍDUO</label>
+                                            <input 
+                                                type="text" 
+                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder:text-slate-300 shadow-sm" 
+                                                placeholder="Ex: Óleo Usado" 
+                                                value={newWasteTypeName}
+                                                onChange={(e) => setNewWasteTypeName(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-slate-500 ml-1 uppercase">Unidade</label>
+                                                <select 
+                                                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer shadow-sm text-slate-700"
+                                                    value={newWasteTypeUnit}
+                                                    onChange={(e) => setNewWasteTypeUnit(e.target.value as WasteUnit)}
+                                                >
+                                                    <option value="KG">KG</option>
+                                                    <option value="LITERS">Litros</option>
+                                                    <option value="UNITS">UN</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-slate-500 ml-1 uppercase">Categoria</label>
+                                                <select 
+                                                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer shadow-sm text-slate-700"
+                                                    value={newWasteTypeCategory}
+                                                    onChange={(e) => setNewWasteTypeCategory(e.target.value as any)}
+                                                >
+                                                    <option value="WASTE">Resíduo</option>
+                                                    <option value="PPE">EPI</option>
+                                                    <option value="TIRE">Pneu</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
                                         <button 
-                                            onClick={async () => {
-                                                if (!newWasteTypeName.trim()) return;
-                                                await storageService.addWasteType(orgId, {
-                                                    name: newWasteTypeName.trim(),
-                                                    unit: newWasteTypeUnit,
-                                                    category: newWasteTypeCategory
-                                                });
-                                                setNewWasteTypeName('');
-                                            }}
-                                            className="px-4 py-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 transition-colors"
+                                            onClick={handleAddWasteType}
+                                            className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 mt-2"
                                         >
-                                            <Plus className="h-4 w-4" />
+                                            <Plus className="h-4 w-4" /> Adicionar
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex-1 h-full min-h-[200px] bg-slate-50 rounded-xl border border-slate-200 p-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {wasteTypes.map(type => (
-                                    <div key={type.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm group">
-                                        <div className="min-w-0">
-                                          <div className="font-bold text-slate-800 truncate">{type.name}</div>
-                                          <div className="flex items-center gap-2">
-                                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{type.unit}</span>
-                                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase ${
-                                                  type.category === 'WASTE' ? 'bg-orange-100 text-orange-600' :
-                                                  type.category === 'PPE' ? 'bg-purple-100 text-purple-600' :
-                                                  'bg-blue-100 text-blue-600'
-                                              }`}>
-                                                  {type.category === 'WASTE' ? 'Resíduo' : type.category === 'PPE' ? 'EPI' : 'Pneu'}
-                                              </span>
-                                          </div>
+
+                            {/* Grid de Itens */}
+                            <div className="flex-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3">
+                                    {wasteTypes.map(type => (
+                                        <div key={type.id} className="flex flex-col bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all group relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => handleDeleteWasteType(type.id)} 
+                                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                    title="Excluir"
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                            <div className="font-bold text-slate-800 text-sm mb-3 truncate pr-6">{type.name}</div>
+                                            <div className="mt-auto flex items-center gap-2">
+                                                <span className="text-[9px] px-2 py-1 bg-slate-100 text-slate-500 rounded-lg font-black uppercase tracking-tight">{type.unit}</span>
+                                                <span className={`text-[9px] px-2 py-1 rounded-lg font-black uppercase tracking-tight ${
+                                                    type.category === 'WASTE' ? 'bg-orange-50 text-orange-600' :
+                                                    type.category === 'PPE' ? 'bg-purple-50 text-purple-600' :
+                                                    'bg-blue-50 text-blue-600'
+                                                }`}>
+                                                    {type.category === 'WASTE' ? 'Resíduo' : type.category === 'PPE' ? 'EPI' : 'Pneu'}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <button onClick={() => storageService.deleteWasteType(orgId, type.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg group-hover:bg-red-50 transition-all">
-                                          <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                ))}
+                                    ))}
+                                    {wasteTypes.length === 0 && (
+                                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
+                                            <div className="p-4 bg-white rounded-2xl shadow-sm mb-3">
+                                                <Trash2 className="h-8 w-8 opacity-20 text-slate-400" />
+                                            </div>
+                                            <p className="text-xs font-bold uppercase tracking-widest">Nenhum item cadastrado no catálogo</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                {/* SETORES DA EMPRESA */}
-                <section className="pt-4">
-                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Grid className="h-4 w-4" /> Filas / Setores Responsáveis (Ocorrências)
-                    </h4>
-                    <div className="flex flex-col md:flex-row gap-6">
-                        <div className="w-full md:w-1/3">
-                            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cadastrar Novo Setor</label>
-                                <div className="space-y-3">
-                                    <input 
-                                        type="text" 
-                                        className="w-full p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
-                                        placeholder="Ex: TRÁFEGO, ELÉTRICA..." 
-                                        id="new-sector-name"
-                                    />
-                                    <button 
-                                        onClick={async () => {
-                                            const input = document.getElementById('new-sector-name') as HTMLInputElement;
-                                            if (input && input.value) {
-                                                await storageService.addSector(orgId, { name: input.value });
-                                                input.value = '';
-                                            }
-                                        }} 
-                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        <Plus className="h-4 w-4"/> Adicionar
+                {/* 2. TIPOS DE SERVIÇO */}
+                <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <div className="w-2 h-2 rounded-full bg-slate-600" />
+                           <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">
+                               Operações e Tipos de Serviço (Itens da O.S.)
+                           </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-100">
+                           {serviceTypes.length} TIPOS
+                        </span>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            <div className="lg:col-span-4">
+                                <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">Nova Operação</label>
+                                    <div className="space-y-4">
+                                        <input 
+                                            type="text" 
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-slate-500/10 focus:border-slate-800 transition-all placeholder:text-slate-300 shadow-sm" 
+                                            placeholder="Ex: Troca de Óleo, Alinhamento..." 
+                                            value={newServiceType || ''} 
+                                            onChange={e => setNewServiceType(e.target.value)} 
+                                        />
+                                        <button 
+                                            onClick={handleAddServiceType} 
+                                            className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
+                                        >
+                                            <Plus className="h-4 w-4"/> Adicionar ao Catálogo
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="lg:col-span-8">
+                                {serviceTypes.length === 0 ? (
+                                    <div className="py-16 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
+                                        <div className="p-3 bg-white rounded-2xl shadow-sm mb-3">
+                                            <List className="h-6 w-6 opacity-30 text-slate-500" />
+                                        </div>
+                                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum tipo de serviço cadastrado</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                        {serviceTypes.map(st => (
+                                            <div key={st.id} className="bg-slate-50/30 p-4 px-5 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-300 hover:bg-white hover:shadow-md transition-all group">
+                                                <span className="text-[13px] font-black text-slate-700 truncate pr-2 uppercase tracking-tight">{st.name}</span>
+                                                <button 
+                                                    onClick={() => handleDeleteServiceType(st.id)} 
+                                                    className="text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-xl transition-all"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5"/>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* 3. PROCEDIMENTOS PADRÕES */}
+                <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                           <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">
+                               Checklists e Procedimentos Padrões (SOP)
+                           </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-100">
+                           {standardProcedures.length} PROCEDIMENTOS
+                        </span>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            <div className="lg:col-span-4">
+                                <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60 space-y-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Nome Comercial</label>
+                                        <input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder:text-slate-300 shadow-sm" placeholder="Ex: Revisão 10.000km" value={newProcedure.name || ''} onChange={e => setNewProcedure({...newProcedure, name: e.target.value})} />
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-1">
+                                        <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Categoria</label>
+                                        <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer appearance-none shadow-sm" value={newProcedure.category || 'OIL'} onChange={e => setNewProcedure({...newProcedure, category: e.target.value})}>
+                                            <option value="OIL">Troca de Óleo</option>
+                                            <option value="ELECTRICAL">Elétrica</option>
+                                            <option value="MECHANICAL">Mecânica</option>
+                                            <option value="OTHER">Outros</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Passo a Passo</label>
+                                        <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all h-36 resize-none shadow-sm" placeholder="1. Verificar nível do fluido&#10;2. Trocar juntas..." value={newProcedure.description || ''} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
+                                    </div>
+                                    <button onClick={handleAddProcedure} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100">
+                                        <Plus className="h-4 w-4" /> Criar Procedimento
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-[300px] overflow-y-auto shadow-inner">
-                            {sectors.length === 0 ? (
-                                <div className="text-center text-slate-400 py-8 italic text-sm">Nenhum item cadastrado.</div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {sectors.map(s => (
-                                        <div key={s.id} className="bg-white p-3 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm group hover:border-indigo-300 transition-all relative overflow-hidden">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                                                <span className="text-sm font-bold text-slate-700">{s.name}</span>
-                                            </div>
-                                            
-                                            {confirmingDeleteId === s.id ? (
-                                                <div className="flex items-center gap-1 animate-in slide-in-from-right-full">
+
+                            <div className="lg:col-span-8">
+                                {standardProcedures.length === 0 ? (
+                                    <div className="py-16 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200 h-full">
+                                        <div className="p-3 bg-white rounded-2xl shadow-sm mb-3">
+                                            <ClipboardList className="h-6 w-6 opacity-30 text-slate-500" />
+                                        </div>
+                                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum procedimento cadastrado</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {standardProcedures.map(p => (
+                                            <div key={p.id} className="bg-slate-50/20 p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 hover:bg-white hover:shadow-lg transition-all group relative">
+                                                <div className="absolute top-4 right-4">
                                                     <button 
-                                                        onClick={() => {
-                                                            storageService.deleteSector(orgId, s.id);
-                                                            setConfirmingDeleteId(null);
-                                                        }}
-                                                        className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700"
+                                                        onClick={() => { if(confirm("Deseja apagar este procedimento?")) handleDeleteProcedure(p.id); }} 
+                                                        className="text-slate-300 hover:text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all"
                                                     >
-                                                        Confirmar
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => setConfirmingDeleteId(null)}
-                                                        className="p-1 text-slate-400 hover:text-slate-600"
-                                                    >
-                                                        <X className="h-3 w-3" />
+                                                        <Trash2 className="h-4 w-4"/>
                                                     </button>
                                                 </div>
-                                            ) : (
-                                                <button 
-                                                    onClick={() => setConfirmingDeleteId(s.id)} 
-                                                    className="text-slate-400 hover:text-red-500 p-1 hover:bg-red-50 rounded-full transition-colors lg:opacity-0 group-hover:opacity-100"
-                                                >
-                                                    <Trash2 className="h-4 w-4"/>
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Tipos de Serviço */}
-                <section className="pt-8">
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <List className="h-4 w-4" /> Tipos de Serviço (Itens da O.S.)
-                    </h4>
-                    <div className="flex flex-col md:flex-row gap-6">
-                        <div className="w-full md:w-1/3">
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Novo Título</label>
-                                <div className="flex gap-2">
-                                    <input 
-                                        type="text" 
-                                        className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500" 
-                                        placeholder="Ex: Troca de Óleo" 
-                                        value={newServiceType || ''} 
-                                        onChange={e => setNewServiceType(e.target.value)} 
-                                    />
-                                    <button onClick={handleAddServiceType} className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded transition-colors"><Plus className="h-5 w-5"/></button>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-[200px] overflow-y-auto">
-                            {serviceTypes.length === 0 ? (
-                                <div className="text-center text-slate-400 py-4 italic text-sm">Nenhum tipo cadastrado.</div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                    {serviceTypes.map(st => (
-                                        <div key={st.id} className="bg-white p-2 px-3 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
-                                            <span className="text-sm font-bold text-slate-700">{st.name}</span>
-                                            <button onClick={() => handleDeleteServiceType(st.id)} className="text-slate-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"><Trash2 className="h-3.5 w-3.5"/></button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Procedimentos Padrões */}
-                <section className="pt-8">
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <ClipboardList className="h-4 w-4" /> Procedimentos Padrões (Checklists)
-                    </h4>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">NOME DO PROCEDIMENTO</label>
-                                <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: Revisão 10k" value={newProcedure.name || ''} onChange={e => setNewProcedure({...newProcedure, name: e.target.value})} />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">CATEGORIA</label>
-                                <select className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newProcedure.category || 'OIL'} onChange={e => setNewProcedure({...newProcedure, category: e.target.value})}>
-                                    <option value="OIL">Troca de Óleo</option>
-                                    <option value="ELECTRICAL">Elétrica</option>
-                                    <option value="MECHANICAL">Mecânica</option>
-                                    <option value="OTHER">Outros</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">DESCRIÇÃO / PASSOS</label>
-                                <textarea className="w-full p-2 border border-slate-300 rounded text-black bg-white h-20" placeholder="Descreva os passos..." value={newProcedure.description || ''} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
-                            </div>
-                            <button onClick={handleAddProcedure} className="w-full py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-                                <Plus className="h-4 w-4" /> Adicionar Procedimento
-                            </button>
-                        </div>
-
-                        <div className="lg:col-span-2 bg-slate-50 rounded-xl border border-slate-200 p-4 max-h-[400px] overflow-y-auto">
-                            {standardProcedures.length === 0 ? (
-                                <div className="text-center text-slate-400 py-10 italic">Nenhum procedimento cadastrado.</div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {standardProcedures.map(p => (
-                                        <div key={p.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300 transition-all group">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
-                                                        p.category === 'OIL' ? 'bg-orange-100 text-orange-700' :
-                                                        p.category === 'ELECTRICAL' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-blue-100 text-blue-700'
+                                                <div className="mb-3">
+                                                    <span className={`text-[9px] px-2 py-0.5 rounded-lg font-black uppercase tracking-tight ${
+                                                        p.category === 'OIL' ? 'bg-orange-50 text-orange-600' :
+                                                        p.category === 'ELECTRICAL' ? 'bg-blue-50 text-blue-600' :
+                                                        p.category === 'MECHANICAL' ? 'bg-indigo-50 text-indigo-600' :
+                                                        'bg-slate-50 text-slate-600'
                                                     }`}>
-                                                        {p.category}
+                                                        {p.category === 'OIL' ? 'Óleo' : p.category === 'ELECTRICAL' ? 'Elétrica' : p.category === 'MECHANICAL' ? 'Mecânica' : 'Geral'}
                                                     </span>
-                                                    <h5 className="font-bold text-slate-800 mt-1">{p.name}</h5>
                                                 </div>
-                                                <button onClick={() => handleDeleteProcedure(p.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                                <h5 className="font-bold text-slate-800 mb-2 pr-8">{p.name}</h5>
+                                                <div className="h-px w-full bg-slate-100 mb-3" />
+                                                <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed line-clamp-5 scrollbar-thin overflow-y-auto max-h-[120px] font-medium">{p.description}</p>
                                             </div>
-                                            <p className="text-xs text-slate-500 line-clamp-2">{p.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1414,5 +1498,6 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
          </div>
       )}
     </div>
-  );
+  </div>
+);
 };

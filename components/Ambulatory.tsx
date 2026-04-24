@@ -1,5 +1,5 @@
 import React, { FC, useState, useEffect, useMemo } from 'react';
-import { Activity, HeartPulse, UserPlus, FileText, Search, Plus, X, Save, Trash2, Calendar, ClipboardList, Stethoscope, Image as ImageIcon, Upload, Paperclip } from 'lucide-react';
+import { Activity, HeartPulse, UserPlus, FileText, Search, Plus, X, Save, Trash2, Calendar, ClipboardList, Stethoscope, Image as ImageIcon, Upload, Paperclip, Mail } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { HealthRecord, Collaborator, HealthRecordType } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -84,6 +84,7 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
       const record: HealthRecord = {
         id: selectedRecord?.id || Date.now().toString(),
         ...formData,
+        orgId,
         collaboratorName: collab?.name,
         createdAt: selectedRecord?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -93,6 +94,11 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
         await storageService.updateHealthRecord(orgId, selectedRecord.id, record);
       } else {
         await storageService.addHealthRecord(orgId, record);
+      }
+
+      const shouldEmail = confirm('Atendimento salvo com sucesso! Deseja encaminhar uma cópia por e-mail agora?');
+      if (shouldEmail) {
+        handleEmailRecord(record);
       }
 
       setIsModalOpen(false);
@@ -163,6 +169,41 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
     } catch (error) {
       console.error("Error deleting health record:", error);
     }
+  };
+
+  const handleEmailRecord = (record: HealthRecord) => {
+    const collab = collaborators.find(c => c.id === record.collaboratorId);
+    const dateStr = new Date(record.date).toLocaleDateString('pt-BR');
+    const timeStr = new Date(record.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
+    const subject = `Prontuário Ambulatorial: ${collab?.name || 'Colaborador'} - ${dateStr}`;
+    const body = `
+Detalhamento de Atendimento Ambulatorial:
+------------------------------------------
+Colaborador: ${collab?.name || 'Não identificado'}
+Data/Hora: ${dateStr} às ${timeStr}
+Tipo: ${RECORD_TYPES[record.type]}
+Status: ${record.status === 'FIT' ? 'Retornou ao Trabalho' : record.status === 'UNFIT' ? 'Afastado' : 'Observação'}
+
+SINAIS VITAIS:
+P.A: ${record.vitalSigns?.bloodPressure || '-'}
+Temp: ${record.vitalSigns?.temperature || '-'}°C
+Sat: ${record.vitalSigns?.saturation || '-'}%
+Glic: ${record.vitalSigns?.glucose || '-'}mg/dL
+F.C: ${record.vitalSigns?.heartRate || '-'}bpm
+
+RELATÓRIO:
+Sintomas: ${record.symptoms || '-'}
+Medicação/Conduta: ${record.medicationGiven || '-'}
+Encaminhamento: ${record.referral || '-'}
+
+Observações: ${record.observations || '-'}
+------------------------------------------
+Gerado pelo Sistema GM Control
+    `.trim();
+
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
   };
 
   return (
@@ -293,6 +334,13 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <button 
+                        onClick={() => handleEmailRecord(record)}
+                        className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                        title="Encaminhar por E-mail"
+                      >
+                        <Mail className="h-5 w-5" />
+                      </button>
                       <button 
                         onClick={() => { setSelectedRecord(record); setFormData(record as any); setIsModalOpen(true); }}
                         className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"

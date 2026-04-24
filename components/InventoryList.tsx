@@ -293,8 +293,13 @@ const TireDetailModal: React.FC<{
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-8 h-full">
                         
-                        {/* COLUNA DA ESQUERDA: KPIs Financeiros e Técnicos */}
+                        {/* FOTO E VIDA DO PNEU */}
                         <div className="p-6 space-y-6 lg:col-span-1 bg-slate-50/50 dark:bg-slate-900/50 border-r border-slate-100 dark:border-slate-800">
+                             {tire.imageUrl && (
+                                 <div className="aspect-video w-full rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                                     <img src={tire.imageUrl} alt={tire.fireNumber} className="w-full h-full object-cover" />
+                                 </div>
+                             )}
                             
                             {/* VIDA DO PNEU (NOVO) */}
                             <div className="bg-indigo-600 text-white p-5 rounded-2xl shadow-lg shadow-indigo-600/20 relative overflow-hidden">
@@ -1408,6 +1413,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           onChange={toggleAllSelection}
                                       />
                                   </th>
+                                  <th className="p-5 w-20 text-center uppercase text-xs font-bold text-slate-500">Foto</th>
                                   <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('fireNumber')}>
                                       <div className="flex items-center gap-1">
                                           Fogo / ID 
@@ -1502,6 +1508,15 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                               checked={selectedTireIds.has(t.id)}
                                               onChange={(e) => toggleTireSelection(t.id, e as any)}
                                           />
+                                      </td>
+                                      <td className="px-5 py-2">
+                                          <div className="h-10 w-10 mx-auto rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                                              {t.imageUrl ? (
+                                                  <img src={t.imageUrl} alt={t.fireNumber} className="w-full h-full object-cover" />
+                                              ) : (
+                                                  <Disc className="h-5 w-5 text-slate-300" />
+                                              )}
+                                          </div>
                                       </td>
                                       <td className="p-5 font-black text-slate-800 dark:text-white flex items-center gap-2">
                                           {isInventoryMode && scannedTireIds.has(t.id) && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}

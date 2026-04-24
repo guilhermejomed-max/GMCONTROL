@@ -72,6 +72,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
     try {
       const item: PpeStockItem = {
         id: Date.now().toString(),
+        orgId,
         name: newItemData.name,
         unit: newItemData.unit,
         quantity: Number(newItemData.quantity),

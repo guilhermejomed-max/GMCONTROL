@@ -131,6 +131,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
 
       const newDisposal: WasteDisposal = {
         id: Date.now().toString(),
+        orgId,
         items,
         date: metadata.date,
         responsibleId: responsible.id,

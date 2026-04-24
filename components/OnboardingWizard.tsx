@@ -48,6 +48,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
       
       const t: Tire = {
         id: Date.now().toString(),
+        orgId: 'initial',
         fireNumber: '001',
         brand: tireBrand,
         model: tireModel,
