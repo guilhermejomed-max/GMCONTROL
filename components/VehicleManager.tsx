@@ -887,7 +887,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
   useEffect(() => {
     const importCodes = async () => {
-      if (localStorage.getItem('sascar_codes_imported_v1') === 'true') return;
       if (vehicles.length === 0) return; // Wait until vehicles are loaded
 
       const lines = SASCAR_CODES_CSV.split('\n');
@@ -895,7 +894,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       lines.forEach(line => {
         const [plate, code] = line.split(';');
         if (plate && code) {
-          codeMap.set(plate.trim().toUpperCase(), code.trim());
+          codeMap.set(plate.replace(/[^A-Z0-9]/gi, '').substring(0, 7).toUpperCase(), code.trim());
         }
       });
 
@@ -909,8 +908,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         }
       }
 
-      console.log(`Imported ${importedCount} Sascar codes.`);
-      localStorage.setItem('sascar_codes_imported_v1', 'true');
+      if (importedCount > 0) {
+        console.log(`Imported ${importedCount} Sascar codes.`);
+      }
+      localStorage.setItem('sascar_codes_imported_v2', new Date().toISOString());
     };
 
     importCodes();
@@ -1569,6 +1570,19 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           console.error(`[Sascar Sync] Erro na sincronização:`, err);
       }
 
+      const parseTelemetryNumber = (value: any): number | undefined => {
+          if (value === undefined || value === null || value === '') return undefined;
+          const parsed = Number(String(value).trim().replace(',', '.'));
+          return Number.isFinite(parsed) ? parsed : undefined;
+      };
+      const parseOdometerKm = (sv: any): number => {
+          const normalizedOdo = parseTelemetryNumber(sv.odometer);
+          if (normalizedOdo !== undefined && normalizedOdo > 0) return normalizedOdo;
+          const exactMeters = parseTelemetryNumber(sv.odometroExato);
+          if (exactMeters !== undefined && exactMeters > 0) return exactMeters / 1000;
+          return parseTelemetryNumber(sv.odometro) || 0;
+      };
+
       results.flat().forEach((item: any) => {
                   let sv = item;
 
@@ -1607,21 +1621,23 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
                       // Só adiciona se não houver dados desse carro ainda OU se esse ponto for mais novo
                       if (!bestUpdates.has(matchKey) || dataPosicaoNova > bestUpdates.get(matchKey).timestamp) {
-                          const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
-                          const latVal = Number(sv.latitude || sv.lat || 0);
-                          const lngVal = Number(sv.longitude || sv.lng || 0);
+                          const finalOdo = Math.round(parseOdometerKm(sv));
+                          const latVal = parseTelemetryNumber(sv.latitude ?? sv.lat) || 0;
+                          const lngVal = parseTelemetryNumber(sv.longitude ?? sv.lng) || 0;
                           
                           const isInvalidPosition = latVal === 0 && lngVal === 0;
                           const finalLat = isInvalidPosition ? (localVehicle.lastLocation?.lat || 0) : latVal;
                           const finalLng = isInvalidPosition ? (localVehicle.lastLocation?.lng || 0) : lngVal;
+                          const litrometer = parseTelemetryNumber(sv.litrometer ?? sv.litrometro ?? sv.litrometro2 ?? sv.litrometroTotal ?? sv.totalLitros ?? sv.totalCombustivel);
                           
-                          console.log(`[Sascar Sync Debug] Atualizando dados: Odo=${rawOdo}, Lat=${finalLat}, Lng=${finalLng}`);
+                          console.log(`[Sascar Sync Debug] Atualizando dados: Odo=${finalOdo}, Lat=${finalLat}, Lng=${finalLng}`);
 
                           bestUpdates.set(matchKey, {
                               timestamp: dataPosicaoNova,
                               updateData: {
                                   id: localVehicle.id,
-                                  odometer: Math.round(Number(rawOdo)),
+                                  odometer: finalOdo > 0 ? finalOdo : localVehicle.odometer,
+                                  ...(litrometer !== undefined ? { litrometer } : {}),
                                   lastLocation: {
                                       ...localVehicle.lastLocation,
                                       lat: finalLat,
