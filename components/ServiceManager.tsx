@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, FC } from 'react';
 import { StockItem, StockMovement, UserLevel } from '../types';
 import { storageService } from '../services/storageService';
-import { Package, Search, Plus, ArrowUpCircle, ArrowDownCircle, History, Save, X, PenLine, ChevronRight, AlertCircle, CheckCircle2, ScanLine, Trash2, LayoutDashboard, TrendingUp, AlertTriangle, DollarSign, BarChart3, PieChart as PieIcon, Printer, ClipboardList, RotateCcw, CheckSquare } from 'lucide-react';
+import { Package, Search, Plus, ArrowUpCircle, ArrowDownCircle, History, Save, X, PenLine, ChevronRight, AlertCircle, CheckCircle2, ScanLine, Trash2, LayoutDashboard, TrendingUp, AlertTriangle, DollarSign, BarChart3, PieChart as PieIcon, Printer, ClipboardList, RotateCcw, CheckSquare, Upload } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 
@@ -16,11 +16,13 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'STOCK' | 'MOVEMENTS' | 'AUDIT'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedDetailItem, setSelectedDetailItem] = useState<StockItem | null>(null);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
   const [selectedItemForMovement, setSelectedItemForMovement] = useState<StockItem | null>(null);
   const [movementType, setMovementType] = useState<'ENTRY' | 'EXIT'>('EXIT');
-  const [itemFormData, setItemFormData] = useState<Partial<StockItem>>({ name: '', code: '', category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0 });
+  const [itemFormData, setItemFormData] = useState<Partial<StockItem>>({ name: '', code: '', category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0, imageUrl: '' });
   const [movementFormData, setMovementFormData] = useState({ quantity: 1, unitCost: 0, notes: '', user: 'Sistema' });
 
   // Audit State
@@ -184,9 +186,14 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
       setItemFormData(item);
     } else {
       setEditingItem(null);
-      setItemFormData({ name: '', code: '', category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0 });
+      setItemFormData({ name: '', code: '', category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0, imageUrl: '' });
     }
     setIsItemModalOpen(true);
+  };
+
+  const handleOpenDetail = (item: StockItem) => {
+    setSelectedDetailItem(item);
+    setIsDetailModalOpen(true);
   };
 
   const handleScanSuccess = async (code: string) => {
@@ -224,10 +231,25 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
         quantity: 0, 
         minQuantity: 5, 
         unit: 'UN', 
-        averageCost: 0 
+        averageCost: 0,
+        imageUrl: ''
       });
       setIsItemModalOpen(true);
     }
+  };
+
+  const handleItemPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert("A foto deve ter no máximo 500KB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setItemFormData(prev => ({ ...prev, imageUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
@@ -735,7 +757,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                     setSearchTerm('');
                   } else if (scannedCode.length > 2) {
                     setEditingItem(null);
-                    setItemFormData({ name: '', code: scannedCode, category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0 });
+                    setItemFormData({ name: '', code: scannedCode, category: 'PECA', quantity: 0, minQuantity: 5, unit: 'UN', averageCost: 0, imageUrl: '' });
                     setIsItemModalOpen(true);
                     setSearchTerm('');
                   }
@@ -774,6 +796,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
                 <tr>
+                  <th className="p-4 w-12">Foto</th>
                   <th className="p-4">Item / Código</th>
                   <th className="p-4">Categoria</th>
                   <th className="p-4 text-center">Quantidade</th>
@@ -784,7 +807,16 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredItems.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <tr key={item.id} onClick={() => handleOpenDetail(item)} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
+                    <td className="p-4">
+                      <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="h-5 w-5 text-slate-400" />
+                        )}
+                      </div>
+                    </td>
                     <td className="p-4">
                       <div className="font-bold text-slate-800 dark:text-white">{item.name}</div>
                       <div className="text-xs text-slate-400 font-mono">{item.code}</div>
@@ -808,7 +840,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                     <td className="p-4 text-right font-bold text-slate-800 dark:text-white">
                       {money(item.quantity * item.averageCost)}
                     </td>
-                    <td className="p-4">
+                    <td className="p-4" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-2">
                         <button 
                           onClick={() => handleOpenMovement(item, 'ENTRY')} 
@@ -1012,6 +1044,26 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                <button onClick={() => setIsItemModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X className="h-5 w-5 text-slate-500"/></button>
             </div>
             <form onSubmit={handleSaveItem} className="space-y-4">
+              <div className="mb-4">
+                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 block">Foto do Item</label>
+                 <div className="flex items-center gap-4">
+                    <div className="h-20 w-20 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden relative group">
+                       {itemFormData.imageUrl ? (
+                          <>
+                             <img src={itemFormData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                             <button type="button" onClick={() => setItemFormData({...itemFormData, imageUrl: ''})} className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold">Remover</button>
+                          </>
+                       ) : (
+                          <Package className="h-8 w-8 text-slate-300" />
+                       )}
+                    </div>
+                    <label className="cursor-pointer bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                       <Upload className="h-4 w-4 mb-1 mx-auto" />
+                       Upload
+                       <input type="file" accept="image/*" onChange={handleItemPhotoUpload} className="hidden" />
+                    </label>
+                 </div>
+              </div>
               <div>
                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Marca / Modelo</label>
                  <input required className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold" value={itemFormData.name} onChange={e => setItemFormData({ ...itemFormData, name: e.target.value })} />
@@ -1094,6 +1146,75 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {/* Detail Modal */}
+      {isDetailModalOpen && selectedDetailItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
+                 <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Detalhes do Produto</h3>
+                 <button onClick={() => setIsDetailModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6 text-slate-500"/></button>
+              </div>
+              <div className="p-8">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                    <div className="aspect-square rounded-3xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                       {selectedDetailItem.imageUrl ? (
+                          <img src={selectedDetailItem.imageUrl} alt={selectedDetailItem.name} className="w-full h-full object-cover" />
+                       ) : (
+                          <Package className="h-20 w-20 text-slate-200 dark:text-slate-700" />
+                       )}
+                    </div>
+                    <div className="space-y-6">
+                       <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Código / Identificação</label>
+                          <div className="text-lg font-mono font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/10 px-3 py-1 rounded inline-block">
+                             {selectedDetailItem.code}
+                          </div>
+                          <h2 className="text-2xl font-black text-slate-800 dark:text-white mt-2 leading-tight uppercase">{selectedDetailItem.name}</h2>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Quantidade</label>
+                             <div className="text-xl font-black text-slate-800 dark:text-white">{selectedDetailItem.quantity} {selectedDetailItem.unit}</div>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Custo Médio</label>
+                             <div className="text-xl font-black text-slate-800 dark:text-white">{money(selectedDetailItem.averageCost)}</div>
+                          </div>
+                       </div>
+
+                       <div className="space-y-4">
+                          <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+                             <span className="text-slate-500 font-bold uppercase text-[10px]">Categoria</span>
+                             <span className="font-black text-slate-800 dark:text-slate-200">{selectedDetailItem.category}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+                             <span className="text-slate-500 font-bold uppercase text-[10px]">Estoque Mínimo</span>
+                             <span className="font-black text-slate-800 dark:text-slate-200">{selectedDetailItem.minQuantity} {selectedDetailItem.unit}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+                             <span className="text-slate-500 font-bold uppercase text-[10px]">Valor Total</span>
+                             <span className="font-black text-orange-600">{money(selectedDetailItem.quantity * selectedDetailItem.averageCost)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                             <span className="text-slate-500 font-bold uppercase text-[10px]">Status</span>
+                             <span className={`font-black ${selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'text-red-500' : 'text-emerald-500'}`}>
+                                {selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'BAIXO ESTOQUE' : 'NÍVEL ADEQUADO'}
+                             </span>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/30 flex justify-end gap-3">
+                 <button onClick={() => { setIsDetailModalOpen(false); handleOpenItemModal(selectedDetailItem); }} className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-black text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors uppercase">
+                    <PenLine className="h-4 w-4"/> Editar Item
+                 </button>
+                 <button onClick={() => setIsDetailModalOpen(false)} className="px-8 py-3 bg-slate-900 text-white rounded-xl font-black text-xs hover:bg-slate-800 transition-colors uppercase">Fechar</button>
+              </div>
+           </div>
         </div>
       )}
     </div>

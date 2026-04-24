@@ -1,5 +1,5 @@
 import React, { FC, useState, useEffect, useMemo } from 'react';
-import { Package, Plus, Search, Filter, ArrowUpRight, ArrowDownRight, AlertTriangle, ShieldCheck, X, Save, Trash2, Tag, Layers } from 'lucide-react';
+import { Package, Plus, Search, Filter, ArrowUpRight, ArrowDownRight, AlertTriangle, ShieldCheck, X, Save, Trash2, Tag, Layers, Image as ImageIcon, Upload } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { PpeStockItem, Collaborator } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14,6 +14,8 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
   const [ppeItems, setPpeItems] = useState<PpeStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedDetailItem, setSelectedDetailItem] = useState<PpeStockItem | null>(null);
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<PpeStockItem | null>(null);
   const [movementType, setMovementType] = useState<'ENTRY' | 'EXIT'>('ENTRY');
@@ -29,8 +31,23 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
     quantity: '0',
     minQuantity: '5',
     caNumber: '',
-    description: ''
+    description: '',
+    imageUrl: ''
   });
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert("A foto deve ter no máximo 500KB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewItemData(prev => ({ ...prev, imageUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     const unsub = storageService.subscribeToPpeStock(orgId, (items) => {
@@ -61,6 +78,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
         minQuantity: Number(newItemData.minQuantity),
         caNumber: newItemData.caNumber,
         description: newItemData.description,
+        imageUrl: newItemData.imageUrl,
         updatedAt: new Date().toISOString()
       };
 
@@ -72,7 +90,8 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
         quantity: '0',
         minQuantity: '5',
         caNumber: '',
-        description: ''
+        description: '',
+        imageUrl: ''
       });
     } catch (error) {
       console.error("Error creating PPE item:", error);
@@ -205,6 +224,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/50">
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Foto</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">CA</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Item</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Quantidade</th>
@@ -219,7 +239,20 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                   <td colSpan={6} className="px-6 py-12 text-center text-slate-400 animate-pulse font-bold uppercase tracking-widest text-xs">Carregando estoque...</td>
                 </tr>
               ) : filteredItems.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
+                <tr 
+                  key={item.id} 
+                  onClick={() => { setSelectedDetailItem(item); setIsDetailModalOpen(true); }}
+                  className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer"
+                >
+                  <td className="px-6 py-4 text-center">
+                    <div className="h-10 w-10 mx-auto rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <ShieldCheck className="h-5 w-5 text-slate-300" />
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-center">
                     <span className="text-[10px] font-black px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded border border-slate-200 dark:border-slate-700">
                       {item.caNumber || 'N/A'}
@@ -252,7 +285,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => {
@@ -324,6 +357,25 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
               </div>
 
               <form onSubmit={handleCreateItem} className="space-y-4">
+                <div className="mb-4">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-wider">Foto do EPI</label>
+                  <div className="flex items-center gap-4">
+                    <div className="h-20 w-20 rounded-2xl bg-slate-50 dark:bg-slate-950 border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden group relative">
+                      {newItemData.imageUrl ? (
+                        <>
+                          <img src={newItemData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => setNewItemData({...newItemData, imageUrl: ''})} className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold">Remover</button>
+                        </>
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-slate-300" />
+                      )}
+                    </div>
+                    <label className="cursor-pointer bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition-colors border border-slate-200 dark:border-slate-700">
+                      Escolher Foto
+                      <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                    </label>
+                  </div>
+                </div>
                 <div>
                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Nome do Item</label>
                    <input
@@ -493,6 +545,93 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                   Confirmar {movementType === 'ENTRY' ? 'Entrada' : 'Baixa'}
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {isDetailModalOpen && selectedDetailItem && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.95, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+               className="bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-2xl overflow-hidden shadow-2xl"
+            >
+              <div className="flex items-center justify-between p-8 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                   <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                      <ShieldCheck className="h-6 w-6 text-slate-600 dark:text-slate-400" />
+                   </div>
+                   <h3 className="text-xl font-bold text-slate-800 dark:text-white uppercase">Detalhes do EPI</h3>
+                </div>
+                <button onClick={() => setIsDetailModalOpen(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-colors"><X className="h-6 w-6 text-slate-500"/></button>
+              </div>
+
+              <div className="p-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                   <div className="aspect-square rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center justify-center overflow-hidden">
+                      {selectedDetailItem.imageUrl ? (
+                         <img src={selectedDetailItem.imageUrl} alt={selectedDetailItem.name} className="w-full h-full object-cover" />
+                      ) : (
+                         <Package className="h-24 w-24 text-slate-200 dark:text-slate-800" />
+                      )}
+                   </div>
+
+                   <div className="space-y-6">
+                      <div>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 block">CA (Certificado de Aprovação)</label>
+                         <div className="text-lg font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-1.5 rounded-xl inline-block border border-emerald-100 dark:border-emerald-500/20">
+                            {selectedDetailItem.caNumber || 'NÃO INFORMADO'}
+                         </div>
+                         <h2 className="text-2xl font-black text-slate-800 dark:text-white mt-4 uppercase leading-tight">{selectedDetailItem.name}</h2>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Disponível</label>
+                            <div className="text-xl font-black text-slate-800 dark:text-white">{selectedDetailItem.quantity} {selectedDetailItem.unit}</div>
+                         </div>
+                         <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Mínimo</label>
+                            <div className="text-xl font-black text-slate-800 dark:text-white">{selectedDetailItem.minQuantity} {selectedDetailItem.unit}</div>
+                         </div>
+                      </div>
+
+                      {selectedDetailItem.description && (
+                         <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Descrição</label>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{selectedDetailItem.description}</p>
+                         </div>
+                      )}
+
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                         <div className="flex items-center gap-2">
+                            <div className={`h-2.5 w-2.5 rounded-full ${selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`} />
+                            <span className={`text-[10px] font-black uppercase ${selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'text-red-500' : 'text-emerald-500'}`}>
+                               {selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'REPOSIÇÃO NECESSÁRIA' : 'ESTOQUE ADEQUADO'}
+                            </span>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-slate-50 dark:bg-slate-950 flex justify-end gap-4">
+                <button 
+                  onClick={() => { setIsDetailModalOpen(false); setSelectedItem(selectedDetailItem); setMovementType('ENTRY'); setIsMovementModalOpen(true); }}
+                  className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs hover:bg-emerald-700 transition-all uppercase tracking-widest shadow-lg shadow-emerald-500/20"
+                >
+                   Registrar Entrada
+                </button>
+                <button 
+                  onClick={() => setIsDetailModalOpen(false)}
+                  className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-slate-800 transition-all uppercase tracking-widest"
+                >
+                  Fechar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

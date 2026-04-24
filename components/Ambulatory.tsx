@@ -1,5 +1,5 @@
 import React, { FC, useState, useEffect, useMemo } from 'react';
-import { Activity, HeartPulse, UserPlus, FileText, Search, Plus, X, Save, Trash2, Calendar, ClipboardList, Stethoscope } from 'lucide-react';
+import { Activity, HeartPulse, UserPlus, FileText, Search, Plus, X, Save, Trash2, Calendar, ClipboardList, Stethoscope, Image as ImageIcon, Upload, Paperclip } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { HealthRecord, Collaborator, HealthRecordType } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -44,7 +44,8 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
       heartRate: ''
     },
     medicationGiven: '',
-    referral: ''
+    referral: '',
+    attachments: [] as string[]
   });
 
   useEffect(() => {
@@ -122,8 +123,37 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
         heartRate: ''
       },
       medicationGiven: '',
-      referral: ''
+      referral: '',
+      attachments: []
     });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      if (file.size > 1024 * 1024) { // 1MB limit
+        alert(`O arquivo ${file.name} excede o limite de 1MB.`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          attachments: [...(prev.attachments || []), reader.result as string]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeAttachment = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter((_, i) => i !== index)
+    }));
   };
 
   const handleDelete = async (id: string) => {
@@ -231,8 +261,14 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">ID: {record.id}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-xs text-slate-600 dark:text-slate-400 font-medium max-w-xs truncate">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-medium max-w-xs truncate flex items-center gap-2">
                        {record.symptoms || RECORD_TYPES[record.type]}
+                       {record.attachments && record.attachments.length > 0 && (
+                         <span className="flex items-center gap-0.5 text-blue-500">
+                           <Paperclip className="h-3 w-3" />
+                           <span className="text-[10px] font-bold">{record.attachments.length}</span>
+                         </span>
+                       )}
                     </p>
                   </td>
                   <td className="px-6 py-4">
@@ -431,6 +467,30 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
                   </div>
 
                   {/* Seção 4: Decisão Final */}
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1">Anexos / Imagens</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {formData.attachments?.map((url, i) => (
+                        <div key={i} className="relative aspect-square rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden group">
+                          <img src={url} alt={`Anexo ${i + 1}`} className="w-full h-full object-cover" />
+                          <button 
+                            type="button" 
+                            onClick={() => removeAttachment(i)}
+                            className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                             <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
+                      ))}
+                      <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <Upload className="h-6 w-6 text-slate-400 mb-1" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase">Anexar Foto</span>
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={handleFileUpload} />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Seção 5: Decisão Final */}
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-widest border-b border-rose-100 dark:border-rose-900 pb-1">Status Final do Colaborador</h4>
                     <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
