@@ -606,7 +606,25 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         </h3>
                         <p className="text-xs text-slate-500">{viewingGlobalLogs ? 'Todos os eventos recentes do sistema' : `Usuário: ${logUserName}`}</p>
                      </div>
-                     <button onClick={() => setLogsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="h-5 w-5"/></button>
+                     <div className="flex items-center gap-2">
+                        {viewingGlobalLogs && (
+                           <button 
+                              onClick={async () => {
+                                 if (confirm("Deseja realmente limpar os últimos registros de auditoria? Esta ação é irreversível.")) {
+                                    setLoadingLogs(true);
+                                    await storageService.clearGlobalLogs(orgId);
+                                    const logs = await storageService.getGlobalLogs(orgId, 200);
+                                    setCurrentLogs(logs);
+                                    setLoadingLogs(false);
+                                 }
+                              }}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1"
+                           >
+                              <Trash2 className="h-3 w-3" /> Limpar Lote
+                           </button>
+                        )}
+                        <button onClick={() => setLogsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X className="h-5 w-5"/></button>
+                     </div>
                   </div>
                   
                   {/* SEARCH FILTER */}

@@ -88,7 +88,8 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'partners', label: 'Parceiros/Fornecedores', icon: Users, modules: ['MECHANICAL', 'TIRES'] },
 
     // --- COMPARTILHADOS ---
-    { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'] }
+    { id: 'rh', label: 'RH - Funcionários', icon: Users, modules: ['HR'] },
+    { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'HR'] }
   ];
 
   const menuItems = allMenuItems.filter(item => {
@@ -106,6 +107,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'VEHICLES') return <Truck className="h-4 w-4 text-white" />;
     if (mod === 'FUEL') return <Fuel className="h-4 w-4 text-white" />;
     if (mod === 'JMDSSMAQ') return <Layout className="h-4 w-4 text-white" />;
+    if (mod === 'HR') return <Users className="h-4 w-4 text-white" />;
     return <Wrench className="h-4 w-4 text-white" />;
   };
 
@@ -114,6 +116,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'VEHICLES') return 'Veículo';
     if (mod === 'FUEL') return 'Abastecimento';
     if (mod === 'JMDSSMAQ') return 'JMDSSMAQ';
+    if (mod === 'HR') return 'RH';
     return 'Oficina';
   };
 
@@ -122,6 +125,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'VEHICLES') return 'bg-emerald-600';
     if (mod === 'FUEL') return 'bg-amber-600';
     if (mod === 'JMDSSMAQ') return 'bg-purple-600';
+    if (mod === 'HR') return 'bg-indigo-600';
     return 'bg-orange-600';
   };
 
@@ -134,6 +138,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (activeModule === 'VEHICLES') return 'bg-emerald-600 shadow-emerald-600/20';
     if (activeModule === 'FUEL') return 'bg-amber-600 shadow-amber-600/20';
     if (activeModule === 'JMDSSMAQ') return 'bg-purple-600 shadow-purple-600/20';
+    if (activeModule === 'HR') return 'bg-indigo-600 shadow-indigo-600/20';
     return 'bg-orange-600 shadow-orange-600/20';
   };
 

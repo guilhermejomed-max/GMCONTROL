@@ -2252,6 +2252,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
                         </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Litrômetro (Bomba/Can)</p>
+                            <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.litrometer ? `${selectedVehicleRG.litrometer.toLocaleString()} L` : 'N/A'}</p>
+                        </div>
                         <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex flex-col justify-between">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Média (KM/L)</p>
@@ -2416,10 +2420,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       </h3>
                       <div className="flex gap-4">
                         <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Telemetria (Litrômetro)</p>
+                          <p className="text-sm font-black text-slate-800 dark:text-white">{selectedVehicleRG.litrometer ? `${selectedVehicleRG.litrometer.toLocaleString()} L` : 'N/A'}</p>
+                        </div>
+                        <div className="text-right border-l border-slate-200 dark:border-slate-700 pl-4">
                           <p className="text-[10px] font-bold text-slate-400 uppercase">Média Km/L</p>
                           <p className="text-sm font-black text-blue-600">{rgStats.avgConsumptionRefueling.toFixed(2)} KM/L</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right border-l border-slate-200 dark:border-slate-700 pl-4">
                           <p className="text-[10px] font-bold text-slate-400 uppercase">Total Gasto</p>
                           <p className="text-sm font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.fuelCost)}</p>
                         </div>

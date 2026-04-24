@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo, FC } from 'react';
+import React, { useState, useMemo, FC, useRef } from 'react';
 import { Driver, Vehicle, Tire } from '../types';
-import { UserSquare2, Search, Plus, Trash2, PenLine, Phone, FileBadge, Truck, Calendar, X, Save, Leaf, AlertTriangle, Trophy } from 'lucide-react';
+import { UserSquare2, Search, Plus, Trash2, PenLine, Phone, FileBadge, Truck, Calendar, X, Save, Leaf, AlertTriangle, Trophy, Camera, User } from 'lucide-react';
 
 interface DriversHubProps {
   drivers: Driver[];
@@ -41,6 +41,7 @@ export const DriversHub: FC<DriversHubProps> = ({
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showAllDrivers, setShowAllDrivers] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState<Partial<Driver>>({
     name: '',
@@ -50,7 +51,9 @@ export const DriversHub: FC<DriversHubProps> = ({
     phone: '',
     status: 'ATIVO',
     hiredDate: new Date().toISOString().slice(0, 10),
-    notes: ''
+    notes: '',
+    type: 'TERCEIRO',
+    photoUrl: ''
   });
 
   const [assignedVehicleId, setAssignedVehicleId] = useState<string>('');
@@ -72,7 +75,10 @@ export const DriversHub: FC<DriversHubProps> = ({
   const handleOpenModal = (driver?: Driver) => {
       if (driver) {
           setEditingDriver(driver);
-          setFormData(driver);
+          setFormData({
+            ...driver,
+            type: driver.type || 'TERCEIRO'
+          });
           const vehicle = vehicles.find(v => v.currentDriverId === driver.id);
           setAssignedVehicleId(vehicle ? vehicle.id : '');
       } else {
@@ -85,11 +91,24 @@ export const DriversHub: FC<DriversHubProps> = ({
             phone: '',
             status: 'ATIVO',
             hiredDate: new Date().toISOString().slice(0, 10),
-            notes: ''
+            notes: '',
+            type: 'TERCEIRO',
+            photoUrl: ''
           });
           setAssignedVehicleId('');
       }
       setIsModalOpen(true);
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, photoUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,11 +204,22 @@ export const DriversHub: FC<DriversHubProps> = ({
           {(showAllDrivers ? filteredDrivers : filteredDrivers.slice(0, 9)).map(driver => {
              const assignedVehicle = vehicles.find(v => v.currentDriverId === driver.id);
              return (
-                <div key={driver.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+                <div key={driver.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all relative">
+                   {driver.type && (
+                     <div className={`absolute top-3 right-12 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                        driver.type === 'FROTA' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                     }`}>
+                        {driver.type}
+                     </div>
+                   )}
                    <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
-                         <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-lg">
-                            {driver.name.substring(0,2).toUpperCase()}
+                         <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                            {driver.photoUrl ? (
+                              <img src={driver.photoUrl} alt={driver.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              driver.name.substring(0,2).toUpperCase()
+                            )}
                          </div>
                          <div>
                             <h3 className="font-bold text-slate-800 dark:text-white">{driver.name}</h3>
@@ -241,11 +271,51 @@ export const DriversHub: FC<DriversHubProps> = ({
                    <h3 className="font-bold text-lg text-slate-800 dark:text-white">{editingDriver ? 'Editar Motorista' : 'Novo Motorista'}</h3>
                    <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400"><X className="h-5 w-5"/></button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white dark:bg-slate-900">
-                   <div>
-                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Nome Completo</label>
-                      <input required type="text" className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                   </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white dark:bg-slate-900 max-h-[80vh] overflow-y-auto">
+                    <div className="flex flex-col items-center gap-3 pb-4">
+                      <div className="relative group">
+                        <div className="h-24 w-24 rounded-full overflow-hidden bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center group-hover:border-blue-300 transition-all">
+                          {formData.photoUrl ? (
+                            <img src={formData.photoUrl} alt="Foto" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <Camera className="h-8 w-8 text-slate-300 dark:text-slate-600 group-hover:text-blue-400 transition-colors" />
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="absolute bottom-0 right-0 p-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors border-2 border-white dark:border-slate-900"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handlePhotoUpload}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Foto do Motorista</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Nome Completo</label>
+                        <input required type="text" className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Tipo de Motorista</label>
+                        <select 
+                          className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" 
+                          value={formData.type} 
+                          onChange={e => setFormData({...formData, type: e.target.value as 'FROTA' | 'TERCEIRO'})}
+                        >
+                          <option value="FROTA">FROTA</option>
+                          <option value="TERCEIRO">TERCEIRO</option>
+                        </select>
+                      </div>
+                    </div>
                    <div className="grid grid-cols-2 gap-4">
                       <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CNH</label><input required type="text" className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" value={formData.licenseNumber} onChange={e => setFormData({...formData, licenseNumber: e.target.value})} /></div>
                       <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Categoria</label><select className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" value={formData.licenseCategory} onChange={e => setFormData({...formData, licenseCategory: e.target.value})}><option value="C">C</option><option value="D">D</option><option value="E">E</option></select></div>
