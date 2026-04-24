@@ -228,6 +228,25 @@
       },
       "required": ["id", "name"]
     },
+    "Employee": {
+      "title": "Employee",
+      "description": "Employee information for RH module",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orgId": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "birthDate": { "type": "string", "format": "date" },
+        "startDate": { "type": "string", "format": "date" },
+        "rg": { "type": "string" },
+        "cnh": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "name", "role", "birthDate", "startDate", "rg", "createdAt", "updatedAt"]
+    },
     "SystemSettings": {
       "title": "SystemSettings",
       "description": "Global system configuration",
@@ -723,6 +742,10 @@
     "/medical_records/{id}": {
       "schema": "HealthRecord",
       "description": "Employee health and ambulatory records"
+    },
+    "/employees/{id}": {
+      "schema": "Employee",
+      "description": "Employee registrations for HR"
     },
     "/branches/{id}": {
       "schema": "Branch",

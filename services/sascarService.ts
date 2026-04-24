@@ -157,6 +157,7 @@ export const sascarService = {
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
                 odometer: v.odometro ? parseFloat(v.odometro) : 0,
+                litrometer: v.litrometro ? parseFloat(v.litrometro) : (v.litrometro2 ? parseFloat(v.litrometro2) : (v.horimetro ? parseFloat(v.horimetro) : undefined)),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {
@@ -227,6 +228,7 @@ export const sascarService = {
                 latitude: Number(v.latitude || 0),
                 longitude: Number(v.longitude || 0),
                 odometer: v.odometro ? parseFloat(v.odometro) : 0,
+                litrometer: v.litrometro ? parseFloat(v.litrometro) : (v.litrometro2 ? parseFloat(v.litrometro2) : (v.horimetro ? parseFloat(v.horimetro) : undefined)),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {

@@ -8,6 +8,9 @@ import firebaseConfigData from "../firebase-applet-config.json";
 
 export const firebaseConfig = firebaseConfigData;
 
+// Suppress benign warnings from Firestore SDK (e.g., idle stream timeouts)
+firebase.firestore.setLogLevel('error');
+
 // Initialize App
 let app: firebase.app.App;
 let db: firebase.firestore.Firestore;
@@ -54,9 +57,6 @@ if (firebase.apps.length === 0) {
     storage = app.storage(firebaseConfig.storageBucket ? `gs://${firebaseConfig.storageBucket}` : undefined);
     console.log("Using existing Firebase app");
 }
-
-// Suppress benign warnings from Firestore SDK (e.g., idle stream timeouts)
-firebase.firestore.setLogLevel('error');
     
     // Validate Connection to Firestore
     const testConnection = async () => {

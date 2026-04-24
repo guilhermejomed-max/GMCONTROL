@@ -9,7 +9,6 @@ service cloud.firestore {
 
     function isVerified() {
       // Allowing isSignedIn to pass as verified temporarily since many users don't have verified emails yet.
-      // We still check for request.auth to ensure they are logged in.
       return request.auth != null;
     }
 
@@ -35,25 +34,23 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      let email = request.auth.token.email;
       return isSignedIn() && (
         request.auth.uid == "tnfDueAojpU7PJThDm6VAT1jRRA3" ||
-        email == "guilherme.jomed@gmail.com" ||
-        email == "gui@gmail.com" ||
-        email == "guilherme.martins@sys.gmcontrol.com" ||
-        (email != null && email.matches(".*@sys\\.gmcontrol\\.com$"))
+        request.auth.token.get('email', '') == "guilherme.jomed@gmail.com" ||
+        request.auth.token.get('email', '') == "gui@gmail.com" ||
+        request.auth.token.get('email', '') == "guilherme.martins@sys.gmcontrol.com" ||
+        request.auth.token.get('email', '').matches(".*@sys\\.gmcontrol\\.com$")
       );
     }
 
     function getUserData() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
-        : {"allowedModules": ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "JMDSSMAQ"], "role": "SENIOR"};
+        : {"role": "SENIOR"};
     }
 
     function hasModuleAccess(module) {
-      let defaultModules = ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "JMDSSMAQ"];
-      return isServer() || isAdmin() || (isSignedIn() && module in getUserData().get('allowedModules', defaultModules));
+      return isServer() || isAdmin() || (isSignedIn() && module in getUserData().get('allowedModules', ["TIRES", "VEHICLES", "MECHANICAL", "FUEL", "JMDSSMAQ", "HR"]));
     }
 
     function getRole() {
@@ -92,7 +89,7 @@ service cloud.firestore {
       allow write: if hasModuleAccess("TIRES") && isValidTire(request.resource.data);
     }
     match /retread_orders/{id} {
-      allow read: if hasModuleAccess("TIRES");
+      allow read: if isSignedIn();
       allow write: if hasModuleAccess("TIRES");
     }
     match /retreaders/{id} {
@@ -214,7 +211,7 @@ service cloud.firestore {
     // --- WASTE MANAGEMENT ---
     match /waste_types/{id} {
       allow read: if isSignedIn();
-      allow write: if isVerified() && (hasModuleAccess("MECHANICAL") || hasModuleAccess("JMDSSMAQ") || hasModuleAccess("TIRES"));
+      allow write, delete: if isVerified() && (hasModuleAccess("MECHANICAL") || hasModuleAccess("JMDSSMAQ") || hasModuleAccess("TIRES"));
     }
     match /waste_disposals/{id} {
       allow read: if hasModuleAccess("MECHANICAL") || hasModuleAccess("JMDSSMAQ") || hasModuleAccess("TIRES");
@@ -231,6 +228,11 @@ service cloud.firestore {
     match /medical_records/{id} {
       allow read: if hasModuleAccess("JMDSSMAQ");
       allow write: if hasModuleAccess("JMDSSMAQ");
+    }
+
+    match /employees/{id} {
+      allow read: if isSignedIn();
+      allow write: if hasModuleAccess("HR");
     }
 
     // --- NOTIFICATIONS ---

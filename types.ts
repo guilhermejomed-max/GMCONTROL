@@ -41,6 +41,9 @@ export const AVAILABLE_PERMISSIONS = [
   { id: 'manage_branches', label: 'Gerenciar Filiais', category: 'Administração' },
   { id: 'delete_records', label: 'Excluir Registros (Geral)', category: 'Administração' },
   { id: 'view_logs', label: 'Ver Auditoria de Logs', category: 'Administração' },
+  
+  // RH
+  { id: 'manage_employees', label: 'Gerenciar Colaboradores (RH)', category: 'RH' },
 ];
 
 export interface Branch {
@@ -64,7 +67,7 @@ export enum TireStatus {
 
 export type UserLevel = 'JUNIOR' | 'PLENO' | 'SENIOR' | 'CREATOR' | 'INSPECTOR' | 'ADMIN' | 'MECHANIC' | 'MANAGER' | 'DRIVER' | 'STOCK' | 'FINANCIAL';
 
-export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL' | 'JMDSSMAQ';
+export type ModuleType = 'TIRES' | 'MECHANICAL' | 'VEHICLES' | 'FUEL' | 'JMDSSMAQ' | 'HR';
 
 export interface TireHistoryLog {
   date: string;
@@ -90,9 +93,11 @@ export type VisualDamage = 'CORTE' | 'BOLHA' | 'DESGASTE_IRREGULAR' | 'FURO' | '
 
 export interface Tire {
   id: string;
+  orgId: string;
   fireNumber: string;
   brand: string;
   model: string;
+  imageUrl?: string;
   width: number;
   profile: number;
   rim: number;
@@ -167,6 +172,14 @@ export interface Driver {
   hiredDate: string;
   notes?: string;
   branchId?: string;
+  photoUrl?: string;
+  type?: 'FROTA' | 'TERCEIRO';
+}
+
+export interface TelemetryFuelPoint {
+  timestamp: string; // ISO date
+  odometer: number;
+  litrometer: number;
 }
 
 export interface FuelType {
@@ -206,6 +219,7 @@ export interface Vehicle {
   axles: number;
   type: string; // Dynamic type name or ID
   odometer: number;
+  litrometer?: number; // Total consumed fuel volume
   totalCost: number; // Added totalCost
   avgMonthlyKm?: number; // For forecast
   lastLocation?: VehicleLocation;
@@ -663,7 +677,7 @@ export interface ServiceSector {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector' | 'waste-disposal' | 'ppe-disposal' | 'tire-disposal' | 'ambulatory' | 'ppe-stock';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector' | 'waste-disposal' | 'ppe-disposal' | 'tire-disposal' | 'ambulatory' | 'ppe-stock' | 'rh';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -696,6 +710,7 @@ export type WasteUnit = 'KG' | 'LITERS' | 'UNITS' | 'METERS';
 
 export interface WasteType {
   id: string;
+  orgId: string;
   name: string;
   unit: WasteUnit;
   description?: string;
@@ -711,6 +726,7 @@ export interface WasteDisposalItem {
 
 export interface WasteDisposal {
   id: string;
+  orgId: string;
   items: WasteDisposalItem[];
   date: string;
   responsibleId: string;
@@ -746,6 +762,7 @@ export interface AppNotification {
 
 export interface PpeStockItem {
   id: string;
+  orgId: string;
   name: string;
   quantity: number;
   minQuantity: number;
@@ -760,6 +777,7 @@ export type HealthRecordType = 'ADMISSION'|'PERIODIC'|'RETURN_TO_WORK'|'FUNCTION
 
 export interface HealthRecord {
   id: string;
+  orgId: string;
   collaboratorId: string;
   collaboratorName?: string;
   date: string;
@@ -782,6 +800,20 @@ export interface HealthRecord {
   };
   medicationGiven?: string;
   referral?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Employee {
+  id: string;
+  orgId: string;
+  name: string;
+  role: string;
+  birthDate: string;
+  startDate: string;
+  rg: string;
+  cnh: string;
+  photoUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

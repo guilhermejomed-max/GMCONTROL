@@ -34,10 +34,11 @@ import TrackerSettingsComponent from './components/TrackerSettings';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { ToastNotifications } from './components/ToastNotifications';
 import { GlobalHeader } from './components/GlobalHeader';
+import { RHModule } from './components/RHModule';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
-import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence } from './types';
+import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence, WasteDisposal } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
 
 const LoginScreen = ({ 
@@ -238,11 +239,12 @@ export const App = () => {
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
   const [userRole, setUserRole] = useState<UserLevel>('SENIOR'); 
-  const [allowedModules, setAllowedModules] = useState<ModuleType[]>(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ']);
+  const [allowedModules, setAllowedModules] = useState<ModuleType[]>(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR']);
   const [activeModule, setActiveModule] = useState<ModuleType>('TIRES');
   const [trackerSettings, setTrackerSettings] = useState<TrackerSettings | null>(null);
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [wasteDisposals, setWasteDisposals] = useState<WasteDisposal[]>([]);
   const [limits, setLimits] = useState({
     tires: 5000,
     vehicles: 2000,
@@ -301,10 +303,10 @@ export const App = () => {
                 // Merge auth user with profile data
                 setUser({ ...u, ...profile });
                 setUserRole(profile.role);
-                const userModules = (profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ'])
-                  .filter((m: any) => ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ'].includes(m)) as ModuleType[];
+                const userModules = (profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR'])
+                  .filter((m: any) => ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR'].includes(m)) as ModuleType[];
                 
-                const finalModules = userModules.length > 0 ? userModules : ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ'] as ModuleType[];
+                const finalModules = userModules.length > 0 ? userModules : ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR'] as ModuleType[];
                 setAllowedModules(finalModules);
                 
                 const initialModule = finalModules[0] || 'TIRES';
@@ -327,7 +329,7 @@ export const App = () => {
                 }
             } else if (u.email && (u.email.toLowerCase().trim() === 'gui@gmail.com' || u.email.toLowerCase().trim() === 'guilherme.jomed@gmail.com')) {
                 setUserRole('CREATOR');
-                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ']);
+                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR']);
             } else if (u.email && u.email.toLowerCase().trim() === 'inspetor@gmcontrol.com') {
                 setUserRole('INSPECTOR');
                 setAllowedModules(['TIRES']);
@@ -335,7 +337,7 @@ export const App = () => {
                 setCurrentTab('movement');
             } else {
                 setUserRole('SENIOR');
-                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ']);
+                setAllowedModules(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR']);
             }
         } else {
             setSelectedBranchId(undefined);
@@ -455,17 +457,19 @@ export const App = () => {
 
   // 6. Other Data (Lazy - Occurrences and Fleet Specifics)
   useEffect(() => {
-    if (!user || (activeModule !== 'VEHICLES' && activeModule !== 'MECHANICAL' && currentTab !== 'location' && currentTab !== 'occurrences' && currentTab !== 'service-orders')) return;
+    if (!user || (activeModule !== 'VEHICLES' && activeModule !== 'MECHANICAL' && activeModule !== 'JMDSSMAQ' && currentTab !== 'location' && currentTab !== 'occurrences' && currentTab !== 'service-orders')) return;
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
     const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
     const unsubOccurrenceReasons = storageService.subscribeToOccurrenceReasons(orgId, setOccurrenceReasons);
     const unsubOccurrences = storageService.subscribeToOccurrences(orgId, setOccurrences);
+    const unsubWasteDisposals = storageService.subscribeToWasteDisposals(orgId, setWasteDisposals);
     
     return () => {
         unsubArrivalAlerts();
         unsubDrivers();
         unsubOccurrenceReasons();
         unsubOccurrences();
+        unsubWasteDisposals();
     };
   }, [user, activeModule, currentTab]);
 
@@ -752,6 +756,7 @@ export const App = () => {
           updatesBatch.push({
             id: localVehicle.id,
             odometer: finalOdo,
+            litrometer: Number(sv.litrometer || 0),
             totalFuelConsumed: Number(sv.totalFuelConsumed || 0),
             lastLocation: {
               ...localVehicle.lastLocation,
@@ -1048,6 +1053,7 @@ export const App = () => {
       case 'tracker': return 'Configurações do Rastreador';
       case 'classification-sector': return 'Classificação e Setor';
       case 'occurrences': return 'Módulo de Ocorrências';
+      case 'rh': return 'Recursos Humanos';
       default: return 'GM Control';
     }
   };
@@ -1597,12 +1603,16 @@ export const App = () => {
               <EsgPanel 
                 tires={tires} 
                 retreadOrders={retreadOrders} 
+                wasteDisposals={wasteDisposals}
                 branches={branches}
                 defaultBranchId={selectedBranchId}
               />
             )}
             {currentTab === 'ambulatory' && allowedModules.includes('JMDSSMAQ') && (
               <Ambulatory orgId={orgId} collaborators={collaborators} />
+            )}
+            {currentTab === 'rh' && allowedModules.includes('HR') && (
+              <RHModule orgId={orgId} />
             )}
             {currentTab === 'maintenance' && allowedModules.includes('MECHANICAL') && (
               <MaintenanceDashboard 

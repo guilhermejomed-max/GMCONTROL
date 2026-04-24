@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth, storage } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod, WasteType, WasteDisposal, PpeStockItem, HealthRecord } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod, WasteType, WasteDisposal, PpeStockItem, HealthRecord, Employee } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -183,8 +183,21 @@ const getCurrentUser = () => {
 };
 
 export const logActivity = async (orgId: string, action: string, details: string, module: ModuleType = 'TIRES', entityId?: string, entityType?: string) => {
-  // Desativado temporariamente para economizar armazenamento
-  return;
+  // Filtro de ruído - Não logar ações excessivamente frequentes ou de baixo valor de auditoria
+  const noiseActions = [
+    'Sincronização Sascar', 
+    'Chegada', 
+    'Alerta Manutenção', 
+    'Sincronização Automática',
+    'Consulta de Posição'
+  ];
+
+  if (noiseActions.includes(action)) {
+    // Apenas logamos no console para depuração se necessário, sem salvar no Firebase
+    // console.log(`[Noise Filter] Ignorando log de: ${action}`);
+    return;
+  }
+
   const user = getCurrentUser();
   if (!user) return;
 
@@ -623,18 +636,39 @@ export const storageService = {
   },
 
   subscribeToTires: (orgId: string, callback: (tires: Tire[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`tires`, callback);
-    return db.collection("tires").onSnapshot((snapshot) => {
-      const tires: Tire[] = [];
-      snapshot.forEach((doc) => tires.push(doc.data() as Tire));
-      callback(tires);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, "tires"));
+    if (mockUser || !db) {
+      return LocalDB.subscribe(`tires`, (data) => {
+        const filtered = data.filter((t: any) => !t.orgId || t.orgId === orgId || t.orgId === 'default' || t.orgId === 'mock-demo-id' || t.orgId === 'mock-admin-id');
+        callback(filtered);
+      });
+    }
+    
+    // For Firestore, we attempt the filter, but if it fails (e.g. index) or we want to support legacy data 
+    // that doesn't have the field (Firestore .where skips missing fields), we could use a broader query.
+    // For now, let's use a simpler approach that is safer for transitions.
+    try {
+      return db.collection("tires").onSnapshot((snapshot) => {
+        const tires: Tire[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          // Lenient filter to include legacy data (missing orgId) or current org's data
+          if (!data.orgId || data.orgId === orgId || data.orgId === 'default') {
+             tires.push({ ...data, id: doc.id } as Tire);
+          }
+        });
+        callback(tires);
+      }, (error) => handleFirestoreError(error, OperationType.LIST, "tires"));
+    } catch (e) {
+      console.error("Critical error in subscribeToTires", e);
+      return () => {};
+    }
   },
 
   addTire: async (orgId: string, tire: Tire) => {
-    if (mockUser || !db) { LocalDB.add(`tires`, tire); logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES'); return; }
+    const data = { ...tire, orgId };
+    if (mockUser || !db) { LocalDB.add(`tires`, data); logActivity(orgId, "Novo Pneu", `Cadastrou pneu ${tire.fireNumber}`, 'TIRES'); return; }
     try {
-      await db.collection("tires").doc(tire.id).set(sanitize(tire));
+      await db.collection("tires").doc(tire.id).set(sanitize(data));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `tires/${tire.id}`);
     }
@@ -644,9 +678,10 @@ export const storageService = {
   updateTire: async (orgId: string, tire: Tire) => {
     const lastHistory = tire.history && tire.history.length > 0 ? tire.history[tire.history.length - 1] : null;
     const details = lastHistory ? lastHistory.details : 'Dados atualizados';
-    if (mockUser || !db) { LocalDB.update(`tires`, tire.id, tire); logActivity(orgId, "Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES'); return; }
+    const data = { ...tire, orgId };
+    if (mockUser || !db) { LocalDB.update(`tires`, tire.id, data); logActivity(orgId, "Atualizou Pneu", `${tire.fireNumber} - ${details}`, 'TIRES'); return; }
     try {
-      await db.collection("tires").doc(tire.id).set(sanitize(tire), { merge: true });
+      await db.collection("tires").doc(tire.id).set(sanitize(data), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `tires/${tire.id}`);
     }
@@ -1280,7 +1315,10 @@ export const storageService = {
       const orders: RetreadOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as RetreadOrder));
       callback(orders);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, "retread_orders"));
+    }, (error) => {
+      callback([]);
+      handleFirestoreError(error, OperationType.LIST, "retread_orders");
+    });
   },
 
   addRetreadOrder: async (orgId: string, order: RetreadOrder) => {
@@ -1792,9 +1830,9 @@ export const storageService = {
          throw e;
        }
      } catch (error) { 
-       handleFirestoreError(error, OperationType.LIST, "system_logs_by_user");
-       return []; 
-     }
+      handleFirestoreError(error, OperationType.LIST, "system_logs_by_user");
+      return []; 
+    }
   },
 
   getGlobalLogs: async (orgId: string, limit = 300): Promise<SystemLog[]> => {
@@ -1818,7 +1856,24 @@ export const storageService = {
       }
     } catch (error) { 
       handleFirestoreError(error, OperationType.LIST, "system_logs_global");
-      return []; 
+      return [];
+    }
+  },
+
+  clearGlobalLogs: async (orgId: string) => {
+    if (mockUser || !db) {
+      localStorage.removeItem('gm_local_logs');
+      return;
+    }
+    try {
+      const snapshot = await db.collection("system_logs").limit(500).get();
+      const batch = db.batch();
+      snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      
+      logActivity(orgId, "Limpeza de Auditoria", "Limpou registros de log globais (Lote de 500)", 'TIRES');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, "system_logs_clear");
     }
   },
 
@@ -1921,7 +1976,7 @@ export const storageService = {
 
   // --- FUEL STATION MANAGEMENT ---
   subscribeToFuelStations: (callback: (stations: FuelStation[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`fuel_stations`, (data) => callback(data.sort((a:any,b:any) => a.name.localeCompare(b.name))), []);
+    if (mockUser || !db) return LocalDB.subscribe(`fuel_stations`, (data) => callback(data.sort((a:any,b:any) => (a.name || '').localeCompare(b.name || ''))), []);
     return db.collection("fuel_stations").orderBy("name").onSnapshot((snapshot) => {
       const stations: FuelStation[] = [];
       snapshot.forEach((doc) => stations.push(doc.data() as FuelStation));
@@ -2011,7 +2066,7 @@ export const storageService = {
 
   // --- PAYMENT METHODS ---
   subscribeToPaymentMethods: (orgId: string, callback: (methods: PaymentMethod[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`payment_methods`, (data) => callback(data.sort((a:any,b:any) => a.name.localeCompare(b.name))), []);
+    if (mockUser || !db) return LocalDB.subscribe(`payment_methods`, (data) => callback(data.sort((a:any,b:any) => (a.name || '').localeCompare(b.name || ''))), []);
     return db.collection("payment_methods").orderBy("name").onSnapshot((snapshot) => {
       const methods: PaymentMethod[] = [];
       snapshot.forEach((doc) => methods.push(doc.data() as PaymentMethod));
@@ -2209,17 +2264,63 @@ export const storageService = {
 
   // Helper para comprimir imagem antes do upload
   subscribeToWasteTypes: (orgId: string, callback: (types: WasteType[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`waste_types`, callback, []);
+    const seedIfEmpty = async (types: WasteType[]) => {
+      // Filtrar tipos que pertencem à esta org
+      const orgTypes = types.filter(t => t.orgId === orgId);
+      
+      if (orgTypes.length === 0) {
+        console.log(`Seeding default waste types for org ${orgId}...`);
+        const defaults: Omit<WasteType, 'id'>[] = [
+          // RESÍDUOS
+          { name: 'Óleo Lubrificante Usado', unit: 'LITERS', category: 'WASTE', orgId },
+          { name: 'Filtros de Óleo Usados', unit: 'UNITS', category: 'WASTE', orgId },
+          { name: 'Baterias Inservíveis', unit: 'UNITS', category: 'WASTE', orgId },
+          { name: 'Estopas/Panos Contaminados', unit: 'KG', category: 'WASTE', orgId },
+          { name: 'Sucata de Metal', unit: 'KG', category: 'WASTE', orgId },
+          // EPI
+          { name: 'Luvas Nitrílicas (Descarte)', unit: 'UNITS', category: 'PPE', orgId },
+          { name: 'Máscaras e Respiradores', unit: 'UNITS', category: 'PPE', orgId },
+          { name: 'Botinas de Segurança Usadas', unit: 'UNITS', category: 'PPE', orgId },
+          // PNEUS
+          { name: 'Carcaça para Reciclagem', unit: 'UNITS', category: 'TIRE', orgId },
+          { name: 'Pneu Sucata (Inservível)', unit: 'UNITS', category: 'TIRE', orgId }
+        ];
+
+        for (const d of defaults) {
+          const id = 'def-waste-' + Math.random().toString(36).substr(2, 9);
+          const item = { ...d, id };
+          if (mockUser || !db) {
+            LocalDB.add(`waste_types`, item);
+          } else {
+            await db.collection("waste_types").doc(id).set(sanitize(item));
+          }
+        }
+      }
+    };
+
+    if (mockUser || !db) {
+      return LocalDB.subscribe(`waste_types`, (data) => {
+        const filtered = data.filter((t: any) => !t.orgId || t.orgId === orgId || t.orgId === 'default' || t.orgId === 'mock-demo-id' || t.orgId === 'mock-admin-id');
+        seedIfEmpty(filtered);
+        callback(filtered);
+      }, []);
+    }
     return db.collection("waste_types").onSnapshot((snapshot) => {
       const types: WasteType[] = [];
-      snapshot.forEach((doc) => types.push({ ...doc.data(), id: doc.id } as WasteType));
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (!data.orgId || data.orgId === orgId) {
+          types.push({ ...data, id: doc.id } as WasteType);
+        }
+      });
+      seedIfEmpty(types);
       callback(types);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "waste_types"));
   },
 
   addWasteType: async (orgId: string, data: Omit<WasteType, 'id'>) => {
     const id = Date.now().toString();
-    const item = { ...data, id };
+    const item = { ...data, id, orgId };
     if (mockUser || !db) { LocalDB.add(`waste_types`, item); return; }
     try {
       await db.collection("waste_types").doc(id).set(sanitize(item));
@@ -2238,18 +2339,27 @@ export const storageService = {
   },
 
   subscribeToWasteDisposals: (orgId: string, callback: (disposals: WasteDisposal[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`waste_disposals`, (data) => callback(data.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())), []);
-    return db.collection("waste_disposals").orderBy("date", "desc").onSnapshot((snapshot) => {
+    if (mockUser || !db) return LocalDB.subscribe(`waste_disposals`, (data) => {
+      const filtered = data.filter((d: any) => !d.orgId || d.orgId === orgId || d.orgId === 'default' || d.orgId === 'mock-demo-id' || d.orgId === 'mock-admin-id');
+      callback(filtered.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    }, []);
+    return db.collection("waste_disposals").onSnapshot((snapshot) => {
       const disposals: WasteDisposal[] = [];
-      snapshot.forEach((doc) => disposals.push({ ...doc.data(), id: doc.id } as WasteDisposal));
-      callback(disposals);
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (!data.orgId || data.orgId === orgId) {
+          disposals.push({ ...data, id: doc.id } as WasteDisposal);
+        }
+      });
+      callback(disposals.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     }, (error) => handleFirestoreError(error, OperationType.LIST, "waste_disposals"));
   },
 
   addWasteDisposal: async (orgId: string, disposal: WasteDisposal) => {
-    if (mockUser || !db) { LocalDB.add(`waste_disposals`, disposal); return; }
+    const data = { ...disposal, orgId };
+    if (mockUser || !db) { LocalDB.add(`waste_disposals`, data); return; }
     try {
-      await db.collection("waste_disposals").doc(disposal.id).set(sanitize(disposal));
+      await db.collection("waste_disposals").doc(disposal.id).set(sanitize(data));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `waste_disposals/${disposal.id}`);
     }
@@ -2387,18 +2497,27 @@ export const storageService = {
   },
 
   subscribeToPpeStock: (orgId: string, callback: (items: PpeStockItem[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`ppe_stock_items`, callback);
+    if (mockUser || !db) return LocalDB.subscribe(`ppe_stock_items`, (data) => {
+      const filtered = data.filter((i: any) => !i.orgId || i.orgId === orgId || i.orgId === 'default' || i.orgId === 'mock-demo-id' || i.orgId === 'mock-admin-id');
+      callback(filtered.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')));
+    });
     return db.collection("ppe_stock_items").onSnapshot((snapshot) => {
       const items: PpeStockItem[] = [];
-      snapshot.forEach((doc) => items.push(doc.data() as PpeStockItem));
-      callback(items);
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (!data.orgId || data.orgId === orgId) {
+          items.push({ ...data, id: doc.id } as PpeStockItem);
+        }
+      });
+      callback(items.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
     }, (error) => handleFirestoreError(error, OperationType.LIST, "ppe_stock_items"));
   },
 
   addPpeStockItem: async (orgId: string, item: PpeStockItem) => {
-    if (mockUser || !db) { LocalDB.add(`ppe_stock_items`, item); return; }
+    const data = { ...item, orgId };
+    if (mockUser || !db) { LocalDB.add(`ppe_stock_items`, data); return; }
     try {
-      await db.collection("ppe_stock_items").doc(item.id).set(sanitize(item));
+      await db.collection("ppe_stock_items").doc(item.id).set(sanitize(data));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `ppe_stock_items/${item.id}`);
     }
@@ -2423,18 +2542,27 @@ export const storageService = {
   },
 
   subscribeToHealthRecords: (orgId: string, callback: (records: HealthRecord[]) => void) => {
-    if (mockUser || !db) return LocalDB.subscribe(`medical_records`, callback);
+    if (mockUser || !db) return LocalDB.subscribe(`medical_records`, (data) => {
+      const filtered = data.filter((r: any) => !r.orgId || r.orgId === orgId || r.orgId === 'default' || r.orgId === 'mock-demo-id' || r.orgId === 'mock-admin-id');
+      callback(filtered.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    });
     return db.collection("medical_records").onSnapshot((snapshot) => {
       const records: HealthRecord[] = [];
-      snapshot.forEach((doc) => records.push(doc.data() as HealthRecord));
-      callback(records);
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (!data.orgId || data.orgId === orgId) {
+          records.push({ ...data, id: doc.id } as HealthRecord);
+        }
+      });
+      callback(records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     }, (error) => handleFirestoreError(error, OperationType.LIST, "medical_records"));
   },
 
   addHealthRecord: async (orgId: string, record: HealthRecord) => {
-    if (mockUser || !db) { LocalDB.add(`medical_records`, record); return; }
+    const data = { ...record, orgId };
+    if (mockUser || !db) { LocalDB.add(`medical_records`, data); return; }
     try {
-      await db.collection("medical_records").doc(record.id).set(sanitize(record));
+      await db.collection("medical_records").doc(record.id).set(sanitize(data));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `medical_records/${record.id}`);
     }
@@ -2455,6 +2583,133 @@ export const storageService = {
       await db.collection("medical_records").doc(id).delete();
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `medical_records/${id}`);
+    }
+  },
+
+  getEmployeeById: async (orgId: string, id: string): Promise<Employee | null> => {
+    if (mockUser || !db) return LocalDB.getOne<Employee>(`employees`, id);
+    try {
+      const doc = await db.collection("employees").doc(id).get();
+      if (doc.exists) return doc.data() as Employee;
+      return null;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, `employees/${id}`);
+      return null;
+    }
+  },
+
+  subscribeToEmployees: (orgId: string, callback: (employees: Employee[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`employees`, (data) => {
+      const filtered = data.filter((e: any) => !e.orgId || e.orgId === orgId || e.orgId === 'default' || e.orgId === 'mock-demo-id' || e.orgId === 'mock-admin-id');
+      callback(filtered.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')));
+    }, []);
+    return db.collection("employees").onSnapshot((snapshot) => {
+      const employees: Employee[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (!data.orgId || data.orgId === orgId) {
+          employees.push({ ...data, id: doc.id } as Employee);
+        }
+      });
+      callback(employees.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+    }, (error) => {
+      callback([]);
+      handleFirestoreError(error, OperationType.LIST, "employees");
+    });
+  },
+
+  addEmployee: async (orgId: string, employee: Omit<Employee, 'id' | 'orgId' | 'createdAt' | 'updatedAt'>) => {
+    const id = Date.now().toString();
+    const data = {
+      ...employee,
+      id,
+      orgId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    if (mockUser || !db) { 
+      LocalDB.add(`employees`, data); 
+      logActivity(orgId, "Novo Funcionário", `Cadastrou ${data.name}`, 'HR');
+    } else {
+      try {
+        await db.collection("employees").doc(id).set(sanitize(data));
+        logActivity(orgId, "Novo Funcionário", `Cadastrou ${data.name}`, 'HR');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, `employees/${id}`);
+      }
+    }
+
+    // Sync with drivers if role is MOTORISTA
+    if (employee.role?.toUpperCase() === 'MOTORISTA') {
+      try {
+        const driverData: Driver = {
+          id: `drv-${id}`,
+          name: employee.name,
+          licenseNumber: employee.cnh || '',
+          licenseCategory: 'N/A',
+          licenseExpiry: '',
+          phone: '',
+          status: 'Ativo',
+          hiredDate: employee.startDate || new Date().toISOString(),
+          notes: `Cadastrado via RH (Colaborador ID: ${id})`,
+          photoUrl: employee.photoUrl,
+          type: 'FROTA'
+        };
+        await storageService.addDriver(orgId, driverData);
+      } catch (e) {
+        console.error("Failed to sync driver:", e);
+      }
+    }
+  },
+
+  updateEmployee: async (orgId: string, id: string, updates: Partial<Employee>) => {
+    const data = { ...updates, updatedAt: new Date().toISOString() };
+    if (mockUser || !db) { 
+      LocalDB.update(`employees`, id, data); 
+      logActivity(orgId, "Atualizou Funcionário", `ID: ${id}`, 'HR');
+    } else {
+      try {
+        await db.collection("employees").doc(id).update(sanitize(data));
+        logActivity(orgId, "Atualizou Funcionário", `ID: ${id}`, 'HR');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `employees/${id}`);
+      }
+    }
+
+    // If role changed to MOTORISTA (or was MOTORISTA), sync with drivers
+    if (updates.role?.toUpperCase() === 'MOTORISTA' || (updates.name && updates.role?.toUpperCase() === 'MOTORISTA')) {
+      try {
+        const currentEmployee = await storageService.getEmployeeById(orgId, id);
+        if (currentEmployee && currentEmployee.role?.toUpperCase() === 'MOTORISTA') {
+          const driverData: Driver = {
+            id: `drv-${id}`,
+            name: currentEmployee.name,
+            licenseNumber: currentEmployee.cnh || '',
+            licenseCategory: 'N/A',
+            licenseExpiry: '',
+            phone: '',
+            status: 'Ativo',
+            hiredDate: currentEmployee.startDate || new Date().toISOString(),
+            notes: `Atualizado via RH (Colaborador ID: ${id})`,
+            photoUrl: currentEmployee.photoUrl,
+            type: 'FROTA'
+          };
+          await storageService.addDriver(orgId, driverData);
+        }
+      } catch (e) {
+        console.error("Failed to sync driver on update:", e);
+      }
+    }
+  },
+
+  deleteEmployee: async (orgId: string, id: string) => {
+    if (mockUser || !db) { LocalDB.delete(`employees`, id); logActivity(orgId, "Excluiu Funcionário", `ID: ${id}`, 'HR'); return; }
+    try {
+      await db.collection("employees").doc(id).delete();
+      logActivity(orgId, "Excluiu Funcionário", `ID: ${id}`, 'HR');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `employees/${id}`);
     }
   }
 };
