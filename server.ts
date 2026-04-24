@@ -191,6 +191,15 @@ function parseSascarNumber(val: any): number {
   return parseFloat(s) || 0;
 }
 
+function parseSascarOptionalNumber(...values: any[]): number | undefined {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue;
+    const parsed = Number(String(value).trim().replace(',', '.'));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 function parseSascarVehicle(item: any): any {
     if (typeof item === 'string') {
         try { return JSON.parse(item); } catch(e) { return null; }
@@ -470,6 +479,7 @@ async function runSascarAutomation() {
                 
                 const odometerKm = pos.odometroExato ? parseSascarNumber(pos.odometroExato) / 1000 : parseSascarNumber(pos.odometro ?? 0);
                 const rawInstantaneo = parseSascarNumber(pos.consumoInstantaneo || 0);
+                const litrometer = parseSascarOptionalNumber(pos.litrometro, pos.litrometro2, pos.litrometroTotal, pos.totalLitros, pos.totalCombustivel);
                 
                 const speed = pos.velocidade ?? 0;
                 const ignition = pos.ignicao === 'S' || pos.ignicao === true || pos.ignicao === '1';
@@ -488,6 +498,7 @@ async function runSascarAutomation() {
                         updatedAt: parseSascarDate(pos.dataPosicao || pos.dataHora).toISOString()
                     }
                 };
+                if (litrometer !== undefined) updateData.litrometer = litrometer;
 
                 currentBatch.update(db.collection("vehicles").doc(docId), updateData);
                 countInBatch++;
@@ -982,6 +993,7 @@ async function startServer() {
           // Sascar: odometroExato is in meters, odometro is in km.
           const odometerKm = v.odometroExato ? parseSascarNumber(v.odometroExato) / 1000 : parseSascarNumber(v.odometro ?? 0);
           const rawInstantaneo = parseSascarNumber(v.consumoInstantaneo || 0);
+          const litrometer = parseSascarOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel);
 
           const speed = Number(v.velocidade ?? 0);
           const ignition = v.ignicao === 'S' || v.ignicao === true || v.ignicao === 'true' || v.ignicao === 1;
@@ -997,6 +1009,7 @@ async function startServer() {
               odometer: odometerKm,
               speed: speed,
               ignition: ignition,
+              ...(litrometer !== undefined ? { litrometer } : {}),
               consumoInstantaneo: rawInstantaneo,
               
               lastLocation: {

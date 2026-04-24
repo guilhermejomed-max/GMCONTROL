@@ -755,35 +755,42 @@ export const App = () => {
           const finalLng = isInvalidPosition ? (localVehicle.lastLocation?.lng || 0) : lng;
 
           // Telemetry fuel history
-          const currentLitrometer = Number(sv.litrometer || 0);
+          const rawLitrometer = sv.litrometer ?? sv.litrometro ?? sv.litrometro2 ?? sv.litrometroTotal ?? sv.totalLitros ?? sv.totalCombustivel;
+          const parsedLitrometer = rawLitrometer === undefined || rawLitrometer === null || rawLitrometer === ''
+            ? undefined
+            : Number(String(rawLitrometer).replace(',', '.'));
+          const hasValidLitrometer = Number.isFinite(parsedLitrometer);
+          const currentLitrometer = hasValidLitrometer
+            ? (parsedLitrometer as number)
+            : localVehicle.litrometer;
           let newHistory = localVehicle.telemetryHistory ? [...localVehicle.telemetryHistory] : [];
           
-          if (finalOdo > 0 && currentLitrometer >= 0) {
+          if (finalOdo > 0 && hasValidLitrometer && currentLitrometer! >= 0) {
             // Add new point
             const nowIso = new Date().toISOString();
             // Try not to add duplicates or very close points
             const lastPoint = newHistory.length > 0 ? newHistory[newHistory.length - 1] : null;
-            if (!lastPoint || (finalOdo - lastPoint.odometer >= 1) || Math.abs(currentLitrometer - lastPoint.litrometer) >= 1) {
+            if (!lastPoint || (finalOdo - lastPoint.odometer >= 1) || Math.abs(currentLitrometer! - lastPoint.litrometer) >= 1) {
               newHistory.push({
                 timestamp: nowIso,
                 odometer: finalOdo,
-                litrometer: currentLitrometer
+                litrometer: currentLitrometer!
               });
               
-              // Keep history bounded, e.g., last 1000 points
-              if (newHistory.length > 1000) {
-                newHistory = newHistory.slice(-1000);
+              // Keep history bounded, e.g., last 2000 points
+              if (newHistory.length > 2000) {
+                newHistory = newHistory.slice(-2000);
               }
             }
           }
 
-          const telemetryRollingResult = telemetryFuelService.calculateRollingAverage(newHistory, 100);
+          const telemetryRollingResult = telemetryFuelService.calculateRollingAverage(newHistory, 1000);
           const newAvgKml = telemetryRollingResult ? telemetryRollingResult.avgKml : localVehicle.telemetryRollingAvgKml;
 
           updatesBatch.push({
             id: localVehicle.id,
             odometer: finalOdo,
-            litrometer: currentLitrometer,
+            ...(hasValidLitrometer ? { litrometer: currentLitrometer } : {}),
             telemetryHistory: newHistory,
             telemetryRollingAvgKml: newAvgKml,
             totalFuelConsumed: Number(sv.totalFuelConsumed || 0),
