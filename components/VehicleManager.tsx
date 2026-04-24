@@ -6,7 +6,7 @@ import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, Loca
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 import { getAllValidPositions } from '../lib/vehicleUtils';
-import { calculateFuelEfficiency, getFuelVolume, sortFuelEntries } from '../lib/fuelUtils';
+import { calculateFuelEfficiency, calculateRollingFuelEfficiency, getFuelVolume, sortFuelEntries } from '../lib/fuelUtils';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
 DAJ5H64;2215706
@@ -574,7 +574,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   const [updatingLocationId, setUpdatingLocationId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVehicleRG, setSelectedVehicleRG] = useState<Vehicle | null>(null);
-  const [activeRGTab, setActiveRGTab] = useState<'geral' | 'manutencao' | 'pneus' | 'combustivel'>('geral');
+  const [activeRGTab, setActiveRGTab] = useState<'geral' | 'medias' | 'manutencao' | 'pneus' | 'combustivel'>('geral');
   const [selectedAxle, setSelectedAxle] = useState<number | 'ALL'>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'EMPTY' | 'MAINTENANCE'>('ALL');
   const [showAllVehicles, setShowAllVehicles] = useState(false);
@@ -636,6 +636,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     }, 0);
     
     const fuelEfficiency = calculateFuelEfficiency(vehicleFuelEntries);
+    const rollingFuelEfficiency = calculateRollingFuelEfficiency(vehicleFuelEntries, 1000);
+    const telemetryAverage = selectedVehicleRG?.telemetryRollingAvgKml || 0;
+    const diffPercent = telemetryAverage > 0 && rollingFuelEfficiency.average > 0
+      ? ((rollingFuelEfficiency.average - telemetryAverage) / telemetryAverage) * 100
+      : 0;
     
     const totalLitersRecorded = vehicleFuelEntries.reduce((sum, fe) => sum + getFuelVolume(fe), 0);
     return {
@@ -646,7 +651,16 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       totalKm: fuelEfficiency.totalKm,
       avgConsumptionRefueling: fuelEfficiency.average,
       validFuelSegments: fuelEfficiency.validSegments,
-      telemetryAverage: selectedVehicleRG?.telemetryRollingAvgKml || 0,
+      fuelRolling1000Avg: rollingFuelEfficiency.average,
+      fuelRolling1000Km: rollingFuelEfficiency.totalKm,
+      fuelRolling1000Volume: rollingFuelEfficiency.consumedVolume,
+      fuelRolling1000FillUps: rollingFuelEfficiency.usedFillUps,
+      fuelRollingAlerts: rollingFuelEfficiency.alerts,
+      fuelRollingDiscardedSegments: rollingFuelEfficiency.discardedSegments,
+      fuelRollingRegressiveSegments: rollingFuelEfficiency.regressiveSegments,
+      fuelRollingPartialFillUps: rollingFuelEfficiency.partialFillUps,
+      telemetryAverage,
+      diffPercent,
       diff: selectedVehicleRG?.telemetryRollingAvgKml && fuelEfficiency.average
         ? fuelEfficiency.average - selectedVehicleRG.telemetryRollingAvgKml
         : 0
@@ -2028,7 +2042,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
       {selectedVehicleRG && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
               <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
                 <Truck className="h-6 w-6 text-blue-600" /> 
@@ -2047,12 +2061,18 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             </div>
 
             {/* Tabs Navigation */}
-            <div className="flex border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6">
+            <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6">
               <button 
                 onClick={() => setActiveRGTab('geral')}
                 className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'geral' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
               >
                 Informações Gerais
+              </button>
+              <button 
+                onClick={() => setActiveRGTab('medias')}
+                className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'medias' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                M&Eacute;DIAS
               </button>
               <button 
                 onClick={() => setActiveRGTab('manutencao')}
@@ -2266,14 +2286,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         </div>
                         <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex flex-col justify-between">
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Média (KM/L)</p>
+                              <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">M&eacute;dia abastecimento (1000km)</p>
                               <Activity className="h-3 w-3 text-emerald-500" />
                             </div>
                             <p className="text-lg font-black text-slate-800 dark:text-white">
-                                {rgStats.avgConsumptionRefueling ? rgStats.avgConsumptionRefueling.toFixed(2) : '0.00'} KM/L
+                                {rgStats.fuelRolling1000Avg ? rgStats.fuelRolling1000Avg.toFixed(2) : '0.00'} KM/L
                             </p>
                             <p className="text-[9px] font-bold text-emerald-600/70 dark:text-emerald-300/70 mt-1">
-                              {rgStats.validFuelSegments || 0} trechos válidos
+                              {rgStats.fuelRolling1000FillUps || 0} abastecimentos usados
                             </p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -2423,6 +2443,111 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   </>
                 )}
 
+                {activeRGTab === 'medias' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 space-y-5">
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">M&Eacute;DIAS</p>
+                        <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                          <Activity className="h-5 w-5 text-blue-600" /> Comparativo dos &uacute;ltimos 1000 km
+                        </h3>
+                      </div>
+                      <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        Base: {rgStats.fuelRolling1000Km.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} km analisados
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                      <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 uppercase">M&eacute;dia abastecimento &uacute;ltimos 1000 km</p>
+                          <Fuel className="h-4 w-4 text-emerald-600" />
+                        </div>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">
+                          {rgStats.fuelRolling1000Avg ? rgStats.fuelRolling1000Avg.toFixed(2) : '0.00'}
+                          <span className="text-xs font-bold text-slate-500 ml-1">KM/L</span>
+                        </p>
+                        <p className="text-[10px] font-bold text-emerald-700/70 dark:text-emerald-300/70 mt-2">
+                          {rgStats.fuelRolling1000Volume.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} L usados no c&aacute;lculo
+                        </p>
+                      </div>
+
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-[10px] font-black text-blue-700 dark:text-blue-300 uppercase">M&eacute;dia telemetria &uacute;ltimos 1000 km</p>
+                          <Gauge className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">
+                          {rgStats.telemetryAverage ? rgStats.telemetryAverage.toFixed(2) : '0.00'}
+                          <span className="text-xs font-bold text-slate-500 ml-1">KM/L</span>
+                        </p>
+                        <p className="text-[10px] font-bold text-blue-700/70 dark:text-blue-300/70 mt-2">
+                          Fonte: rastreador / litr&ocirc;metro
+                        </p>
+                      </div>
+
+                      <div className={`p-4 rounded-lg border ${Math.abs(rgStats.diffPercent) >= 10 ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <p className={`text-[10px] font-black uppercase ${Math.abs(rgStats.diffPercent) >= 10 ? 'text-red-700 dark:text-red-300' : 'text-slate-500'}`}>Diferen&ccedil;a %</p>
+                          <AlertTriangle className={`h-4 w-4 ${Math.abs(rgStats.diffPercent) >= 10 ? 'text-red-600' : 'text-slate-400'}`} />
+                        </div>
+                        <p className={`text-2xl font-black ${Math.abs(rgStats.diffPercent) >= 10 ? 'text-red-700 dark:text-red-300' : 'text-slate-800 dark:text-white'}`}>
+                          {rgStats.diffPercent > 0 ? '+' : ''}{rgStats.diffPercent.toFixed(1)}%
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-500 mt-2">
+                          Abastecimento contra telemetria
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-100 dark:border-slate-700">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-[10px] font-black text-slate-500 uppercase">N&ordm; de abastecimentos usados</p>
+                          <FileText className="h-4 w-4 text-slate-500" />
+                        </div>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">{rgStats.fuelRolling1000FillUps}</p>
+                        <p className="text-[10px] font-bold text-slate-500 mt-2">
+                          {rgStats.validFuelSegments} trechos v&aacute;lidos no hist&oacute;rico
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <h4 className="font-black text-sm text-slate-800 dark:text-white flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-orange-500" /> Alertas do c&aacute;lculo
+                        </h4>
+                        <div className="flex flex-wrap justify-end gap-2 text-[10px] font-black">
+                          <span className="px-2 py-1 rounded bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
+                            Parciais: {rgStats.fuelRollingPartialFillUps}
+                          </span>
+                          <span className="px-2 py-1 rounded bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                            KM regressivo: {rgStats.fuelRollingRegressiveSegments}
+                          </span>
+                          <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            Descartados: {rgStats.fuelRollingDiscardedSegments}
+                          </span>
+                        </div>
+                      </div>
+
+                      {rgStats.fuelRollingAlerts.length > 0 ? (
+                        <div className="space-y-2">
+                          {rgStats.fuelRollingAlerts.map((alert, index) => (
+                            <div key={`${alert}-${index}`} className="flex items-start gap-2 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 text-xs font-bold text-orange-800 dark:text-orange-200">
+                              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                              <span>{alert}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-6 text-center bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                          <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+                          <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Nenhum abastecimento parcial, KM regressivo ou trecho descartado encontrado.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {activeRGTab === 'combustivel' && (
                   <div className="animate-in fade-in slide-in-from-bottom-4">
                     <div className="flex justify-between items-center mb-6">
@@ -2435,8 +2560,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                           <p className="text-sm font-black text-slate-800 dark:text-white">{selectedVehicleRG.telemetryRollingAvgKml ? `${selectedVehicleRG.telemetryRollingAvgKml.toFixed(2)} KM/L` : 'Calculando...'}</p>
                         </div>
                         <div className="text-right border-l border-slate-200 dark:border-slate-700 pl-4">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">Média Km/L</p>
-                          <p className="text-sm font-black text-blue-600">{rgStats.avgConsumptionRefueling.toFixed(2)} KM/L</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">M&eacute;dia 1000km</p>
+                          <p className="text-sm font-black text-blue-600">{rgStats.fuelRolling1000Avg.toFixed(2)} KM/L</p>
                         </div>
                         <div className="text-right border-l border-slate-200 dark:border-slate-700 pl-4">
                           <p className="text-[10px] font-bold text-slate-400 uppercase">Total Gasto</p>
