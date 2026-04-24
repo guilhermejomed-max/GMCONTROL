@@ -14,8 +14,8 @@ interface FuelStatsCardsProps {
 
 export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats, unit = 'L', unitKm = 'km/l' }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
           <div className="p-1 bg-emerald-100 dark:bg-emerald-900/30 rounded-md">
             <Wallet className="h-3 w-3 text-emerald-600"/>
@@ -30,7 +30,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
         </div>
       </div>
       
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all border-l-4 border-l-blue-500">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all border-l-4 border-l-blue-500">
         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
           <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
             <Droplets className="h-3 w-3 text-blue-600"/>
@@ -45,7 +45,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
         </div>
       </div>
       
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all border-l-4 border-l-orange-500">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all border-l-4 border-l-orange-500">
         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
           <div className="p-1 bg-orange-100 dark:bg-orange-900/30 rounded-md">
             <TrendingUp className="h-3 w-3 text-orange-600"/>
@@ -60,7 +60,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
         </div>
       </div>
       
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all border-l-4 border-l-purple-500">
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all border-l-4 border-l-purple-500">
         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
           <div className="p-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
             <History className="h-3 w-3 text-purple-600"/>

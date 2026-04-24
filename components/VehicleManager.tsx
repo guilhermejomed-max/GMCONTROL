@@ -6,6 +6,7 @@ import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, Loca
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 import { getAllValidPositions } from '../lib/vehicleUtils';
+import { calculateFuelEfficiency, getFuelVolume, sortFuelEntries } from '../lib/fuelUtils';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
 DAJ5H64;2215706
@@ -625,48 +626,30 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   }, [serviceOrders, selectedVehicleRG]);
 
   const rgStats = useMemo(() => {
-    const fuelCost = vehicleFuelEntries.reduce((sum, fe) => sum + (fe.totalCost || 0), 0);
+    const fuelCost = vehicleFuelEntries.reduce((sum, fe) => {
+      const volume = getFuelVolume(fe);
+      return sum + (Number(fe.totalCost) || (volume * (Number(fe.unitPrice) || 0)));
+    }, 0);
     const maintenanceCost = vehicleMaintenanceOrders.reduce((sum, so) => {
       const partsCost = so.parts ? so.parts.reduce((pSum, p) => pSum + (p.quantity * p.unitCost), 0) : 0;
       return sum + (so.totalCost || (partsCost + (so.laborCost || 0) + (so.externalServiceCost || 0)));
     }, 0);
     
-    const sortedEntries = [...vehicleFuelEntries].sort((a, b) => a.odometer - b.odometer);
+    const fuelEfficiency = calculateFuelEfficiency(vehicleFuelEntries);
     
-    let totalKm = 0;
-    let litersUsed = 0;
-
-    if (sortedEntries.length >= 2) {
-      const firstEntry = sortedEntries[0];
-      const lastEntry = sortedEntries[sortedEntries.length - 1];
-      
-      totalKm = lastEntry.odometer - firstEntry.odometer;
-      
-      // Liters consumed in the interval: Sum liters from 2nd entry onwards
-      litersUsed = sortedEntries.slice(1).reduce((acc, fe) => {
-        const isGasE = fe.category === 'GAS' || 
-                       String(fe.fuelType || '').toUpperCase().includes('GNV') || 
-                       String(fe.fuelType || '').toUpperCase().includes('GÁS') ||
-                       (Number(fe.kg) > 0);
-        const volume = isGasE ? (Number(fe.liters) || Number(fe.kg) || 0) : (Number(fe.liters) || 0);
-        return acc + volume;
-      }, 0);
-    }
-    
-    // totalLiters for UI display (all recorded liters)
-    const totalLitersRecorded = vehicleFuelEntries.reduce((sum, fe) => sum + (fe.liters || 0), 0);
-    
-    const avgConsumptionRefueling = litersUsed > 0 ? totalKm / litersUsed : 0;
-    
+    const totalLitersRecorded = vehicleFuelEntries.reduce((sum, fe) => sum + getFuelVolume(fe), 0);
     return {
       totalLiters: totalLitersRecorded,
       fuelCost,
       maintenanceCost,
       totalCost: fuelCost + maintenanceCost,
-      totalKm,
-      avgConsumptionRefueling,
-      avgConsumptionLitrometer: 0,
-      diff: 0
+      totalKm: fuelEfficiency.totalKm,
+      avgConsumptionRefueling: fuelEfficiency.average,
+      validFuelSegments: fuelEfficiency.validSegments,
+      telemetryAverage: selectedVehicleRG?.telemetryRollingAvgKml || 0,
+      diff: selectedVehicleRG?.telemetryRollingAvgKml && fuelEfficiency.average
+        ? fuelEfficiency.average - selectedVehicleRG.telemetryRollingAvgKml
+        : 0
     };
   }, [vehicleFuelEntries, vehicleMaintenanceOrders, selectedVehicleRG]);
 
@@ -2289,6 +2272,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <p className="text-lg font-black text-slate-800 dark:text-white">
                                 {rgStats.avgConsumptionRefueling ? rgStats.avgConsumptionRefueling.toFixed(2) : '0.00'} KM/L
                             </p>
+                            <p className="text-[9px] font-bold text-emerald-600/70 dark:text-emerald-300/70 mt-1">
+                              {rgStats.validFuelSegments || 0} trechos válidos
+                            </p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Ano</p>
@@ -2461,8 +2447,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
                     <div className="space-y-3">
                       {vehicleFuelEntries.length > 0 ? (
-                        vehicleFuelEntries.sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime()).map(entry => (
-                          <div key={entry.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex justify-between items-center">
+                        sortFuelEntries(vehicleFuelEntries).reverse().map(entry => (
+                          <div key={entry.id} className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm flex justify-between items-center">
                             <div className="flex items-center gap-4">
                               <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
                                 <Fuel className="h-5 w-5 text-blue-600" />

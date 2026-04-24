@@ -1,6 +1,7 @@
 import React from 'react';
-import { Truck, MapPin, User, Zap, Fuel } from 'lucide-react';
+import { Truck, MapPin, User, Trash2, Fuel } from 'lucide-react';
 import { FuelEntry, Branch } from '../types';
+import { calculateEntryEfficiency } from '../lib/fuelUtils';
 
 interface RecentEntriesListProps {
   entries: FuelEntry[];
@@ -28,39 +29,13 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
   return (
     <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar w-full h-full min-h-[400px]">
       {entries.map((entry) => {
-        // Try to calculate KM/L for this specific entry if possible
-        const vehicleEntries = allFuelEntries
-          .filter(e => e.vehicleId === entry.vehicleId)
-          .sort((a, b) => {
-            const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
-            const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
-            if (dateA !== dateB) return dateA - dateB;
-            return a.odometer - b.odometer;
-          });
-        
-        const entryIndex = vehicleEntries.findIndex(e => e.id === entry.id);
-        let entryAvg = 0;
-
-        if (entryIndex > 0) {
-          const prevEntry = vehicleEntries[entryIndex - 1];
-          const kmDiff = entry.odometer - prevEntry.odometer;
-          
-          const isGasE = entry.category === 'GAS' || 
-                         String(entry.fuelType || '').toUpperCase().includes('GNV') ||
-                         String(entry.fuelType || '').toUpperCase().includes('GÁS') ||
-                         (Number(entry.kg) > 0);
-          const volume = isGasE ? (Number(entry.liters) || Number(entry.kg) || 0) : (Number(entry.liters) || 0);
-
-          if (kmDiff > 0 && volume > 0) {
-            entryAvg = kmDiff / volume;
-          }
-        }
+        const entryAvg = calculateEntryEfficiency(entry, allFuelEntries);
 
         return (
-          <div key={entry.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm group relative overflow-hidden hover:border-blue-200 dark:hover:border-blue-800 transition-all">
+          <div key={entry.id} className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm group relative overflow-hidden hover:border-blue-200 dark:hover:border-blue-800 transition-all">
             <div className="flex justify-between items-start mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                   <Truck className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
                 </div>
                 <div>
@@ -105,8 +80,9 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
             <button 
               onClick={() => onDeleteEntry(entry.id)}
               className="absolute top-2 right-2 p-1.5 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg"
+              title="Excluir abastecimento"
             >
-              <Zap className="h-3 w-3" />
+              <Trash2 className="h-3 w-3" />
             </button>
           </div>
         );

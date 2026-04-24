@@ -20,6 +20,7 @@ import { FuelEntryModal } from './FuelEntryModal';
 import { FuelStationModal } from './FuelStationModal';
 import { ModelDetailsModal } from './ModelDetailsModal';
 import { FuelImportModal } from './FuelImportModal';
+import { calculateFuelEfficiency, getFuelVolume } from '../lib/fuelUtils';
 
 interface Props {
   vehicles: Vehicle[];
@@ -208,53 +209,28 @@ export const FuelDashboard: React.FC<Props> = ({
     let totalLiters = 0;
     const vehicleGroups: Record<string, FuelEntry[]> = {};
 
-      fuelEntries.forEach(e => {
-        totalCost += (Number(e.totalCost) || 0);
-        const isGasE = e.category === 'GAS' || 
-                       String(e.fuelType || '').toUpperCase().includes('GNV') || 
-                       String(e.fuelType || '').toUpperCase().includes('GÁS') ||
-                       (Number(e.kg) > 0);
-        // O valor numérico de M3 é guardado no campo liters (Quantidade m³)
-        const volume = isGasE ? (Number(e.liters) || Number(e.kg) || 0) : (Number(e.liters) || 0);
-        totalLiters += volume;
-        if (!vehicleGroups[e.vehicleId]) vehicleGroups[e.vehicleId] = [];
-        vehicleGroups[e.vehicleId].push(e);
-      });
-
-    let totalKm = 0;
-    let totalLitersForAvg = 0;
-
-    Object.values(vehicleGroups).forEach(entries => {
-      if (entries.length < 2) return;
-      const sorted = [...entries].sort((a, b) => {
-        const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
-        const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
-        if (dateA !== dateB) return dateA - dateB;
-        return a.odometer - b.odometer;
-      });
-      
-      const firstEntry = sorted[0];
-      const lastEntry = sorted[sorted.length - 1];
-      
-      const kmDiff = lastEntry.odometer - firstEntry.odometer;
-      
-        if (kmDiff > 0) {
-          totalKm += kmDiff;
-          totalLitersForAvg += sorted.slice(1).reduce((acc, e) => {
-            const isGasE = e.category === 'GAS' || 
-                           String(e.fuelType || '').toUpperCase().includes('GNV') || 
-                           String(e.fuelType || '').toUpperCase().includes('GÁS') ||
-                           (Number(e.kg) > 0);
-            const volume = isGasE ? (Number(e.liters) || Number(e.kg) || 0) : (Number(e.liters) || 0);
-            return acc + volume;
-          }, 0);
-        }
+    fuelEntries.forEach(entry => {
+      const volume = getFuelVolume(entry);
+      totalCost += Number(entry.totalCost) || (volume * (Number(entry.unitPrice) || 0));
+      totalLiters += volume;
+      if (!vehicleGroups[entry.vehicleId]) vehicleGroups[entry.vehicleId] = [];
+      vehicleGroups[entry.vehicleId].push(entry);
     });
+
+    const efficiency = Object.values(vehicleGroups).reduce(
+      (acc, entries) => {
+        const result = calculateFuelEfficiency(entries);
+        acc.totalKm += result.totalKm;
+        acc.consumedVolume += result.consumedVolume;
+        return acc;
+      },
+      { totalKm: 0, consumedVolume: 0 }
+    );
 
     return {
       totalCost,
       totalLiters,
-      globalAvg: totalLitersForAvg > 0 ? (totalKm / totalLitersForAvg) : 0,
+      globalAvg: efficiency.consumedVolume > 0 ? efficiency.totalKm / efficiency.consumedVolume : 0,
       count: fuelEntries.length
     };
   }, [fuelEntries]);
@@ -405,7 +381,8 @@ export const FuelDashboard: React.FC<Props> = ({
   // Handlers
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEntry.vehicleId || !newEntry.liters || !newEntry.unitPrice || !newEntry.odometer) return;
+    const finalLiters = Number(newEntry.liters) || (fuelCategory === 'GAS' ? Number(newEntry.kg || 0) : 0);
+    if (!newEntry.vehicleId || finalLiters <= 0 || !newEntry.unitPrice || !newEntry.odometer) return;
 
     const vehicle = vehicles.find(v => v.id === newEntry.vehicleId);
     const driver = drivers.find(d => d.id === newEntry.driverId);
@@ -415,8 +392,6 @@ export const FuelDashboard: React.FC<Props> = ({
       const station = fuelStations.find(s => s.cnpj === newEntry.stationCnpj);
       if (station) stationName = station.name;
     }
-
-    const finalLiters = Number(newEntry.liters) || (fuelCategory === 'GAS' ? Number(newEntry.kg || 0) : 0);
 
     const entry: FuelEntry = {
       id: Date.now().toString(),
@@ -506,7 +481,7 @@ export const FuelDashboard: React.FC<Props> = ({
         <div className="flex gap-3 w-full sm:w-auto">
           <button 
             onClick={() => setShowImportModal(true)}
-            className="flex-1 sm:flex-none bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-6 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+            className="flex-1 sm:flex-none bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-5 py-3 rounded-lg font-black text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
           >
             <Upload className="h-5 w-5" /> IMPORTAR
           </button>
@@ -520,7 +495,7 @@ export const FuelDashboard: React.FC<Props> = ({
                 setShowStationModal(true);
               }
             }}
-            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none transition-all active:scale-95"
+            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none transition-all active:scale-95"
           >
             <Plus className="h-5 w-5" /> {activeTab === 'DASHBOARD' ? 'NOVO ABASTECIMENTO' : 'CADASTRAR POSTO'}
           </button>
@@ -529,7 +504,7 @@ export const FuelDashboard: React.FC<Props> = ({
 
       {/* TABS & FILTERS */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl w-fit">
+        <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
           <button
             onClick={() => setActiveTab('DASHBOARD')}
             className={`px-6 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
@@ -563,7 +538,7 @@ export const FuelDashboard: React.FC<Props> = ({
         </div>
 
         {activeTab === 'DASHBOARD' && (
-          <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-2 px-2 border-r border-slate-100 dark:border-slate-800">
               <CalendarIcon className="h-4 w-4 text-slate-400" />
               <select 
@@ -607,7 +582,7 @@ export const FuelDashboard: React.FC<Props> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             <div className="md:col-span-2 flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
                 <div className="relative w-full sm:flex-1 sm:max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input 
@@ -654,7 +629,7 @@ export const FuelDashboard: React.FC<Props> = ({
             </div>
 
             <div className="md:col-span-2 lg:col-span-1 flex flex-col gap-4">
-              <div className="bg-white dark:bg-slate-900 pl-4 pt-[10px] pr-4 pb-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-4">
+              <div className="bg-white dark:bg-slate-900 pl-4 pt-[10px] pr-4 pb-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <HistoryIcon className="h-4 w-4 text-purple-500" /> Histórico Recente
@@ -700,7 +675,7 @@ export const FuelDashboard: React.FC<Props> = ({
           </div>
         </>
       ) : activeTab === 'COMPARATIVO' ? (
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
           <h2 className="text-lg font-black text-slate-800 dark:text-white mb-6">Comparativo de Postos</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stationAverages.map(s => (
