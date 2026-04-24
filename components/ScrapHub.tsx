@@ -1,285 +1,248 @@
-import React, { useState, useMemo } from 'react';
-import { Tire, TireStatus, Vehicle, UserLevel } from '../types';
-import { Trash2, AlertTriangle, Package, Search, Plus, X, CheckCircle2, Disc } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { WasteDisposal, WasteType, Partner, Collaborator, Tire } from '../types';
+import { storageService } from '../services/storageService';
+import { 
+  Trash2, 
+  Search, 
+  Calendar, 
+  User, 
+  Truck, 
+  FileText, 
+  Download, 
+  Activity, 
+  ExternalLink,
+  Package,
+  Filter,
+  Eye
+} from 'lucide-react';
 
 interface ScrapHubProps {
-  tires: Tire[];
-  vehicles: Vehicle[];
-  branches?: any[];
-  defaultBranchId?: string;
-  onUpdateTire: (tire: Tire) => Promise<void>;
-  userLevel: UserLevel;
+  orgId: string;
+  partners: Partner[];
+  collaborators: Collaborator[];
 }
 
-const ScrapHub: React.FC<ScrapHubProps> = ({ tires, vehicles, branches = [], defaultBranchId, onUpdateTire, userLevel }) => {
-  const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
-  const [selectedTireId, setSelectedTireId] = useState('');
-  const [discardReason, setDiscardReason] = useState('');
+const ScrapHub: React.FC<ScrapHubProps> = ({ orgId, partners, collaborators }) => {
+  const [disposals, setDisposals] = useState<WasteDisposal[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState<'ALL' | 'WASTE' | 'PPE' | 'TIRE'>('ALL');
 
-  const scrappedTires = useMemo(() => {
-    return tires.filter(t => {
-      const isScrap = t.status === TireStatus.DAMAGED;
-      return isScrap;
+  useEffect(() => {
+    const unsubDisposals = storageService.subscribeToWasteDisposals(orgId, (data) => {
+      setDisposals(data);
+      setLoading(false);
     });
-  }, [tires]);
+    return () => unsubDisposals();
+  }, [orgId]);
 
-  const activeTires = useMemo(() => {
-    return tires.filter(t => {
-      const isNotScrap = t.status !== TireStatus.DAMAGED;
-      return isNotScrap;
-    });
-  }, [tires]);
-
-  const stats = useMemo(() => {
-    const brandCounts: Record<string, number> = {};
-    const modelCounts: Record<string, number> = {};
-    const reasonCounts: Record<string, number> = {};
-
-    scrappedTires.forEach(t => {
-      brandCounts[t.brand] = (brandCounts[t.brand] || 0) + 1;
-      modelCounts[t.model] = (modelCounts[t.model] || 0) + 1;
+  const filteredDisposals = useMemo(() => {
+    return disposals.filter(d => {
+      const matchesSearch = 
+        d.items.some(item => item.wasteTypeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        d.partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        d.responsibleName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (d.certificateNumber && d.certificateNumber.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      const discardLog = t.history?.find(h => h.action === 'DESCARTE');
-      if (discardLog) {
-        const match = discardLog.details.match(/Motivo: (.*)/);
-        const reason = match ? match[1] : discardLog.details;
-        reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
-      }
+      const matchesType = filterType === 'ALL' || d.disposalType === filterType;
+      
+      return matchesSearch && matchesType;
     });
+  }, [disposals, searchTerm, filterType]);
 
-    const getTop = (counts: Record<string, number>) => {
-      let top = '-';
-      let max = 0;
-      for (const [key, val] of Object.entries(counts)) {
-        if (val > max) {
-          max = val;
-          top = key;
-        }
-      }
-      return { name: top, count: max };
+  const getStats = useMemo(() => {
+    const stats = {
+      WASTE: 0,
+      PPE: 0,
+      TIRE: 0,
+      TOTAL_RECORDS: filteredDisposals.length
     };
+    
+    filteredDisposals.forEach(d => {
+      if (d.disposalType === 'WASTE') stats.WASTE++;
+      if (d.disposalType === 'PPE') stats.PPE++;
+      if (d.disposalType === 'TIRE') stats.TIRE++;
+    });
+    
+    return stats;
+  }, [filteredDisposals]);
 
-    return {
-      topBrand: getTop(brandCounts),
-      topModel: getTop(modelCounts),
-      topReason: getTop(reasonCounts)
-    };
-  }, [scrappedTires]);
-
-  const handleDiscard = async () => {
-    if (!selectedTireId || !discardReason) return;
-    const tire = tires.find(t => t.id === selectedTireId);
-    if (!tire) return;
-
-    const updatedTire: Tire = {
-      ...tire,
-      status: TireStatus.DAMAGED,
-      location: 'Sucata',
-      vehicleId: null,
-      position: null,
-      branchId: defaultBranchId || tire.branchId, // Atualiza para a filial onde a ação ocorre
-      history: [
-        ...(tire.history || []),
-        {
-          date: new Date().toISOString(),
-          action: 'DESCARTE',
-          details: `Motivo: ${discardReason}`
-        }
-      ]
-    };
-
-    await onUpdateTire(updatedTire);
-    setIsDiscardModalOpen(false);
-    setSelectedTireId('');
-    setDiscardReason('');
+  const getBadgeStyle = (type: string) => {
+    switch (type) {
+      case 'WASTE': return 'bg-orange-100 text-orange-700';
+      case 'PPE': return 'bg-purple-100 text-purple-700';
+      case 'TIRE': return 'bg-blue-100 text-blue-700';
+      default: return 'bg-slate-100 text-slate-700';
+    }
   };
 
-  const filteredScrapped = scrappedTires.filter(t => 
-    t.fireNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.model.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getTypeName = (type: string) => {
+    switch (type) {
+      case 'WASTE': return 'Resíduo';
+      case 'PPE': return 'EPI';
+      case 'TIRE': return 'Pneu';
+      default: return type;
+    }
+  };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white">Sucata e Descarte</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise e gestão de pneus descartados.</p>
-        </div>
-        <button 
-          onClick={() => setIsDiscardModalOpen(true)}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-bold shadow-lg flex items-center gap-2 transition-colors"
-        >
-          <Trash2 className="h-5 w-5" /> Lançar Descarte
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl">
-              <Disc className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Marca Mais Descartada</p>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white">{stats.topBrand.name}</h3>
-            </div>
-          </div>
-          <p className="text-sm text-slate-500">{stats.topBrand.count} descartes registrados</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-2xl">
-              <Package className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Modelo Mais Descartado</p>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white">{stats.topModel.name}</h3>
-            </div>
-          </div>
-          <p className="text-sm text-slate-500">{stats.topModel.count} descartes registrados</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Motivo Principal</p>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white truncate" title={stats.topReason.name}>{stats.topReason.name}</h3>
-            </div>
-          </div>
-          <p className="text-sm text-slate-500">{stats.topReason.count} ocorrências</p>
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
+            <Trash2 className="h-8 w-8 text-slate-600" />
+            Sucata Geral - Histórico de Descartes
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Visualização consolidada de todos os descartes realizados (Resíduos, EPI e Pneus).</p>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Histórico de Descartes</h3>
-          <div className="relative w-full md:w-auto">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Buscar pneu..." 
-              className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Total de Registros</p>
+          <p className="text-2xl font-black text-slate-800 dark:text-white">{getStats.TOTAL_RECORDS}</p>
         </div>
-        
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-orange-500">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Descartes de Resíduos</p>
+          <p className="text-2xl font-black text-orange-600">{getStats.WASTE}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-purple-500">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Descartes de EPI</p>
+          <p className="text-2xl font-black text-purple-600">{getStats.PPE}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-blue-500">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Descartes de Pneus</p>
+          <p className="text-2xl font-black text-blue-600">{getStats.TIRE}</p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+           <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Buscar por item, parceiro, certificado..."
+                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-slate-500 transition-all font-medium text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+           </div>
+           
+           <div className="flex items-center gap-3">
+              <Filter className="h-4 w-4 text-slate-400" />
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                {(['ALL', 'WASTE', 'PPE', 'TIRE'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setFilterType(t)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      filterType === t 
+                        ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {t === 'ALL' ? 'TUDO' : getTypeName(t).toUpperCase()}
+                  </button>
+                ))}
+              </div>
+           </div>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100 dark:border-slate-800">
-              <tr>
-                <th className="p-5">Fogo / ID</th>
-                <th className="p-5">Marca & Modelo</th>
-                <th className="p-5">Motivo do Descarte</th>
-                <th className="p-5">Data do Descarte</th>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/50">
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Tipo</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Itens / Data</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Quantidades</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Destino</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider text-right">Anexos</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredScrapped.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center text-slate-500">Nenhum descarte encontrado.</td>
+              {filteredDisposals.map((disposal) => (
+                <tr key={disposal.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${getBadgeStyle(disposal.disposalType)}`}>
+                      {getTypeName(disposal.disposalType)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                     {disposal.stage === 'FINALIZADO' ? (
+                       <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black w-fit uppercase">Finalizado</span>
+                     ) : (
+                       <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black w-fit uppercase">{disposal.stage?.replace('_', ' ')}</span>
+                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0">
+                        <div className="space-y-1">
+                          {disposal.items.map((item, idx) => (
+                            <p key={idx} className="font-bold text-slate-800 dark:text-white truncate">
+                              {item.wasteTypeName}
+                            </p>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
+                          <Calendar className="h-3 w-3" /> {new Date(disposal.date).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      {disposal.items.map((item, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold w-fit">
+                          {item.quantity} {item.unit}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{disposal.partnerName}</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-medium">Resp: {disposal.responsibleName}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {disposal.attachmentUrl && (
+                        <a 
+                          href={disposal.attachmentUrl} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg hover:bg-blue-100 transition-all"
+                          title="Ver Comprovante"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </a>
+                      )}
+                      {disposal.certificateNumber && (
+                        <span title={`MTR: ${disposal.certificateNumber}`} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-500 rounded-lg">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                      )}
+                    </div>
+                  </td>
                 </tr>
-              ) : (
-                filteredScrapped.map(t => {
-                  const discardLog = t.history?.find(h => h.action === 'DESCARTE');
-                  const reason = discardLog ? discardLog.details.replace('Motivo: ', '') : '-';
-                  const date = discardLog ? new Date(discardLog.date + (discardLog.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR') : '-';
-                  
-                  return (
-                    <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="p-5 font-black text-slate-800 dark:text-white">{t.fireNumber}</td>
-                      <td className="p-5">
-                        <div className="font-bold text-slate-700 dark:text-slate-300">{t.brand}</div>
-                        <div className="text-[10px] text-slate-400 uppercase">{t.model}</div>
-                      </td>
-                      <td className="p-5 text-slate-600 dark:text-slate-400">{reason}</td>
-                      <td className="p-5 text-slate-600 dark:text-slate-400">{date}</td>
-                    </tr>
-                  );
-                })
+              ))}
+              {filteredDisposals.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">
+                    Nenhum registro encontrado.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {isDiscardModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <Trash2 className="h-6 w-6 text-red-500" /> Lançar Descarte
-              </h3>
-              <button onClick={() => setIsDiscardModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Selecione o Pneu</label>
-                <select 
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-red-500"
-                  value={selectedTireId}
-                  onChange={e => setSelectedTireId(e.target.value)}
-                >
-                  <option value="">-- Selecione --</option>
-                  {activeTires.map(t => (
-                    <option key={t.id} value={t.id}>{t.fireNumber} - {t.brand} {t.model}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Motivo do Descarte</label>
-                <select 
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-red-500 mb-3"
-                  value={discardReason}
-                  onChange={e => setDiscardReason(e.target.value)}
-                >
-                  <option value="">-- Selecione ou digite abaixo --</option>
-                  <option value="Corte">Corte</option>
-                  <option value="Bolha">Bolha</option>
-                  <option value="Desgaste Irregular">Desgaste Irregular</option>
-                  <option value="Furo">Furo</option>
-                  <option value="Fim de Vida Útil">Fim de Vida Útil</option>
-                  <option value="Recusado na Recapagem">Recusado na Recapagem</option>
-                </select>
-                <input 
-                  type="text" 
-                  placeholder="Ou digite outro motivo..."
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-red-500"
-                  value={discardReason}
-                  onChange={e => setDiscardReason(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="p-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
-              <button 
-                onClick={() => setIsDiscardModalOpen(false)}
-                className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleDiscard}
-                disabled={!selectedTireId || !discardReason}
-                className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-xl font-bold shadow-lg transition-colors"
-              >
-                Confirmar Descarte
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
 export default ScrapHub;
+

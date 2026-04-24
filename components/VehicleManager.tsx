@@ -2,7 +2,7 @@
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
 import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType, FuelType, FuelEntry } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, FileText, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2, RefreshCw } from 'lucide-react';
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 import { getAllValidPositions } from '../lib/vehicleUtils';
@@ -991,7 +991,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     oilLiters: 0,
     lastPreventiveKm: 0,
     lastPreventiveDate: '',
-    branchId: defaultBranchId || ''
+    branchId: defaultBranchId || '',
+    ownership: 'OWNED'
   });
 
   // Função para analisar o estado do veículo
@@ -1128,7 +1129,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       oilLiters: 0,
       lastPreventiveKm: 0,
       lastPreventiveDate: '',
-      branchId: defaultBranchId || ''
+      branchId: defaultBranchId || '',
+      ownership: 'OWNED'
     });
     setIsAdding(true);
   };
@@ -1158,7 +1160,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       oilLiters: vehicle.oilLiters || 0,
       lastPreventiveKm: vehicle.lastPreventiveKm || 0,
       lastPreventiveDate: vehicle.lastPreventiveDate || '',
-      branchId: vehicle.branchId || ''
+      branchId: vehicle.branchId || '',
+      ownership: vehicle.ownership || 'OWNED'
     });
     setIsAdding(true);
   };
@@ -1203,7 +1206,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         vin: '', year: '', color: '', fuelType: 'DIESEL S10', fleetNumber: '',
         engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: '',
         revisionIntervalKm: 10000, oilLiters: 0, lastPreventiveKm: 0, lastPreventiveDate: '',
-        branchId: defaultBranchId || ''
+        branchId: defaultBranchId || '',
+        ownership: 'OWNED'
       });
     } catch (error) {
       alert("Erro ao salvar veículo.");
@@ -1855,6 +1859,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                           Sem Filial
                         </p>
                       )}
+                      {vehicle.ownership === 'LEASED' && (
+                        <p className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase flex items-center gap-1 mt-0.5 bg-purple-50 dark:bg-purple-900/20 px-1.5 py-0.5 rounded w-fit">
+                          <FileText className="h-3 w-3" />
+                          Locado
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2266,6 +2276,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Frota #</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fleetNumber || 'N/A'}</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Propriedade</p>
+                            <p className={`text-lg font-black ${selectedVehicleRG.ownership === 'LEASED' ? 'text-purple-600' : 'text-slate-800 dark:text-white'}`}>
+                              {selectedVehicleRG.ownership === 'LEASED' ? 'Locado' : 'Próprio'}
+                            </p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Chassi (VIN)</p>
@@ -2754,7 +2770,18 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               {/* Branch Selection */}
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Propriedade</label>
+                  <select
+                    className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
+                    value={formData.ownership || 'OWNED'}
+                    onChange={e => setFormData({ ...formData, ownership: e.target.value as any })}
+                  >
+                    <option value="OWNED">Próprio</option>
+                    <option value="LEASED">Locado</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Filial de Serviço (Opcional)</label>
                   <select

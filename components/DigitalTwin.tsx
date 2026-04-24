@@ -99,10 +99,10 @@ export const DigitalTwin: FC<DigitalTwinProps> = ({ vehicle, mountedTires, setti
             {tire ? (
                 <>
                     <rect x="-20" y="-6" width="40" height="12" rx="2" fill="white" stroke="none" filter="drop-shadow(0 1px 1px rgba(0,0,0,0.1))" />
-                    <text y="3" textAnchor="middle" fontSize="7" fontWeight="900" fill={isBlocked ? '#ef4444' : '#0f172a'}>{tire.currentTreadDepth}mm</text>
+                    <text y="3" textAnchor="middle" fontSize={vehicle.ownership === 'LEASED' ? '5' : '7'} fontWeight="900" fill={isBlocked ? '#ef4444' : '#0f172a'}>{vehicle.ownership === 'LEASED' ? 'PNEU LOCADO' : `${tire.currentTreadDepth}mm`}</text>
                 </>
             ) : (
-                <text y="2" textAnchor="middle" fontSize="6" fontWeight="bold" fill="#64748b">VAGO</text>
+                <text y="2" textAnchor="middle" fontSize={vehicle.ownership === 'LEASED' ? '5' : '6'} fontWeight="bold" fill="#64748b">{vehicle.ownership === 'LEASED' ? 'PNEU LOCADO' : 'VAGO'}</text>
             )}
         </g>
         

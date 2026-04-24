@@ -75,6 +75,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   const [wasteTypes, setWasteTypes] = useState<WasteType[]>([]);
   const [newWasteTypeName, setNewWasteTypeName] = useState('');
   const [newWasteTypeUnit, setNewWasteTypeUnit] = useState<WasteUnit>('KG');
+  const [newWasteTypeCategory, setNewWasteTypeCategory] = useState<'WASTE' | 'PPE' | 'TIRE'>('WASTE');
 
   // --- SERVICES STATE ---
   const [serviceTypes, setServiceTypes] = useState<ServiceTypeDefinition[]>([]);
@@ -918,12 +919,22 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                             <option value="UNITS">Unidades (UN)</option>
                                             <option value="METERS">Metros (M)</option>
                                         </select>
+                                        <select 
+                                            className="flex-1 p-2 border border-slate-300 rounded text-black bg-white outline-none focus:border-indigo-500 font-bold"
+                                            value={newWasteTypeCategory}
+                                            onChange={(e) => setNewWasteTypeCategory(e.target.value as any)}
+                                        >
+                                            <option value="WASTE">Resíduos</option>
+                                            <option value="PPE">EPI</option>
+                                            <option value="TIRE">Pneus</option>
+                                        </select>
                                         <button 
                                             onClick={async () => {
                                                 if (!newWasteTypeName.trim()) return;
                                                 await storageService.addWasteType(orgId, {
                                                     name: newWasteTypeName.trim(),
-                                                    unit: newWasteTypeUnit
+                                                    unit: newWasteTypeUnit,
+                                                    category: newWasteTypeCategory
                                                 });
                                                 setNewWasteTypeName('');
                                             }}
@@ -941,7 +952,16 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                     <div key={type.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm group">
                                         <div className="min-w-0">
                                           <div className="font-bold text-slate-800 truncate">{type.name}</div>
-                                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{type.unit}</div>
+                                          <div className="flex items-center gap-2">
+                                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{type.unit}</span>
+                                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase ${
+                                                  type.category === 'WASTE' ? 'bg-orange-100 text-orange-600' :
+                                                  type.category === 'PPE' ? 'bg-purple-100 text-purple-600' :
+                                                  'bg-blue-100 text-blue-600'
+                                              }`}>
+                                                  {type.category === 'WASTE' ? 'Resíduo' : type.category === 'PPE' ? 'EPI' : 'Pneu'}
+                                              </span>
+                                          </div>
                                         </div>
                                         <button onClick={() => storageService.deleteWasteType(orgId, type.id)} className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg group-hover:bg-red-50 transition-all">
                                           <Trash2 className="h-4 w-4" />
@@ -1263,6 +1283,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                            <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('FUEL')} onChange={() => toggleModule('FUEL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Abastecimento</span></label>
                            <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('TIRES')} onChange={() => toggleModule('TIRES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Pneus</span></label>
                            <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('MECHANICAL')} onChange={() => toggleModule('MECHANICAL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Oficina</span></label>
+                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('JMDSSMAQ')} onChange={() => toggleModule('JMDSSMAQ')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">JMDSSMAQ</span></label>
                         </div></div>
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1">

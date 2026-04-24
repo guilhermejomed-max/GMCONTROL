@@ -934,6 +934,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const getMissingTires = () => {
     const missingTires: any[] = [];
     vehicles.forEach(vehicle => {
+      // Exclude leased vehicles from missing tires report
+      if (vehicle.ownership === 'LEASED') return;
+
       const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
       const validPositions = getAllValidPositions(vehicle, vehicleTypes);
       

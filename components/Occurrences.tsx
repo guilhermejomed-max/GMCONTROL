@@ -341,16 +341,20 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
 
   const processMentions = async (text: string, plate: string) => {
     const notifiedIds = new Set<string>();
+    const currentUserId = user.uid || user.id;
 
-    for (const member of teamMembers) {
-      const currentUserId = user.uid || user.id;
+    // Sort by name length descending to match longer names first
+    const sortedMembers = [...teamMembers].sort((a, b) => b.name.length - a.name.length);
+
+    for (const member of sortedMembers) {
       if (member.id === currentUserId) continue;
 
       const escapedName = member.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`@${escapedName}`, 'i'); // Single 'i', test is safe.
+      // Matches @Name followed by a non-word character or end of string
+      const regex = new RegExp(`@${escapedName}(?!\\w)`, 'i');
 
       if (regex.test(text) && !notifiedIds.has(member.id)) {
-        console.log(`Disparando notificação para ${member.name} (ID: ${member.id}) sobre placa ${plate}`);
+        console.log(`[Mentions] Notifying ${member.name} (ID: ${member.id}) for plate ${plate}`);
         const currentUserName = user.displayName || user.name || user.email || 'Usuário';
 
         await storageService.addNotification(orgId, {
@@ -358,7 +362,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
           recipientId: member.id,
           senderId: currentUserId,
           senderName: currentUserName,
-          text: `Você foi marcado na ocorrência da placa: ${plate || 'Indisponível'}.`,
+          text: `Você foi marcado na discussão da placa: ${plate || 'Indisponível'}.`,
           read: false,
           createdAt: new Date().toISOString()
         });

@@ -1,6 +1,6 @@
 
 import React, { FC, ChangeEvent, useState } from 'react';
-import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel, Droplets } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel, Droplets, HeartPulse, ShieldCheck } from 'lucide-react';
 import { TabView, UserLevel, SystemSettings, ModuleType } from '../types';
 
 interface SidebarProps {
@@ -52,11 +52,17 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
     { id: 'inspection', label: 'Inspeção Pro', icon: ClipboardCheck, modules: ['TIRES'] },
     { id: 'movement', label: 'Movimentação', icon: ArrowRightLeft, modules: ['TIRES'] },
-    { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['TIRES'] },
     { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'retreader-ranking', label: 'Ranking de Fornecedores', icon: Trophy, modules: ['TIRES'] },
     { id: 'retreading', label: 'Recapagem', icon: Recycle, modules: ['TIRES'] },
-    { id: 'scrap', label: 'Sucata/Descarte', icon: Trash2, modules: ['TIRES'] },
+    { id: 'scrap', label: 'Sucata (Geral)', icon: Trash2, modules: ['JMDSSMAQ'], section: 'Segurança do Trabalho' },
+    { id: 'tire-disposal', label: 'Descarte de Pneus', icon: Trash2, modules: ['TIRES'] },
+    
+    // --- MÓDULO JMDSSMAQ ---
+    { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['JMDSSMAQ'] },
+    { id: 'ambulatory', label: 'Ambulatório', icon: HeartPulse, modules: ['JMDSSMAQ'] },
+    { id: 'ppe-stock', label: 'Estoque de EPI', icon: Package, modules: ['JMDSSMAQ'], section: 'Segurança do Trabalho' },
+    { id: 'ppe-disposal', label: 'Descarte de EPI', icon: Trash2, modules: ['JMDSSMAQ'], section: 'Segurança do Trabalho' },
     
     // --- MÓDULO VEÍCULOS ---
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
@@ -99,6 +105,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return <Disc className="h-4 w-4 text-white" />;
     if (mod === 'VEHICLES') return <Truck className="h-4 w-4 text-white" />;
     if (mod === 'FUEL') return <Fuel className="h-4 w-4 text-white" />;
+    if (mod === 'JMDSSMAQ') return <Layout className="h-4 w-4 text-white" />;
     return <Wrench className="h-4 w-4 text-white" />;
   };
 
@@ -106,6 +113,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return 'Pneus';
     if (mod === 'VEHICLES') return 'Veículo';
     if (mod === 'FUEL') return 'Abastecimento';
+    if (mod === 'JMDSSMAQ') return 'JMDSSMAQ';
     return 'Oficina';
   };
 
@@ -113,6 +121,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (mod === 'TIRES') return 'bg-blue-600';
     if (mod === 'VEHICLES') return 'bg-emerald-600';
     if (mod === 'FUEL') return 'bg-amber-600';
+    if (mod === 'JMDSSMAQ') return 'bg-purple-600';
     return 'bg-orange-600';
   };
 
@@ -124,6 +133,7 @@ export const Sidebar: FC<SidebarProps> = ({
     if (activeModule === 'TIRES') return 'bg-blue-600 shadow-blue-600/20';
     if (activeModule === 'VEHICLES') return 'bg-emerald-600 shadow-emerald-600/20';
     if (activeModule === 'FUEL') return 'bg-amber-600 shadow-amber-600/20';
+    if (activeModule === 'JMDSSMAQ') return 'bg-purple-600 shadow-purple-600/20';
     return 'bg-orange-600 shadow-orange-600/20';
   };
 
@@ -200,26 +210,35 @@ export const Sidebar: FC<SidebarProps> = ({
         </div>
 
         <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar py-2">
-          {menuItems.map((item) => {
+          {menuItems.map((item, index) => {
             const Icon = item.icon as any;
             const isActive = currentTab === item.id;
             const activeColorClass = getActiveColorClass();
+            const showSection = item.section && (index === 0 || menuItems[index - 1].section !== item.section);
 
             return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onTabChange(item.id as TabView);
-                  setIsMobileOpen(false);
-                }}
-                className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all font-medium text-sm group ${
-                  isActive ? `${activeColorClass} text-white shadow-lg translate-x-1` : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
-                <span className="flex-1 text-left">{item.label}</span>
-                {isActive && <ChevronRight className="h-4 w-4 opacity-50" />}
-              </button>
+              <React.Fragment key={item.id}>
+                {showSection && (
+                  <p className="px-4 pt-4 pb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <span className="h-px bg-slate-800 flex-1" />
+                    {item.section}
+                    <span className="h-px bg-slate-800 flex-1" />
+                  </p>
+                )}
+                <button
+                  onClick={() => {
+                    onTabChange(item.id as TabView);
+                    setIsMobileOpen(false);
+                  }}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all font-medium text-sm group ${
+                    isActive ? `${activeColorClass} text-white shadow-lg translate-x-1` : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {isActive && <ChevronRight className="h-4 w-4 opacity-50" />}
+                </button>
+              </React.Fragment>
             );
           })}
         </nav>
