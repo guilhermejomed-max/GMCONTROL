@@ -474,8 +474,8 @@ async function runSascarAutomation() {
             }
             
             if (docId) {
-                const rawLat = pos.latitude ?? 0;
-                const rawLng = pos.longitude ?? 0;
+                const rawLat = parseSascarOptionalNumber(pos.latitude) ?? 0;
+                const rawLng = parseSascarOptionalNumber(pos.longitude) ?? 0;
                 
                 const odometerKm = pos.odometroExato ? parseSascarNumber(pos.odometroExato) / 1000 : parseSascarNumber(pos.odometro ?? 0);
                 const rawInstantaneo = parseSascarNumber(pos.consumoInstantaneo || 0);
@@ -490,8 +490,8 @@ async function runSascarAutomation() {
                     ignition: ignition,
                     consumoInstantaneo: rawInstantaneo,
                     lastLocation: {
-                        lat: Number(rawLat),
-                        lng: Number(rawLng),
+                        lat: rawLat,
+                        lng: rawLng,
                         address: pos.rua || '',
                         city: pos.cidade || '',
                         state: pos.uf || '',
@@ -979,8 +979,8 @@ async function startServer() {
 
       const processedVehicles = rawValues.map((v: any, index: number) => {
           // Extração com fallback para 0 caso o valor venha nulo/undefined
-          const rawLat = v.latitude ?? 0;
-          const rawLng = v.longitude ?? 0;
+          const rawLat = parseSascarOptionalNumber(v.latitude) ?? 0;
+          const rawLng = parseSascarOptionalNumber(v.longitude) ?? 0;
           
           // Log raw values for debugging issues
           if (v.placa === 'BSX3G15' || v.idVeiculo === 'BSX3G15') {
@@ -1004,8 +1004,8 @@ async function startServer() {
               plate: v.placa || v.idVeiculo || '',
               
               // Regra estrita: Envolver em Number()
-              latitude: Number(rawLat),
-              longitude: Number(rawLng),
+              latitude: rawLat,
+              longitude: rawLng,
               odometer: odometerKm,
               speed: speed,
               ignition: ignition,
@@ -1013,8 +1013,8 @@ async function startServer() {
               consumoInstantaneo: rawInstantaneo,
               
               lastLocation: {
-                  lat: Number(rawLat),
-                  lng: Number(rawLng),
+                  lat: rawLat,
+                  lng: rawLng,
                   address: v.rua || '',
                   city: v.cidade || '',
                   state: v.uf || '',

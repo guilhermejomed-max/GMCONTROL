@@ -676,6 +676,20 @@ export const App = () => {
 
     isSyncingRef.current = true;
     let totalUpdated = 0;
+    const normalizePlate = (value: any) => String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const normalizeSascarId = (value: any) => String(value || '').replace(/\D/g, '');
+    const parseTelemetryNumber = (value: any): number | undefined => {
+      if (value === undefined || value === null || value === '') return undefined;
+      const parsed = Number(String(value).trim().replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const parseOdometerKm = (sv: any): number => {
+      const normalizedOdo = parseTelemetryNumber(sv.odometer);
+      if (normalizedOdo !== undefined && normalizedOdo > 0) return normalizedOdo;
+      const exactMeters = parseTelemetryNumber(sv.odometroExato);
+      if (exactMeters !== undefined && exactMeters > 0) return exactMeters / 1000;
+      return parseTelemetryNumber(sv.odometro) || 0;
+    };
     
     if (showModal) addToast('info', 'Sincronizando', 'Buscando dados na Sascar...');
 
@@ -684,7 +698,7 @@ export const App = () => {
       const searchTerms = new Set<string>();
       currentVehicles.forEach(v => {
         if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
-        if (v.plate) searchTerms.add(v.plate.replace(/[^A-Z0-9]/gi, '').toUpperCase());
+        if (v.plate) searchTerms.add(normalizePlate(v.plate));
       });
       
       const plates = Array.from(searchTerms).filter(p => p.length > 0);
@@ -706,6 +720,8 @@ export const App = () => {
       const updatesBatch: any[] = [];
       const processedLocalIds = new Set<string>();
       const updatedPlatesList: string[] = [];
+      let invalidPositionCount = 0;
+      let missingLitrometerCount = 0;
 
       // Ordenar itens por data para garantir que pegamos o mais recente
       const sortedItems = [...allRawItems].sort((a, b) => {
@@ -716,7 +732,8 @@ export const App = () => {
 
       sortedItems.forEach((sv: any) => {
         const sascarId = String(sv.idVeiculo || sv.id || "").trim();
-        const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        const sascarNumericId = normalizeSascarId(sascarId);
+        const sascarPlate = normalizePlate(sv.placa || sv.plate);
         
         if (!sascarId && !sascarPlate) return;
         
@@ -729,14 +746,14 @@ export const App = () => {
             const cleanIdApp = String(v.sascarCode).trim();
             if (cleanIdApp === sascarId) return true;
             // Tentar match numérico se ambos forem números
-            if (/^\d+$/.test(cleanIdApp) && /^\d+$/.test(sascarId)) {
-              if (parseInt(cleanIdApp, 10) === parseInt(sascarId, 10)) return true;
+            if (normalizeSascarId(cleanIdApp) && sascarNumericId && normalizeSascarId(cleanIdApp) === sascarNumericId) {
+              return true;
             }
           }
           
           // Tentar match por Placa
           if (sascarPlate) {
-            const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            const plateApp = normalizePlate(v.plate);
             if (plateApp && plateApp === sascarPlate) return true;
           }
           
@@ -745,21 +762,21 @@ export const App = () => {
 
         if (localVehicle) {
           processedLocalIds.add(localVehicle.id);
-          const rawOdo = sv.odometer || sv.odometroExato || sv.odometro || 0;
-          const finalOdo = Math.round(Number(rawOdo));
-          const lat = Number(sv.latitude || sv.lat || 0);
-          const lng = Number(sv.longitude || sv.lng || 0);
+          const finalOdo = Math.round(parseOdometerKm(sv));
+          const lat = parseTelemetryNumber(sv.latitude ?? sv.lat) || 0;
+          const lng = parseTelemetryNumber(sv.longitude ?? sv.lng) || 0;
 
           const isInvalidPosition = lat === 0 && lng === 0;
+          if (isInvalidPosition) invalidPositionCount++;
           const finalLat = isInvalidPosition ? (localVehicle.lastLocation?.lat || 0) : lat;
           const finalLng = isInvalidPosition ? (localVehicle.lastLocation?.lng || 0) : lng;
+          const hasLocationToPersist = !isInvalidPosition || !!localVehicle.lastLocation;
 
           // Telemetry fuel history
           const rawLitrometer = sv.litrometer ?? sv.litrometro ?? sv.litrometro2 ?? sv.litrometroTotal ?? sv.totalLitros ?? sv.totalCombustivel;
-          const parsedLitrometer = rawLitrometer === undefined || rawLitrometer === null || rawLitrometer === ''
-            ? undefined
-            : Number(String(rawLitrometer).replace(',', '.'));
+          const parsedLitrometer = parseTelemetryNumber(rawLitrometer);
           const hasValidLitrometer = Number.isFinite(parsedLitrometer);
+          if (!hasValidLitrometer) missingLitrometerCount++;
           const currentLitrometer = hasValidLitrometer
             ? (parsedLitrometer as number)
             : localVehicle.litrometer;
@@ -789,12 +806,12 @@ export const App = () => {
 
           updatesBatch.push({
             id: localVehicle.id,
-            odometer: finalOdo,
+            odometer: finalOdo > 0 ? finalOdo : localVehicle.odometer,
             ...(hasValidLitrometer ? { litrometer: currentLitrometer } : {}),
             telemetryHistory: newHistory,
             telemetryRollingAvgKml: newAvgKml,
             totalFuelConsumed: Number(sv.totalFuelConsumed || 0),
-            lastLocation: {
+            ...(hasLocationToPersist ? { lastLocation: {
               ...localVehicle.lastLocation,
               lat: finalLat,
               lng: finalLng,
@@ -802,7 +819,7 @@ export const App = () => {
               city: isInvalidPosition ? (localVehicle.lastLocation?.city || 'Desconhecida') : (sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida'),
               state: isInvalidPosition ? (localVehicle.lastLocation?.state || '') : (sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || ''),
               updatedAt: new Date(parseSascarDate(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date().toISOString())).toISOString()
-            },
+            } } : {}),
             speed: Number(sv.velocidade || sv.speed || 0),
             ignition: sv.ignicao === 'S' || sv.ignicao === 'true' || sv.ignicao === '1' || sv.ignition === true,
             lastAutoUpdateDate: new Date().toISOString()
@@ -833,6 +850,23 @@ export const App = () => {
         }
         
         totalUpdated = updatesBatch.length;
+        const notMatched = currentVehicles
+          .filter(v => !processedLocalIds.has(v.id))
+          .map(v => `${v.plate}${v.sascarCode ? ` (${v.sascarCode})` : ''}`);
+        if (notMatched.length > 0 || invalidPositionCount > 0 || missingLitrometerCount > 0) {
+          console.warn('[Sascar Sync] Diagnóstico', {
+            semMatch: notMatched,
+            posicoesInvalidas: invalidPositionCount,
+            semLitrometro: missingLitrometerCount,
+            retornosSascar: allRawItems.length
+          });
+          storageService.logActivity(
+            orgId,
+            "Diagnóstico Sascar",
+            `${notMatched.length} sem match, ${invalidPositionCount} posição inválida, ${missingLitrometerCount} sem litrometro`,
+            'VEHICLES'
+          );
+        }
         console.log(`[Sascar Sync] Sincronização finalizada: ${totalUpdated} veículos atualizados.`);
         if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
       } else {

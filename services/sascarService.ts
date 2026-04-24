@@ -10,6 +10,12 @@ const parseOptionalNumber = (...values: any[]): number | undefined => {
   return undefined;
 };
 
+const parseSascarOdometerKm = (vehicle: any): number => {
+  const exactMeters = parseOptionalNumber(vehicle.odometroExato);
+  if (exactMeters !== undefined && exactMeters > 0) return exactMeters / 1000;
+  return parseOptionalNumber(vehicle.odometro, vehicle.odometer) || 0;
+};
+
 export const sascarService = {
   getVehicles: async (plates?: string[], trackerSettings?: TrackerSettings, retries = 2) => {
     const fetchWithTimeout = async (url: string, options: any, timeout = 120000) => {
@@ -163,15 +169,15 @@ export const sascarService = {
                 idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
                 placa: placa,
                 plate: placa || v.idVeiculo || '',
-                latitude: Number(v.latitude || 0),
-                longitude: Number(v.longitude || 0),
-                odometer: v.odometro ? parseFloat(v.odometro) : 0,
+                latitude: parseOptionalNumber(v.latitude) || 0,
+                longitude: parseOptionalNumber(v.longitude) || 0,
+                odometer: parseSascarOdometerKm(v),
                 litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {
-                    lat: Number(v.latitude || 0),
-                    lng: Number(v.longitude || 0),
+                    lat: parseOptionalNumber(v.latitude) || 0,
+                    lng: parseOptionalNumber(v.longitude) || 0,
                     address: v.rua || '',
                     city: v.cidade || '',
                     state: v.uf || '',
@@ -182,6 +188,20 @@ export const sascarService = {
               // Manter apenas a posição mais recente
               const existing = allVehiclesMap.get(uniqueKey);
               if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
+                const hasInvalidPosition = normalizedVehicle.latitude === 0 && normalizedVehicle.longitude === 0;
+                const existingHasPosition = existing && (existing.latitude !== 0 || existing.longitude !== 0);
+                if (hasInvalidPosition && existingHasPosition) {
+                  normalizedVehicle.latitude = existing.latitude;
+                  normalizedVehicle.longitude = existing.longitude;
+                  normalizedVehicle.lastLocation = {
+                    ...normalizedVehicle.lastLocation,
+                    lat: existing.lastLocation?.lat ?? existing.latitude,
+                    lng: existing.lastLocation?.lng ?? existing.longitude,
+                    address: existing.lastLocation?.address || normalizedVehicle.lastLocation.address,
+                    city: existing.lastLocation?.city || normalizedVehicle.lastLocation.city,
+                    state: existing.lastLocation?.state || normalizedVehicle.lastLocation.state
+                  };
+                }
                 allVehiclesMap.set(uniqueKey, normalizedVehicle);
               }
             }
@@ -203,11 +223,11 @@ export const sascarService = {
     // Fallback individual para veículos não encontrados no pacote
     if (plates && plates.length > 0) {
       const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
-      const idsClean = plates.map(p => p.replace(/\D/g, '')).filter(p => p.length > 0);
+      const idsClean = plates.map(p => p.trim()).filter(p => /^\d+$/.test(p));
       
       const missingTerms = plates.filter(p => {
         const pClean = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        const pId = p.replace(/\D/g, '');
+        const pId = /^\d+$/.test(p.trim()) ? p.trim() : '';
         
         const alreadyFound = Array.from(allVehiclesMap.values()).some(v => {
           const vPlaca = (v.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -234,15 +254,15 @@ export const sascarService = {
                 idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
                 placa: placa,
                 plate: placa || v.idVeiculo || '',
-                latitude: Number(v.latitude || 0),
-                longitude: Number(v.longitude || 0),
-                odometer: v.odometro ? parseFloat(v.odometro) : 0,
+                latitude: parseOptionalNumber(v.latitude) || 0,
+                longitude: parseOptionalNumber(v.longitude) || 0,
+                odometer: parseSascarOdometerKm(v),
                 litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
                 lastLocation: {
-                    lat: Number(v.latitude || 0),
-                    lng: Number(v.longitude || 0),
+                    lat: parseOptionalNumber(v.latitude) || 0,
+                    lng: parseOptionalNumber(v.longitude) || 0,
                     address: v.rua || '',
                     city: v.cidade || '',
                     state: v.uf || '',
@@ -252,6 +272,20 @@ export const sascarService = {
               
               const existing = allVehiclesMap.get(uniqueKey);
               if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
+                const hasInvalidPosition = normalizedVehicle.latitude === 0 && normalizedVehicle.longitude === 0;
+                const existingHasPosition = existing && (existing.latitude !== 0 || existing.longitude !== 0);
+                if (hasInvalidPosition && existingHasPosition) {
+                  normalizedVehicle.latitude = existing.latitude;
+                  normalizedVehicle.longitude = existing.longitude;
+                  normalizedVehicle.lastLocation = {
+                    ...normalizedVehicle.lastLocation,
+                    lat: existing.lastLocation?.lat ?? existing.latitude,
+                    lng: existing.lastLocation?.lng ?? existing.longitude,
+                    address: existing.lastLocation?.address || normalizedVehicle.lastLocation.address,
+                    city: existing.lastLocation?.city || normalizedVehicle.lastLocation.city,
+                    state: existing.lastLocation?.state || normalizedVehicle.lastLocation.state
+                  };
+                }
                 allVehiclesMap.set(uniqueKey, normalizedVehicle);
               }
             }
@@ -266,7 +300,7 @@ export const sascarService = {
     let filteredVehicles = vehicles;
     if (plates && plates.length > 0) {
       const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
-      const idsClean = plates.map(p => p.replace(/\D/g, '')).filter(p => p.length > 0);
+      const idsClean = plates.map(p => p.trim()).filter(p => /^\d+$/.test(p));
       
       filteredVehicles = vehicles.filter(v => {
         const placa = v.placa || v.plate || '';
