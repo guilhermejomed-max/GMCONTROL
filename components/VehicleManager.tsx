@@ -1576,11 +1576,17 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           return Number.isFinite(parsed) ? parsed : undefined;
       };
       const parseOdometerKm = (sv: any): number => {
-          const normalizedOdo = parseTelemetryNumber(sv.odometer);
-          if (normalizedOdo !== undefined && normalizedOdo > 0) return normalizedOdo;
-          const exactMeters = parseTelemetryNumber(sv.odometroExato);
-          if (exactMeters !== undefined && exactMeters > 0) return exactMeters / 1000;
-          return parseTelemetryNumber(sv.odometro) || 0;
+          const candidates = [
+              parseTelemetryNumber(sv.hodometro),
+              parseTelemetryNumber(sv.HODOMETRO),
+              parseTelemetryNumber(sv.hodometroTotal),
+              parseTelemetryNumber(sv.odometer),
+              parseTelemetryNumber(sv.odometro),
+              parseTelemetryNumber(sv.ODOMETRO),
+              parseTelemetryNumber(sv.odometroExato)
+          ].filter((value): value is number => value !== undefined && value > 0);
+
+          return candidates.length > 0 ? Math.max(...candidates) : 0;
       };
 
       results.flat().forEach((item: any) => {
@@ -1621,7 +1627,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
                       // Só adiciona se não houver dados desse carro ainda OU se esse ponto for mais novo
                       if (!bestUpdates.has(matchKey) || dataPosicaoNova > bestUpdates.get(matchKey).timestamp) {
-                          const finalOdo = Math.round(parseOdometerKm(sv));
+                          const trackerOdo = Math.round(parseOdometerKm(sv));
+                          const finalOdo = trackerOdo > 0
+                              ? Math.max(trackerOdo, localVehicle.odometer || 0)
+                              : (localVehicle.odometer || 0);
                           const latVal = parseTelemetryNumber(sv.latitude ?? sv.lat) || 0;
                           const lngVal = parseTelemetryNumber(sv.longitude ?? sv.lng) || 0;
                           
