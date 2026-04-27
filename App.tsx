@@ -357,7 +357,7 @@ export const App = () => {
 
   // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {
-    if (!user) return;
+    if (!user && !isVehicleRgRoute) return;
     const unsubSettings = storageService.subscribeToSettings(orgId, setSettings);
     const unsubTracker = storageService.subscribeToTrackerSettings(orgId, setTrackerSettings);
     const unsubVehicleBrandModels = storageService.subscribeToVehicleBrandModels(orgId, setVehicleBrandModels);
@@ -424,7 +424,7 @@ export const App = () => {
         unsubMaintenanceSchedules();
         unsubStockItems();
     };
-  }, [user, limits.serviceOrders]);
+  }, [user, limits.serviceOrders, isVehicleRgRoute]);
 
   // 3. Tires Module Data (Lazy)
   useEffect(() => {
@@ -454,7 +454,7 @@ export const App = () => {
 
   // 5. Fuel Module Data (Lazy)
   useEffect(() => {
-    if (!user || (activeModule !== 'FUEL' && !isVehicleRgRoute)) return;
+    if ((!user && !isVehicleRgRoute) || (activeModule !== 'FUEL' && !isVehicleRgRoute)) return;
     const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries, limits.fuelEntries);
     
     return () => {
@@ -1271,6 +1271,38 @@ export const App = () => {
       return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><Loader2 className="h-10 w-10 text-blue-500 animate-spin" /></div>;
   }
 
+  if (isVehicleRgRoute) {
+    return (
+      <VehicleRGPublic
+        vehicle={vehicles.find(vehicle => vehicle.id === vehicleRgId || vehicle.plate === vehicleRgId)}
+        fuelEntries={fuelEntries}
+        serviceOrders={serviceOrders}
+        onCreateServiceRequest={async request => {
+          const vehicle = vehicles.find(item => item.id === vehicleRgId || item.plate === vehicleRgId);
+          if (!vehicle) throw new Error('Veículo não encontrado.');
+          await handleAddServiceOrder({
+            vehicleId: vehicle.id,
+            vehiclePlate: vehicle.plate,
+            title: request.title,
+            details: `Solicitação enviada pelo RG do veículo.\nMotorista: ${request.driverName}\nUrgência: ${request.urgency}\n\n${request.details}`,
+            status: 'PENDENTE',
+            serviceType: 'INTERNAL',
+            date: request.preferredDate,
+            odometer: vehicle.odometer || 0,
+            branchId: vehicle.branchId || selectedBranchId,
+            driverName: request.driverName,
+            contactName: request.driverName
+          });
+          storageService.logActivity(orgId, 'Agendamento pelo RG', `${vehicle.plate}: ${request.title} solicitado por ${request.driverName}`, 'VEHICLES');
+        }}
+        onBack={user ? () => {
+          window.history.pushState({}, '', window.location.origin);
+          setCurrentTab('fleet');
+        } : undefined}
+      />
+    );
+  }
+
   if (!user) {
       return (
         <LoginScreen 
@@ -1348,6 +1380,24 @@ export const App = () => {
         vehicle={vehicles.find(vehicle => vehicle.id === vehicleRgId || vehicle.plate === vehicleRgId)}
         fuelEntries={fuelEntries}
         serviceOrders={serviceOrders}
+        onCreateServiceRequest={async request => {
+          const vehicle = vehicles.find(item => item.id === vehicleRgId || item.plate === vehicleRgId);
+          if (!vehicle) throw new Error('Veículo não encontrado.');
+          await handleAddServiceOrder({
+            vehicleId: vehicle.id,
+            vehiclePlate: vehicle.plate,
+            title: request.title,
+            details: `Solicitação enviada pelo RG do veículo.\nMotorista: ${request.driverName}\nUrgência: ${request.urgency}\n\n${request.details}`,
+            status: 'PENDENTE',
+            serviceType: 'INTERNAL',
+            date: request.preferredDate,
+            odometer: vehicle.odometer || 0,
+            branchId: vehicle.branchId || selectedBranchId,
+            driverName: request.driverName,
+            contactName: request.driverName
+          });
+          storageService.logActivity(orgId, 'Agendamento pelo RG', `${vehicle.plate}: ${request.title} solicitado por ${request.driverName}`, 'VEHICLES');
+        }}
         onBack={() => {
           window.history.pushState({}, '', window.location.origin);
           setCurrentTab('fleet');
