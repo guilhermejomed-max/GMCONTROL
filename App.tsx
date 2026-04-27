@@ -18,6 +18,7 @@ import { PpeStock } from './components/PpeStock';
 import { RetreaderRanking } from './components/RetreaderRanking';
 import ScrapHub from './components/ScrapHub';
 import { VehicleManager } from './components/VehicleManager';
+import { FleetIssuesPanel } from './components/FleetIssuesPanel';
 import { BrandModelManager } from './components/BrandModelManager';
 import { VehicleTypeManager } from './components/VehicleTypeManager';
 import { FuelTypeManager } from './components/FuelTypeManager';
@@ -38,7 +39,7 @@ import { RHModule } from './components/RHModule';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { telemetryFuelService } from './services/telemetryFuelService';
-import { chooseAuthoritativeOdometer, parseTrackerOdometerKm } from './lib/odometerUtils';
+import { chooseAuthoritativeOdometer, isImplausibleImportedOdometer, parseTrackerOdometerKm } from './lib/odometerUtils';
 import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence, WasteDisposal } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
@@ -724,6 +725,7 @@ export const App = () => {
       const updatedPlatesList: string[] = [];
       let invalidPositionCount = 0;
       let missingLitrometerCount = 0;
+      let missingOdometerCount = 0;
 
       // Ordenar itens por data para garantir que pegamos o mais recente
       const sortedItems = [...allRawItems].sort((a, b) => {
@@ -765,6 +767,7 @@ export const App = () => {
         if (localVehicle) {
           processedLocalIds.add(localVehicle.id);
           const trackerOdo = Math.round(parseOdometerKm(sv));
+          if (trackerOdo <= 0) missingOdometerCount++;
           const finalOdo = chooseAuthoritativeOdometer(localVehicle.odometer || 0, trackerOdo);
           const lat = parseTelemetryNumber(sv.latitude ?? sv.lat) || 0;
           const lng = parseTelemetryNumber(sv.longitude ?? sv.lng) || 0;
@@ -856,17 +859,18 @@ export const App = () => {
         const notMatched = currentVehicles
           .filter(v => !processedLocalIds.has(v.id))
           .map(v => `${v.plate}${v.sascarCode ? ` (${v.sascarCode})` : ''}`);
-        if (notMatched.length > 0 || invalidPositionCount > 0 || missingLitrometerCount > 0) {
+        if (notMatched.length > 0 || invalidPositionCount > 0 || missingLitrometerCount > 0 || missingOdometerCount > 0) {
           console.warn('[Sascar Sync] Diagnóstico', {
             semMatch: notMatched,
             posicoesInvalidas: invalidPositionCount,
             semLitrometro: missingLitrometerCount,
+            semHodometro: missingOdometerCount,
             retornosSascar: allRawItems.length
           });
           storageService.logActivity(
             orgId,
             "Diagnóstico Sascar",
-            `${notMatched.length} sem match, ${invalidPositionCount} posição inválida, ${missingLitrometerCount} sem litrometro`,
+            `${notMatched.length} sem match, ${invalidPositionCount} posição inválida, ${missingLitrometerCount} sem litrometro, ${missingOdometerCount} sem hodômetro`,
             'VEHICLES'
           );
         }
@@ -931,6 +935,49 @@ export const App = () => {
   const toggleDarkMode = () => {
       setDarkMode(!darkMode);
       document.documentElement.classList.toggle('dark');
+  };
+
+  const auditedUpdateVehicle = async (vehicle: Vehicle) => {
+      const existing = vehicles.find(v => v.id === vehicle.id);
+      const nextOdometer = Number(vehicle.odometer || 0);
+
+      if (isImplausibleImportedOdometer(nextOdometer)) {
+          addToast('error', 'KM inválido', `O hodômetro de ${vehicle.plate} parece inválido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
+          throw new Error('Hodômetro inválido');
+      }
+
+      await storageService.updateVehicle(orgId, vehicle);
+
+      if (!existing) return;
+
+      const changes: string[] = [];
+      if ((existing.odometer || 0) !== nextOdometer) {
+          changes.push(`KM ${Number(existing.odometer || 0).toLocaleString('pt-BR')} -> ${nextOdometer.toLocaleString('pt-BR')}`);
+      }
+      if ((existing.sascarCode || '') !== (vehicle.sascarCode || '')) changes.push('código rastreador');
+      if ((existing.renavam || '') !== (vehicle.renavam || '')) changes.push('RENAVAM');
+      if ((existing.vin || '') !== (vehicle.vin || '')) changes.push('chassi');
+
+      if (changes.length > 0) {
+          storageService.logActivity(orgId, 'Auditoria Veículo', `${vehicle.plate}: ${changes.join(', ')}`, 'VEHICLES');
+      }
+  };
+
+  const auditedAddVehicle = async (vehicle: Vehicle) => {
+      const nextOdometer = Number(vehicle.odometer || 0);
+      if (nextOdometer > 0 && isImplausibleImportedOdometer(nextOdometer)) {
+          addToast('error', 'KM inválido', `O hodômetro de ${vehicle.plate} parece inválido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
+          throw new Error('Hodômetro inválido');
+      }
+
+      await storageService.addVehicle(orgId, vehicle);
+      storageService.logActivity(orgId, 'Novo Veículo', `${vehicle.plate} cadastrado com KM ${nextOdometer.toLocaleString('pt-BR')}`, 'VEHICLES');
+  };
+
+  const auditedDeleteVehicle = async (id: string) => {
+      const existing = vehicles.find(v => v.id === id);
+      await storageService.deleteVehicle(orgId, id);
+      storageService.logActivity(orgId, 'Excluiu Veículo', `${existing?.plate || id}`, 'VEHICLES');
   };
 
   // Wrapper function to properly construct Service Order before saving
@@ -1108,6 +1155,7 @@ export const App = () => {
       case 'financial': return 'Financeiro';
       case 'esg-panel': return 'Painel ESG';
       case 'fleet': return 'Frota de Veículos';
+      case 'fleet-issues': return 'Inconsistências da Frota';
       case 'maintenance': return 'Gestão de Preventivas';
       case 'fuel': return 'Controle de Abastecimento';
       case 'brand-models': return 'Marcas e Modelos';
@@ -1324,9 +1372,9 @@ export const App = () => {
                 fuelEntries={fuelEntries}
                 maintenancePlans={maintenancePlans}
                 maintenanceSchedules={maintenanceSchedules}
-                onAddVehicle={(v) => storageService.addVehicle(orgId, v)} 
-                onDeleteVehicle={(id) => storageService.deleteVehicle(orgId, id)} 
-                onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)}
+                onAddVehicle={auditedAddVehicle} 
+                onDeleteVehicle={auditedDeleteVehicle} 
+                onUpdateVehicle={auditedUpdateVehicle}
                 onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
                 onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
                 onSimulateArrival={handleSimulateArrival}
@@ -1611,9 +1659,9 @@ export const App = () => {
                 fuelEntries={fuelEntries}
                 maintenancePlans={maintenancePlans}
                 maintenanceSchedules={maintenanceSchedules}
-                onAddVehicle={(v) => storageService.addVehicle(orgId, v)} 
-                onDeleteVehicle={(id) => storageService.deleteVehicle(orgId, id)} 
-                onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)}
+                onAddVehicle={auditedAddVehicle} 
+                onDeleteVehicle={auditedDeleteVehicle} 
+                onUpdateVehicle={auditedUpdateVehicle}
                 onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
                 onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)}
                 onSimulateArrival={handleSimulateArrival}
@@ -1628,6 +1676,15 @@ export const App = () => {
                 onLoadMore={() => handleLoadMore('vehicles')}
                 hasMore={hasMore.vehicles}
                 arrivalAlerts={arrivalAlerts}
+              />
+            )}
+            {currentTab === 'fleet-issues' && allowedModules.includes('VEHICLES') && (
+              <FleetIssuesPanel
+                vehicles={vehicles}
+                serviceOrders={serviceOrders}
+                fuelEntries={fuelEntries}
+                settings={settings}
+                onOpenVehicle={() => setCurrentTab('fleet')}
               />
             )}
             {currentTab === 'inspection' && allowedModules.includes('TIRES') && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} vehicleTypes={vehicleTypes} />}
@@ -1858,7 +1915,7 @@ export const App = () => {
                 onAddDriver={(d) => storageService.addDriver(orgId, d)} 
                 onUpdateDriver={(driver) => storageService.updateDriver(orgId, driver.id, driver)} 
                 onDeleteDriver={(id) => storageService.deleteDriver(orgId, id)} 
-                onUpdateVehicle={(v) => storageService.updateVehicle(orgId, v)} 
+                onUpdateVehicle={auditedUpdateVehicle} 
               />
             )}
             {currentTab === 'occurrences' && (

@@ -21,6 +21,7 @@ import { FuelStationModal } from './FuelStationModal';
 import { ModelDetailsModal } from './ModelDetailsModal';
 import { FuelImportModal } from './FuelImportModal';
 import { calculateFuelEfficiency, getFuelVolume } from '../lib/fuelUtils';
+import { isImplausibleImportedOdometer } from '../lib/odometerUtils';
 
 interface Props {
   vehicles: Vehicle[];
@@ -386,6 +387,25 @@ export const FuelDashboard: React.FC<Props> = ({
 
     const vehicle = vehicles.find(v => v.id === newEntry.vehicleId);
     const driver = drivers.find(d => d.id === newEntry.driverId);
+    const entryOdometer = Number(newEntry.odometer);
+    const latestVehicleEntry = [...allFuelEntriesRaw]
+      .filter(entry => entry.vehicleId === newEntry.vehicleId)
+      .sort((a, b) => Number(b.odometer || 0) - Number(a.odometer || 0))[0];
+
+    if (isImplausibleImportedOdometer(entryOdometer)) {
+      alert(`KM inválido para abastecimento: ${entryOdometer.toLocaleString('pt-BR')} km.`);
+      return;
+    }
+
+    if (latestVehicleEntry && entryOdometer <= Number(latestVehicleEntry.odometer || 0)) {
+      alert(`KM regressivo no abastecimento.\n\nÚltimo KM registrado: ${Number(latestVehicleEntry.odometer || 0).toLocaleString('pt-BR')} km\nKM informado: ${entryOdometer.toLocaleString('pt-BR')} km`);
+      return;
+    }
+
+    if (vehicle?.odometer && entryOdometer < vehicle.odometer && vehicle.odometer - entryOdometer > 1000) {
+      const proceed = confirm(`O KM informado está ${Number(vehicle.odometer - entryOdometer).toLocaleString('pt-BR')} km abaixo do hodômetro atual do veículo.\n\nDeseja registrar mesmo assim?`);
+      if (!proceed) return;
+    }
     let stationName = newEntry.stationName;
     
     if (newEntry.stationCnpj) {
@@ -398,7 +418,7 @@ export const FuelDashboard: React.FC<Props> = ({
       vehicleId: newEntry.vehicleId,
       vehiclePlate: vehicle?.plate || '',
       date: newEntry.date || new Date().toISOString().split('T')[0],
-      odometer: Number(newEntry.odometer),
+      odometer: entryOdometer,
       liters: finalLiters,
       kg: newEntry.kg ? Number(newEntry.kg) : undefined,
       unitPrice: Number(newEntry.unitPrice),
@@ -424,7 +444,7 @@ export const FuelDashboard: React.FC<Props> = ({
       unitPrice: 0,
       odometer: 0
     });
-  }, [newEntry, vehicles, drivers, fuelStations, defaultBranchId, onAddEntry, currentKmPerLiter, fuelCategory]);
+  }, [newEntry, vehicles, drivers, fuelStations, defaultBranchId, onAddEntry, currentKmPerLiter, fuelCategory, allFuelEntriesRaw]);
 
   const handleStationSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
