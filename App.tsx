@@ -38,7 +38,7 @@ import { RHModule } from './components/RHModule';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { telemetryFuelService } from './services/telemetryFuelService';
-import { chooseAuthoritativeOdometer } from './lib/odometerUtils';
+import { chooseAuthoritativeOdometer, parseTrackerOdometerKm } from './lib/odometerUtils';
 import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence, WasteDisposal } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
@@ -658,13 +658,15 @@ export const App = () => {
 
   // SASCAR SYNC FUNCTION
   const isSyncingRef = useRef(false);
-  const syncSascar = async (showModal: boolean = false) => {
+  const syncSascar = async (showModal: boolean = false, vehicleIds?: string[]) => {
     if (isSyncingRef.current) {
       if (showModal) addToast('info', 'Sincronização em andamento', 'Aguarde a conclusão da sincronização atual.');
       return 0;
     }
     
-    const currentVehicles = vehicles;
+    const currentVehicles = vehicleIds && vehicleIds.length > 0
+      ? vehicles.filter(v => vehicleIds.includes(v.id))
+      : vehicles;
     if (currentVehicles.length === 0) {
       if (showModal) addToast('warning', 'Sem Veículos', 'Não há veículos cadastrados para sincronizar.');
       return 0;
@@ -684,19 +686,7 @@ export const App = () => {
       const parsed = Number(String(value).trim().replace(',', '.'));
       return Number.isFinite(parsed) ? parsed : undefined;
     };
-    const parseOdometerKm = (sv: any): number => {
-      const candidates = [
-        parseTelemetryNumber(sv.hodometro),
-        parseTelemetryNumber(sv.HODOMETRO),
-        parseTelemetryNumber(sv.hodometroTotal),
-        parseTelemetryNumber(sv.odometer),
-        parseTelemetryNumber(sv.odometro),
-        parseTelemetryNumber(sv.ODOMETRO),
-        parseTelemetryNumber(sv.odometroExato)
-      ].filter((value): value is number => value !== undefined && value > 0);
-
-      return candidates.length > 0 ? Math.max(...candidates) : 0;
-    };
+    const parseOdometerKm = (sv: any): number => parseTrackerOdometerKm(sv);
     
     if (showModal) addToast('info', 'Sincronizando', 'Buscando dados na Sascar...');
 
@@ -704,6 +694,11 @@ export const App = () => {
       // 1. Otimização de Dados: Incluir tanto placas quanto códigos Sascar para busca
       const searchTerms = new Set<string>();
       currentVehicles.forEach(v => {
+        if (vehicleIds && vehicleIds.length > 0) {
+          if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
+          else if (v.plate) searchTerms.add(normalizePlate(v.plate));
+          return;
+        }
         if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
         if (v.plate) searchTerms.add(normalizePlate(v.plate));
       });

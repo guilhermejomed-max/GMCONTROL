@@ -8,7 +8,7 @@ import fs from "fs";
 import https from "https";
 import axios from "axios";
 import { db } from "./services/firebaseAdmin";
-import { chooseAuthoritativeOdometer } from "./lib/odometerUtils";
+import { chooseAuthoritativeOdometer, parseTrackerOdometerKm } from "./lib/odometerUtils";
 
 dotenv.config();
 
@@ -202,17 +202,7 @@ function parseSascarOptionalNumber(...values: any[]): number | undefined {
 }
 
 function parseSascarOdometerKm(vehicle: any): number {
-  const candidates = [
-    parseSascarOptionalNumber(vehicle.hodometro),
-    parseSascarOptionalNumber(vehicle.HODOMETRO),
-    parseSascarOptionalNumber(vehicle.hodometroTotal),
-    parseSascarOptionalNumber(vehicle.odometer),
-    parseSascarOptionalNumber(vehicle.odometro),
-    parseSascarOptionalNumber(vehicle.ODOMETRO),
-    parseSascarOptionalNumber(vehicle.odometroExato)
-  ].filter((value): value is number => value !== undefined && value > 0);
-
-  return candidates.length > 0 ? Math.max(...candidates) : 0;
+  return parseTrackerOdometerKm(vehicle);
 }
 
 function parseSascarVehicle(item: any): any {

@@ -1,5 +1,6 @@
 import { TrackerSettings } from '../types';
 import { parseSascarDate } from '../src/utils';
+import { parseTrackerOdometerKm } from '../lib/odometerUtils';
 
 const parseOptionalNumber = (...values: any[]): number | undefined => {
   for (const value of values) {
@@ -8,20 +9,6 @@ const parseOptionalNumber = (...values: any[]): number | undefined => {
     if (Number.isFinite(parsed)) return parsed;
   }
   return undefined;
-};
-
-const parseSascarOdometerKm = (vehicle: any): number => {
-  const candidates = [
-    parseOptionalNumber(vehicle.hodometro),
-    parseOptionalNumber(vehicle.HODOMETRO),
-    parseOptionalNumber(vehicle.hodometroTotal),
-    parseOptionalNumber(vehicle.odometer),
-    parseOptionalNumber(vehicle.odometro),
-    parseOptionalNumber(vehicle.ODOMETRO),
-    parseOptionalNumber(vehicle.odometroExato)
-  ].filter((value): value is number => value !== undefined && value > 0);
-
-  return candidates.length > 0 ? Math.max(...candidates) : 0;
 };
 
 export const sascarService = {
@@ -111,6 +98,43 @@ export const sascarService = {
     const maxRetries = 2;
     let allVehiclesMap = new Map<string, any>();
 
+    const normalizeVehicle = (v: any) => {
+      const placa = v.placa || '';
+      return {
+        ...v,
+        idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '',
+        placa: placa,
+        plate: placa || v.idVeiculo || '',
+        latitude: parseOptionalNumber(v.latitude) || 0,
+        longitude: parseOptionalNumber(v.longitude) || 0,
+        odometer: parseTrackerOdometerKm(v),
+        litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
+        speed: Number(v.velocidade ?? 0),
+        ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
+        lastLocation: {
+          lat: parseOptionalNumber(v.latitude) || 0,
+          lng: parseOptionalNumber(v.longitude) || 0,
+          address: v.rua || '',
+          city: v.cidade || '',
+          state: v.uf || '',
+          updatedAt: v.dataPosicao || ''
+        }
+      };
+    };
+
+    const smallTargetSearch = plates && plates.length > 0 && plates.length <= 2;
+    if (smallTargetSearch) {
+      const fastResults = await Promise.all(plates.map(term => fetchIndividual(term)));
+      fastResults.filter(Boolean).forEach((v: any) => {
+        const normalizedVehicle = normalizeVehicle(v);
+        const uniqueKey = normalizedVehicle.idVeiculo
+          ? String(normalizedVehicle.idVeiculo)
+          : String(normalizedVehicle.placa || '').replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+        if (uniqueKey) allVehiclesMap.set(uniqueKey, normalizedVehicle);
+      });
+      return { success: true, data: Array.from(allVehiclesMap.values()) };
+    }
+
     let hasMoreData = true;
     let loopCount = 0;
     const maxLoops = 10; 
@@ -179,7 +203,7 @@ export const sascarService = {
                 plate: placa || v.idVeiculo || '',
                 latitude: parseOptionalNumber(v.latitude) || 0,
                 longitude: parseOptionalNumber(v.longitude) || 0,
-                odometer: parseSascarOdometerKm(v),
+                odometer: parseTrackerOdometerKm(v),
                 litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
@@ -264,7 +288,7 @@ export const sascarService = {
                 plate: placa || v.idVeiculo || '',
                 latitude: parseOptionalNumber(v.latitude) || 0,
                 longitude: parseOptionalNumber(v.longitude) || 0,
-                odometer: parseSascarOdometerKm(v),
+                odometer: parseTrackerOdometerKm(v),
                 litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
                 speed: Number(v.velocidade ?? 0),
                 ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
