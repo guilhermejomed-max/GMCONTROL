@@ -1385,6 +1385,24 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     return isNaN(num) ? 0 : Math.floor(num);
                 };
 
+                const normalizeImportText = (val: any) => {
+                    if (val === undefined || val === null) return '';
+                    return String(val).trim();
+                };
+
+                const normalizeImportKey = (val: any) => normalizeImportText(val)
+                    .toUpperCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^A-Z0-9]/g, "");
+
+                const parseYear = (val: any) => {
+                    const match = normalizeImportText(val).match(/\d{4}/);
+                    if (!match) return undefined;
+                    const year = Number(match[0]);
+                    return year >= 1950 && year <= new Date().getFullYear() + 1 ? year : undefined;
+                };
+
                 const updatesBatch: any[] = [];
                 const createsBatch: Vehicle[] = [];
 
@@ -1394,7 +1412,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
                     const normalizedRow: any = {};
                     Object.keys(row).forEach(k => {
-                        const cleanKey = k.toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, ""); 
+                        const cleanKey = normalizeImportKey(k); 
                         normalizedRow[cleanKey] = row[k];
                     });
 
@@ -1412,6 +1430,22 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     let odometerVal = colRow['I']; 
                     if (!odometerVal) odometerVal = getKey(['HODOMETRO', 'ODOMETRO', 'KM', 'KMATUAL', 'KMTOTAL']);
                     const odometer = parseOdometer(odometerVal);
+                    const importedType = normalizeImportText(getKey(['TIPODEVEICULO', 'TIPOVEICULO', 'TIPO', 'CATEGORIA']));
+                    const importedBrand = normalizeImportText(getKey(['MARCA', 'FABRICANTE']));
+                    const importedModel = normalizeImportText(getKey(['MODELO', 'MARCAMODELO']));
+                    const importedYear = parseYear(getKey(['ANO', 'ANOMODELO', 'ANOFABRICACAO']));
+                    const importedRenavam = normalizeImportText(getKey(['RENAVAM', 'RENAVAN']));
+                    const importedVin = normalizeImportText(getKey(['CHASSI', 'CHASSIS', 'VIN']));
+                    const importedTrackerCode = normalizeImportText(getKey(['CODRASTREADOR', 'CODIGORASTREADOR', 'CODSASCAR', 'CODIGOSASCAR', 'SASCAR', 'IDSASCAR', 'IDRASTREADOR']));
+                    const matchedVehicleType = importedType
+                        ? vehicleTypes.find(vt => {
+                            const typeKey = normalizeImportKey(importedType);
+                            const localKey = normalizeImportKey(vt.name);
+                            return localKey === typeKey || localKey.includes(typeKey) || typeKey.includes(localKey);
+                        })
+                        : undefined;
+                    const finalVehicleType = matchedVehicleType?.name || importedType || 'CAVALO';
+                    const finalAxles = Number(normalizedRow['EIXOS']) || matchedVehicleType?.defaultAxles || 3;
 
                     const rawAddress = getKey(['ENDERECO', 'RUA', 'LOGRADOURO', 'LOCAL', 'LOCALIZACAO']);
                     const city = getKey(['CIDADE', 'MUNICIPIO']);
@@ -1444,10 +1478,39 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 hasChanges = true;
                                 kmUpdatedCount++;
                             }
+                            if (importedType && vehicle.type !== finalVehicleType) {
+                                updates.type = finalVehicleType;
+                                updates.axles = finalAxles;
+                                hasChanges = true;
+                            }
+                            if (importedBrand && vehicle.brand !== importedBrand) {
+                                updates.brand = importedBrand;
+                                hasChanges = true;
+                            }
+                            if (importedModel && vehicle.model !== importedModel) {
+                                updates.model = importedModel;
+                                hasChanges = true;
+                            }
+                            if (importedYear && vehicle.year !== importedYear) {
+                                updates.year = importedYear;
+                                hasChanges = true;
+                            }
+                            if (importedRenavam && vehicle.renavam !== importedRenavam) {
+                                updates.renavam = importedRenavam;
+                                hasChanges = true;
+                            }
+                            if (importedVin && vehicle.vin !== importedVin) {
+                                updates.vin = importedVin;
+                                hasChanges = true;
+                            }
+                            if (importedTrackerCode && vehicle.sascarCode !== importedTrackerCode) {
+                                updates.sascarCode = importedTrackerCode;
+                                hasChanges = true;
+                            }
 
                             // Se o veículo não tem intervalo de revisão, tenta pegar do modelo
                             if (!vehicle.revisionIntervalKm) {
-                                const brandModelName = normalizedRow['MODELO'] || normalizedRow['MARCAMODELO'];
+                                const brandModelName = importedModel || importedBrand;
                                 if (brandModelName) {
                                     const bm = vehicleBrandModels.find(m => 
                                         brandModelName.toString().toUpperCase().includes(m.model.toUpperCase()) ||
@@ -1469,15 +1532,16 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 updatedCount++;
                             }
                         } else {
-                            const brandModelName = normalizedRow['MODELO'] || normalizedRow['MARCAMODELO'];
+                            const brandModelName = importedModel || importedBrand;
                             let brandModelId = '';
                             let revisionIntervalKm = 10000;
                             let oilLiters = 0;
 
                             if (brandModelName) {
                                 const bm = vehicleBrandModels.find(m => 
-                                    brandModelName.toString().toUpperCase().includes(m.model.toUpperCase()) ||
-                                    m.model.toUpperCase().includes(brandModelName.toString().toUpperCase())
+                                    normalizeImportKey(brandModelName).includes(normalizeImportKey(m.model)) ||
+                                    normalizeImportKey(m.model).includes(normalizeImportKey(brandModelName)) ||
+                                    (importedBrand && normalizeImportKey(m.brand) === normalizeImportKey(importedBrand))
                                 );
                                 if (bm) {
                                     brandModelId = bm.id;
@@ -1490,12 +1554,17 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
                                 plate: plate.toString().toUpperCase().trim(),
                                 model: brandModelName || 'Modelo Importado',
+                                brand: importedBrand || undefined,
                                 brandModelId,
                                 revisionIntervalKm,
                                 oilLiters,
-                                type: 'CAVALO',
-                                axles: Number(normalizedRow['EIXOS']) || 3,
+                                type: finalVehicleType,
+                                axles: finalAxles,
                                 odometer: odometer,
+                                year: importedYear,
+                                renavam: importedRenavam || undefined,
+                                vin: importedVin || undefined,
+                                sascarCode: importedTrackerCode || undefined,
                                 totalCost: 0,
                                 avgMonthlyKm: 10000
                             };
@@ -1727,9 +1796,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             </button>
             <label className={`flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
-                <span className="hidden md:inline">{isImporting ? 'Importando...' : 'Importar Excel'}</span>
+                <span className="hidden md:inline">{isImporting ? 'Importando...' : 'Importar Excel/CSV'}</span>
                 <span className="md:hidden">Importar</span>
-                <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleImportExcel} disabled={isImporting} />
+                <input type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImportExcel} disabled={isImporting} />
             </label>
             <button 
               onClick={handleOpenAdd} 
