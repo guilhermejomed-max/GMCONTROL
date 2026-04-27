@@ -38,6 +38,7 @@ import { RHModule } from './components/RHModule';
 import { storageService } from './services/storageService';
 import { sascarService } from './services/sascarService';
 import { telemetryFuelService } from './services/telemetryFuelService';
+import { chooseAuthoritativeOdometer } from './lib/odometerUtils';
 import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
 import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence, WasteDisposal } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
@@ -769,9 +770,7 @@ export const App = () => {
         if (localVehicle) {
           processedLocalIds.add(localVehicle.id);
           const trackerOdo = Math.round(parseOdometerKm(sv));
-          const finalOdo = trackerOdo > 0
-            ? Math.max(trackerOdo, localVehicle.odometer || 0)
-            : (localVehicle.odometer || 0);
+          const finalOdo = chooseAuthoritativeOdometer(localVehicle.odometer || 0, trackerOdo);
           const lat = parseTelemetryNumber(sv.latitude ?? sv.lat) || 0;
           const lng = parseTelemetryNumber(sv.longitude ?? sv.lng) || 0;
 

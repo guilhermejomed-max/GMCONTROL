@@ -8,6 +8,7 @@ import fs from "fs";
 import https from "https";
 import axios from "axios";
 import { db } from "./services/firebaseAdmin";
+import { chooseAuthoritativeOdometer } from "./lib/odometerUtils";
 
 dotenv.config();
 
@@ -495,7 +496,7 @@ async function runSascarAutomation() {
                 
                 const trackerOdometerKm = parseSascarOdometerKm(pos);
                 const currentOdometerKm = Number(docIdToVehicle.get(docId)?.odometer || 0);
-                const odometerKm = trackerOdometerKm > 0 ? Math.max(trackerOdometerKm, currentOdometerKm) : currentOdometerKm;
+                const odometerKm = chooseAuthoritativeOdometer(currentOdometerKm, trackerOdometerKm);
                 const rawInstantaneo = parseSascarNumber(pos.consumoInstantaneo || 0);
                 const litrometer = parseSascarOptionalNumber(pos.litrometro, pos.litrometro2, pos.litrometroTotal, pos.totalLitros, pos.totalCombustivel);
                 

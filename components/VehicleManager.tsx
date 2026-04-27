@@ -7,6 +7,7 @@ import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 import { getAllValidPositions } from '../lib/vehicleUtils';
 import { calculateFuelEfficiency, calculateRollingFuelEfficiency, getFuelVolume, sortFuelEntries } from '../lib/fuelUtils';
+import { chooseAuthoritativeOdometer, isImplausibleImportedOdometer } from '../lib/odometerUtils';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
 DAJ5H64;2215706
@@ -1355,9 +1356,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 const ws = wb.Sheets[wsname];
                 
                 const data = XLSX.utils.sheet_to_json(ws);
-                const dataByCol = XLSX.utils.sheet_to_json(ws, { header: 'A', defval: '' });
-                if (dataByCol.length > 0) dataByCol.shift();
-
                 let updatedCount = 0;
                 let createdCount = 0;
                 let notFoundCount = 0;
@@ -1382,7 +1380,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     if (str.includes(',')) str = str.replace(',', '.');
                     str = str.replace(/[^0-9.]/g, '');
                     const num = parseFloat(str);
-                    return isNaN(num) ? 0 : Math.floor(num);
+                    if (isNaN(num)) return 0;
+                    const km = Math.floor(num);
+                    return isImplausibleImportedOdometer(km) ? 0 : km;
                 };
 
                 const normalizeImportText = (val: any) => {
@@ -1408,8 +1408,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
                 for (let i = 0; i < data.length; i++) {
                     const row: any = data[i];
-                    const colRow: any = dataByCol[i] || {};
-
                     const normalizedRow: any = {};
                     Object.keys(row).forEach(k => {
                         const cleanKey = normalizeImportKey(k); 
@@ -1423,12 +1421,38 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         return null;
                     };
 
+                    const getExactKey = (possibleKeys: string[]) => {
+                        for (const k of possibleKeys) {
+                            if (normalizedRow[k] !== undefined && normalizedRow[k] !== null && String(normalizedRow[k]).trim() !== '') {
+                                return normalizedRow[k];
+                            }
+                        }
+                        return null;
+                    };
+
+                    const getOdometerValue = () => {
+                        const exactValue = getExactKey(['HODOMETRO', 'ODOMETRO', 'KM', 'KMATUAL', 'KMTOTAL', 'KMVEICULO', 'QUILOMETRAGEM', 'QUILOMETROS', 'KMRODADO', 'KMRODADOS']);
+                        if (exactValue) return exactValue;
+
+                        const odometerKey = Object.keys(normalizedRow).find(key =>
+                            key.includes('HODOMETRO') ||
+                            key.includes('ODOMETRO') ||
+                            key.includes('QUILOMETRAGEM') ||
+                            key === 'KM' ||
+                            key.startsWith('KMATUAL') ||
+                            key.startsWith('KMTOTAL') ||
+                            key.startsWith('KMVEICULO') ||
+                            key.startsWith('KMRODADO')
+                        );
+
+                        return odometerKey ? normalizedRow[odometerKey] : null;
+                    };
+
                     const plate = getKey(['PLACA', 'VEICULO']);
                     const lat = parseCoordinate(getKey(['LATITUDE', 'LAT', 'GPSLAT', 'Y']));
                     const lng = parseCoordinate(getKey(['LONGITUDE', 'LONG', 'GPSLON', 'X']));
                     
-                    let odometerVal = colRow['I']; 
-                    if (!odometerVal) odometerVal = getKey(['HODOMETRO', 'ODOMETRO', 'KM', 'KMATUAL', 'KMTOTAL']);
+                    const odometerVal = getOdometerValue();
                     const odometer = parseOdometer(odometerVal);
                     const importedType = normalizeImportText(getKey(['TIPODEVEICULO', 'TIPOVEICULO', 'TIPO', 'CATEGORIA']));
                     const importedBrand = normalizeImportText(getKey(['MARCA', 'FABRICANTE']));
@@ -1586,7 +1610,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     setLastImportedIds(createsBatch.map(v => v.id)); // Armazena IDs para desfazer
                 }
 
-                alert(`Importação Concluída:\n\nAtualizados: ${updatedCount}\nNovos: ${createdCount}\nIgnorados: ${notFoundCount}`);
+                alert(`Importação Concluída:\n\nAtualizados: ${updatedCount}\nNovos: ${createdCount}\nKM atualizados: ${kmUpdatedCount}\nIgnorados: ${notFoundCount}`);
             } catch (err: any) {
                 console.error(err);
                 alert(`Erro ao processar arquivo: ${err.message}`);
@@ -1694,9 +1718,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       // Só adiciona se não houver dados desse carro ainda OU se esse ponto for mais novo
                       if (!bestUpdates.has(matchKey) || dataPosicaoNova > bestUpdates.get(matchKey).timestamp) {
                           const trackerOdo = Math.round(parseOdometerKm(sv));
-                          const finalOdo = trackerOdo > 0
-                              ? Math.max(trackerOdo, localVehicle.odometer || 0)
-                              : (localVehicle.odometer || 0);
+                          const finalOdo = chooseAuthoritativeOdometer(localVehicle.odometer || 0, trackerOdo);
                           const latVal = parseTelemetryNumber(sv.latitude ?? sv.lat) || 0;
                           const lngVal = parseTelemetryNumber(sv.longitude ?? sv.lng) || 0;
                           
