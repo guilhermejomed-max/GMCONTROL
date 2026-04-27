@@ -7,7 +7,7 @@ import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 import { getAllValidPositions } from '../lib/vehicleUtils';
 import { calculateFuelEfficiency, calculateRollingFuelEfficiency, getFuelVolume, sortFuelEntries } from '../lib/fuelUtils';
-import { chooseAuthoritativeOdometer, isImplausibleImportedOdometer } from '../lib/odometerUtils';
+import { chooseAuthoritativeOdometer, isImplausibleImportedOdometer, parseTrackerOdometerKm } from '../lib/odometerUtils';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
 DAJ5H64;2215706
@@ -529,7 +529,7 @@ interface VehicleManagerProps {
   userLevel: UserLevel;
   settings: SystemSettings | null;
   trackerSettings: TrackerSettings | null;
-  onSyncSascar?: (showModal?: boolean) => Promise<number>;
+  onSyncSascar?: (showModal?: boolean, vehicleIds?: string[]) => Promise<number>;
   vehicleTypes?: VehicleType[];
   fuelTypes?: FuelType[];
   fuelEntries?: FuelEntry[];
@@ -1281,7 +1281,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       setUpdatingLocationId(vehicle.id);
       try {
         if (onSyncSascar) {
-          const updatedCount = await onSyncSascar();
+          const updatedCount = await onSyncSascar(false, [vehicle.id]);
           if (updatedCount > 0) {
             // O useEffect cuidará de atualizar o selectedVehicleRG no estado local
             return;
@@ -1665,19 +1665,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           const parsed = Number(String(value).trim().replace(',', '.'));
           return Number.isFinite(parsed) ? parsed : undefined;
       };
-      const parseOdometerKm = (sv: any): number => {
-          const candidates = [
-              parseTelemetryNumber(sv.hodometro),
-              parseTelemetryNumber(sv.HODOMETRO),
-              parseTelemetryNumber(sv.hodometroTotal),
-              parseTelemetryNumber(sv.odometer),
-              parseTelemetryNumber(sv.odometro),
-              parseTelemetryNumber(sv.ODOMETRO),
-              parseTelemetryNumber(sv.odometroExato)
-          ].filter((value): value is number => value !== undefined && value > 0);
-
-          return candidates.length > 0 ? Math.max(...candidates) : 0;
-      };
+      const parseOdometerKm = (sv: any): number => parseTrackerOdometerKm(sv);
 
       results.flat().forEach((item: any) => {
                   let sv = item;
