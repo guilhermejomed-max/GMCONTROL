@@ -18,7 +18,7 @@ import { PpeStock } from './components/PpeStock';
 import { RetreaderRanking } from './components/RetreaderRanking';
 import ScrapHub from './components/ScrapHub';
 import { VehicleManager } from './components/VehicleManager';
-import { FleetIssuesPanel } from './components/FleetIssuesPanel';
+import { FleetIssue, FleetIssuesPanel } from './components/FleetIssuesPanel';
 import { BrandModelManager } from './components/BrandModelManager';
 import { VehicleTypeManager } from './components/VehicleTypeManager';
 import { FuelTypeManager } from './components/FuelTypeManager';
@@ -31,6 +31,8 @@ import { Settings } from './components/Settings';
 import { DriversHub } from './components/DriversHub';
 import { Occurrences } from './components/Occurrences';
 import { ReportsHub } from './components/ReportsHub';
+import { ConsumptionReport } from './components/ConsumptionReport';
+import { VehicleRGPublic } from './components/VehicleRGPublic';
 import TrackerSettingsComponent from './components/TrackerSettings';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { ToastNotifications } from './components/ToastNotifications';
@@ -284,6 +286,8 @@ export const App = () => {
   const [preselectedVehicleId, setPreselectedVehicleId] = useState<string | null>(null);
   const [preselectedOccurrenceId, setPreselectedOccurrenceId] = useState<string | null>(null);
   const [shouldOpenOSModal, setShouldOpenOSModal] = useState(false);
+  const vehicleRgId = new URLSearchParams(window.location.search).get('vehicleRg') || new URLSearchParams(window.location.search).get('id');
+  const isVehicleRgRoute = window.location.pathname.includes('vehicle-rg') || Boolean(vehicleRgId);
 
   const handleGenerateOSFromOccurrence = (occurrenceId: string, vehicleId: string) => {
     setPreselectedVehicleId(vehicleId);
@@ -450,13 +454,13 @@ export const App = () => {
 
   // 5. Fuel Module Data (Lazy)
   useEffect(() => {
-    if (!user || activeModule !== 'FUEL') return;
+    if (!user || (activeModule !== 'FUEL' && !isVehicleRgRoute)) return;
     const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries, limits.fuelEntries);
     
     return () => {
         unsubFuelEntries();
     };
-  }, [user, activeModule, limits.fuelEntries]);
+  }, [user, activeModule, limits.fuelEntries, isVehicleRgRoute]);
 
   // 6. Other Data (Lazy - Occurrences and Fleet Specifics)
   useEffect(() => {
@@ -1140,6 +1144,78 @@ export const App = () => {
       }
   };
 
+  const handleResolveFleetIssue = async (issue: FleetIssue, justification = ''): Promise<string> => {
+      const vehicle = vehicles.find(v => v.id === issue.vehicleId);
+      if (!vehicle) throw new Error('Veículo não encontrado.');
+
+      if (issue.actionType === 'SYNC_SASCAR') {
+          const updatedCount = await syncSascar(false, [issue.vehicleId]);
+          if (updatedCount <= 0) {
+              throw new Error('A Sascar não retornou atualização para este veículo. Verifique código do rastreador, placa e retorno da integração.');
+          }
+          storageService.logActivity(orgId, 'Correção Automática', `${vehicle.plate}: ${issue.title} corrigido via sincronização Sascar`, 'VEHICLES');
+          return `${vehicle.plate}: sincronização aplicada. Confira se o alerta saiu da lista.`;
+      }
+
+      if (issue.actionType === 'CREATE_PREVENTIVE_OS') {
+          const alreadyOpen = serviceOrders.some(order =>
+              order.vehicleId === vehicle.id &&
+              order.status !== 'CONCLUIDO' &&
+              order.status !== 'CANCELADO' &&
+              order.isPreventiveMaintenance
+          );
+
+          if (alreadyOpen) {
+              return `${vehicle.plate}: já existe uma O.S. preventiva aberta ou pendente.`;
+          }
+
+          await handleAddServiceOrder({
+              vehicleId: vehicle.id,
+              vehiclePlate: vehicle.plate,
+              title: 'Preventiva vencida',
+              details: `O.S. aberta automaticamente pelo painel de inconsistências. ${issue.detail}`,
+              status: 'PENDENTE',
+              isPreventiveMaintenance: true,
+              serviceType: 'INTERNAL',
+              date: new Date().toISOString().split('T')[0],
+              odometer: vehicle.odometer || 0,
+              branchId: vehicle.branchId || selectedBranchId
+          });
+          storageService.logActivity(orgId, 'Correção Automática', `${vehicle.plate}: O.S. preventiva criada pelo painel de inconsistências`, 'VEHICLES');
+          return `${vehicle.plate}: O.S. preventiva criada com sucesso.`;
+      }
+
+      if (['MARK_PARTIAL_FILLUP', 'DISCARD_FUEL_SEGMENT'].includes(issue.actionType)) {
+          if (!issue.relatedFuelEntryId) throw new Error('Nenhum abastecimento relacionado foi encontrado para ajuste.');
+          const entry = fuelEntries.find(item => item.id === issue.relatedFuelEntryId);
+          if (!entry) throw new Error('Abastecimento relacionado nÃ£o encontrado.');
+
+          const tag = issue.actionType === 'MARK_PARTIAL_FILLUP' ? '[parcial]' : '[trecho descartado]';
+          const reason = justification ? ` Motivo: ${justification}` : '';
+          const notes = `${entry.notes || ''}${entry.notes ? '\n' : ''}${tag} Ajustado pelo painel de inconsistencias em ${new Date().toLocaleString('pt-BR')}.${reason}`.trim();
+          await storageService.updateFuelEntry(orgId, entry.id, { notes });
+          storageService.logActivity(orgId, 'CorreÃ§Ã£o AutomÃ¡tica', `${vehicle.plate}: abastecimento ${entry.odometer} km marcado como ${tag}`, 'VEHICLES');
+          return `${vehicle.plate}: abastecimento marcado como ${tag}.`;
+      }
+
+      if (issue.actionType === 'IGNORE_ALERT' || issue.actionType === 'REQUEST_MANUAL_REVIEW') {
+          const suffix = issue.actionType === 'IGNORE_ALERT' ? 'ignorado' : 'encaminhado para conferencia manual';
+          if (issue.relatedFuelEntryId) {
+              const entry = fuelEntries.find(item => item.id === issue.relatedFuelEntryId);
+              if (entry) {
+                  const tag = issue.actionType === 'IGNORE_ALERT' ? '[ignorado]' : '[conferencia manual]';
+                  const notes = `${entry.notes || ''}${entry.notes ? '\n' : ''}${tag} Alerta ${suffix} pelo painel de inconsistencias em ${new Date().toLocaleString('pt-BR')}. Motivo: ${justification || 'sem justificativa'}`.trim();
+                  await storageService.updateFuelEntry(orgId, entry.id, { notes });
+              }
+          }
+          storageService.logActivity(orgId, 'Tratamento de InconsistÃªncia', `${vehicle.plate}: ${issue.title} ${suffix}. Justificativa: ${justification || 'sem justificativa'}`, 'VEHICLES');
+          return `${vehicle.plate}: alerta ${suffix}.`;
+      }
+
+      setCurrentTab('fleet');
+      return `${vehicle.plate}: aberto para revisão manual.`;
+  };
+
   const getPageTitle = (tab: TabView) => {
     switch (tab) {
       case 'dashboard': return 'Painel de Controle';
@@ -1265,6 +1341,20 @@ export const App = () => {
       addToast('error', 'Erro ao remover', 'Não foi possível excluir o posto.');
     }
   };
+
+  if (isVehicleRgRoute) {
+    return (
+      <VehicleRGPublic
+        vehicle={vehicles.find(vehicle => vehicle.id === vehicleRgId || vehicle.plate === vehicleRgId)}
+        fuelEntries={fuelEntries}
+        serviceOrders={serviceOrders}
+        onBack={() => {
+          window.history.pushState({}, '', window.location.origin);
+          setCurrentTab('fleet');
+        }}
+      />
+    );
+  }
 
   if (userRole === 'INSPECTOR') {
     const getModuleLabel = () => {
@@ -1685,6 +1775,7 @@ export const App = () => {
                 fuelEntries={fuelEntries}
                 settings={settings}
                 onOpenVehicle={() => setCurrentTab('fleet')}
+                onResolveIssue={handleResolveFleetIssue}
               />
             )}
             {currentTab === 'inspection' && allowedModules.includes('TIRES') && <InspectionHub tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} settings={settings} vehicleTypes={vehicleTypes} />}
@@ -1872,7 +1963,7 @@ export const App = () => {
                 type="TIRE"
               />
             )}
-            {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance' || currentTab === 'reports-fuel') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
+            {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
               <ReportsHub 
                 tires={tires} 
                 vehicles={vehicles} 
@@ -1892,6 +1983,13 @@ export const App = () => {
                   activeModule
                 }
                 vehicleTypes={vehicleTypes}
+              />
+            )}
+            {currentTab === 'reports-fuel' && allowedModules.includes('FUEL') && (
+              <ConsumptionReport
+                vehicles={vehicles}
+                fuelEntries={fuelEntries}
+                serviceOrders={serviceOrders}
               />
             )}
             {currentTab === 'settings' && (

@@ -2,7 +2,8 @@
 import { useState, useMemo, FC, FormEvent, ChangeEvent, useEffect } from 'react';
 import { Vehicle, VehicleBrandModel, UserLevel, VehicleLocation, Tire, SystemSettings, ServiceOrder, TrackerSettings, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType, FuelType, FuelEntry } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, FileText, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, X, Truck, Container, Gauge, Search, MapPin, Loader2, LocateFixed, Upload, FileSpreadsheet, FileText, PenLine, AlertTriangle, AlertOctagon, Ban, Wrench, CheckSquare, Square, MoreHorizontal, RotateCcw, Radio, Calendar, Bell, Check, Milestone, Activity, History, Disc, Settings, Save, CheckCircle2, Fuel, ChevronRight, LayoutGrid, Printer, Building2, RefreshCw, QrCode } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import { sascarService } from '../services/sascarService';
 import { DigitalTwin } from './DigitalTwin';
 import { getAllValidPositions } from '../lib/vehicleUtils';
@@ -575,6 +576,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   const [updatingLocationId, setUpdatingLocationId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVehicleRG, setSelectedVehicleRG] = useState<Vehicle | null>(null);
+  const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
   const [activeRGTab, setActiveRGTab] = useState<'geral' | 'medias' | 'manutencao' | 'pneus' | 'combustivel'>('geral');
   const [selectedAxle, setSelectedAxle] = useState<number | 'ALL'>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'CRITICAL' | 'EMPTY' | 'MAINTENANCE'>('ALL');
@@ -625,6 +627,20 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     if (!selectedVehicleRG) return [];
     return serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO');
   }, [serviceOrders, selectedVehicleRG]);
+
+  const getVehicleRgUrl = (vehicle: Vehicle) => {
+    return `${window.location.origin}/vehicle-rg?vehicleRg=${encodeURIComponent(vehicle.id)}`;
+  };
+
+  const copyVehicleRgUrl = async (vehicle: Vehicle) => {
+    const url = getVehicleRgUrl(vehicle);
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Link do RG copiado.');
+    } catch {
+      window.prompt('Copie o link do RG do veículo:', url);
+    }
+  };
 
   const rgStats = useMemo(() => {
     const fuelCost = vehicleFuelEntries.reduce((sum, fe) => {
@@ -1986,6 +2002,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             title="Editar Veículo"
                         >
                             <PenLine className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setQrVehicle(vehicle); }}
+                            className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            title="QR Code do RG"
+                        >
+                            <QrCode className="h-4 w-4" />
                         </button>
                         {userLevel === 'SENIOR' && (
                             <button onClick={(e) => { e.stopPropagation(); onDeleteVehicle(vehicle.id); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Excluir Veículo">
@@ -3405,6 +3428,45 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {qrVehicle && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400">QR Code do RG</p>
+                <h3 className="text-xl font-black text-slate-800 dark:text-white">{qrVehicle.plate}</h3>
+              </div>
+              <button onClick={() => setQrVehicle(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="bg-white p-5 rounded-lg border border-slate-200 flex items-center justify-center">
+                <QRCode value={getVehicleRgUrl(qrVehicle)} size={220} />
+              </div>
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Link do RG</p>
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300 break-all">{getVehicleRgUrl(qrVehicle)}</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={() => window.open(getVehicleRgUrl(qrVehicle), '_blank')}
+                  className="px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-black"
+                >
+                  Abrir RG
+                </button>
+                <button
+                  onClick={() => copyVehicleRgUrl(qrVehicle)}
+                  className="px-4 py-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-black"
+                >
+                  Copiar link
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
