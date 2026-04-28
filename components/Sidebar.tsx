@@ -1,6 +1,6 @@
 
 import React, { FC, ChangeEvent, useState } from 'react';
-import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel, Droplets, HeartPulse, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, LogOut, ChevronRight, Moon, Sun, ArrowRightLeft, Truck, ClipboardCheck, Recycle, Trash2, PieChart, TrendingUp, DollarSign, MapPin, Wrench, Package, Users, Settings, Layers, Disc, SwitchCamera, Car, LifeBuoy, UserSquare2, Layout, FileBarChart, Grid, Mic, Radio, Activity, Leaf, Trophy, Building2, AlertTriangle, Fuel, Droplets, HeartPulse, ShieldCheck, QrCode } from 'lucide-react';
 import { TabView, UserLevel, SystemSettings, ModuleType } from '../types';
 
 interface SidebarProps {
@@ -73,6 +73,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
+    { id: 'qr-service-requests', label: 'Solicitações do QR', icon: QrCode, modules: ['MECHANICAL'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
     { id: 'occurrences', label: 'Ocorrências', icon: AlertTriangle, modules: ['VEHICLES'] },
