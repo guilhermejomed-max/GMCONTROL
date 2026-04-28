@@ -8,6 +8,8 @@ interface VehicleRGPublicProps {
   fuelEntries: FuelEntry[];
   serviceOrders: ServiceOrder[];
   onBack?: () => void;
+  isLoading?: boolean;
+  error?: string;
   onCreateServiceRequest?: (request: {
     driverName: string;
     title: string;
@@ -24,7 +26,7 @@ const formatDate = (value?: string) => {
   return date.toLocaleDateString('pt-BR');
 };
 
-export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({ vehicle, fuelEntries, serviceOrders, onBack, onCreateServiceRequest }) => {
+export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({ vehicle, fuelEntries, serviceOrders, onBack, isLoading, error, onCreateServiceRequest }) => {
   const storageKey = vehicle?.id ? `gmcontrol-rg-driver-${vehicle.id}` : 'gmcontrol-rg-driver';
   const [driverName, setDriverName] = useState(() => localStorage.getItem(storageKey) || '');
   const [nameInput, setNameInput] = useState(() => localStorage.getItem(storageKey) || '');
@@ -34,13 +36,25 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({ vehicle, fuelE
   const [serviceDetails, setServiceDetails] = useState('');
   const [isSending, setIsSending] = useState(false);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-md text-center">
+          <Truck className="h-12 w-12 mx-auto mb-4 text-blue-500 animate-pulse" />
+          <h1 className="text-2xl font-black mb-2">Carregando RG do veiculo</h1>
+          <p className="text-slate-400 font-bold">Aguarde enquanto buscamos os dados do QR Code.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!vehicle) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
         <div className="max-w-md text-center">
           <Truck className="h-12 w-12 mx-auto mb-4 text-slate-500" />
           <h1 className="text-2xl font-black mb-2">RG do veiculo nao encontrado</h1>
-          <p className="text-slate-400 font-bold">Confira se o QR Code pertence a esta frota ou se o veiculo ainda esta cadastrado.</p>
+          <p className="text-slate-400 font-bold">{error || 'Confira se o QR Code pertence a esta frota ou se o veiculo ainda esta cadastrado.'}</p>
           {onBack && (
             <button onClick={onBack} className="mt-6 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black">
               Voltar ao GM Control
