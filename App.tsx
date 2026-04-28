@@ -1331,24 +1331,33 @@ export const App = () => {
         error={publicRgData.error}
         onCreateServiceRequest={async request => {
           if (!vehicleRgId) throw new Error('Veículo não encontrado.');
-          const query = new URLSearchParams({ id: vehicleRgId });
-          if (vehicleRgPlate) query.set('plate', vehicleRgPlate);
-          const response = await fetch(`/api/public/vehicle-rg/service-request?${query.toString()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(request)
-          });
-          const data = await response.json();
-          if (!response.ok || !data.success) {
+          const saveFallbackRequest = async () => {
             const fallbackOrder = await storageService.addPublicServiceRequest({
               ...request,
               vehicleId: publicRgData.vehicle?.id || vehicleRgId,
               vehiclePlate: publicRgData.vehicle?.plate || vehicleRgPlate
             });
             setPublicRgData(prev => ({ ...prev, serviceOrders: [fallbackOrder as any, ...prev.serviceOrders] }));
-            return;
+          };
+
+          const query = new URLSearchParams({ id: vehicleRgId });
+          if (vehicleRgPlate) query.set('plate', vehicleRgPlate);
+          try {
+            const response = await fetch(`/api/public/vehicle-rg/service-request?${query.toString()}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(request)
+            });
+            const text = await response.text();
+            const data = text ? JSON.parse(text) : {};
+            if (!response.ok || !data.success) {
+              await saveFallbackRequest();
+              return;
+            }
+            setPublicRgData(prev => ({ ...prev, serviceOrders: [data.order, ...prev.serviceOrders] }));
+          } catch {
+            await saveFallbackRequest();
           }
-          setPublicRgData(prev => ({ ...prev, serviceOrders: [data.order, ...prev.serviceOrders] }));
         }}
         onBack={user ? () => {
           window.history.pushState({}, '', window.location.origin);
