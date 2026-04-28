@@ -288,6 +288,11 @@ export const App = () => {
   const [shouldOpenOSModal, setShouldOpenOSModal] = useState(false);
   const vehicleRgId = new URLSearchParams(window.location.search).get('vehicleRg') || new URLSearchParams(window.location.search).get('id');
   const isVehicleRgRoute = window.location.pathname.includes('vehicle-rg') || Boolean(vehicleRgId);
+  const [publicRgData, setPublicRgData] = useState<{ vehicle?: Vehicle; fuelEntries: FuelEntry[]; serviceOrders: ServiceOrder[]; isLoading: boolean; error?: string }>({
+    fuelEntries: [],
+    serviceOrders: [],
+    isLoading: false
+  });
 
   const handleGenerateOSFromOccurrence = (occurrenceId: string, vehicleId: string) => {
     setPreselectedVehicleId(vehicleId);
@@ -295,6 +300,37 @@ export const App = () => {
     setShouldOpenOSModal(true);
     setCurrentTab('service-orders');
   };
+
+  useEffect(() => {
+    if (!isVehicleRgRoute || !vehicleRgId) return;
+
+    let cancelled = false;
+    setPublicRgData(prev => ({ ...prev, isLoading: true, error: undefined }));
+
+    fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}`)
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Nao foi possivel carregar o RG.');
+        return data;
+      })
+      .then(data => {
+        if (cancelled) return;
+        setPublicRgData({
+          vehicle: data.vehicle,
+          fuelEntries: data.fuelEntries || [],
+          serviceOrders: data.serviceOrders || [],
+          isLoading: false
+        });
+      })
+      .catch(error => {
+        if (cancelled) return;
+        setPublicRgData({ fuelEntries: [], serviceOrders: [], isLoading: false, error: error?.message || 'Erro ao carregar RG.' });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isVehicleRgRoute, vehicleRgId]);
 
   useEffect(() => {
     setIsReportsFullScreen(false);
@@ -1274,26 +1310,21 @@ export const App = () => {
   if (isVehicleRgRoute) {
     return (
       <VehicleRGPublic
-        vehicle={vehicles.find(vehicle => vehicle.id === vehicleRgId || vehicle.plate === vehicleRgId)}
-        fuelEntries={fuelEntries}
-        serviceOrders={serviceOrders}
+        vehicle={publicRgData.vehicle}
+        fuelEntries={publicRgData.fuelEntries}
+        serviceOrders={publicRgData.serviceOrders}
+        isLoading={publicRgData.isLoading}
+        error={publicRgData.error}
         onCreateServiceRequest={async request => {
-          const vehicle = vehicles.find(item => item.id === vehicleRgId || item.plate === vehicleRgId);
-          if (!vehicle) throw new Error('Veículo não encontrado.');
-          await handleAddServiceOrder({
-            vehicleId: vehicle.id,
-            vehiclePlate: vehicle.plate,
-            title: request.title,
-            details: `Solicitação enviada pelo RG do veículo.\nMotorista: ${request.driverName}\nUrgência: ${request.urgency}\n\n${request.details}`,
-            status: 'PENDENTE',
-            serviceType: 'INTERNAL',
-            date: request.preferredDate,
-            odometer: vehicle.odometer || 0,
-            branchId: vehicle.branchId || selectedBranchId,
-            driverName: request.driverName,
-            contactName: request.driverName
+          if (!vehicleRgId) throw new Error('Veículo não encontrado.');
+          const response = await fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}/service-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
           });
-          storageService.logActivity(orgId, 'Agendamento pelo RG', `${vehicle.plate}: ${request.title} solicitado por ${request.driverName}`, 'VEHICLES');
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || 'Nao foi possivel criar o agendamento.');
+          setPublicRgData(prev => ({ ...prev, serviceOrders: [data.order, ...prev.serviceOrders] }));
         }}
         onBack={user ? () => {
           window.history.pushState({}, '', window.location.origin);

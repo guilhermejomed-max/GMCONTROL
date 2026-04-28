@@ -1049,6 +1049,125 @@ async function startServer() {
     }
   });
 
+  app.get("/api/public/vehicle-rg/:vehicleId", async (req, res) => {
+    try {
+      const vehicleId = String(req.params.vehicleId || '').trim();
+      if (!vehicleId) {
+        return res.status(400).json({ success: false, error: "Veículo inválido" });
+      }
+
+      const vehiclesSnap = await db.collection("vehicles").get();
+      const vehicleDoc = vehiclesSnap.docs.find(doc => {
+        const data = doc.data() as any;
+        return doc.id === vehicleId || data.id === vehicleId || String(data.plate || '').toUpperCase() === vehicleId.toUpperCase();
+      });
+
+      if (!vehicleDoc) {
+        return res.status(404).json({ success: false, error: "Veículo não encontrado" });
+      }
+
+      const rawVehicle = { id: vehicleDoc.id, ...vehicleDoc.data() } as any;
+      const vehicle = {
+        id: rawVehicle.id,
+        plate: rawVehicle.plate || '',
+        model: rawVehicle.model || '',
+        brand: rawVehicle.brand || '',
+        type: rawVehicle.type || '',
+        year: rawVehicle.year || '',
+        color: rawVehicle.color || '',
+        fuelType: rawVehicle.fuelType || '',
+        fleetNumber: rawVehicle.fleetNumber || '',
+        odometer: rawVehicle.odometer || 0,
+        litrometer: rawVehicle.litrometer || 0,
+        telemetryRollingAvgKml: rawVehicle.telemetryRollingAvgKml || 0,
+        lastLocation: rawVehicle.lastLocation || undefined,
+        ignition: rawVehicle.ignition || false,
+        ownership: rawVehicle.ownership || 'OWNED',
+        revisionIntervalKm: rawVehicle.revisionIntervalKm || 0,
+        lastPreventiveKm: rawVehicle.lastPreventiveKm || 0,
+        lastPreventiveDate: rawVehicle.lastPreventiveDate || '',
+        branchId: rawVehicle.branchId || ''
+      };
+
+      const fuelSnap = await db.collection("fuel_entries").where("vehicleId", "==", rawVehicle.id).get();
+      const fuelEntries = fuelSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as any))
+        .sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime())
+        .slice(0, 30);
+
+      const ordersSnap = await db.collection("service_orders").where("vehicleId", "==", rawVehicle.id).get();
+      const serviceOrders = ordersSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as any))
+        .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime())
+        .slice(0, 30);
+
+      res.json({ success: true, vehicle, fuelEntries, serviceOrders });
+    } catch (error: any) {
+      logToFile(`Error in /api/public/vehicle-rg: ${error.message}`);
+      res.status(500).json({ success: false, error: "Falha ao carregar RG do veículo" });
+    }
+  });
+
+  app.post("/api/public/vehicle-rg/:vehicleId/service-request", async (req, res) => {
+    try {
+      const vehicleId = String(req.params.vehicleId || '').trim();
+      const { driverName, title, details, preferredDate, urgency } = req.body || {};
+
+      if (!vehicleId || !String(driverName || '').trim() || !String(title || '').trim() || !String(details || '').trim()) {
+        return res.status(400).json({ success: false, error: "Dados obrigatórios ausentes" });
+      }
+
+      const vehiclesSnap = await db.collection("vehicles").get();
+      const vehicleDoc = vehiclesSnap.docs.find(doc => {
+        const data = doc.data() as any;
+        return doc.id === vehicleId || data.id === vehicleId || String(data.plate || '').toUpperCase() === vehicleId.toUpperCase();
+      });
+
+      if (!vehicleDoc) {
+        return res.status(404).json({ success: false, error: "Veículo não encontrado" });
+      }
+
+      const vehicle = { id: vehicleDoc.id, ...vehicleDoc.data() } as any;
+      const ordersSnap = await db.collection("service_orders").orderBy("orderNumber", "desc").limit(1).get();
+      const nextOrderNumber = ordersSnap.empty ? 1 : ((ordersSnap.docs[0].data() as any).orderNumber || 0) + 1;
+      const now = new Date().toISOString();
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      const order = {
+        id,
+        orderNumber: nextOrderNumber,
+        vehicleId: vehicle.id,
+        vehiclePlate: vehicle.plate || '',
+        title: String(title).trim(),
+        details: `Solicitação enviada pelo RG público do veículo.\nMotorista: ${String(driverName).trim()}\nUrgência: ${String(urgency || 'NORMAL')}\n\n${String(details).trim()}`,
+        status: 'PENDENTE',
+        serviceType: 'INTERNAL',
+        date: preferredDate || now.split('T')[0],
+        odometer: vehicle.odometer || 0,
+        branchId: vehicle.branchId || '',
+        driverName: String(driverName).trim(),
+        contactName: String(driverName).trim(),
+        createdBy: `RG Público - ${String(driverName).trim()}`,
+        createdAt: now
+      };
+
+      await db.collection("service_orders").doc(id).set(order);
+      await db.collection("logs").doc(`${Date.now()}-${Math.random().toString(36).slice(2, 8)}`).set({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        action: "Agendamento pelo RG Público",
+        details: `${vehicle.plate}: ${order.title} solicitado por ${order.driverName}`,
+        module: "VEHICLES",
+        date: now,
+        user: order.driverName
+      });
+
+      res.json({ success: true, order });
+    } catch (error: any) {
+      logToFile(`Error in /api/public/vehicle-rg service-request: ${error.message}`);
+      res.status(500).json({ success: false, error: "Falha ao criar solicitação de serviço" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
