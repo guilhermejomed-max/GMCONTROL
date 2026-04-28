@@ -629,7 +629,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   }, [serviceOrders, selectedVehicleRG]);
 
   const getVehicleRgUrl = (vehicle: Vehicle) => {
-    return `${window.location.origin}/vehicle-rg?vehicleRg=${encodeURIComponent(vehicle.id)}`;
+    return `${window.location.origin}/vehicle-rg?vehicleRg=${encodeURIComponent(vehicle.id)}&plate=${encodeURIComponent(vehicle.plate || '')}`;
   };
 
   const copyVehicleRgUrl = async (vehicle: Vehicle) => {

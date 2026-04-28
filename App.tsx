@@ -287,6 +287,7 @@ export const App = () => {
   const [preselectedOccurrenceId, setPreselectedOccurrenceId] = useState<string | null>(null);
   const [shouldOpenOSModal, setShouldOpenOSModal] = useState(false);
   const vehicleRgId = new URLSearchParams(window.location.search).get('vehicleRg') || new URLSearchParams(window.location.search).get('id');
+  const vehicleRgPlate = new URLSearchParams(window.location.search).get('plate') || '';
   const isVehicleRgRoute = window.location.pathname.includes('vehicle-rg') || Boolean(vehicleRgId);
   const [publicRgData, setPublicRgData] = useState<{ vehicle?: Vehicle; fuelEntries: FuelEntry[]; serviceOrders: ServiceOrder[]; isLoading: boolean; error?: string }>({
     fuelEntries: [],
@@ -307,7 +308,8 @@ export const App = () => {
     let cancelled = false;
     setPublicRgData(prev => ({ ...prev, isLoading: true, error: undefined }));
 
-    fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}`)
+    const plateQuery = vehicleRgPlate ? `?plate=${encodeURIComponent(vehicleRgPlate)}` : '';
+    fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}${plateQuery}`)
       .then(async response => {
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Nao foi possivel carregar o RG.');
@@ -330,7 +332,7 @@ export const App = () => {
     return () => {
       cancelled = true;
     };
-  }, [isVehicleRgRoute, vehicleRgId]);
+  }, [isVehicleRgRoute, vehicleRgId, vehicleRgPlate]);
 
   useEffect(() => {
     setIsReportsFullScreen(false);
@@ -1317,7 +1319,8 @@ export const App = () => {
         error={publicRgData.error}
         onCreateServiceRequest={async request => {
           if (!vehicleRgId) throw new Error('Veículo não encontrado.');
-          const response = await fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}/service-request`, {
+          const plateQuery = vehicleRgPlate ? `?plate=${encodeURIComponent(vehicleRgPlate)}` : '';
+          const response = await fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}/service-request${plateQuery}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)

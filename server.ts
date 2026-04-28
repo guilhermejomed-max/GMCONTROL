@@ -205,6 +205,35 @@ function parseSascarOdometerKm(vehicle: any): number {
   return parseTrackerOdometerKm(vehicle);
 }
 
+function normalizeVehicleKey(value: any): string {
+  return String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+}
+
+async function findPublicVehicleDoc(vehicleId: string, plate?: string): Promise<any | null> {
+  const targetId = String(vehicleId || '').trim();
+  const targetKey = normalizeVehicleKey(targetId);
+  const plateKey = normalizeVehicleKey(plate);
+
+  if (targetId) {
+    const directDoc = await db.collection("vehicles").doc(targetId).get();
+    if (directDoc.exists) return directDoc;
+  }
+
+  const vehiclesSnap = await db.collection("vehicles").get();
+  return vehiclesSnap.docs.find(doc => {
+    const data = doc.data() as any;
+    const keys = [
+      doc.id,
+      data.id,
+      data.plate,
+      data.fleetNumber,
+      data.sascarCode
+    ].map(normalizeVehicleKey);
+
+    return keys.includes(targetKey) || (!!plateKey && keys.includes(plateKey));
+  }) || null;
+}
+
 function parseSascarVehicle(item: any): any {
     if (typeof item === 'string') {
         try { return JSON.parse(item); } catch(e) { return null; }
@@ -1052,21 +1081,18 @@ async function startServer() {
   app.get("/api/public/vehicle-rg/:vehicleId", async (req, res) => {
     try {
       const vehicleId = String(req.params.vehicleId || '').trim();
+      const plate = String(req.query.plate || '').trim();
       if (!vehicleId) {
         return res.status(400).json({ success: false, error: "Veículo inválido" });
       }
 
-      const vehiclesSnap = await db.collection("vehicles").get();
-      const vehicleDoc = vehiclesSnap.docs.find(doc => {
-        const data = doc.data() as any;
-        return doc.id === vehicleId || data.id === vehicleId || String(data.plate || '').toUpperCase() === vehicleId.toUpperCase();
-      });
+      const vehicleDoc = await findPublicVehicleDoc(vehicleId, plate);
 
       if (!vehicleDoc) {
         return res.status(404).json({ success: false, error: "Veículo não encontrado" });
       }
 
-      const rawVehicle = { id: vehicleDoc.id, ...vehicleDoc.data() } as any;
+      const rawVehicle = { ...vehicleDoc.data(), id: vehicleDoc.id } as any;
       const vehicle = {
         id: rawVehicle.id,
         plate: rawVehicle.plate || '',
@@ -1111,23 +1137,20 @@ async function startServer() {
   app.post("/api/public/vehicle-rg/:vehicleId/service-request", async (req, res) => {
     try {
       const vehicleId = String(req.params.vehicleId || '').trim();
+      const plate = String(req.query.plate || '').trim();
       const { driverName, title, details, preferredDate, urgency } = req.body || {};
 
       if (!vehicleId || !String(driverName || '').trim() || !String(title || '').trim() || !String(details || '').trim()) {
         return res.status(400).json({ success: false, error: "Dados obrigatórios ausentes" });
       }
 
-      const vehiclesSnap = await db.collection("vehicles").get();
-      const vehicleDoc = vehiclesSnap.docs.find(doc => {
-        const data = doc.data() as any;
-        return doc.id === vehicleId || data.id === vehicleId || String(data.plate || '').toUpperCase() === vehicleId.toUpperCase();
-      });
+      const vehicleDoc = await findPublicVehicleDoc(vehicleId, plate);
 
       if (!vehicleDoc) {
         return res.status(404).json({ success: false, error: "Veículo não encontrado" });
       }
 
-      const vehicle = { id: vehicleDoc.id, ...vehicleDoc.data() } as any;
+      const vehicle = { ...vehicleDoc.data(), id: vehicleDoc.id } as any;
       const ordersSnap = await db.collection("service_orders").orderBy("orderNumber", "desc").limit(1).get();
       const nextOrderNumber = ordersSnap.empty ? 1 : ((ordersSnap.docs[0].data() as any).orderNumber || 0) + 1;
       const now = new Date().toISOString();
