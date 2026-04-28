@@ -326,8 +326,19 @@ export const App = () => {
         });
       })
       .catch(error => {
-        if (cancelled) return;
-        setPublicRgData({ fuelEntries: [], serviceOrders: [], isLoading: false, error: error?.message || 'Erro ao carregar RG.' });
+        storageService.getPublicVehicleRg(vehicleRgId, vehicleRgPlate)
+          .then(publicVehicle => {
+            if (cancelled) return;
+            if (publicVehicle) {
+              setPublicRgData({ vehicle: publicVehicle, fuelEntries: [], serviceOrders: [], isLoading: false });
+              return;
+            }
+            setPublicRgData({ fuelEntries: [], serviceOrders: [], isLoading: false, error: error?.message || 'Erro ao carregar RG.' });
+          })
+          .catch(fallbackError => {
+            if (cancelled) return;
+            setPublicRgData({ fuelEntries: [], serviceOrders: [], isLoading: false, error: fallbackError?.message || error?.message || 'Erro ao carregar RG.' });
+          });
       });
 
     return () => {
@@ -1328,7 +1339,15 @@ export const App = () => {
             body: JSON.stringify(request)
           });
           const data = await response.json();
-          if (!response.ok || !data.success) throw new Error(data.error || 'Nao foi possivel criar o agendamento.');
+          if (!response.ok || !data.success) {
+            const fallbackOrder = await storageService.addPublicServiceRequest({
+              ...request,
+              vehicleId: publicRgData.vehicle?.id || vehicleRgId,
+              vehiclePlate: publicRgData.vehicle?.plate || vehicleRgPlate
+            });
+            setPublicRgData(prev => ({ ...prev, serviceOrders: [fallbackOrder as any, ...prev.serviceOrders] }));
+            return;
+          }
           setPublicRgData(prev => ({ ...prev, serviceOrders: [data.order, ...prev.serviceOrders] }));
         }}
         onBack={user ? () => {

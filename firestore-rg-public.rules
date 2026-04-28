@@ -1,0 +1,401 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // 1. FUNCOES DE INFRAESTRUTURA E IDENTIDADE
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isAuthenticated();
+    }
+
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isInspector() { return isAuthenticated() && getRole() == "INSPECTOR"; }
+    function isSenior() { return isAuthenticated() && getRole() == "SENIOR"; }
+    function isPleno() { return isAuthenticated() && getRole() == "PLENO"; }
+    function isCreator() { return isAuthenticated() && getRole() == "CREATOR"; }
+    function isJunior() { return isAuthenticated() && getRole() == "JUNIOR"; }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "guilherme.jomed@gmail.com" ||
+        request.auth.token.email == "gui@gmail.com" ||
+        request.auth.token.email == "michel.henrique@sys.gmcontrol.com" ||
+        request.auth.token.email == "michel.santos@sys.gmcontrol.com" ||
+        request.auth.token.email == "guilherme.martins@sys.gmcontrol.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() == "CREATOR")
+      );
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.size() > 0 && email.size() <= 100 &&
+             email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && url.size() > 0 && url.size() <= 255 &&
+             (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isRecent(timestampStr) {
+      return isValidDateString(timestampStr) &&
+             request.time < timestamp(timestampStr) + duration.value(10, 'm') &&
+             request.time > timestamp(timestampStr) - duration.value(10, 'm');
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // 2. SCHEMAS DE VALIDACAO
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['id', 'name', 'username', 'email', 'role', 'createdAt']) &&
+             hasOnlyAllowedFields(['id', 'name', 'username', 'email', 'role', 'createdAt', 'allowedModules', 'permissions', 'lastLogin', 'branchId', 'photoUrl', 'active', 'phoneNumber']) &&
+             data.id is string && data.name is string && data.username is string &&
+             isValidEmail(data.email) &&
+             data.role in ["JUNIOR", "PLENO", "SENIOR", "CREATOR", "INSPECTOR"] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidTire(data) {
+      return hasRequiredFields(['id', 'fireNumber', 'brand', 'model', 'status', 'totalKms', 'currentTreadDepth']) &&
+             data.totalKms is number && data.totalKms >= 0 &&
+             data.currentTreadDepth is number &&
+             data.status in ["DISPONIVEL", "MONTADO", "RECAPAGEM", "SUCATA", "ESTOQUE", "RESERVA"];
+    }
+
+    function isValidVehicle(data) {
+      return hasRequiredFields(['id', 'plate', 'model', 'type', 'odometer']) &&
+             data.id is string && data.plate is string && data.plate.size() >= 7 &&
+             data.type in ["CAVALO", "CARRETA", "TRUCK", "TOCO", "VAN", "PICKUP"] &&
+             data.odometer is number && data.odometer >= 0;
+    }
+
+    function isValidOccurrence(data) {
+      return hasRequiredFields(['id', 'type', 'description', 'createdAt', 'userId', 'status']) &&
+             data.id is string && data.status in ["ABERTO", "EM_ANDAMENTO", "CONCLUIDO", "CANCELADO"] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidFuelEntry(data) {
+      return hasRequiredFields(['id', 'vehicleId', 'fuelTypeId', 'liters', 'date', 'odometer']) &&
+             data.liters is number && data.liters > 0 &&
+             isValidDateString(data.date) && data.odometer is number;
+    }
+
+    function isValidEmployee(data) {
+      return hasRequiredFields(['id', 'name', 'role', 'active']) &&
+             data.id is string && data.name is string;
+    }
+
+    function isValidPublicServiceRequest(data) {
+      return data.keys().hasOnly([
+        'id',
+        'vehicleId',
+        'vehiclePlate',
+        'driverName',
+        'title',
+        'details',
+        'preferredDate',
+        'urgency',
+        'status',
+        'createdAt'
+      ]) &&
+      data.vehicleId is string &&
+      data.vehiclePlate is string &&
+      data.driverName is string &&
+      data.driverName.size() >= 2 &&
+      data.driverName.size() <= 120 &&
+      data.title is string &&
+      data.title.size() >= 2 &&
+      data.title.size() <= 120 &&
+      data.details is string &&
+      data.details.size() >= 5 &&
+      data.details.size() <= 2000 &&
+      data.status == "PENDENTE";
+    }
+
+    // ===============================================================
+    // 3. REGRAS POR COLECAO
+    // ===============================================================
+
+    match /employees/{id} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior()) && isValidEmployee(request.resource.data);
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin()) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /collaborators/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /drivers/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /retread_orders/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno() || isInspector();
+      allow delete: if isAdmin();
+    }
+
+    match /retreaders/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /tires/{tireId} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidTire(request.resource.data);
+      allow update: if isAdmin() || isSenior() || isPleno() || isInspector();
+      allow delete: if isAdmin();
+    }
+
+    match /tread_patterns/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /tire_loans/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isSenior() || isPleno()) && isValidVehicle(request.resource.data);
+      allow update: if isAdmin() || isSenior() || isPleno() || isInspector();
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // RG PUBLICO DO VEICULO POR QR CODE
+    // ===============================================================
+
+    match /public_vehicle_rgs/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /public_service_requests/{id} {
+      allow create: if isValidPublicServiceRequest(request.resource.data);
+      allow read: if isAuthenticated();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /vehicleBrandModels/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /vehicleTypes/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /service_orders/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /maintenance_plans/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /maintenance_schedules/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /occurrences/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidOccurrence(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid || isSenior());
+      allow delete: if isAdmin();
+    }
+
+    match /occurrence_reasons/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /sectors/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /stock_items/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /ppe_stock_items/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /stock_movements/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /fuelTypes/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /fuel_entries/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidFuelEntry(request.resource.data);
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /fuel_stations/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isSenior();
+    }
+
+    match /classifications/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /financial_records/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+    match /invoices/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+    match /payments/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+    match /expenses/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior() || isPleno(); }
+    match /budgets/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+    match /payment_methods/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+    match /payment_terms/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+    match /transactions/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+
+    match /medical_records/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /waste_disposals/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior() || isPleno();
+      allow update: if isAdmin() || isSenior() || isPleno();
+      allow delete: if isAdmin();
+    }
+
+    match /waste_types/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isSenior();
+      allow update: if isAdmin() || isSenior();
+      allow delete: if isAdmin();
+    }
+
+    match /partners/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior(); }
+    match /branches/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /settings/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /arrival_alerts/{id} { allow read: if isAuthenticated(); allow write: if isAdmin() || isSenior() || isPleno(); }
+
+    match /attachments/{id} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /system_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /notifications/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /audit_logs/{id} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // 4. FAIL-SAFE DINAMICO
+    // ============================================================
+
+    match /{collection}/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

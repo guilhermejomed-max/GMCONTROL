@@ -116,6 +116,25 @@ service cloud.firestore {
       allow read: if hasModuleAccess("VEHICLES");
       allow write: if hasModuleAccess("VEHICLES") && isValidVehicle(request.resource.data);
     }
+    match /public_vehicle_rgs/{id} {
+      allow read: if true;
+      allow create, update: if hasModuleAccess("VEHICLES");
+      allow delete: if hasModuleAccess("VEHICLES");
+    }
+    match /public_service_requests/{id} {
+      allow create: if request.resource.data.driverName is string
+        && request.resource.data.driverName.size() >= 2
+        && request.resource.data.driverName.size() <= 120
+        && request.resource.data.vehicleId is string
+        && request.resource.data.vehiclePlate is string
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 2
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.details is string
+        && request.resource.data.details.size() >= 5
+        && request.resource.data.details.size() <= 2000;
+      allow read, update, delete: if hasModuleAccess("MECHANICAL") || hasModuleAccess("VEHICLES");
+    }
     match /vehicleBrandModels/{id} {
       allow read: if isSignedIn();
       allow write: if isVerified() && hasModuleAccess("VEHICLES");

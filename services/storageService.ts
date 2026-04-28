@@ -75,6 +75,35 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
 
 const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
 
+const normalizePublicVehicleKey = (value: any) => String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
+const toPublicVehicleRg = (vehicle: Vehicle) => sanitize({
+  id: vehicle.id,
+  plate: vehicle.plate || '',
+  plateKey: normalizePublicVehicleKey(vehicle.plate),
+  model: vehicle.model || '',
+  brand: vehicle.brand || '',
+  type: vehicle.type || '',
+  year: vehicle.year || '',
+  color: vehicle.color || '',
+  fuelType: vehicle.fuelType || '',
+  fleetNumber: vehicle.fleetNumber || '',
+  fleetNumberKey: normalizePublicVehicleKey(vehicle.fleetNumber),
+  sascarCode: vehicle.sascarCode || '',
+  sascarCodeKey: normalizePublicVehicleKey(vehicle.sascarCode),
+  odometer: vehicle.odometer || 0,
+  litrometer: vehicle.litrometer || 0,
+  telemetryRollingAvgKml: vehicle.telemetryRollingAvgKml || 0,
+  lastLocation: vehicle.lastLocation || undefined,
+  ignition: vehicle.ignition || false,
+  ownership: vehicle.ownership || 'OWNED',
+  revisionIntervalKm: vehicle.revisionIntervalKm || 0,
+  lastPreventiveKm: vehicle.lastPreventiveKm || 0,
+  lastPreventiveDate: vehicle.lastPreventiveDate || '',
+  branchId: vehicle.branchId || '',
+  updatedAt: new Date().toISOString()
+});
+
 const DEFAULT_SETTINGS: SystemSettings = {
   minTreadDepth: 3,
   warningTreadDepth: 5,
@@ -730,6 +759,7 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.add(`vehicles`, vehicle); logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(vehicle));
+      await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(vehicle), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `vehicles/${vehicle.id}`);
     }
@@ -741,6 +771,7 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
+      await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(updates as Vehicle), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${vehicle.id}`);
     }
@@ -751,10 +782,51 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.delete(`vehicles`, id); logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(id).delete();
+      await db.collection("public_vehicle_rgs").doc(id).delete().catch(() => undefined);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `vehicles/${id}`);
     }
     logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES');
+  },
+
+  publishPublicVehicleRg: async (vehicle: Vehicle) => {
+    if (mockUser || !db) return;
+    try {
+      await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(vehicle), { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `public_vehicle_rgs/${vehicle.id}`);
+    }
+  },
+
+  getPublicVehicleRg: async (id?: string, plate?: string) => {
+    if (!db) return null;
+    const idKey = normalizePublicVehicleKey(id);
+    const plateKey = normalizePublicVehicleKey(plate);
+
+    if (id) {
+      const direct = await db.collection("public_vehicle_rgs").doc(id).get();
+      if (direct.exists) return direct.data() as Vehicle;
+    }
+
+    const keys = [idKey, plateKey].filter(Boolean);
+    for (const key of keys) {
+      const byPlate = await db.collection("public_vehicle_rgs").where("plateKey", "==", key).limit(1).get();
+      if (!byPlate.empty) return byPlate.docs[0].data() as Vehicle;
+      const byFleet = await db.collection("public_vehicle_rgs").where("fleetNumberKey", "==", key).limit(1).get();
+      if (!byFleet.empty) return byFleet.docs[0].data() as Vehicle;
+      const bySascar = await db.collection("public_vehicle_rgs").where("sascarCodeKey", "==", key).limit(1).get();
+      if (!bySascar.empty) return bySascar.docs[0].data() as Vehicle;
+    }
+
+    return null;
+  },
+
+  addPublicServiceRequest: async (request: any) => {
+    if (!db) throw new Error('Banco indisponivel.');
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const data = sanitize({ ...request, id, status: 'PENDENTE', createdAt: new Date().toISOString() });
+    await db.collection("public_service_requests").doc(id).set(data);
+    return data;
   },
 
   subscribeToVehicleBrandModels: (orgId: string, callback: (models: VehicleBrandModel[]) => void) => {
