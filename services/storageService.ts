@@ -2,7 +2,7 @@
 // Force Vite cache invalidation - 2026-03-26
 import { db, auth, storage } from './firebaseConfig';
 import firebase from 'firebase/compat/app';
-import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod, WasteType, WasteDisposal, PpeStockItem, HealthRecord, Employee } from '../types';
+import { Tire, Vehicle, VehicleBrandModel, VehicleType, FuelType, SystemSettings, TeamMember, StockItem, StockMovement, ModuleType, SystemLog, ServiceOrder, RetreadOrder, UserLevel, TreadPattern, Driver, TireLoan, TrackerSettings, ArrivalAlert, LocationPoint, Collaborator, Branch, Partner, OccurrenceReason, Occurrence, FuelEntry, FuelStation, ServiceClassification, ServiceSector, PaymentMethod, WasteType, WasteDisposal, PpeStockItem, HealthRecord, Employee, PublicServiceRequest } from '../types';
 
 const INTERNAL_DOMAIN = "@sys.gmcontrol.com";
 
@@ -827,6 +827,22 @@ export const storageService = {
     const data = sanitize({ ...request, id, status: 'PENDENTE', createdAt: new Date().toISOString() });
     await db.collection("public_service_requests").doc(id).set(data);
     return data;
+  },
+
+  subscribeToPublicServiceRequests: (callback: (requests: PublicServiceRequest[]) => void) => {
+    if (mockUser || !db) return LocalDB.subscribe(`public_service_requests`, callback, []);
+    return db.collection("public_service_requests").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+      callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PublicServiceRequest)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "public_service_requests"));
+  },
+
+  updatePublicServiceRequest: async (id: string, updates: Partial<PublicServiceRequest>) => {
+    if (mockUser || !db) { LocalDB.update(`public_service_requests`, id, updates); return; }
+    try {
+      await db.collection("public_service_requests").doc(id).update(sanitize(updates));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `public_service_requests/${id}`);
+    }
   },
 
   subscribeToVehicleBrandModels: (orgId: string, callback: (models: VehicleBrandModel[]) => void) => {
