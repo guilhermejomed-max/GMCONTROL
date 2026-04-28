@@ -642,6 +642,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     }
   };
 
+  const handleOpenVehicleQr = async (vehicle: Vehicle) => {
+    try {
+      await storageService.publishPublicVehicleRg(vehicle);
+    } catch (error) {
+      console.warn('Nao foi possivel publicar o RG publico antes de abrir o QR:', error);
+    }
+    setQrVehicle(vehicle);
+  };
+
   const rgStats = useMemo(() => {
     const fuelCost = vehicleFuelEntries.reduce((sum, fe) => {
       const volume = getFuelVolume(fe);
@@ -2004,7 +2013,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <PenLine className="h-4 w-4" />
                         </button>
                         <button
-                            onClick={(e) => { e.stopPropagation(); setQrVehicle(vehicle); }}
+                            onClick={(e) => { e.stopPropagation(); handleOpenVehicleQr(vehicle); }}
                             className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
                             title="QR Code do RG"
                         >
