@@ -671,6 +671,23 @@ export interface FuelEntry {
   kmPerLiter?: number; // Calculated
 }
 
+export interface PublicServiceRequest {
+  id: string;
+  vehicleId: string;
+  vehiclePlate: string;
+  driverName: string;
+  title: string;
+  details: string;
+  preferredDate?: string;
+  urgency?: 'NORMAL' | 'ALTA' | 'CRITICA' | string;
+  status: 'PENDENTE' | 'CONVERTIDA' | 'ARQUIVADA';
+  createdAt: string;
+  linkedServiceOrderId?: string;
+  linkedServiceOrderNumber?: string;
+  archivedAt?: string;
+  archivedBy?: string;
+}
+
 export interface ServiceClassification {
   id: string;
   name: string;
@@ -683,7 +700,7 @@ export interface ServiceSector {
   branchId?: string;
 }
 
-export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'fleet-issues' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector' | 'waste-disposal' | 'ppe-disposal' | 'tire-disposal' | 'ambulatory' | 'ppe-stock' | 'rh';
+export type TabView = 'dashboard' | 'inventory' | 'register' | 'movement' | 'inspection' | 'fleet' | 'fleet-issues' | 'maintenance' | 'service' | 'location' | 'settings' | 'financial' | 'scrap' | 'strategic-analysis' | 'demand-forecast' | 'retreading' | 'service-orders' | 'qr-service-requests' | 'drivers' | 'acoustic-check' | 'reports' | 'reports-tires' | 'reports-vehicles' | 'reports-maintenance' | 'reports-fuel' | 'esg-panel' | 'retreader-ranking' | 'tire-loans' | 'tracker' | 'brand-models' | 'vehicle-types' | 'fuel-types' | 'branches' | 'partners' | 'occurrences' | 'fuel' | 'fuel-gas' | 'classification-sector' | 'waste-disposal' | 'ppe-disposal' | 'tire-disposal' | 'ambulatory' | 'ppe-stock' | 'rh';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 

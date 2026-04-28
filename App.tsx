@@ -33,6 +33,7 @@ import { Occurrences } from './components/Occurrences';
 import { ReportsHub } from './components/ReportsHub';
 import { ConsumptionReport } from './components/ConsumptionReport';
 import { VehicleRGPublic } from './components/VehicleRGPublic';
+import { QRServiceRequests } from './components/QRServiceRequests';
 import TrackerSettingsComponent from './components/TrackerSettings';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { ToastNotifications } from './components/ToastNotifications';
@@ -43,7 +44,7 @@ import { sascarService } from './services/sascarService';
 import { telemetryFuelService } from './services/telemetryFuelService';
 import { chooseAuthoritativeOdometer, isImplausibleImportedOdometer, parseTrackerOdometerKm } from './lib/odometerUtils';
 import { calculatePredictedTreadDepth, parseSascarDate } from './src/utils';
-import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence, WasteDisposal } from './types';
+import { TabView, Tire, Vehicle, VehicleBrandModel, FuelType, ServiceOrder, RetreadOrder, SystemSettings, Driver, ToastMessage, UserLevel, ModuleType, TrackerSettings, ArrivalAlert, Branch, VehicleType, FuelEntry, FuelStation, ServiceClassification, ServiceSector, OccurrenceReason, Occurrence, WasteDisposal, PublicServiceRequest } from './types';
 import { Lock, Mail, LayoutDashboard, Loader2, User, LifeBuoy, Bell, Menu, Calendar, UserCircle, X, Building2, SwitchCamera, ArrowRightLeft, Truck, Wrench, Fuel } from 'lucide-react';
 
 const LoginScreen = ({ 
@@ -233,6 +234,7 @@ export const App = () => {
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [fuelTypes, setFuelTypes] = useState<FuelType[]>([]);
   const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
+  const [publicServiceRequests, setPublicServiceRequests] = useState<PublicServiceRequest[]>([]);
   const [classifications, setClassifications] = useState<ServiceClassification[]>([]);
   const [sectors, setSectors] = useState<ServiceSector[]>([]);
   const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
@@ -495,10 +497,12 @@ export const App = () => {
     if (!user || activeModule !== 'MECHANICAL') return;
     const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
     const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
+    const unsubPublicRequests = storageService.subscribeToPublicServiceRequests(setPublicServiceRequests);
     
     return () => {
         unsubMaintenancePlans();
         unsubPartners();
+        unsubPublicRequests();
     };
   }, [user, activeModule]);
 
@@ -1266,6 +1270,39 @@ export const App = () => {
       return `${vehicle.plate}: aberto para revisão manual.`;
   };
 
+  const handleConvertPublicServiceRequest = async (request: PublicServiceRequest): Promise<void> => {
+      const vehicle = vehicles.find(v => v.id === request.vehicleId || v.plate === request.vehiclePlate);
+      await handleAddServiceOrder({
+          vehicleId: vehicle?.id || request.vehicleId,
+          vehiclePlate: vehicle?.plate || request.vehiclePlate,
+          title: request.title,
+          details: `Solicitação enviada pelo QR do RG do veículo.\nMotorista: ${request.driverName}\nUrgência: ${request.urgency || 'NORMAL'}\nRecebida em: ${new Date(request.createdAt).toLocaleString('pt-BR')}\n\n${request.details}`,
+          status: 'PENDENTE',
+          serviceType: 'INTERNAL',
+          date: request.preferredDate || new Date().toISOString().split('T')[0],
+          odometer: vehicle?.odometer || 0,
+          branchId: vehicle?.branchId || selectedBranchId,
+          driverName: request.driverName,
+          contactName: request.driverName
+      });
+
+      const createdOrderNumber = serviceOrders.reduce((max, order) => Math.max(max, order.orderNumber), 0) + 1;
+      await storageService.updatePublicServiceRequest(request.id, {
+          status: 'CONVERTIDA',
+          linkedServiceOrderNumber: String(createdOrderNumber)
+      });
+      addToast('success', 'O.S. criada', `${request.vehiclePlate}: solicitação do QR convertida em O.S.`);
+  };
+
+  const handleArchivePublicServiceRequest = async (request: PublicServiceRequest): Promise<void> => {
+      await storageService.updatePublicServiceRequest(request.id, {
+          status: 'ARQUIVADA',
+          archivedAt: new Date().toISOString(),
+          archivedBy: user?.displayName || user?.email || 'Sistema'
+      });
+      addToast('info', 'Solicitação arquivada', `${request.vehiclePlate}: solicitação do QR arquivada.`);
+  };
+
   const getPageTitle = (tab: TabView) => {
     switch (tab) {
       case 'dashboard': return 'Painel de Controle';
@@ -1287,6 +1324,7 @@ export const App = () => {
       case 'brand-models': return 'Marcas e Modelos';
       case 'location': return 'Rastreamento';
       case 'service-orders': return 'Oficina';
+      case 'qr-service-requests': return 'Solicitações do QR';
       case 'waste-disposal': return 'Descarte de Resíduos';
       case 'service': return 'Almoxarifado';
       case 'settings': return 'Configurações';
@@ -2047,6 +2085,14 @@ export const App = () => {
                 sectors={sectors}
                 currentUser={user ? { name: user.displayName, email: user.email } : undefined}
                 occurrences={occurrences}
+              />
+            )}
+            {currentTab === 'qr-service-requests' && allowedModules.includes('MECHANICAL') && (
+              <QRServiceRequests
+                requests={publicServiceRequests}
+                vehicles={vehicles}
+                onCreateOrder={handleConvertPublicServiceRequest}
+                onArchive={handleArchivePublicServiceRequest}
               />
             )}
             {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} items={stockItems} />}
