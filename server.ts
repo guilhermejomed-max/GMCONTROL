@@ -1078,9 +1078,9 @@ async function startServer() {
     }
   });
 
-  app.get("/api/public/vehicle-rg/:vehicleId", async (req, res) => {
+  app.get("/api/public/vehicle-rg", async (req, res) => {
     try {
-      const vehicleId = String(req.params.vehicleId || '').trim();
+      const vehicleId = String(req.query.id || req.query.vehicleRg || '').trim();
       const plate = String(req.query.plate || '').trim();
       if (!vehicleId) {
         return res.status(400).json({ success: false, error: "Veículo inválido" });
@@ -1134,9 +1134,9 @@ async function startServer() {
     }
   });
 
-  app.post("/api/public/vehicle-rg/:vehicleId/service-request", async (req, res) => {
+  app.post("/api/public/vehicle-rg/service-request", async (req, res) => {
     try {
-      const vehicleId = String(req.params.vehicleId || '').trim();
+      const vehicleId = String(req.query.id || req.query.vehicleRg || '').trim();
       const plate = String(req.query.plate || '').trim();
       const { driverName, title, details, preferredDate, urgency } = req.body || {};
 

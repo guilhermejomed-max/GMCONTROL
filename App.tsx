@@ -308,8 +308,9 @@ export const App = () => {
     let cancelled = false;
     setPublicRgData(prev => ({ ...prev, isLoading: true, error: undefined }));
 
-    const plateQuery = vehicleRgPlate ? `?plate=${encodeURIComponent(vehicleRgPlate)}` : '';
-    fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}${plateQuery}`)
+    const query = new URLSearchParams({ id: vehicleRgId });
+    if (vehicleRgPlate) query.set('plate', vehicleRgPlate);
+    fetch(`/api/public/vehicle-rg?${query.toString()}`)
       .then(async response => {
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.error || 'Nao foi possivel carregar o RG.');
@@ -1319,8 +1320,9 @@ export const App = () => {
         error={publicRgData.error}
         onCreateServiceRequest={async request => {
           if (!vehicleRgId) throw new Error('Veículo não encontrado.');
-          const plateQuery = vehicleRgPlate ? `?plate=${encodeURIComponent(vehicleRgPlate)}` : '';
-          const response = await fetch(`/api/public/vehicle-rg/${encodeURIComponent(vehicleRgId)}/service-request${plateQuery}`, {
+          const query = new URLSearchParams({ id: vehicleRgId });
+          if (vehicleRgPlate) query.set('plate', vehicleRgPlate);
+          const response = await fetch(`/api/public/vehicle-rg/service-request?${query.toString()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)
