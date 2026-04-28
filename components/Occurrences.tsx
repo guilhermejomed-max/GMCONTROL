@@ -108,6 +108,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   
   // Chat state
   const [chatMessage, setChatMessage] = useState('');
+  const [chatAttachments, setChatAttachments] = useState<{ name: string; url: string; type?: string }[]>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -569,7 +570,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   };
 
   const handleSendMessage = async (occ: Occurrence) => {
-    if (!chatMessage.trim()) return;
+    if (!chatMessage.trim() && chatAttachments.length === 0) return;
     
     setIsSendingMessage(true);
     try {
@@ -578,7 +579,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         text: chatMessage,
         userId: user.uid || user.id,
         userName: user.displayName || user.name || user.email || 'Usuário',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        attachments: chatAttachments
       };
 
       await storageService.addOccurrenceChat(orgId, occ.id, newMessage);
@@ -587,10 +589,38 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       await processMentions(chatMessage, occ.vehiclePlate);
 
       setChatMessage('');
+      setChatAttachments([]);
     } catch (err) {
       onNotification?.('error', 'Erro', 'Não foi possível enviar a mensagem.');
     } finally {
       setIsSendingMessage(false);
+    }
+  };
+
+  const handleChatAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !currentOccurrenceDetail) return;
+
+    setIsSendingMessage(true);
+    try {
+      const remaining = Math.max(0, 5 - chatAttachments.length);
+      const selected = files.slice(0, remaining).filter(file => file.size <= 8 * 1024 * 1024);
+      if (selected.length < files.length) {
+        onNotification?.('warning', 'Limite de anexos', 'Use até 5 arquivos, com até 8 MB cada.');
+      }
+
+      const uploaded = await Promise.all(selected.map(async file => {
+        const path = `occurrence-chat/${orgId}/${currentOccurrenceDetail.id}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+        const url = await storageService.uploadFile(path, file);
+        return { name: file.name, type: file.type, url };
+      }));
+
+      setChatAttachments(prev => [...prev, ...uploaded]);
+    } catch (error) {
+      onNotification?.('error', 'Erro no anexo', 'Não foi possível anexar o arquivo.');
+    } finally {
+      setIsSendingMessage(false);
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -1561,6 +1591,30 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                                   : 'bg-white text-gray-800 rounded-[20px] rounded-tl-sm border border-gray-200/60 shadow-black/5'
                               }`}>
                                 <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                                {msg.attachments && msg.attachments.length > 0 && (
+                                  <div className="mt-3 space-y-2">
+                                    {msg.attachments.map((attachment, index) => (
+                                      <a
+                                        key={`${attachment.name}-${index}`}
+                                        href={attachment.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={`flex items-center gap-2 rounded-xl p-2 text-[11px] font-bold border ${
+                                          isMe ? 'bg-blue-500/40 border-blue-300/30 text-white' : 'bg-gray-50 border-gray-200 text-gray-700'
+                                        }`}
+                                      >
+                                        {attachment.type?.startsWith('image/') ? (
+                                          <img src={attachment.url} alt={attachment.name} className="w-11 h-11 rounded-lg object-cover border border-white/30" />
+                                        ) : (
+                                          <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${isMe ? 'bg-blue-700/40' : 'bg-white'}`}>
+                                            <FileText className="w-5 h-5" />
+                                          </div>
+                                        )}
+                                        <span className="truncate max-w-[190px]">{attachment.name}</span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
                                 
                                 <div className={`text-[9px] mt-2 flex items-center gap-1 font-medium select-none ${isMe ? 'text-blue-200/80' : 'text-gray-400'}`}>
                                   {new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -1585,6 +1639,23 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
 
                   {/* Input Area */}
                   <div className="p-4 bg-white border-t border-gray-200 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+                    {chatAttachments.length > 0 && (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {chatAttachments.map((attachment, index) => (
+                          <div key={`${attachment.name}-${index}`} className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 px-2 py-1.5">
+                            {attachment.type?.startsWith('image/') ? (
+                              <img src={attachment.url} alt={attachment.name} className="w-8 h-8 rounded-lg object-cover" />
+                            ) : (
+                              <FileText className="w-4 h-4 text-gray-500" />
+                            )}
+                            <span className="text-[11px] font-bold text-gray-600 max-w-[160px] truncate">{attachment.name}</span>
+                            <button onClick={() => setChatAttachments(prev => prev.filter((_, i) => i !== index))} className="p-1 text-gray-400 hover:text-red-500">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-end gap-3 relative">
                       {/* Mentions for Chat */}
                       <AnimatePresence>
@@ -1645,9 +1716,19 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                           className="w-full bg-transparent p-3.5 text-[13px] outline-none resize-none custom-scrollbar min-h-[44px] max-h-32"
                         />
                       </div>
+                      <label className="w-[48px] h-[48px] flex items-center justify-center bg-gray-100 text-gray-600 rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shrink-0 cursor-pointer" title="Anexar arquivo">
+                        <Upload className="w-5 h-5" />
+                        <input
+                          type="file"
+                          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                          multiple
+                          onChange={handleChatAttachmentUpload}
+                          className="hidden"
+                        />
+                      </label>
                       <button 
                         onClick={() => handleSendMessage(currentOccurrenceDetail)}
-                        disabled={!chatMessage.trim() || isSendingMessage}
+                        disabled={(!chatMessage.trim() && chatAttachments.length === 0) || isSendingMessage}
                         className="w-[48px] h-[48px] flex items-center justify-center bg-blue-600 text-white rounded-2xl hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all hover:shadow-lg hover:shadow-blue-600/20 active:scale-95 shrink-0"
                       >
                         {isSendingMessage ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}

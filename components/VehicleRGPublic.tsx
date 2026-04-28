@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Activity, Calendar, CheckCircle2, Fuel, Gauge, LogIn, MapPin, Send, ShieldCheck, Truck, User, Wrench } from 'lucide-react';
+import { Activity, Calendar, CheckCircle2, FileText, Fuel, Gauge, Image as ImageIcon, LogIn, MapPin, Paperclip, Send, ShieldCheck, Trash2, Truck, User, Wrench } from 'lucide-react';
 import { FuelEntry, ServiceOrder, Vehicle } from '../types';
 import { calculateRollingFuelEfficiency } from '../lib/fuelUtils';
+import { storageService } from '../services/storageService';
 
 interface VehicleRGPublicProps {
   vehicle?: Vehicle;
@@ -14,8 +15,14 @@ interface VehicleRGPublicProps {
     driverName: string;
     title: string;
     details: string;
+    problemType?: string;
+    driverPhone?: string;
+    informedOdometer?: number;
+    vehicleStopped?: boolean;
+    driverLocation?: string;
     preferredDate: string;
     urgency: string;
+    attachments?: { name: string; url: string; type?: string }[];
   }) => Promise<void>;
 }
 
@@ -46,9 +53,15 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
   const [driverName, setDriverName] = useState(() => localStorage.getItem(storageKey) || '');
   const [nameInput, setNameInput] = useState(() => localStorage.getItem(storageKey) || '');
   const [serviceTitle, setServiceTitle] = useState('Revisao solicitada pelo motorista');
+  const [problemType, setProblemType] = useState('REVISAO');
+  const [driverPhone, setDriverPhone] = useState('');
+  const [informedOdometer, setInformedOdometer] = useState('');
+  const [vehicleStopped, setVehicleStopped] = useState(false);
+  const [driverLocation, setDriverLocation] = useState('');
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [urgency, setUrgency] = useState('NORMAL');
   const [serviceDetails, setServiceDetails] = useState('');
+  const [attachments, setAttachments] = useState<{ name: string; url: string; type?: string }[]>([]);
   const [isSending, setIsSending] = useState(false);
 
   if (isLoading) {
@@ -88,6 +101,35 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
     setDriverName(cleanName);
   };
 
+  const handleAttachmentChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const remaining = Math.max(0, 4 - attachments.length);
+    const selected = files.slice(0, remaining).filter(file => file.size <= 8 * 1024 * 1024);
+    if (selected.length < files.length) {
+      alert('Limite: ate 4 anexos, com ate 8 MB cada.');
+    }
+
+    try {
+      const uploaded = await Promise.all(selected.map(async file => {
+        const safeName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+        const path = `public-service-requests/${vehicle?.id || vehicle?.plate || 'vehicle'}/${Date.now()}_${safeName}`;
+        const url = await storageService.uploadFile(path, file);
+        const currentInlineSize = attachments.reduce((sum, item) => sum + (item.url.startsWith('data:') ? item.url.length : 0), 0);
+        if (url.startsWith('data:') && currentInlineSize + url.length > 700000) {
+          throw new Error('Arquivo muito grande para salvar sem Storage. Tente uma imagem menor.');
+        }
+        return { name: file.name, type: file.type, url };
+      }));
+      setAttachments(prev => [...prev, ...uploaded]);
+    } catch (error: any) {
+      alert(error?.message || 'Nao foi possivel anexar o arquivo. Tente uma imagem menor.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   const handleServiceSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!onCreateServiceRequest || !driverName.trim()) return;
@@ -102,13 +144,25 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
         driverName: driverName.trim(),
         title: serviceTitle.trim(),
         details: serviceDetails.trim(),
+        problemType,
+        driverPhone: driverPhone.trim(),
+        informedOdometer: informedOdometer ? Number(informedOdometer) : undefined,
+        vehicleStopped,
+        driverLocation: driverLocation.trim(),
         preferredDate: serviceDate,
-        urgency
+        urgency,
+        attachments
       });
       setServiceTitle('Revisao solicitada pelo motorista');
       setServiceDate(new Date().toISOString().split('T')[0]);
       setUrgency('NORMAL');
       setServiceDetails('');
+      setProblemType('REVISAO');
+      setDriverPhone('');
+      setInformedOdometer('');
+      setVehicleStopped(false);
+      setDriverLocation('');
+      setAttachments([]);
       alert('Solicitacao enviada para a oficina.');
     } catch (error: any) {
       alert(error?.message || 'Nao foi possivel enviar a solicitacao.');
@@ -283,6 +337,36 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
 
           <form onSubmit={handleServiceSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Tipo de problema</label>
+              <select
+                value={problemType}
+                onChange={event => {
+                  setProblemType(event.target.value);
+                  const labels: Record<string, string> = {
+                    PNEU: 'Problema em pneu',
+                    FREIO: 'Problema no freio',
+                    LUZ: 'Problema em luz/eletrica',
+                    VAZAMENTO: 'Vazamento',
+                    MOTOR: 'Problema no motor',
+                    DOCUMENTACAO: 'Documentacao',
+                    REVISAO: 'Revisao solicitada pelo motorista',
+                    OUTRO: 'Solicitacao do motorista'
+                  };
+                  setServiceTitle(labels[event.target.value] || 'Solicitacao do motorista');
+                }}
+                className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="REVISAO">Revisao</option>
+                <option value="PNEU">Pneu</option>
+                <option value="FREIO">Freio</option>
+                <option value="LUZ">Luz / eletrica</option>
+                <option value="VAZAMENTO">Vazamento</option>
+                <option value="MOTOR">Motor</option>
+                <option value="DOCUMENTACAO">Documentacao</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Tipo de servico</label>
               <input
                 value={serviceTitle}
@@ -292,26 +376,51 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Data desejada</label>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Telefone</label>
                 <input
-                  type="date"
-                  value={serviceDate}
-                  onChange={event => setServiceDate(event.target.value)}
+                  value={driverPhone}
+                  onChange={event => setDriverPhone(event.target.value)}
                   className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="(00) 00000-0000"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Urgencia</label>
-                <select
-                  value={urgency}
-                  onChange={event => setUrgency(event.target.value)}
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">KM atual</label>
+                <input
+                  type="number"
+                  value={informedOdometer}
+                  onChange={event => setInformedOdometer(event.target.value)}
                   className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="NORMAL">Normal</option>
-                  <option value="ALTA">Alta</option>
-                  <option value="CRITICA">Critica</option>
-                </select>
+                  placeholder={(vehicle.odometer || 0).toString()}
+                />
               </div>
+            </div>
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Local atual informado pelo motorista</label>
+                <input
+                  value={driverLocation}
+                  onChange={event => setDriverLocation(event.target.value)}
+                  className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Ex: base, cliente, rodovia, cidade"
+                />
+              </div>
+              <label className={`px-4 py-3 rounded-lg border text-sm font-black cursor-pointer ${vehicleStopped ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                <input type="checkbox" checked={vehicleStopped} onChange={event => setVehicleStopped(event.target.checked)} className="mr-2" />
+                Veiculo parado?
+              </label>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Urgencia</label>
+              <select
+                value={urgency}
+                onChange={event => setUrgency(event.target.value)}
+                className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="NORMAL">Normal</option>
+                <option value="ALTA">Alta</option>
+                <option value="CRITICA">Critica</option>
+              </select>
             </div>
             <div className="md:col-span-2">
               <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">O que precisa ser feito?</label>
@@ -321,6 +430,45 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
                 className="w-full min-h-28 p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-emerald-500"
                 placeholder="Descreva barulho, falha, vazamento, troca, revisao ou qualquer observacao"
               />
+            </div>
+            <div className="md:col-span-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500">Anexos / fotos</p>
+                  <p className="text-xs font-bold text-slate-500">Adicione foto da avaria, nota, documento ou comprovante.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-slate-100">
+                    <ImageIcon className="h-4 w-4" />
+                    Tirar foto
+                    <input type="file" accept="image/*" capture="environment" onChange={handleAttachmentChange} className="hidden" />
+                  </label>
+                  <label className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-black flex items-center gap-2 cursor-pointer hover:bg-slate-100">
+                    <Paperclip className="h-4 w-4" />
+                    Anexar
+                    <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" multiple onChange={handleAttachmentChange} className="hidden" />
+                  </label>
+                </div>
+              </div>
+              {attachments.length > 0 && (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {attachments.map((attachment, index) => (
+                    <div key={`${attachment.name}-${index}`} className="flex items-center gap-2 rounded-lg bg-white border border-slate-200 p-2">
+                      {attachment.type?.startsWith('image/') ? (
+                        <img src={attachment.url} alt={attachment.name} className="w-10 h-10 rounded-md object-cover border border-slate-200" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                      )}
+                      <span className="flex-1 min-w-0 text-xs font-bold text-slate-700 truncate">{attachment.name}</span>
+                      <button type="button" onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))} className="p-2 text-slate-400 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="md:col-span-2 flex justify-end">
               <button disabled={isSending} className="w-full sm:w-auto px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-black flex items-center justify-center gap-2">

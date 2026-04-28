@@ -113,10 +113,16 @@ service cloud.firestore {
         'vehicleId',
         'vehiclePlate',
         'driverName',
+        'driverPhone',
         'title',
         'details',
+        'problemType',
+        'informedOdometer',
+        'vehicleStopped',
+        'driverLocation',
         'preferredDate',
         'urgency',
+        'attachments',
         'status',
         'createdAt'
       ]) &&
@@ -131,6 +137,12 @@ service cloud.firestore {
       data.details is string &&
       data.details.size() >= 5 &&
       data.details.size() <= 2000 &&
+      (!('driverPhone' in data) || data.driverPhone is string) &&
+      (!('problemType' in data) || data.problemType is string) &&
+      (!('informedOdometer' in data) || data.informedOdometer is number) &&
+      (!('vehicleStopped' in data) || data.vehicleStopped is bool) &&
+      (!('driverLocation' in data) || data.driverLocation is string) &&
+      (!('attachments' in data) || data.attachments is list) &&
       data.status == "PENDENTE";
     }
 

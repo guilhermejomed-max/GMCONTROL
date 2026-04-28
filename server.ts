@@ -1138,7 +1138,19 @@ async function startServer() {
     try {
       const vehicleId = String(req.query.id || req.query.vehicleRg || '').trim();
       const plate = String(req.query.plate || '').trim();
-      const { driverName, title, details, preferredDate, urgency } = req.body || {};
+      const {
+        driverName,
+        title,
+        details,
+        preferredDate,
+        urgency,
+        problemType,
+        driverPhone,
+        informedOdometer,
+        vehicleStopped,
+        driverLocation,
+        attachments
+      } = req.body || {};
 
       if (!vehicleId || !String(driverName || '').trim() || !String(title || '').trim() || !String(details || '').trim()) {
         return res.status(400).json({ success: false, error: "Dados obrigatórios ausentes" });
@@ -1156,20 +1168,34 @@ async function startServer() {
       const now = new Date().toISOString();
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+      const detailLines = [
+        'Solicitação enviada pelo RG público do veículo.',
+        `Motorista: ${String(driverName).trim()}`,
+        driverPhone ? `Telefone: ${String(driverPhone).trim()}` : '',
+        problemType ? `Tipo informado: ${String(problemType).trim()}` : '',
+        informedOdometer ? `KM informado pelo motorista: ${Number(informedOdometer).toLocaleString('pt-BR')}` : '',
+        driverLocation ? `Local informado: ${String(driverLocation).trim()}` : '',
+        `Veículo parado: ${vehicleStopped ? 'SIM' : 'NÃO'}`,
+        `Urgência: ${String(urgency || 'NORMAL')}`,
+        '',
+        String(details).trim()
+      ].filter(Boolean).join('\n');
+
       const order = {
         id,
         orderNumber: nextOrderNumber,
         vehicleId: vehicle.id,
         vehiclePlate: vehicle.plate || '',
         title: String(title).trim(),
-        details: `Solicitação enviada pelo RG público do veículo.\nMotorista: ${String(driverName).trim()}\nUrgência: ${String(urgency || 'NORMAL')}\n\n${String(details).trim()}`,
+        details: detailLines,
         status: 'PENDENTE',
         serviceType: 'INTERNAL',
         date: preferredDate || now.split('T')[0],
-        odometer: vehicle.odometer || 0,
+        odometer: Number(informedOdometer) || vehicle.odometer || 0,
         branchId: vehicle.branchId || '',
         driverName: String(driverName).trim(),
         contactName: String(driverName).trim(),
+        ...(Array.isArray(attachments) ? { attachments } : {}),
         createdBy: `RG Público - ${String(driverName).trim()}`,
         createdAt: now
       };

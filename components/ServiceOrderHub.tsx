@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection, Occurrence } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw } from 'lucide-react';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw, FileText, Paperclip } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 import { ServiceOrderOpening } from './ServiceOrderOpening';
@@ -628,6 +628,26 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                         "{order.details}"
                     </p>
 
+                    {order.attachments && order.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {order.attachments.slice(0, 3).map((attachment, idx) => (
+                                <a
+                                    key={`${attachment.name}-${idx}`}
+                                    href={attachment.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-[9px] px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800/50 flex items-center gap-1 max-w-[150px]"
+                                >
+                                    <Paperclip className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{attachment.name}</span>
+                                </a>
+                            ))}
+                            {order.attachments.length > 3 && (
+                                <span className="text-[9px] font-bold text-slate-400">+{order.attachments.length - 3} anexos</span>
+                            )}
+                        </div>
+                    )}
+
                     {/* Costs Section */}
                     {(order.laborCost || order.externalServiceCost) && (
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3">
@@ -1216,6 +1236,34 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               "{viewingOrderDetails.details}"
                           </p>
                       </div>
+
+                      {viewingOrderDetails.attachments && viewingOrderDetails.attachments.length > 0 && (
+                          <div className="space-y-4">
+                              <h5 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                  <Paperclip className="h-4 w-4 text-blue-500"/> Anexos
+                              </h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {viewingOrderDetails.attachments.map((attachment, idx) => (
+                                      <a
+                                          key={`${attachment.name}-${idx}`}
+                                          href={attachment.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-blue-300 transition-colors"
+                                      >
+                                          {attachment.type?.startsWith('image/') ? (
+                                              <img src={attachment.url} alt={attachment.name} className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-700" />
+                                          ) : (
+                                              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-500">
+                                                  <FileText className="h-5 w-5" />
+                                              </div>
+                                          )}
+                                          <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{attachment.name}</span>
+                                      </a>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
 
                       {/* Financial Summary */}
                       <div className="space-y-4">

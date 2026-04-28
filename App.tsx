@@ -1272,18 +1272,32 @@ export const App = () => {
 
   const handleConvertPublicServiceRequest = async (request: PublicServiceRequest): Promise<void> => {
       const vehicle = vehicles.find(v => v.id === request.vehicleId || v.plate === request.vehiclePlate);
+      const detailLines = [
+          'Solicitação enviada pelo QR do RG do veículo.',
+          `Motorista: ${request.driverName}`,
+          request.driverPhone ? `Telefone: ${request.driverPhone}` : '',
+          request.problemType ? `Tipo informado: ${request.problemType}` : '',
+          request.informedOdometer ? `KM informado pelo motorista: ${request.informedOdometer.toLocaleString('pt-BR')}` : '',
+          request.driverLocation ? `Local informado: ${request.driverLocation}` : '',
+          `Veículo parado: ${request.vehicleStopped ? 'SIM' : 'NÃO'}`,
+          `Urgência: ${request.urgency || 'NORMAL'}`,
+          `Recebida em: ${new Date(request.createdAt).toLocaleString('pt-BR')}`,
+          '',
+          request.details
+      ].filter(Boolean).join('\n');
       await handleAddServiceOrder({
           vehicleId: vehicle?.id || request.vehicleId,
           vehiclePlate: vehicle?.plate || request.vehiclePlate,
           title: request.title,
-          details: `Solicitação enviada pelo QR do RG do veículo.\nMotorista: ${request.driverName}\nUrgência: ${request.urgency || 'NORMAL'}\nRecebida em: ${new Date(request.createdAt).toLocaleString('pt-BR')}\n\n${request.details}`,
+          details: detailLines,
           status: 'PENDENTE',
           serviceType: 'INTERNAL',
           date: request.preferredDate || new Date().toISOString().split('T')[0],
-          odometer: vehicle?.odometer || 0,
+          odometer: request.informedOdometer || vehicle?.odometer || 0,
           branchId: vehicle?.branchId || selectedBranchId,
           driverName: request.driverName,
-          contactName: request.driverName
+          contactName: request.driverName,
+          ...(request.attachments && request.attachments.length > 0 ? { attachments: request.attachments as any } : {})
       });
 
       const createdOrderNumber = serviceOrders.reduce((max, order) => Math.max(max, order.orderNumber), 0) + 1;
@@ -1294,13 +1308,23 @@ export const App = () => {
       addToast('success', 'O.S. criada', `${request.vehiclePlate}: solicitação do QR convertida em O.S.`);
   };
 
-  const handleArchivePublicServiceRequest = async (request: PublicServiceRequest): Promise<void> => {
+  const handleArchivePublicServiceRequest = async (request: PublicServiceRequest, reason?: string): Promise<void> => {
       await storageService.updatePublicServiceRequest(request.id, {
           status: 'ARQUIVADA',
+          archiveReason: reason || 'Arquivada pela oficina',
           archivedAt: new Date().toISOString(),
           archivedBy: user?.displayName || user?.email || 'Sistema'
       });
       addToast('info', 'Solicitação arquivada', `${request.vehiclePlate}: solicitação do QR arquivada.`);
+  };
+
+  const handleMarkPublicServiceRequestInAnalysis = async (request: PublicServiceRequest): Promise<void> => {
+      await storageService.updatePublicServiceRequest(request.id, {
+          status: 'EM_ANALISE',
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: user?.displayName || user?.email || 'Sistema'
+      });
+      addToast('info', 'Em análise', `${request.vehiclePlate}: solicitação marcada para conferência.`);
   };
 
   const getPageTitle = (tab: TabView) => {
@@ -1369,33 +1393,12 @@ export const App = () => {
         error={publicRgData.error}
         onCreateServiceRequest={async request => {
           if (!vehicleRgId) throw new Error('Veículo não encontrado.');
-          const saveFallbackRequest = async () => {
-            const fallbackOrder = await storageService.addPublicServiceRequest({
-              ...request,
-              vehicleId: publicRgData.vehicle?.id || vehicleRgId,
-              vehiclePlate: publicRgData.vehicle?.plate || vehicleRgPlate
-            });
-            setPublicRgData(prev => ({ ...prev, serviceOrders: [fallbackOrder as any, ...prev.serviceOrders] }));
-          };
-
-          const query = new URLSearchParams({ id: vehicleRgId });
-          if (vehicleRgPlate) query.set('plate', vehicleRgPlate);
-          try {
-            const response = await fetch(`/api/public/vehicle-rg/service-request?${query.toString()}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(request)
-            });
-            const text = await response.text();
-            const data = text ? JSON.parse(text) : {};
-            if (!response.ok || !data.success) {
-              await saveFallbackRequest();
-              return;
-            }
-            setPublicRgData(prev => ({ ...prev, serviceOrders: [data.order, ...prev.serviceOrders] }));
-          } catch {
-            await saveFallbackRequest();
-          }
+          const publicRequest = await storageService.addPublicServiceRequest({
+            ...request,
+            vehicleId: publicRgData.vehicle?.id || vehicleRgId,
+            vehiclePlate: publicRgData.vehicle?.plate || vehicleRgPlate
+          });
+          setPublicRgData(prev => ({ ...prev, serviceOrders: [publicRequest as any, ...prev.serviceOrders] }));
         }}
         onBack={user ? () => {
           window.history.pushState({}, '', window.location.origin);
@@ -1485,18 +1488,31 @@ export const App = () => {
         onCreateServiceRequest={async request => {
           const vehicle = vehicles.find(item => item.id === vehicleRgId || item.plate === vehicleRgId);
           if (!vehicle) throw new Error('Veículo não encontrado.');
+          const detailLines = [
+            'Solicitação enviada pelo RG do veículo.',
+            `Motorista: ${request.driverName}`,
+            request.driverPhone ? `Telefone: ${request.driverPhone}` : '',
+            request.problemType ? `Tipo informado: ${request.problemType}` : '',
+            request.informedOdometer ? `KM informado pelo motorista: ${request.informedOdometer.toLocaleString('pt-BR')}` : '',
+            request.driverLocation ? `Local informado: ${request.driverLocation}` : '',
+            `Veículo parado: ${request.vehicleStopped ? 'SIM' : 'NÃO'}`,
+            `Urgência: ${request.urgency}`,
+            '',
+            request.details
+          ].filter(Boolean).join('\n');
           await handleAddServiceOrder({
             vehicleId: vehicle.id,
             vehiclePlate: vehicle.plate,
             title: request.title,
-            details: `Solicitação enviada pelo RG do veículo.\nMotorista: ${request.driverName}\nUrgência: ${request.urgency}\n\n${request.details}`,
+            details: detailLines,
             status: 'PENDENTE',
             serviceType: 'INTERNAL',
             date: request.preferredDate,
-            odometer: vehicle.odometer || 0,
+            odometer: request.informedOdometer || vehicle.odometer || 0,
             branchId: vehicle.branchId || selectedBranchId,
             driverName: request.driverName,
-            contactName: request.driverName
+            contactName: request.driverName,
+            ...(request.attachments && request.attachments.length > 0 ? { attachments: request.attachments as any } : {})
           });
           storageService.logActivity(orgId, 'Agendamento pelo RG', `${vehicle.plate}: ${request.title} solicitado por ${request.driverName}`, 'VEHICLES');
         }}
@@ -1745,6 +1761,7 @@ export const App = () => {
           }}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
+          qrPendingCount={publicServiceRequests.filter(request => request.status === 'PENDENTE' || request.status === 'EM_ANALISE').length}
         />
       )}
       
@@ -2093,6 +2110,7 @@ export const App = () => {
                 vehicles={vehicles}
                 onCreateOrder={handleConvertPublicServiceRequest}
                 onArchive={handleArchivePublicServiceRequest}
+                onMarkInAnalysis={handleMarkPublicServiceRequestInAnalysis}
               />
             )}
             {currentTab === 'service' && allowedModules.includes('MECHANICAL') && <ServiceManager orgId={orgId} userLevel={userRole} items={stockItems} />}

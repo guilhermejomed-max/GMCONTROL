@@ -488,6 +488,11 @@ export interface ServiceOrder {
   decontamination?: boolean;
   tagLocator?: string;
   partsCost?: number;
+  attachments?: {
+    name: string;
+    url: string;
+    type?: string;
+  }[];
 }
 
 export interface RetreadOrderItem {
@@ -600,6 +605,11 @@ export interface ChatMessage {
   userId: string;
   userName: string;
   createdAt: string;
+  attachments?: {
+    name: string;
+    url: string;
+    type?: string;
+  }[];
 }
 
 export interface Occurrence {
@@ -678,14 +688,27 @@ export interface PublicServiceRequest {
   driverName: string;
   title: string;
   details: string;
+  problemType?: string;
+  driverPhone?: string;
+  informedOdometer?: number;
+  vehicleStopped?: boolean;
+  driverLocation?: string;
   preferredDate?: string;
   urgency?: 'NORMAL' | 'ALTA' | 'CRITICA' | string;
-  status: 'PENDENTE' | 'CONVERTIDA' | 'ARQUIVADA';
+  attachments?: {
+    name: string;
+    url: string;
+    type?: string;
+  }[];
+  status: 'PENDENTE' | 'EM_ANALISE' | 'CONVERTIDA' | 'ARQUIVADA';
   createdAt: string;
   linkedServiceOrderId?: string;
   linkedServiceOrderNumber?: string;
   archivedAt?: string;
   archivedBy?: string;
+  archiveReason?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
 
 export interface ServiceClassification {

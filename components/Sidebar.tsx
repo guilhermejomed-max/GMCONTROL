@@ -22,6 +22,7 @@ interface SidebarProps {
   onSelectModule?: (module: ModuleType) => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
+  qrPendingCount?: number;
 }
 
 export const Sidebar: FC<SidebarProps> = ({ 
@@ -40,7 +41,8 @@ export const Sidebar: FC<SidebarProps> = ({
   onChangeModule, 
   onSelectModule,
   darkMode, 
-  toggleDarkMode 
+  toggleDarkMode,
+  qrPendingCount = 0
 }) => {
   const [isModuleDropdownOpen, setIsModuleDropdownOpen] = useState(false);
 
@@ -243,6 +245,13 @@ export const Sidebar: FC<SidebarProps> = ({
                 >
                   <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                   <span className="flex-1 text-left">{item.label}</span>
+                  {item.id === 'qr-service-requests' && qrPendingCount > 0 && (
+                    <span className={`min-w-5 h-5 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center ${
+                      isActive ? 'bg-white text-slate-900' : 'bg-amber-500 text-white'
+                    }`}>
+                      {qrPendingCount > 99 ? '99+' : qrPendingCount}
+                    </span>
+                  )}
                   {isActive && <ChevronRight className="h-4 w-4 opacity-50" />}
                 </button>
               </React.Fragment>

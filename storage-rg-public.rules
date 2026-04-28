@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isPublicRgAttachment() {
+      return request.resource != null
+        && request.resource.size < 8 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/.*') ||
+          request.resource.contentType == 'application/pdf' ||
+          request.resource.contentType == 'text/plain' ||
+          request.resource.contentType.matches('application/vnd.*') ||
+          request.resource.contentType.matches('application/msword.*')
+        );
+    }
+
+    match /public-service-requests/{vehicleId}/{fileName} {
+      allow read: if true;
+      allow create: if isPublicRgAttachment();
+      allow update, delete: if isAuthenticated();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
