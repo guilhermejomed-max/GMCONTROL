@@ -10,7 +10,7 @@
     }
   ],
   "functions": {
-    "api/**/*": {
+    "api/**/*.ts": {
       "includeFiles": "api/sascar-wsdl.xml"
     }
   }

@@ -1311,18 +1311,21 @@ async function startServer() {
     app.use(express.static("dist"));
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    
-    // Iniciar automação Sascar a cada 15 minutos para ser mais ágil sem sobrecarregar
-    const FIFTEEN_MINUTES = 15 * 60 * 1000;
-    // Removal of automatic interval as requested by user
-    // setInterval(runSascarAutomation, FIFTEEN_MINUTES);
-    logToFile("[Server] Automação Sascar agendada para cada 15 minutos.");
-    
-    // Executar uma vez após 10 segundos do boot para garantir que os dados estejam frescos
-    // setTimeout(runSascarAutomation, 10000);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+      
+      // Iniciar automação Sascar a cada 15 minutos para ser mais ágil sem sobrecarregar
+      const FIFTEEN_MINUTES = 15 * 60 * 1000;
+      void FIFTEEN_MINUTES;
+      // Removal of automatic interval as requested by user
+      // setInterval(runSascarAutomation, FIFTEEN_MINUTES);
+      logToFile("[Server] Automação Sascar agendada para cada 15 minutos.");
+      
+      // Executar uma vez após 10 segundos do boot para garantir que os dados estejam frescos
+      // setTimeout(runSascarAutomation, 10000);
+    });
+  }
 
   return app;
 }
