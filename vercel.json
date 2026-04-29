@@ -15,7 +15,8 @@
   ],
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "api/sascar-wsdl.xml"
+      "includeFiles": "api/sascar-wsdl.xml",
+      "maxDuration": 60
     }
   }
 }
