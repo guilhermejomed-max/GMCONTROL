@@ -1,446 +1,54 @@
 import { TrackerSettings } from '../types';
-import { parseSascarDate } from '../src/utils';
-import { parseTrackerOdometerKm } from '../lib/odometerUtils';
 
-const parseOptionalNumber = (...values: any[]): number | undefined => {
-  for (const value of values) {
-    if (value === null || value === undefined || value === '') continue;
-    const parsed = Number(String(value).replace(',', '.'));
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
+type SascarResponse = {
+  success?: boolean;
+  data?: any[];
+  error?: string;
+  details?: string;
+  message?: string;
 };
 
 export const sascarService = {
   getVehicles: async (plates?: string[], trackerSettings?: TrackerSettings, retries = 2) => {
-    const fetchWithTimeout = async (url: string, options: any, timeout = 120000) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-      }, timeout);
+    void retries;
 
-      try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        return response;
-      } catch (error: any) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-          const timeoutError = new Error('Timeout da requisição (120s)');
-          timeoutError.name = 'TimeoutError';
-          throw timeoutError;
-        }
-        throw error;
-      }
-    };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
 
-    const user = trackerSettings?.user || 'JOMEDELOGTORREOPENTECH';
-    const pass = trackerSettings?.pass || 'sascar';
-    const url = '/proxy-sascar/SasIntegraWSService';
-
-    const fetchFromServer = async (): Promise<any[]> => {
-      try {
-        const response = await fetchWithTimeout('/api/sascar/vehicles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plates: plates || [], trackerSettings })
-        }, 55000);
-
-        if (!response.ok) return [];
-        const json = await response.json();
-        return Array.isArray(json?.data) ? json.data : [];
-      } catch (error) {
-        console.warn('[Sascar Sync] Endpoint interno falhou, tentando SOAP direto...', error);
-        return [];
-      }
-    };
-
-    const fetchIndividual = async (idOrPlate: string): Promise<any | null> => {
-      const isId = /^\d+$/.test(idOrPlate);
-      const methods = isId 
-        ? [{ name: 'obterUltimaPosicaoVeiculo', param: 'idVeiculo' }, { name: 'obterUltimaPosicaoVeiculoComPlaca', param: 'placa' }]
-        : [{ name: 'obterUltimaPosicaoVeiculoComPlaca', param: 'placa' }, { name: 'obterUltimaPosicaoVeiculo', param: 'idVeiculo' }];
-
-      for (const method of methods) {
-        const soapEnvelope = `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <int:${method.name}>
-         <usuario>${user}</usuario>
-         <senha>${pass}</senha>
-         <${method.param}>${idOrPlate}</${method.param}>
-      </int:${method.name}>
-   </soapenv:Body>
-</soapenv:Envelope>`.trim();
-
-        try {
-          const response = await fetchWithTimeout(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
-            body: soapEnvelope
-          }, 30000);
-
-          if (!response.ok) continue;
-          const text = await response.text();
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(text, "text/xml");
-          
-          let returns = xmlDoc.getElementsByTagName("return");
-          if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
-          
-          if (returns && returns.length > 0) {
-            const ret = returns[0];
-            const v: any = {};
-            for (let k = 0; k < ret.childNodes.length; k++) {
-              const node = ret.childNodes[k];
-              if (node.nodeType === 1) {
-                const element = node as Element;
-                const nodeName = element.localName || element.nodeName.replace(/^.*:/, '');
-                v[nodeName] = element.textContent;
-              }
-            }
-            if (!v.placa && !v.idVeiculo && ret.textContent) {
-              try {
-                const parsed = JSON.parse(ret.textContent);
-                if (parsed && typeof parsed === 'object') Object.assign(v, parsed);
-              } catch {}
-            }
-            if (v.placa || v.idVeiculo) return v;
-          }
-        } catch (e) {
-          console.warn(`Erro no método ${method.name} para ${idOrPlate}:`, e);
-        }
-      }
-      return null;
-    };
-
-    const maxRetries = 2;
-    let allVehiclesMap = new Map<string, any>();
-
-    const normalizeVehicle = (v: any) => {
-      const placa = v.placa || '';
-      return {
-        ...v,
-        idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '',
-        placa: placa,
-        plate: placa || v.idVeiculo || '',
-        latitude: parseOptionalNumber(v.latitude) || 0,
-        longitude: parseOptionalNumber(v.longitude) || 0,
-        odometer: parseTrackerOdometerKm(v),
-        litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
-        speed: Number(v.velocidade ?? 0),
-        ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
-        lastLocation: {
-          lat: parseOptionalNumber(v.latitude) || 0,
-          lng: parseOptionalNumber(v.longitude) || 0,
-          address: v.rua || '',
-          city: v.cidade || '',
-          state: v.uf || '',
-          updatedAt: v.dataPosicao || ''
-        }
-      };
-    };
-
-    if (plates && plates.length > 0) {
-      const serverResults = await fetchFromServer();
-      if (serverResults.length > 0) {
-        return { success: true, data: serverResults };
-      }
-
-      const concurrencyLimit = 4;
-      for (let i = 0; i < plates.length; i += concurrencyLimit) {
-        const chunk = plates.slice(i, i + concurrencyLimit);
-        const fastResults = await Promise.all(chunk.map(term => fetchIndividual(term)));
-        fastResults.filter(Boolean).forEach((v: any) => {
-          const normalizedVehicle = normalizeVehicle(v);
-          const uniqueKey = normalizedVehicle.idVeiculo
-            ? String(normalizedVehicle.idVeiculo)
-            : String(normalizedVehicle.placa || '').replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-
-          if (!uniqueKey) return;
-
-          const existing = allVehiclesMap.get(uniqueKey);
-          if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
-            allVehiclesMap.set(uniqueKey, normalizedVehicle);
-          }
-        });
-      }
-
-      if (allVehiclesMap.size === 0) {
-        console.warn('[Sascar Sync] Busca individual não retornou dados. Tentando última posição de todos os veículos...');
-        return await sascarService.getVehicles(undefined, trackerSettings, retries);
-      }
-
-      return { success: true, data: Array.from(allVehiclesMap.values()) };
-    }
-
-    if (!plates || plates.length === 0) {
-      const soapEnvelope = `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <int:obterUltimaPosicaoTodosVeiculos>
-         <usuario>${user}</usuario>
-         <senha>${pass}</senha>
-      </int:obterUltimaPosicaoTodosVeiculos>
-   </soapenv:Body>
-</soapenv:Envelope>`.trim();
-
-      const response = await fetchWithTimeout(url, {
+    try {
+      const response = await fetch('/api/sascar/vehicles', {
         method: 'POST',
-        headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
-        body: soapEnvelope
-      }, 120000);
-
-      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-      const text = await response.text();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(text, "text/xml");
-
-      let returns = xmlDoc.getElementsByTagName("return");
-      if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
-
-      for (let j = 0; j < returns.length; j++) {
-        const ret = returns[j];
-        let v: any = {};
-
-        if (ret.children.length > 0) {
-          for (let k = 0; k < ret.children.length; k++) {
-            const element = ret.children[k] as Element;
-            const nodeName = element.localName || element.nodeName.replace(/^.*:/, '');
-            v[nodeName] = element.textContent;
-          }
-        } else if (ret.textContent) {
-          try { v = JSON.parse(ret.textContent); } catch { v = {}; }
-        }
-
-        if (v.placa || v.idVeiculo) {
-          const normalizedVehicle = normalizeVehicle(v);
-          const uniqueKey = normalizedVehicle.idVeiculo
-            ? String(normalizedVehicle.idVeiculo)
-            : String(normalizedVehicle.placa || '').replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-          if (uniqueKey) allVehiclesMap.set(uniqueKey, normalizedVehicle);
-        }
-      }
-
-      return { success: true, data: Array.from(allVehiclesMap.values()) };
-    }
-
-    let hasMoreData = true;
-    let loopCount = 0;
-    const maxLoops = 10; 
-
-    while (hasMoreData && loopCount < maxLoops) {
-      loopCount++;
-      
-      for (let i = 0; i <= maxRetries; i++) {
-        try {
-          const soapEnvelope = `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <int:obterPacotePosicoesJSONComPlaca>
-         <usuario>${user}</usuario>
-         <senha>${pass}</senha>
-         <quantidade>5000</quantidade>
-      </int:obterPacotePosicoesJSONComPlaca>
-   </soapenv:Body>
-</soapenv:Envelope>`.trim();
-
-          const response = await fetchWithTimeout(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/xml;charset=UTF-8'
-            },
-            body: soapEnvelope
-          }, 180000);
-          
-          if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-
-          const text = await response.text();
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(text, "text/xml");
-          
-          const fault = xmlDoc.getElementsByTagName("faultstring")[0] || xmlDoc.getElementsByTagNameNS("*", "faultstring")[0];
-          if (fault) throw new Error(`Erro Sascar: ${fault.textContent}`);
-
-          let returns = xmlDoc.getElementsByTagName("return");
-          if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
-          if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagName("ns2:return");
-          
-          if (returns.length < 3000) hasMoreData = false;
-
-          for (let j = 0; j < returns.length; j++) {
-            const ret = returns[j];
-            const jsonText = ret.textContent;
-            if (!jsonText) continue;
-            
-            let v: any;
-            try {
-              v = JSON.parse(jsonText);
-            } catch (e) {
-              continue;
-            }
-            
-            const placa = v.placa || '';
-
-            if (placa || v.idVeiculo) {
-              const uniqueKey = v.idVeiculo ? String(v.idVeiculo) : placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-              
-              const normalizedVehicle = {
-                ...v,
-                idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
-                placa: placa,
-                plate: placa || v.idVeiculo || '',
-                latitude: parseOptionalNumber(v.latitude) || 0,
-                longitude: parseOptionalNumber(v.longitude) || 0,
-                odometer: parseTrackerOdometerKm(v),
-                litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
-                speed: Number(v.velocidade ?? 0),
-                ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
-                lastLocation: {
-                    lat: parseOptionalNumber(v.latitude) || 0,
-                    lng: parseOptionalNumber(v.longitude) || 0,
-                    address: v.rua || '',
-                    city: v.cidade || '',
-                    state: v.uf || '',
-                    updatedAt: v.dataPosicao || ''
-                }
-              };
-
-              // Manter apenas a posição mais recente
-              const existing = allVehiclesMap.get(uniqueKey);
-              if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
-                const hasInvalidPosition = normalizedVehicle.latitude === 0 && normalizedVehicle.longitude === 0;
-                const existingHasPosition = existing && (existing.latitude !== 0 || existing.longitude !== 0);
-                if (hasInvalidPosition && existingHasPosition) {
-                  normalizedVehicle.latitude = existing.latitude;
-                  normalizedVehicle.longitude = existing.longitude;
-                  normalizedVehicle.lastLocation = {
-                    ...normalizedVehicle.lastLocation,
-                    lat: existing.lastLocation?.lat ?? existing.latitude,
-                    lng: existing.lastLocation?.lng ?? existing.longitude,
-                    address: existing.lastLocation?.address || normalizedVehicle.lastLocation.address,
-                    city: existing.lastLocation?.city || normalizedVehicle.lastLocation.city,
-                    state: existing.lastLocation?.state || normalizedVehicle.lastLocation.state
-                  };
-                }
-                allVehiclesMap.set(uniqueKey, normalizedVehicle);
-              }
-            }
-          }
-          break; 
-        } catch (error: any) {
-          if (i === maxRetries) {
-            console.error('Erro na integração Sascar (Final):', error);
-            hasMoreData = false; 
-            if (allVehiclesMap.size === 0 && (!plates || plates.length === 0)) throw error; 
-          } else {
-            const delay = 2000 * (i + 1);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-    }
-
-    // Fallback individual para veículos não encontrados no pacote
-    if (plates && plates.length > 0) {
-      const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
-      const idsClean = plates.map(p => p.trim()).filter(p => /^\d+$/.test(p));
-      
-      const missingTerms = plates.filter(p => {
-        const pClean = p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        const pId = /^\d+$/.test(p.trim()) ? p.trim() : '';
-        
-        const alreadyFound = Array.from(allVehiclesMap.values()).some(v => {
-          const vPlaca = (v.placa || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-          const vId = (v.idVeiculo || '').replace(/\D/g, '');
-          return (vPlaca && vPlaca === pClean) || (vId && vId === pId);
-        });
-        
-        return !alreadyFound;
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plates: plates || [], trackerSettings }),
+        signal: controller.signal
       });
 
-      if (missingTerms.length > 0) {
-        console.log(`[Sascar Sync] ${missingTerms.length} termos não encontrados no pacote. Buscando individualmente...`);
-        const concurrencyLimit = 5;
-        for (let i = 0; i < missingTerms.length; i += concurrencyLimit) {
-          const chunk = missingTerms.slice(i, i + concurrencyLimit);
-          await Promise.all(chunk.map(async (term) => {
-            const v = await fetchIndividual(term);
-            if (v) {
-              const placa = v.placa || '';
-              const uniqueKey = v.idVeiculo ? String(v.idVeiculo) : placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-              
-              const normalizedVehicle = {
-                ...v,
-                idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '', 
-                placa: placa,
-                plate: placa || v.idVeiculo || '',
-                latitude: parseOptionalNumber(v.latitude) || 0,
-                longitude: parseOptionalNumber(v.longitude) || 0,
-                odometer: parseTrackerOdometerKm(v),
-                litrometer: parseOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel),
-                speed: Number(v.velocidade ?? 0),
-                ignition: v.ignicao === 'S' || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1,
-                lastLocation: {
-                    lat: parseOptionalNumber(v.latitude) || 0,
-                    lng: parseOptionalNumber(v.longitude) || 0,
-                    address: v.rua || '',
-                    city: v.cidade || '',
-                    state: v.uf || '',
-                    updatedAt: v.dataPosicao || ''
-                }
-              };
-              
-              const existing = allVehiclesMap.get(uniqueKey);
-              if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
-                const hasInvalidPosition = normalizedVehicle.latitude === 0 && normalizedVehicle.longitude === 0;
-                const existingHasPosition = existing && (existing.latitude !== 0 || existing.longitude !== 0);
-                if (hasInvalidPosition && existingHasPosition) {
-                  normalizedVehicle.latitude = existing.latitude;
-                  normalizedVehicle.longitude = existing.longitude;
-                  normalizedVehicle.lastLocation = {
-                    ...normalizedVehicle.lastLocation,
-                    lat: existing.lastLocation?.lat ?? existing.latitude,
-                    lng: existing.lastLocation?.lng ?? existing.longitude,
-                    address: existing.lastLocation?.address || normalizedVehicle.lastLocation.address,
-                    city: existing.lastLocation?.city || normalizedVehicle.lastLocation.city,
-                    state: existing.lastLocation?.state || normalizedVehicle.lastLocation.state
-                  };
-                }
-                allVehiclesMap.set(uniqueKey, normalizedVehicle);
-              }
-            }
-          }));
-        }
+      const responseText = await response.text();
+      let json: SascarResponse | null = null;
+
+      try {
+        json = responseText ? JSON.parse(responseText) : null;
+      } catch {
+        json = null;
       }
-    }
 
-    const vehicles = Array.from(allVehiclesMap.values());
+      if (!response.ok || json?.success === false) {
+        const details = json?.details || json?.error || responseText || `Erro HTTP: ${response.status}`;
+        throw new Error(details);
+      }
 
-    // Filter by plates if provided
-    let filteredVehicles = vehicles;
-    if (plates && plates.length > 0) {
-      const platesClean = plates.map(p => p.replace(/[^A-Z0-9]/gi, '').toUpperCase());
-      const idsClean = plates.map(p => p.trim()).filter(p => /^\d+$/.test(p));
-      
-      filteredVehicles = vehicles.filter(v => {
-        const placa = v.placa || v.plate || '';
-        const idVeiculo = v.idVeiculo || '';
-        if (!placa && !idVeiculo) return false;
-        
-        const vPlacaClean = placa.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        const vIdClean = idVeiculo.replace(/\D/g, '');
-        
-        return platesClean.includes(vPlacaClean) || (vIdClean && idsClean.includes(vIdClean));
-      });
+      return {
+        success: true,
+        data: Array.isArray(json?.data) ? json.data : []
+      };
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Timeout da sincronizacao Sascar. Tente novamente em alguns segundos.');
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    
-    return { success: true, data: filteredVehicles };
   }
 };
