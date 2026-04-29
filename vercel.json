@@ -3,12 +3,12 @@
   "rewrites": [
     {
       "source": "/api/sascar/vehicles",
-      "destination": "/api/api/sascar.js"
+      "destination": "/api/sascar"
     }
   ],
   "functions": {
     "api/sascar.ts": {
-      "maxDuration": 60,
+      "maxDuration": 30,
       "memory": 1024
     }
   }
