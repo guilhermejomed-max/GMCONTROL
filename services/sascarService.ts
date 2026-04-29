@@ -41,6 +41,23 @@ export const sascarService = {
     const pass = trackerSettings?.pass || 'sascar';
     const url = '/proxy-sascar/SasIntegraWSService';
 
+    const fetchFromServer = async (): Promise<any[]> => {
+      try {
+        const response = await fetchWithTimeout('/api/sascar/vehicles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plates: plates || [], trackerSettings })
+        }, 55000);
+
+        if (!response.ok) return [];
+        const json = await response.json();
+        return Array.isArray(json?.data) ? json.data : [];
+      } catch (error) {
+        console.warn('[Sascar Sync] Endpoint interno falhou, tentando SOAP direto...', error);
+        return [];
+      }
+    };
+
     const fetchIndividual = async (idOrPlate: string): Promise<any | null> => {
       const isId = /^\d+$/.test(idOrPlate);
       const methods = isId 
@@ -86,6 +103,12 @@ export const sascarService = {
                 v[nodeName] = element.textContent;
               }
             }
+            if (!v.placa && !v.idVeiculo && ret.textContent) {
+              try {
+                const parsed = JSON.parse(ret.textContent);
+                if (parsed && typeof parsed === 'object') Object.assign(v, parsed);
+              } catch {}
+            }
             if (v.placa || v.idVeiculo) return v;
           }
         } catch (e) {
@@ -123,6 +146,11 @@ export const sascarService = {
     };
 
     if (plates && plates.length > 0) {
+      const serverResults = await fetchFromServer();
+      if (serverResults.length > 0) {
+        return { success: true, data: serverResults };
+      }
+
       const concurrencyLimit = 4;
       for (let i = 0; i < plates.length; i += concurrencyLimit) {
         const chunk = plates.slice(i, i + concurrencyLimit);
@@ -140,6 +168,11 @@ export const sascarService = {
             allVehiclesMap.set(uniqueKey, normalizedVehicle);
           }
         });
+      }
+
+      if (allVehiclesMap.size === 0) {
+        console.warn('[Sascar Sync] Busca individual não retornou dados. Tentando última posição de todos os veículos...');
+        return await sascarService.getVehicles(undefined, trackerSettings, retries);
       }
 
       return { success: true, data: Array.from(allVehiclesMap.values()) };

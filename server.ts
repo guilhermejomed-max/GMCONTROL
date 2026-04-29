@@ -765,6 +765,80 @@ async function startServer() {
               );
           } else {
               logToFile(`[Sascar] Modo ultima posicao ativo: fila FIFO ignorada para evitar backlog e excesso de gravacoes.`);
+              try {
+                  const latestResult = await synchronizedSascarCall(async () => {
+                      if (Date.now() - fetchStartTime > currentTimeout) return null;
+                      if (typeof client.obterUltimaPosicaoTodosVeiculosAsync === 'function') {
+                          return client.obterUltimaPosicaoTodosVeiculosAsync({
+                              usuario: user,
+                              senha: pass
+                          }, { timeout: 60000 }).then(([res]: any) => res);
+                      }
+
+                      const soapEnvelope = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <int:obterUltimaPosicaoTodosVeiculos>
+         <usuario>${user}</usuario>
+         <senha>${pass}</senha>
+      </int:obterUltimaPosicaoTodosVeiculos>
+   </soapenv:Body>
+</soapenv:Envelope>`.trim();
+
+                      const response = await axios.post(
+                          'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService',
+                          soapEnvelope,
+                          {
+                              headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
+                              timeout: 60000,
+                              httpsAgent: new https.Agent({ rejectUnauthorized: false })
+                          }
+                      );
+                      return { __rawXml: response.data };
+                  }, 2, isBackground) as any;
+
+                  let latestRaw = latestResult ? (latestResult.return || latestResult.retornar) : null;
+                  if (!latestRaw && latestResult?.__rawXml) {
+                      const returns = String(latestResult.__rawXml).match(/<[^>]*return[^>]*>([\s\S]*?)<\/[^>]*return>/gi) || [];
+                      latestRaw = returns.map((block: string) => block
+                          .replace(/^<[^>]*return[^>]*>/i, '')
+                          .replace(/<\/[^>]*return>$/i, '')
+                          .replace(/&quot;/g, '"')
+                          .replace(/&lt;/g, '<')
+                          .replace(/&gt;/g, '>')
+                          .replace(/&amp;/g, '&')
+                      );
+                  }
+                  const latestArray = Array.isArray(latestRaw) ? latestRaw : (latestRaw ? [latestRaw] : []);
+
+                  latestArray.forEach((item: any) => {
+                      let pos = item;
+                      if (typeof item === 'string') {
+                          try { pos = JSON.parse(item); } catch {}
+                      }
+                      if (!pos || typeof pos !== 'object') return;
+
+                      const sascarId = pos.idVeiculo ? String(pos.idVeiculo) : '';
+                      const plate = pos.placa ? String(pos.placa).trim().toUpperCase() : '';
+                      const mappedPlate = sascarId ? idToPlateMap.get(sascarId) : '';
+                      if (!pos.placa && mappedPlate) pos.placa = mappedPlate;
+
+                      const key = sascarId || plate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                      if (!key) return;
+
+                      const existing = latestPositions.get(key);
+                      const newDate = parseSascarDate(pos.dataPosicao || pos.dataHora).getTime();
+                      const oldDate = existing ? parseSascarDate(existing.dataPosicao || existing.dataHora).getTime() : 0;
+                      if (!existing || newDate >= oldDate) latestPositions.set(key, pos);
+                  });
+                  logToFile(`[Sascar] Ultima posicao todos retornou ${latestPositions.size} posicoes.`);
+                  if (latestPositions.size > 0) {
+                      sascarCache.reachedRealTimeOnce = true;
+                  }
+              } catch (error: any) {
+                  logToFile(`[Sascar] Falha em obterUltimaPosicaoTodosVeiculos: ${error.message}`);
+              }
           }
           
           // Update cache
