@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/sascar/vehicles",
-      "destination": "/api/sascar-vehicles"
+      "destination": "/api/sascar"
     },
     {
       "source": "/proxy-sascar/:path*",
@@ -14,8 +14,8 @@
     }
   ],
   "functions": {
-    "api/**/*.ts": {
-      "includeFiles": "api/sascar-wsdl.xml"
+    "api/sascar.ts": {
+      "maxDuration": 30
     }
   }
 }
