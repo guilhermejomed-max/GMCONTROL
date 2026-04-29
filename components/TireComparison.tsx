@@ -282,6 +282,102 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
       return uniqueAnomalies.sort((a, b) => b.severity.localeCompare(a.severity)).slice(0, 1); // Mostra apenas a pior anomalia
   }, [tireAnalysis, vehicle.plate]);
 
+  const technicalReport = useMemo(() => {
+      const getReadings = (item: typeof tireAnalysisWithAverages[number]) => {
+          const data = inspectionData[item.tire.id] || ({} as Partial<InspectionRecord>);
+          const stored = item.tire.treadReadings;
+          return [
+              Number(data.depth1 ?? stored?.depth1 ?? item.currentDepth ?? 0),
+              Number(data.depth2 ?? stored?.depth2 ?? item.currentDepth ?? 0),
+              Number(data.depth3 ?? stored?.depth3 ?? item.currentDepth ?? 0),
+              Number(data.depth4 ?? stored?.depth4 ?? item.currentDepth ?? 0)
+          ].filter(v => Number.isFinite(v) && v > 0);
+      };
+
+      const scored = tireAnalysisWithAverages.map(item => {
+          const pressureGap = Math.abs(Number(item.pressure || 0) - Number(item.tire.targetPressure || item.pressure || 0));
+          const score = (item.lifePercentage * 0.55)
+              + (item.projectedTotalLife > 0 ? Math.min(item.projectedTotalLife / 2500, 40) : 0)
+              - (item.status === 'CRITICAL' ? 45 : item.status === 'WARNING' ? 18 : 0)
+              - Math.min(pressureGap * 2, 18)
+              - Math.min((item.cpk || 0) * 250, 18);
+          return { ...item, score, pressureGap };
+      }).sort((a, b) => b.score - a.score);
+
+      const best = scored[0] || null;
+      const worst = [...scored].reverse()[0] || null;
+
+      const irregularWear = scored.flatMap(item => {
+          const readings = getReadings(item);
+          if (readings.length < 3) return [];
+          const max = Math.max(...readings);
+          const min = Math.min(...readings);
+          const diff = max - min;
+          if (diff < 1.5) return [];
+
+          const leftAvg = (readings[0] + readings[1]) / 2;
+          const rightAvg = (readings[readings.length - 2] + readings[readings.length - 1]) / 2;
+          const centerAvg = readings.length >= 4 ? (readings[1] + readings[2]) / 2 : readings[1];
+          const edgeAvg = (readings[0] + readings[readings.length - 1]) / 2;
+
+          let diagnosis = 'Desgaste irregular transversal.';
+          let cause = 'Pode haver desalinhamento, diferença de pressão, folga de suspensão ou montagem inadequada.';
+          let action = 'Conferir pressão, alinhamento, balanceamento e componentes de suspensão.';
+
+          if (centerAvg + 1.0 < edgeAvg) {
+              diagnosis = 'Desgaste maior nas bordas.';
+              cause = 'Pressão baixa, excesso de carga ou rodagem prolongada sem calibragem.';
+              action = 'Calibrar, conferir vazamento de válvula e revisar política de pressão por eixo/carga.';
+          } else if (edgeAvg + 1.0 < centerAvg) {
+              diagnosis = 'Desgaste maior no centro.';
+              cause = 'Pressão acima do ideal ou pneu trabalhando com carga menor que a calibragem aplicada.';
+              action = 'Reduzir para pressão alvo, validar carga real e registrar nova medição após rodagem.';
+          } else if (Math.abs(leftAvg - rightAvg) >= 1.2) {
+              diagnosis = leftAvg < rightAvg ? 'Lado esquerdo gastando mais.' : 'Lado direito gastando mais.';
+              cause = 'Tendência de desalinhamento, cambagem, eixo arrastando ou rota com esforço lateral repetitivo.';
+              action = 'Agendar alinhamento/cambagem e verificar buchas, terminais e rolamentos.';
+          }
+
+          return [{
+              tire: item.tire,
+              diff,
+              readings,
+              diagnosis,
+              cause,
+              action
+          }];
+      }).sort((a, b) => b.diff - a.diff);
+
+      const pressureAlerts = scored
+          .filter(item => item.pressureGap >= 5)
+          .map(item => ({
+              tire: item.tire,
+              pressure: item.pressure,
+              target: item.tire.targetPressure,
+              action: item.pressure > item.tire.targetPressure ? 'Baixar pressão e reavaliar desgaste central.' : 'Calibrar e verificar vazamento.'
+          }));
+
+      const immediateActions = [
+          ...scored.filter(item => item.status === 'CRITICAL').map(item => ({
+              priority: 'CRITICO',
+              title: `${item.tire.position} - ${item.tire.fireNumber}`,
+              action: `Trocar pneu ou retirar de operação. Sulco atual: ${item.currentDepth.toFixed(1)} mm.`
+          })),
+          ...irregularWear.slice(0, 4).map(item => ({
+              priority: 'ALTO',
+              title: `${item.tire.position} - ${item.tire.fireNumber}`,
+              action: `${item.diagnosis} ${item.action}`
+          })),
+          ...pressureAlerts.slice(0, 4).map(item => ({
+              priority: 'MEDIO',
+              title: `${item.tire.position} - ${item.tire.fireNumber}`,
+              action: `${item.action} Atual: ${item.pressure} PSI | Alvo: ${item.target} PSI.`
+          }))
+      ].slice(0, 8);
+
+      return { best, worst, irregularWear, pressureAlerts, immediateActions };
+  }, [tireAnalysisWithAverages, inspectionData]);
+
   // --- KPIs GERAIS ---
   const fleetScore = useMemo(() => {
       if (tireAnalysis.length === 0) return 0;
@@ -772,6 +868,114 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
 
             </div>
         )}
+
+        {/* TECHNICAL INSPECTION REPORT */}
+        <div className="px-6 py-3 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900 bg-emerald-50/70 dark:bg-emerald-950/20 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                        <Trophy className="h-4 w-4" /> Pneu rodando melhor
+                    </p>
+                    {technicalReport.best ? (
+                        <div className="mt-3">
+                            <h4 className="text-lg font-black text-slate-900 dark:text-white">
+                                {technicalReport.best.tire.position} - {technicalReport.best.tire.fireNumber}
+                            </h4>
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mt-1">
+                                {technicalReport.best.tire.brand} {technicalReport.best.tire.model} | {technicalReport.best.currentDepth.toFixed(1)} mm | {Math.round(technicalReport.best.lifePercentage)}% vida util
+                            </p>
+                            <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mt-2">
+                                Manter na posicao atual e usar como referencia de calibragem/montagem.
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="mt-3 text-sm font-bold text-slate-500">Sem pneus suficientes para comparar.</p>
+                    )}
+                </div>
+
+                <div className="rounded-2xl border border-red-100 dark:border-red-900 bg-red-50/70 dark:bg-red-950/20 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 flex items-center gap-2">
+                        <ThumbsDown className="h-4 w-4" /> Maior risco
+                    </p>
+                    {technicalReport.worst ? (
+                        <div className="mt-3">
+                            <h4 className="text-lg font-black text-slate-900 dark:text-white">
+                                {technicalReport.worst.tire.position} - {technicalReport.worst.tire.fireNumber}
+                            </h4>
+                            <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mt-1">
+                                {technicalReport.worst.currentDepth.toFixed(1)} mm | pressao {technicalReport.worst.pressure} PSI | acao: {technicalReport.worst.action}
+                            </p>
+                            <p className="text-[11px] font-bold text-red-700 dark:text-red-300 mt-2">
+                                Priorizar conferencia fisica antes de liberar viagem longa.
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="mt-3 text-sm font-bold text-slate-500">Sem risco calculado.</p>
+                    )}
+                </div>
+
+                <div className="rounded-2xl border border-blue-100 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/20 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                        <Calculator className="h-4 w-4" /> Parecer automatico
+                    </p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mt-3 leading-relaxed">
+                        {technicalReport.irregularWear.length > 0
+                            ? `${technicalReport.irregularWear.length} pneu(s) com desgaste irregular detectado. Corrija a causa antes de apenas trocar o pneu.`
+                            : 'Sem desgaste transversal relevante nas leituras atuais. Continue acompanhando pressao e rodizio.'}
+                    </p>
+                    <p className="text-[11px] font-bold text-blue-700 dark:text-blue-300 mt-2">
+                        Base: sulco, pressao, CPK, projecao de vida e diferenca entre pontos de medicao.
+                    </p>
+                </div>
+            </div>
+
+            {(technicalReport.immediateActions.length > 0 || technicalReport.irregularWear.length > 0) && (
+                <div className="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-4">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
+                        <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" /> O que fazer agora
+                        </h4>
+                        <div className="space-y-2">
+                            {technicalReport.immediateActions.length > 0 ? technicalReport.immediateActions.map((item, idx) => (
+                                <div key={`${item.title}-${idx}`} className="flex gap-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3">
+                                    <span className={`h-6 min-w-16 px-2 rounded-md text-[9px] font-black flex items-center justify-center ${
+                                        item.priority === 'CRITICO' ? 'bg-red-100 text-red-700' : item.priority === 'ALTO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                                    }`}>{item.priority}</span>
+                                    <div>
+                                        <p className="text-xs font-black text-slate-800 dark:text-white">{item.title}</p>
+                                        <p className="text-xs font-bold text-slate-500 mt-0.5">{item.action}</p>
+                                    </div>
+                                </div>
+                            )) : (
+                                <p className="text-sm font-bold text-slate-500">Nenhuma acao imediata encontrada.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
+                        <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-indigo-500" /> Desgaste incorreto
+                        </h4>
+                        <div className="space-y-2">
+                            {technicalReport.irregularWear.slice(0, 4).map(item => (
+                                <div key={item.tire.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-xs font-black text-slate-800 dark:text-white">{item.tire.position} - {item.tire.fireNumber}</p>
+                                        <span className="text-[10px] font-black text-red-600">{item.diff.toFixed(1)} mm diferenca</span>
+                                    </div>
+                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mt-1">{item.diagnosis}</p>
+                                    <p className="text-[11px] font-bold text-slate-500 mt-1"><strong>Causa provavel:</strong> {item.cause}</p>
+                                    <p className="text-[11px] font-bold text-blue-600 mt-1"><strong>Acao:</strong> {item.action}</p>
+                                </div>
+                            ))}
+                            {technicalReport.irregularWear.length === 0 && (
+                                <p className="text-sm font-bold text-slate-500">Nenhum desgaste incorreto relevante nas medicoes.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
 
         {/* TABELA AVANÇADA */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900 p-6">
