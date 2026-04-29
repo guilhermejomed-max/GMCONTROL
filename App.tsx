@@ -62,6 +62,10 @@ const LoginScreen = ({
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const labelClass = "block text-[11px] font-black text-slate-700 uppercase mb-2 tracking-wide";
+  const inputWrapClass = "relative group";
+  const iconClass = "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors";
+  const inputClass = "w-full h-14 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 font-black text-slate-900 shadow-sm shadow-slate-950/5 placeholder:text-slate-400 transition-all";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +100,7 @@ const LoginScreen = ({
   return (
     <div className="min-h-screen relative overflow-hidden gm-login-gradient flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]" />
-      <div className="relative z-10 bg-white/92 backdrop-blur-xl w-full max-w-md p-8 rounded-3xl shadow-2xl shadow-slate-950/30 border border-white/60 animate-in fade-in zoom-in-95 duration-300">
+      <div className="relative z-10 bg-white/95 backdrop-blur-xl w-full max-w-md p-8 rounded-3xl shadow-2xl shadow-slate-950/30 border border-white/70 animate-in fade-in zoom-in-95 duration-300">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30">
             <LifeBuoy className="h-8 w-8 text-white" />
@@ -111,15 +115,15 @@ const LoginScreen = ({
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4 [&_label]:!text-[11px] [&_label]:!font-black [&_label]:!text-slate-700 [&_label]:!mb-2 [&_label]:!tracking-wide">
           {isRegistering && (
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+              <label className={labelClass}>Nome Completo</label>
+              <div className={inputWrapClass}>
+                <User className={iconClass} />
                 <input 
                   type="text" 
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800"
+                  className={inputClass}
                   placeholder="Seu Nome"
                   value={name}
                   onChange={e => setName(e.target.value)}
@@ -131,11 +135,11 @@ const LoginScreen = ({
           
           {isRegistering && (
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filial</label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+              <label className={labelClass}>Filial</label>
+              <div className={inputWrapClass}>
+                <Building2 className={iconClass} />
                 <select 
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 appearance-none"
+                  className={`${inputClass} appearance-none`}
                   value={selectedBranchId || ''}
                   onChange={e => setSelectedBranchId(e.target.value)}
                 >
@@ -150,12 +154,12 @@ const LoginScreen = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuário (nome.sobrenome)</label>
-            <div className="relative">
-              <UserCircle className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+            <div className={inputWrapClass}>
+              <UserCircle className={iconClass} />
               <input 
                 type="text" 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 lowercase"
-                placeholder="joao.silva"
+                className={`${inputClass} lowercase`}
+                placeholder="nome.sobrenome ou email"
                 value={username}
                 onChange={e => setUsername(e.target.value.toLowerCase().trim())}
                 required
@@ -168,11 +172,11 @@ const LoginScreen = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+            <div className={inputWrapClass}>
+              <Lock className={iconClass} />
               <input 
                 type="password" 
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800"
+                className={inputClass}
                 placeholder="••••••"
                 value={pass}
                 onChange={e => setPass(e.target.value)}
