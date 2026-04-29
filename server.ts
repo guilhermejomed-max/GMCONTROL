@@ -743,25 +743,29 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = isBackground ? 1500 : (sascarCache.latestPositions.size === 0 || (Date.now() - sascarCache.lastFetchTime > 15000) ? 5 : 0); 
+      const MAX_QUEUE_ITERATIONS = 0; 
           
           if (!isBackground) {
-              logToFile(`[Sascar] Foreground request: Limpeza de fila (${MAX_QUEUE_ITERATIONS} iterações) para tentar encontrar veículos no buffer.`);
+              logToFile(`[Sascar] Foreground request: modo ultima posicao ativo, sem drenagem FIFO.`);
           } else {
-              logToFile(`[Sascar] Background request: Limpeza de fila profunda (${MAX_QUEUE_ITERATIONS} iterações) para limpar backlog.`);
+              logToFile(`[Sascar] Background request: modo ultima posicao ativo, sem drenagem FIFO.`);
           }
           
-          await drainSascarQueue(
-              user, 
-              pass, 
-              client, 
-              latestPositions, 
-              idToPlateMap, 
-              MAX_QUEUE_ITERATIONS, 
-              fetchStartTime, 
-              currentTimeout,
-              isBackground
-          );
+          if (MAX_QUEUE_ITERATIONS > 0) {
+              await drainSascarQueue(
+                  user, 
+                  pass, 
+                  client, 
+                  latestPositions, 
+                  idToPlateMap, 
+                  MAX_QUEUE_ITERATIONS, 
+                  fetchStartTime, 
+                  currentTimeout,
+                  isBackground
+              );
+          } else {
+              logToFile(`[Sascar] Modo ultima posicao ativo: fila FIFO ignorada para evitar backlog e excesso de gravacoes.`);
+          }
           
           // Update cache
           sascarCache.idToPlateMap = idToPlateMap;

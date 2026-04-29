@@ -32,6 +32,7 @@ import { DriversHub } from './components/DriversHub';
 import { Occurrences } from './components/Occurrences';
 import { ReportsHub } from './components/ReportsHub';
 import { ConsumptionReport } from './components/ConsumptionReport';
+import { CommandCenter } from './components/CommandCenter';
 import { VehicleRGPublic } from './components/VehicleRGPublic';
 import { QRServiceRequests } from './components/QRServiceRequests';
 import TrackerSettingsComponent from './components/TrackerSettings';
@@ -764,7 +765,7 @@ export const App = () => {
           return;
         }
         if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
-        if (v.plate) searchTerms.add(normalizePlate(v.plate));
+        else if (v.plate) searchTerms.add(normalizePlate(v.plate));
       });
       
       const plates = Array.from(searchTerms).filter(p => p.length > 0);
@@ -789,6 +790,7 @@ export const App = () => {
       let invalidPositionCount = 0;
       let missingLitrometerCount = 0;
       let missingOdometerCount = 0;
+      let stalePositionCount = 0;
 
       // Ordenar itens por data para garantir que pegamos o mais recente
       const sortedItems = [...allRawItems].sort((a, b) => {
@@ -829,6 +831,13 @@ export const App = () => {
 
         if (localVehicle) {
           processedLocalIds.add(localVehicle.id);
+          const incomingPositionTime = parseSascarDate(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || sv.dataHora || '');
+          const savedPositionTime = parseSascarDate(localVehicle.lastLocation?.updatedAt || '');
+          if (savedPositionTime > 0 && incomingPositionTime > 0 && incomingPositionTime <= savedPositionTime) {
+            stalePositionCount++;
+            return;
+          }
+
           const trackerOdo = Math.round(parseOdometerKm(sv));
           if (trackerOdo <= 0) missingOdometerCount++;
           const finalOdo = chooseAuthoritativeOdometer(localVehicle.odometer || 0, trackerOdo);
@@ -887,7 +896,7 @@ export const App = () => {
               address: isInvalidPosition ? (localVehicle.lastLocation?.address || 'Coordenadas GPS') : (sv.lastLocation?.address || sv.address || sv.rua || localVehicle.lastLocation?.address || 'Coordenadas GPS'),
               city: isInvalidPosition ? (localVehicle.lastLocation?.city || 'Desconhecida') : (sv.lastLocation?.city || sv.city || sv.cidade || localVehicle.lastLocation?.city || 'Desconhecida'),
               state: isInvalidPosition ? (localVehicle.lastLocation?.state || '') : (sv.lastLocation?.state || sv.state || sv.uf || localVehicle.lastLocation?.state || ''),
-              updatedAt: new Date(parseSascarDate(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || new Date().toISOString())).toISOString()
+              updatedAt: new Date(incomingPositionTime || Date.now()).toISOString()
             } } : {}),
             speed: Number(sv.velocidade || sv.speed || 0),
             ignition: sv.ignicao === 'S' || sv.ignicao === 'true' || sv.ignicao === '1' || sv.ignition === true,
@@ -922,12 +931,13 @@ export const App = () => {
         const notMatched = currentVehicles
           .filter(v => !processedLocalIds.has(v.id))
           .map(v => `${v.plate}${v.sascarCode ? ` (${v.sascarCode})` : ''}`);
-        if (notMatched.length > 0 || invalidPositionCount > 0 || missingLitrometerCount > 0 || missingOdometerCount > 0) {
+        if (notMatched.length > 0 || invalidPositionCount > 0 || missingLitrometerCount > 0 || missingOdometerCount > 0 || stalePositionCount > 0) {
           console.warn('[Sascar Sync] Diagnóstico', {
             semMatch: notMatched,
             posicoesInvalidas: invalidPositionCount,
             semLitrometro: missingLitrometerCount,
             semHodometro: missingOdometerCount,
+            posicoesAntigasIgnoradas: stalePositionCount,
             retornosSascar: allRawItems.length
           });
           storageService.logActivity(
@@ -1335,6 +1345,7 @@ export const App = () => {
   const getPageTitle = (tab: TabView) => {
     switch (tab) {
       case 'dashboard': return 'Painel de Controle';
+      case 'command-center': return 'Painel de Comando Diário';
       case 'inventory': return 'Estoque de Pneus';
       case 'register': return 'Novo Pneu';
       case 'movement': return 'Movimentação';
@@ -1849,6 +1860,17 @@ export const App = () => {
                   setShouldOpenOSModal(true);
                   setCurrentTab('service-orders');
                 }}
+              />
+            )}
+            {currentTab === 'command-center' && (
+              <CommandCenter
+                vehicles={vehicles}
+                tires={tires}
+                serviceOrders={serviceOrders}
+                fuelEntries={fuelEntries}
+                occurrences={occurrences}
+                publicServiceRequests={publicServiceRequests}
+                onNavigate={setCurrentTab}
               />
             )}
             {currentTab === 'partners' && allowedModules.includes('MECHANICAL') && <PartnerManager orgId={orgId} />}
