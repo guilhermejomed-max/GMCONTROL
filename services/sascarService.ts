@@ -1,41 +1,55 @@
-import * as soap from 'soap';
+import type { TrackerSettings } from '../types';
 
-const SASCAR_WSDL = 'https://ws.sascar.com.br/WSSascar/SascarService?wsdl';
-
-// Cache em memória (persistente enquanto a instância estiver quente)
-export const sascarCache = {
-  positions: new Map<string, any>(),
-  lastFullUpdate: 0
+type SascarResponse = {
+  success?: boolean;
+  message?: string;
+  data?: any[];
+  error?: string;
+  details?: string;
 };
 
-let soapClient: any = null;
+const SASCAR_VEHICLES_ENDPOINT = '/api/sascar/vehicles';
 
-async function getClient() {
-  if (!soapClient) {
-    soapClient = await soap.createClientAsync(SASCAR_WSDL);
-  }
-  return soapClient;
-}
+const isLegacyProxyUrl = (value?: string) => {
+  const url = String(value || '').trim();
+  return !url ||
+    url.includes('/proxy-sascar') ||
+    url.includes('/SasIntegraWSService') ||
+    url.includes('sasintegra.sascar.com.br');
+};
 
-export async function fetchVehicleData(plate?: string) {
-  const client = await getClient();
-  const auth = { login: process.env.SASCAR_USER, senha: process.env.SASCAR_PASSWORD };
+const resolveEndpoint = (settings?: TrackerSettings) => {
+  if (isLegacyProxyUrl(settings?.apiUrl)) return SASCAR_VEHICLES_ENDPOINT;
+  return settings?.apiUrl || SASCAR_VEHICLES_ENDPOINT;
+};
 
-  // 1. Obter lista de veículos (Rápido)
-  const [vResult] = await client.obterVeiculosAsync(auth);
-  const vehicles = vResult.return || [];
+export const sascarService = {
+  getVehicles: async (plates: string[] = [], trackerSettings?: TrackerSettings): Promise<SascarResponse> => {
+    const response = await fetch(resolveEndpoint(trackerSettings), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        plates,
+        trackerSettings
+      })
+    });
 
-  // 2. Se uma placa específica foi pedida, foca nela para economizar tempo
-  if (plate) {
-    const target = vehicles.find((v: any) => v.placa === plate);
-    if (target) {
-      const [pos] = await client.obterUltimaPosicaoVeiculoAsync({ ...auth, idVeiculo: target.id });
-      const data = { ...pos.return, placa: target.placa, id: target.id };
-      sascarCache.positions.set(plate, data);
-      return [data];
+    let payload: SascarResponse = {};
+    try {
+      payload = await response.json();
+    } catch {
+      payload = {};
     }
-  }
 
-  // 3. Fallback: Retorna o que tem no cache para não dar timeout
-  return Array.from(sascarCache.positions.values());
-}
+    if (!response.ok || payload.success === false) {
+      throw new Error(payload.details || payload.error || `Falha ao consultar Sascar (${response.status})`);
+    }
+
+    return {
+      ...payload,
+      data: Array.isArray(payload.data) ? payload.data : []
+    };
+  }
+};

@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "rewrites": [
+    {
+      "source": "/proxy-sascar/:path*",
+      "destination": "/api/proxy-sascar/:path*"
+    }
+  ],
   "functions": {
     "api/sascar.ts": {
       "maxDuration": 30,
@@ -10,6 +16,10 @@
       "memory": 1024
     },
     "api/sascar/vehicles.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/proxy-sascar/[...path].ts": {
       "maxDuration": 30,
       "memory": 1024
     }
