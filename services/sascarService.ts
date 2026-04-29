@@ -122,16 +122,78 @@ export const sascarService = {
       };
     };
 
-    const smallTargetSearch = plates && plates.length > 0 && plates.length <= 2;
-    if (smallTargetSearch) {
-      const fastResults = await Promise.all(plates.map(term => fetchIndividual(term)));
-      fastResults.filter(Boolean).forEach((v: any) => {
-        const normalizedVehicle = normalizeVehicle(v);
-        const uniqueKey = normalizedVehicle.idVeiculo
-          ? String(normalizedVehicle.idVeiculo)
-          : String(normalizedVehicle.placa || '').replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-        if (uniqueKey) allVehiclesMap.set(uniqueKey, normalizedVehicle);
-      });
+    if (plates && plates.length > 0) {
+      const concurrencyLimit = 4;
+      for (let i = 0; i < plates.length; i += concurrencyLimit) {
+        const chunk = plates.slice(i, i + concurrencyLimit);
+        const fastResults = await Promise.all(chunk.map(term => fetchIndividual(term)));
+        fastResults.filter(Boolean).forEach((v: any) => {
+          const normalizedVehicle = normalizeVehicle(v);
+          const uniqueKey = normalizedVehicle.idVeiculo
+            ? String(normalizedVehicle.idVeiculo)
+            : String(normalizedVehicle.placa || '').replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+
+          if (!uniqueKey) return;
+
+          const existing = allVehiclesMap.get(uniqueKey);
+          if (!existing || parseSascarDate(normalizedVehicle.lastLocation.updatedAt) > parseSascarDate(existing.lastLocation.updatedAt)) {
+            allVehiclesMap.set(uniqueKey, normalizedVehicle);
+          }
+        });
+      }
+
+      return { success: true, data: Array.from(allVehiclesMap.values()) };
+    }
+
+    if (!plates || plates.length === 0) {
+      const soapEnvelope = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <int:obterUltimaPosicaoTodosVeiculos>
+         <usuario>${user}</usuario>
+         <senha>${pass}</senha>
+      </int:obterUltimaPosicaoTodosVeiculos>
+   </soapenv:Body>
+</soapenv:Envelope>`.trim();
+
+      const response = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
+        body: soapEnvelope
+      }, 120000);
+
+      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+      const text = await response.text();
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(text, "text/xml");
+
+      let returns = xmlDoc.getElementsByTagName("return");
+      if (!returns || returns.length === 0) returns = xmlDoc.getElementsByTagNameNS("*", "return");
+
+      for (let j = 0; j < returns.length; j++) {
+        const ret = returns[j];
+        let v: any = {};
+
+        if (ret.children.length > 0) {
+          for (let k = 0; k < ret.children.length; k++) {
+            const element = ret.children[k] as Element;
+            const nodeName = element.localName || element.nodeName.replace(/^.*:/, '');
+            v[nodeName] = element.textContent;
+          }
+        } else if (ret.textContent) {
+          try { v = JSON.parse(ret.textContent); } catch { v = {}; }
+        }
+
+        if (v.placa || v.idVeiculo) {
+          const normalizedVehicle = normalizeVehicle(v);
+          const uniqueKey = normalizedVehicle.idVeiculo
+            ? String(normalizedVehicle.idVeiculo)
+            : String(normalizedVehicle.placa || '').replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+          if (uniqueKey) allVehiclesMap.set(uniqueKey, normalizedVehicle);
+        }
+      }
+
       return { success: true, data: Array.from(allVehiclesMap.values()) };
     }
 
