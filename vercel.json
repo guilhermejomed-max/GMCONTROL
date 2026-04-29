@@ -1,21 +1,15 @@
 {
+  "version": 2,
   "rewrites": [
     {
       "source": "/api/sascar/vehicles",
-      "destination": "/api/sascar"
-    },
-    {
-      "source": "/proxy-sascar/:path*",
-      "destination": "https://sasintegra.sascar.com.br/SasIntegra/:path*"
-    },
-    {
-      "source": "/((?!api/.*).*)",
-      "destination": "/index.html"
+      "destination": "/api/api/sascar.js"
     }
   ],
   "functions": {
     "api/sascar.ts": {
-      "maxDuration": 30
+      "maxDuration": 60,
+      "memory": 1024
     }
   }
 }
