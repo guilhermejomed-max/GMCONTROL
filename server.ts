@@ -652,6 +652,14 @@ async function startServer() {
     }
   });
 
+  app.get("/api/sascar/vehicles", async (req, res) => {
+    res.json({
+      success: true,
+      route: "/api/sascar/vehicles",
+      message: "Endpoint Sascar ativo. Use POST para sincronizar veiculos."
+    });
+  });
+
   // Example route to fetch vehicles from Sascar
   app.post("/api/sascar/vehicles", async (req, res) => {
     logToFile("[Server] Received request for /api/sascar/vehicles");
