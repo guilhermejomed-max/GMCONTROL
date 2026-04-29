@@ -73,6 +73,7 @@ export const Sidebar: FC<SidebarProps> = ({
     { id: 'fuel', label: 'Abastecimento', icon: Fuel, modules: ['FUEL'] },
     { id: 'fuel-gas', label: 'Abastecimento a GÁS', icon: Fuel, modules: ['FUEL'] },
     { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
+    { id: 'maintenance-tv', label: 'Painel TV Manutenção', icon: LayoutDashboard, modules: ['MECHANICAL'] },
     { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },

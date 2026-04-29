@@ -25,6 +25,7 @@ import { FuelTypeManager } from './components/FuelTypeManager';
 import { LocationMap } from './components/LocationMap';
 import { ServiceOrderHub } from './components/ServiceOrderHub';
 import { MaintenanceDashboard } from './components/MaintenanceDashboard';
+import { MaintenanceTVPanel } from './components/MaintenanceTVPanel';
 import { FuelDashboard } from './components/FuelDashboard';
 import { ServiceManager } from './components/ServiceManager';
 import { Settings } from './components/Settings';
@@ -1363,6 +1364,7 @@ export const App = () => {
       case 'fleet': return 'Frota de Veículos';
       case 'fleet-issues': return 'Inconsistências da Frota';
       case 'maintenance': return 'Gestão de Preventivas';
+      case 'maintenance-tv': return 'Painel TV de Manutencao';
       case 'fuel': return 'Controle de Abastecimento';
       case 'brand-models': return 'Marcas e Modelos';
       case 'location': return 'Rastreamento';
@@ -2049,6 +2051,12 @@ export const App = () => {
                   setShouldOpenOSModal(true);
                   setCurrentTab('service-orders');
                 }}
+              />
+            )}
+            {currentTab === 'maintenance-tv' && allowedModules.includes('MECHANICAL') && (
+              <MaintenanceTVPanel
+                vehicles={vehicles}
+                serviceOrders={serviceOrders}
               />
             )}
             {currentTab === 'fuel' && allowedModules.includes('FUEL') && (

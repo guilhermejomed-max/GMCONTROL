@@ -59,18 +59,86 @@ const normalizeDefect = (value?: string) => {
   if (/FREIO|PASTILHA|LONA|ABS/.test(text)) return 'FREIO';
   if (/ELETR|LUZ|LAMP|BATERIA|ALTERNADOR/.test(text)) return 'ELETRICA';
   if (/MOTOR|INJECAO|ARREF|RADIADOR/.test(text)) return 'MOTOR';
-  if (/VAZAMENTO|OLEO|AGUA|ARLA|DIESEL/.test(text)) return 'VAZAMENTO';
+  if (/VAZAMENTO|AGUA|ARLA|DIESEL/.test(text)) return 'VAZAMENTO';
   if (/SUSPENSAO|AMORTECEDOR|MOLA/.test(text)) return 'SUSPENSAO';
-  if (/PREVENT|REVISAO|TROCA DE OLEO|OLEO/.test(text)) return 'PREVENTIVA';
   return text.slice(0, 32) || 'SEM CLASSIFICACAO';
 };
 
+const normalizeText = (value?: string) => String(value || '')
+  .toUpperCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^A-Z0-9 ]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const normalizePartName = (value?: string) => {
+  const text = normalizeText(value);
+  if (/FILTRO.*OLEO|OLEO.*FILTRO/.test(text)) return 'FILTRO DE OLEO';
+  if (/FILTRO.*AR|AR.*FILTRO/.test(text)) return 'FILTRO DE AR';
+  if (/FILTRO.*COMB|COMB.*FILTRO|DIESEL.*FILTRO/.test(text)) return 'FILTRO DE COMBUSTIVEL';
+  if (/PASTILHA|LONA/.test(text)) return 'PASTILHA/LONA DE FREIO';
+  if (/BATERIA/.test(text)) return 'BATERIA';
+  if (/ALTERNADOR/.test(text)) return 'ALTERNADOR';
+  if (/AMORTECEDOR/.test(text)) return 'AMORTECEDOR';
+  if (/MOLA/.test(text)) return 'MOLA';
+  return text.slice(0, 32) || 'PECA SEM NOME';
+};
+
 const isTireRelated = (value?: string) => {
-  const text = String(value || '')
-    .toUpperCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  const text = normalizeText(value);
   return /PNEU|RODA|SULCO|CALIBR|RECAP|BORRACH/.test(text);
+};
+
+const isPmsOrPreventive = (order: ServiceOrder) => {
+  const text = normalizeText([
+    order.title,
+    order.details,
+    order.classificationName,
+    order.sectorName,
+    (order.services || []).map(service => service.name).join(' ')
+  ].filter(Boolean).join(' '));
+
+  return Boolean(order.isPreventiveMaintenance || order.maintenancePlanId || /PMS|PMJ|PREVENTIVA|PREVENTIVO|REVISAO PROGRAMADA|PLANO DE MANUTENCAO|MANUTENCAO PROGRAMADA/.test(text));
+};
+
+const isLowOilTopUp = (value?: string) => {
+  const text = normalizeText(value);
+  return /OLEO/.test(text) && /(COMPLET|NIVEL BAIX|BAIXA QUANTIDADE|BAIXO NIVEL|ABAIXO DO NIVEL|REPOR|ADICION)/.test(text);
+};
+
+const getRecurrenceEventsFromOrder = (order: ServiceOrder) => {
+  const orderText = [
+    order.title,
+    order.details,
+    order.classificationName,
+    (order.services || []).map(service => service.name).join(' ')
+  ].filter(Boolean).join(' ');
+
+  if (isTireRelated(orderText)) return [];
+
+  const oilTopUp = isLowOilTopUp(orderText);
+  if (isPmsOrPreventive(order) && !oilTopUp) return [];
+
+  const partEvents = (order.parts || [])
+    .filter(part => !isTireRelated(part.name))
+    .map(part => ({
+      vehicleId: order.vehicleId,
+      plate: order.vehiclePlate,
+      defect: `PECA: ${normalizePartName(part.name)}`,
+      source: 'Troca de peca',
+      value: Number(part.quantity || 0) * Number(part.unitCost || 0)
+    }));
+
+  const oilEvents = oilTopUp ? [{
+    vehicleId: order.vehicleId,
+    plate: order.vehiclePlate,
+    defect: 'COMPLETAR OLEO BAIXO',
+    source: 'Nivel de oleo',
+    value: orderCost(order)
+  }] : [];
+
+  return [...partEvents, ...oilEvents];
 };
 
 const priorityWeight: Record<Priority, number> = { CRITICO: 3, ALTO: 2, MEDIO: 1 };
@@ -114,20 +182,15 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
     const recurrenceRows = Object.values([
       ...maintenanceOrders
         .filter(order => new Date(order.createdAt || order.date || 0).getTime() >= recentLimit)
-        .map(order => ({
-          vehicleId: order.vehicleId,
-          plate: order.vehiclePlate,
-          defect: normalizeDefect(order.title || order.details),
-          source: 'O.S.',
-          value: orderCost(order)
-        })),
+        .flatMap(getRecurrenceEventsFromOrder),
       ...maintenanceOccurrences
         .filter(item => new Date(item.createdAt || 0).getTime() >= recentLimit)
+        .filter(item => isLowOilTopUp(`${item.reasonName || ''} ${item.description || ''}`))
         .map(item => ({
           vehicleId: item.vehicleId,
           plate: item.vehiclePlate,
-          defect: normalizeDefect(item.reasonName || item.description),
-          source: 'Ocorrencia',
+          defect: 'COMPLETAR OLEO BAIXO',
+          source: 'Nivel de oleo',
           value: Number(item.externalCost || 0)
         }))
     ].reduce((acc, item) => {
@@ -238,44 +301,69 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
   }, [vehicles, serviceOrders, occurrences, publicServiceRequests]);
 
   const StatCard = ({ label, value, icon: Icon, tone }: { label: string; value: number | string; icon: any; tone: string }) => (
-    <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+    <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase text-slate-400">{label}</p>
-          <p className={`mt-2 text-3xl font-black ${tone}`}>{value}</p>
+          <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+          <p className={`mt-2 text-4xl font-black leading-none ${tone}`}>{value}</p>
         </div>
-        <div className="h-10 w-10 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
-          <Icon className="h-5 w-5 text-slate-500" />
+        <div className="h-11 w-11 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center">
+          <Icon className={`h-5 w-5 ${tone}`} />
         </div>
       </div>
     </div>
   );
 
   const Panel = ({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) => (
-    <section className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
-        <Icon className="h-5 w-5 text-blue-600" />
-        <h3 className="font-black text-slate-900 dark:text-white">{title}</h3>
+    <section className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-950/40">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-9 w-9 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 flex items-center justify-center shrink-0">
+            <Icon className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+          </div>
+          <h3 className="font-black text-slate-900 dark:text-white truncate">{title}</h3>
+        </div>
       </div>
       <div className="p-4">{children}</div>
     </section>
   );
 
+  const PriorityRow = ({ item }: { item: any }) => (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`px-2 py-1 rounded-md border text-[10px] font-black ${priorityStyle[item.priority]}`}>{item.priority}</span>
+          <p className="font-black text-slate-900 dark:text-white truncate">{item.title}</p>
+        </div>
+        <p className="mt-1 text-sm font-bold text-slate-500">{item.detail}</p>
+        <p className="mt-1 text-xs font-black text-blue-600 dark:text-blue-300">{item.action}</p>
+      </div>
+      <button onClick={() => onNavigate?.(item.tab)} className="px-3 py-2 rounded-lg bg-slate-900 dark:bg-blue-600 text-white text-xs font-black hover:bg-blue-700 transition-colors">
+        Abrir
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
-      <div className="rounded-lg bg-slate-950 text-white border border-slate-900 p-5 shadow-sm overflow-hidden relative">
-        <div className="absolute inset-y-0 right-0 w-1/3 bg-blue-600/20" />
-        <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-black uppercase text-blue-300">Central de manutencao</p>
-            <h2 className="text-2xl md:text-3xl font-black mt-1">Painel de Comando Diario</h2>
-            <p className="text-sm font-bold text-slate-300 mt-2 max-w-2xl">
-              Priorize O.S., preventivas, solicitacoes do QR, ocorrencias e reincidencias que precisam de decisao hoje.
-            </p>
+      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="h-1 bg-blue-600" />
+        <div className="p-5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+          <div className="flex items-start gap-4">
+            <div className="h-14 w-14 rounded-lg bg-slate-950 dark:bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
+              <Wrench className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-300">Central de manutencao</p>
+              <h2 className="text-2xl md:text-3xl font-black text-slate-950 dark:text-white mt-1">Painel de Comando Diario</h2>
+              <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mt-2 max-w-3xl">
+                O.S., preventivas, solicitacoes do QR, ocorrencias e reincidencias realmente acionaveis para a oficina.
+              </p>
+            </div>
           </div>
-          <div className="p-1 rounded-lg bg-white/10 border border-white/10 flex gap-1">
-            <button onClick={() => setView('TODAY')} className={`px-4 py-2 rounded-md text-sm font-black ${view === 'TODAY' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-300'}`}>Hoje</button>
-            <button onClick={() => setView('ANALYSIS')} className={`px-4 py-2 rounded-md text-sm font-black ${view === 'ANALYSIS' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-300'}`}>Analise</button>
+          <div className="p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex gap-1 w-full sm:w-auto">
+            <button onClick={() => setView('TODAY')} className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-black transition-all ${view === 'TODAY' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>Hoje</button>
+            <button onClick={() => setView('ANALYSIS')} className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm font-black transition-all ${view === 'ANALYSIS' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>Analise</button>
           </div>
         </div>
       </div>
@@ -293,19 +381,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
             <Panel title="Fila de prioridade" icon={Target}>
               <div className="space-y-2">
                 {data.tasks.slice(0, 18).map(item => (
-                  <div key={item.id} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`px-2 py-1 rounded-md border text-[10px] font-black ${priorityStyle[item.priority]}`}>{item.priority}</span>
-                        <p className="font-black text-slate-900 dark:text-white truncate">{item.title}</p>
-                      </div>
-                      <p className="mt-1 text-sm font-bold text-slate-500">{item.detail}</p>
-                      <p className="mt-1 text-xs font-black text-blue-600">{item.action}</p>
-                    </div>
-                    <button onClick={() => onNavigate?.(item.tab)} className="px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-black hover:bg-blue-700">
-                      Abrir
-                    </button>
-                  </div>
+                  <PriorityRow key={item.id} item={item} />
                 ))}
                 {data.tasks.length === 0 && (
                   <div className="py-12 text-center">
@@ -320,10 +396,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               <Panel title="Preventivas proximas" icon={CalendarDays}>
                 <div className="space-y-2">
                   {data.preventiveRows.slice(0, 7).map(item => (
-                    <div key={item.vehicle.id} className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3">
+                    <div key={item.vehicle.id} className="rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 shadow-sm">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-black text-slate-900 dark:text-white">{item.vehicle.plate}</p>
-                        <span className={`text-xs font-black ${item.remainingKm <= 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                        <span className={`px-2 py-1 rounded-md text-[10px] font-black ${item.remainingKm <= 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                           {item.remainingKm <= 0 ? 'Vencida' : 'Proxima'}
                         </span>
                       </div>
@@ -339,7 +415,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               <Panel title="Reincidencias ativas" icon={Activity}>
                 <div className="space-y-2">
                   {data.recurrenceRows.slice(0, 5).map(item => (
-                    <div key={`${item.plate}-${item.defect}`} className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 p-3">
+                    <div key={`${item.plate}-${item.defect}`} className="rounded-lg bg-white dark:bg-slate-950 border border-amber-200 dark:border-amber-900 p-3 shadow-sm">
                       <p className="font-black text-amber-800 dark:text-amber-200">{item.plate} - {item.defect}</p>
                       <p className="text-xs font-bold text-amber-700 dark:text-amber-300 mt-1">{item.count} repeticoes em 45 dias | {item.sourcesText}</p>
                     </div>
@@ -359,7 +435,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">{money(data.totalMaintenanceCost)}</p>
               </div>
               {data.breakdownRows.map(item => (
-                <div key={item.label} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+                <div key={item.label} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-slate-800 dark:text-white">{item.label}</p>
                     <p className="font-black text-red-600">{money(item.value)}</p>
@@ -376,7 +452,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           <Panel title="Veiculos mais caros em manutencao" icon={Wrench}>
             <div className="space-y-2">
               {data.vehicleCostRows.slice(0, 8).map(item => (
-                <div key={item.vehicle.id} className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3">
+                <div key={item.vehicle.id} className="rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-slate-900 dark:text-white">{item.vehicle.plate}</p>
                     <p className="font-black text-slate-700 dark:text-slate-200">{money(item.totalCost)}</p>
@@ -391,7 +467,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           <Panel title="Reincidencia de defeitos" icon={AlertTriangle}>
             <div className="space-y-2">
               {data.recurrenceRows.slice(0, 8).map(item => (
-                <div key={`${item.plate}-${item.defect}`} className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3">
+                <div key={`${item.plate}-${item.defect}`} className="rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 shadow-sm">
                   <p className="text-sm font-black text-slate-700 dark:text-slate-200">{item.plate}: {item.defect} voltou {item.count}x em 45 dias</p>
                   <p className="text-xs font-bold text-slate-500">{item.sourcesText} | impacto: {money(item.value)}</p>
                   <p className="text-xs font-black text-amber-600 mt-1">Acao: investigar causa raiz, peca aplicada e fornecedor.</p>
