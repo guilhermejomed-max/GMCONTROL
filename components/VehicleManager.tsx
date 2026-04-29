@@ -1385,6 +1385,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 let createdCount = 0;
                 let notFoundCount = 0;
                 let kmUpdatedCount = 0;
+                let revisionUpdatedCount = 0;
 
                 const parseCoordinate = (val: any) => {
                     if (val === undefined || val === null || String(val).trim() === '') return NaN;
@@ -1426,6 +1427,31 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     if (!match) return undefined;
                     const year = Number(match[0]);
                     return year >= 1950 && year <= new Date().getFullYear() + 1 ? year : undefined;
+                };
+
+                const parseImportDate = (val: any) => {
+                    if (val === undefined || val === null || String(val).trim() === '') return '';
+
+                    if (typeof val === 'number' && Number.isFinite(val)) {
+                        const excelEpoch = Date.UTC(1899, 11, 30);
+                        const parsed = new Date(excelEpoch + Math.floor(val) * 86400000);
+                        return parsed.toISOString().slice(0, 10);
+                    }
+
+                    const text = normalizeImportText(val);
+                    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+
+                    const brMatch = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+                    if (brMatch) {
+                        const day = brMatch[1].padStart(2, '0');
+                        const month = brMatch[2].padStart(2, '0');
+                        const year = brMatch[3].length === 2 ? `20${brMatch[3]}` : brMatch[3];
+                        return `${year}-${month}-${day}`;
+                    }
+
+                    const parsed = new Date(text);
+                    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
                 };
 
                 const updatesBatch: any[] = [];
@@ -1473,6 +1499,46 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         return odometerKey ? normalizedRow[odometerKey] : null;
                     };
 
+                    const getLastRevisionDateValue = () => {
+                        const exactValue = getExactKey([
+                            'DATADAULTIMAREVISAO',
+                            'DATAULTIMAREVISAO',
+                            'DATAREVISAO',
+                            'DATADAREVISAO',
+                            'DATAULTIMAPREVENTIVA',
+                            'DATADAULTIMAPREVENTIVA',
+                            'DATAPREVENTIVA'
+                        ]);
+                        if (exactValue) return exactValue;
+
+                        const revisionDateKey = Object.keys(normalizedRow).find(key =>
+                            key.includes('DATA') && (key.includes('REVISAO') || key.includes('PREVENTIVA'))
+                        );
+
+                        return revisionDateKey ? normalizedRow[revisionDateKey] : null;
+                    };
+
+                    const getLastRevisionKmValue = () => {
+                        const exactValue = getExactKey([
+                            'KMDAULTIMAREVISAO',
+                            'KMULTIMAREVISAO',
+                            'KMDULTIMAREVISAO',
+                            'KMREVISAO',
+                            'KMDAREVISAO',
+                            'KMDAULTIMAPREVENTIVA',
+                            'KMULTIMAPREVENTIVA',
+                            'KMPREVENTIVA',
+                            'LASTPREVENTIVEKM'
+                        ]);
+                        if (exactValue) return exactValue;
+
+                        const revisionKmKey = Object.keys(normalizedRow).find(key =>
+                            key.includes('KM') && (key.includes('REVISAO') || key.includes('PREVENTIVA'))
+                        );
+
+                        return revisionKmKey ? normalizedRow[revisionKmKey] : null;
+                    };
+
                     const plate = getKey(['PLACA', 'VEICULO']);
                     const lat = parseCoordinate(getKey(['LATITUDE', 'LAT', 'GPSLAT', 'Y']));
                     const lng = parseCoordinate(getKey(['LONGITUDE', 'LONG', 'GPSLON', 'X']));
@@ -1486,6 +1552,21 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     const importedRenavam = normalizeImportText(getKey(['RENAVAM', 'RENAVAN']));
                     const importedVin = normalizeImportText(getKey(['CHASSI', 'CHASSIS', 'VIN']));
                     const importedTrackerCode = normalizeImportText(getKey(['CODRASTREADOR', 'CODIGORASTREADOR', 'CODSASCAR', 'CODIGOSASCAR', 'SASCAR', 'IDSASCAR', 'IDRASTREADOR']));
+                    const importedLastRevisionDate = parseImportDate(getLastRevisionDateValue());
+                    const importedLastRevisionKm = parseOdometer(getLastRevisionKmValue());
+                    const hasRevisionImport = Boolean(importedLastRevisionDate || importedLastRevisionKm > 0);
+                    const hasLocationImport = !isNaN(lat) && !isNaN(lng);
+                    const hasVehicleCreationData = Boolean(
+                        odometer > 0 ||
+                        hasLocationImport ||
+                        importedType ||
+                        importedBrand ||
+                        importedModel ||
+                        importedYear ||
+                        importedRenavam ||
+                        importedVin ||
+                        importedTrackerCode
+                    );
                     const matchedVehicleType = importedType
                         ? vehicleTypes.find(vt => {
                             const typeKey = normalizeImportKey(importedType);
@@ -1517,6 +1598,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         if (vehicle) {
                             const updates: Partial<Vehicle> = { id: vehicle.id };
                             let hasChanges = false;
+                            let hasRevisionChanges = false;
                             
                             if (!isNaN(lat) && !isNaN(lng)) {
                                 updates.lastLocation = { lat, lng, address: String(finalAddress), city: city || 'Desconhecida', state: state || '', updatedAt: new Date().toISOString() };
@@ -1558,6 +1640,17 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             }
 
                             // Se o veículo não tem intervalo de revisão, tenta pegar do modelo
+                            if (importedLastRevisionDate && vehicle.lastPreventiveDate !== importedLastRevisionDate) {
+                                updates.lastPreventiveDate = importedLastRevisionDate;
+                                hasChanges = true;
+                                hasRevisionChanges = true;
+                            }
+                            if (importedLastRevisionKm > 0 && Number(vehicle.lastPreventiveKm || 0) !== importedLastRevisionKm) {
+                                updates.lastPreventiveKm = importedLastRevisionKm;
+                                hasChanges = true;
+                                hasRevisionChanges = true;
+                            }
+
                             if (!vehicle.revisionIntervalKm) {
                                 const brandModelName = importedModel || importedBrand;
                                 if (brandModelName) {
@@ -1579,8 +1672,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             if (hasChanges) {
                                 updatesBatch.push(updates);
                                 updatedCount++;
+                                if (hasRevisionChanges) revisionUpdatedCount++;
                             }
                         } else {
+                            if (hasRevisionImport && !hasVehicleCreationData) {
+                                notFoundCount++;
+                                continue;
+                            }
+
                             const brandModelName = importedModel || importedBrand;
                             let brandModelId = '';
                             let revisionIntervalKm = 10000;
@@ -1614,6 +1713,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 renavam: importedRenavam || undefined,
                                 vin: importedVin || undefined,
                                 sascarCode: importedTrackerCode || undefined,
+                                lastPreventiveDate: importedLastRevisionDate || undefined,
+                                lastPreventiveKm: importedLastRevisionKm || 0,
                                 totalCost: 0,
                                 avgMonthlyKm: 10000
                             };
@@ -1622,6 +1723,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             }
                             createsBatch.push(newVehicle);
                             createdCount++;
+                            if (hasRevisionImport) revisionUpdatedCount++;
                         }
                     } else {
                         notFoundCount++;
@@ -1635,7 +1737,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     setLastImportedIds(createsBatch.map(v => v.id)); // Armazena IDs para desfazer
                 }
 
-                alert(`Importação Concluída:\n\nAtualizados: ${updatedCount}\nNovos: ${createdCount}\nKM atualizados: ${kmUpdatedCount}\nIgnorados: ${notFoundCount}`);
+                alert(`Importação Concluída:\n\nAtualizados: ${updatedCount}\nNovos: ${createdCount}\nKM atualizados: ${kmUpdatedCount}\nRevisões importadas: ${revisionUpdatedCount}\nIgnorados: ${notFoundCount}`);
             } catch (err: any) {
                 console.error(err);
                 alert(`Erro ao processar arquivo: ${err.message}`);
@@ -1829,7 +1931,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
               <span className="hidden md:inline">{isSyncingSascar ? 'Sincronizando...' : 'Sincronizar Sascar'}</span>
               <span className="md:hidden">Sascar</span>
             </button>
-            <label className={`flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
+            <label title="Aceita: PLACA; DATA DA ULTIMA REVISAO; KM DA ULTIMA REVISAO" className={`flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
                 {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                 <span className="hidden md:inline">{isImporting ? 'Importando...' : 'Importar Excel/CSV'}</span>
                 <span className="md:hidden">Importar</span>
