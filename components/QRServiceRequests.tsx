@@ -174,6 +174,18 @@ export const QRServiceRequests: React.FC<QRServiceRequestsProps> = ({
                       </p>
                     )}
 
+                    {request.checklist && (
+                      <div className={`mt-3 rounded-lg border p-3 ${request.checklist.status === 'BLOQUEADO' ? 'bg-red-50 border-red-200 text-red-700' : request.checklist.status === 'ATENCAO' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+                        <p className="text-[10px] font-black uppercase">Checklist pre-viagem: {request.checklist.status || 'LIBERADO'}</p>
+                        <p className="text-xs font-bold mt-1">
+                          Alertas: {request.checklist.criticalItems?.length ? request.checklist.criticalItems.join(', ') : 'nenhum'}
+                        </p>
+                        {request.checklist.observations && (
+                          <p className="text-xs font-bold mt-1">Obs: {request.checklist.observations}</p>
+                        )}
+                      </div>
+                    )}
+
                     {request.attachments && request.attachments.length > 0 && (
                       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {request.attachments.map((attachment, index) => (

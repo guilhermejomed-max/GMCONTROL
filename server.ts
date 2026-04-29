@@ -1153,6 +1153,7 @@ async function startServer() {
         informedOdometer,
         vehicleStopped,
         driverLocation,
+        checklist,
         attachments
       } = req.body || {};
 
@@ -1181,6 +1182,9 @@ async function startServer() {
         driverLocation ? `Local informado: ${String(driverLocation).trim()}` : '',
         `Veículo parado: ${vehicleStopped ? 'SIM' : 'NÃO'}`,
         `Urgência: ${String(urgency || 'NORMAL')}`,
+        checklist?.status ? `Checklist pre-viagem: ${String(checklist.status)}` : '',
+        Array.isArray(checklist?.criticalItems) && checklist.criticalItems.length ? `Itens com alerta: ${checklist.criticalItems.join(', ')}` : '',
+        checklist?.observations ? `Observacoes do checklist: ${String(checklist.observations).trim()}` : '',
         '',
         String(details).trim()
       ].filter(Boolean).join('\n');

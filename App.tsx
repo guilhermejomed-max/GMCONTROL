@@ -1296,6 +1296,9 @@ export const App = () => {
           request.driverLocation ? `Local informado: ${request.driverLocation}` : '',
           `Veículo parado: ${request.vehicleStopped ? 'SIM' : 'NÃO'}`,
           `Urgência: ${request.urgency || 'NORMAL'}`,
+          request.checklist?.status ? `Checklist pre-viagem: ${request.checklist.status}` : '',
+          request.checklist?.criticalItems?.length ? `Itens com alerta: ${request.checklist.criticalItems.join(', ')}` : '',
+          request.checklist?.observations ? `Observacoes do checklist: ${request.checklist.observations}` : '',
           `Recebida em: ${new Date(request.createdAt).toLocaleString('pt-BR')}`,
           '',
           request.details

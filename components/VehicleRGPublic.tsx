@@ -22,6 +22,17 @@ interface VehicleRGPublicProps {
     driverLocation?: string;
     preferredDate: string;
     urgency: string;
+    checklist?: {
+      tiresOk?: boolean;
+      lightsOk?: boolean;
+      brakesOk?: boolean;
+      leaksOk?: boolean;
+      documentsOk?: boolean;
+      loadOk?: boolean;
+      observations?: string;
+      criticalItems?: string[];
+      status?: 'LIBERADO' | 'ATENCAO' | 'BLOQUEADO';
+    };
     attachments?: { name: string; url: string; type?: string }[];
   }) => Promise<void>;
 }
@@ -63,6 +74,15 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
   const [serviceDetails, setServiceDetails] = useState('');
   const [attachments, setAttachments] = useState<{ name: string; url: string; type?: string }[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [checklist, setChecklist] = useState({
+    tiresOk: true,
+    lightsOk: true,
+    brakesOk: true,
+    leaksOk: true,
+    documentsOk: true,
+    loadOk: true,
+    observations: ''
+  });
 
   if (isLoading) {
     return (
@@ -133,24 +153,51 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
   const handleServiceSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!onCreateServiceRequest || !driverName.trim()) return;
-    if (!serviceTitle.trim() || !serviceDetails.trim()) {
+    const hasChecklistAlert = !checklist.tiresOk || !checklist.lightsOk || !checklist.brakesOk || !checklist.leaksOk || !checklist.documentsOk || !checklist.loadOk;
+    if (!serviceTitle.trim() || (!serviceDetails.trim() && !hasChecklistAlert)) {
       alert('Informe o tipo de servico e descreva o que precisa ser feito.');
       return;
     }
 
     setIsSending(true);
     try {
+      const criticalItems = [
+        !checklist.tiresOk ? 'Pneus' : '',
+        !checklist.brakesOk ? 'Freios' : '',
+        !checklist.leaksOk ? 'Vazamentos' : '',
+        !checklist.lightsOk ? 'Luzes/eletrica' : '',
+        !checklist.documentsOk ? 'Documentacao' : '',
+        !checklist.loadOk ? 'Carga/amarração' : ''
+      ].filter(Boolean);
+      const checklistStatus = criticalItems.some(item => ['Pneus', 'Freios', 'Vazamentos'].includes(item))
+        ? 'BLOQUEADO'
+        : criticalItems.length > 0
+          ? 'ATENCAO'
+          : 'LIBERADO';
+      const checklistSummary = [
+        '',
+        'CHECKLIST PRE-VIAGEM',
+        `Status: ${checklistStatus}`,
+        `Itens com alerta: ${criticalItems.length ? criticalItems.join(', ') : 'nenhum'}`,
+        checklist.observations ? `Observacoes do checklist: ${checklist.observations}` : ''
+      ].filter(Boolean).join('\n');
+
       await onCreateServiceRequest({
         driverName: driverName.trim(),
         title: serviceTitle.trim(),
-        details: serviceDetails.trim(),
+        details: `${serviceDetails.trim() || 'Checklist com alerta informado pelo motorista.'}${checklistSummary}`,
         problemType,
         driverPhone: driverPhone.trim(),
         informedOdometer: informedOdometer ? Number(informedOdometer) : undefined,
-        vehicleStopped,
+        vehicleStopped: vehicleStopped || checklistStatus === 'BLOQUEADO',
         driverLocation: driverLocation.trim(),
         preferredDate: serviceDate,
-        urgency,
+        urgency: checklistStatus === 'BLOQUEADO' ? 'CRITICA' : checklistStatus === 'ATENCAO' && urgency === 'NORMAL' ? 'ALTA' : urgency,
+        checklist: {
+          ...checklist,
+          criticalItems,
+          status: checklistStatus
+        },
         attachments
       });
       setServiceTitle('Revisao solicitada pelo motorista');
@@ -163,6 +210,15 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
       setVehicleStopped(false);
       setDriverLocation('');
       setAttachments([]);
+      setChecklist({
+        tiresOk: true,
+        lightsOk: true,
+        brakesOk: true,
+        leaksOk: true,
+        documentsOk: true,
+        loadOk: true,
+        observations: ''
+      });
       alert('Solicitacao enviada para a oficina.');
     } catch (error: any) {
       alert(error?.message || 'Nao foi possivel enviar a solicitacao.');
@@ -215,6 +271,14 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
   const nextPreventiveKm = (vehicle.lastPreventiveKm || 0) + (vehicle.revisionIntervalKm || 0);
   const remainingKm = nextPreventiveKm > 0 ? nextPreventiveKm - (vehicle.odometer || 0) : 0;
   const preventiveStatus = remainingKm > 0 ? `${remainingKm.toLocaleString('pt-BR')} km restantes` : 'Vencida ou nao configurada';
+  const blockedReasons = [
+    remainingKm <= 0 ? 'Preventiva vencida' : '',
+    openOrders > 0 ? `${openOrders} O.S. aberta(s)` : '',
+    vehicle.lastLocation?.updatedAt && new Date(vehicle.lastLocation.updatedAt).getTime() < Date.now() - 24 * 60 * 60 * 1000 ? 'Rastreador sem atualizacao recente' : ''
+  ].filter(Boolean);
+  const driverPanelStatus = blockedReasons.length > 0 ? 'ATENCAO' : 'LIBERADO';
+  const checklistCritical = !checklist.tiresOk || !checklist.brakesOk || !checklist.leaksOk;
+  const checklistWarnings = [checklist.tiresOk, checklist.lightsOk, checklist.brakesOk, checklist.leaksOk, checklist.documentsOk, checklist.loadOk].filter(item => !item).length;
 
   const metricCards = [
     { label: 'Hodometro', value: `${(vehicle.odometer || 0).toLocaleString('pt-BR')} km`, icon: Gauge, color: 'text-blue-600 bg-blue-50' },
@@ -285,6 +349,40 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
           })}
         </section>
 
+        <section className={`rounded-lg border p-5 shadow-sm ${driverPanelStatus === 'LIBERADO' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-500">Painel do motorista</p>
+              <h2 className={`text-2xl font-black ${driverPanelStatus === 'LIBERADO' ? 'text-emerald-800' : 'text-amber-800'}`}>
+                Veiculo {driverPanelStatus === 'LIBERADO' ? 'liberado' : 'com pendencias'}
+              </h2>
+              <p className="text-sm font-bold text-slate-600">
+                {blockedReasons.length ? blockedReasons.join(' | ') : 'Sem bloqueios operacionais encontrados no RG.'}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm font-black">
+              <div className="rounded-lg bg-white/80 border border-white p-3">
+                <p className="text-[10px] uppercase text-slate-400">Proxima revisao</p>
+                <p>{nextPreventiveKm > 0 ? `${nextPreventiveKm.toLocaleString('pt-BR')} km` : '-'}</p>
+              </div>
+              <div className="rounded-lg bg-white/80 border border-white p-3">
+                <p className="text-[10px] uppercase text-slate-400">O.S. abertas</p>
+                <p>{openOrders}</p>
+              </div>
+            </div>
+          </div>
+          {vehicleOrders.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+              {vehicleOrders.slice(0, 4).map(order => (
+                <div key={order.id} className="rounded-lg bg-white/80 border border-white p-3">
+                  <p className="text-xs font-black text-slate-900">{order.title}</p>
+                  <p className="text-[11px] font-bold text-slate-500">Status: {order.status} | {formatDate(order.date || order.createdAt)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-5">
           <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
@@ -316,6 +414,47 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
               </div>
             </div>
           </div>
+        </section>
+
+        <section className={`rounded-lg border bg-white p-5 shadow-sm ${checklistCritical ? 'border-red-200' : checklistWarnings > 0 ? 'border-amber-200' : 'border-blue-100'}`}>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className={`h-5 w-5 ${checklistCritical ? 'text-red-600' : checklistWarnings > 0 ? 'text-amber-600' : 'text-blue-600'}`} />
+              <div>
+                <h2 className="font-black text-slate-900">Checklist pre-viagem</h2>
+                <p className="text-sm font-bold text-slate-500">Marque somente o que estiver em condicao de rodagem.</p>
+              </div>
+            </div>
+            <span className={`px-3 py-2 rounded-lg text-xs font-black ${checklistCritical ? 'bg-red-50 text-red-700' : checklistWarnings > 0 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+              {checklistCritical ? 'BLOQUEIA SAIDA' : checklistWarnings > 0 ? 'ATENCAO' : 'LIBERADO'}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {[
+              ['tiresOk', 'Pneus em condicao'],
+              ['lightsOk', 'Luzes e eletrica ok'],
+              ['brakesOk', 'Freios ok'],
+              ['leaksOk', 'Sem vazamentos'],
+              ['documentsOk', 'Documentacao ok'],
+              ['loadOk', 'Carga/amarracao ok']
+            ].map(([key, label]) => (
+              <label key={key} className={`rounded-lg border p-3 text-sm font-black cursor-pointer ${checklist[key as keyof typeof checklist] ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(checklist[key as keyof typeof checklist])}
+                  onChange={event => setChecklist(prev => ({ ...prev, [key]: event.target.checked }))}
+                  className="mr-2"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <textarea
+            value={checklist.observations}
+            onChange={event => setChecklist(prev => ({ ...prev, observations: event.target.value }))}
+            className="mt-3 w-full min-h-20 p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Observacoes do checklist, se houver"
+          />
         </section>
 
         <section className="rounded-lg border border-emerald-200 bg-white p-5 shadow-sm">

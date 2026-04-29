@@ -695,6 +695,17 @@ export interface PublicServiceRequest {
   driverLocation?: string;
   preferredDate?: string;
   urgency?: 'NORMAL' | 'ALTA' | 'CRITICA' | string;
+  checklist?: {
+    tiresOk?: boolean;
+    lightsOk?: boolean;
+    brakesOk?: boolean;
+    leaksOk?: boolean;
+    documentsOk?: boolean;
+    loadOk?: boolean;
+    observations?: string;
+    criticalItems?: string[];
+    status?: 'LIBERADO' | 'ATENCAO' | 'BLOQUEADO';
+  };
   attachments?: {
     name: string;
     url: string;
