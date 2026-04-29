@@ -1,13 +1,15 @@
 {
   "version": 2,
-  "rewrites": [
-    {
-      "source": "/api/sascar/vehicles",
-      "destination": "/api/sascar"
-    }
-  ],
   "functions": {
     "api/sascar.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/sascar-vehicles.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/sascar/vehicles.ts": {
       "maxDuration": 30,
       "memory": 1024
     }
