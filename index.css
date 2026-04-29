@@ -3,3 +3,34 @@
     display: none !important;
   }
 }
+
+@keyframes gm-login-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gm-login-gradient {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.95) 0, rgba(255, 255, 255, 0.18) 28%, transparent 46%),
+    radial-gradient(circle at 78% 24%, rgba(37, 99, 235, 0.82) 0, rgba(37, 99, 235, 0.2) 34%, transparent 52%),
+    linear-gradient(125deg, #ffffff 0%, #dbeafe 22%, #2563eb 44%, #020617 68%, #ffffff 100%);
+  background-size: 180% 180%, 160% 160%, 260% 260%;
+  animation: gm-login-gradient 10s ease-in-out infinite;
+}
+
+.gm-login-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.24), transparent 35%, rgba(2, 6, 23, 0.34)),
+    radial-gradient(circle at 50% 100%, rgba(59, 130, 246, 0.28), transparent 42%);
+  pointer-events: none;
+}

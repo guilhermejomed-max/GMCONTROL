@@ -94,8 +94,9 @@ const LoginScreen = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+    <div className="min-h-screen relative overflow-hidden gm-login-gradient flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]" />
+      <div className="relative z-10 bg-white/92 backdrop-blur-xl w-full max-w-md p-8 rounded-3xl shadow-2xl shadow-slate-950/30 border border-white/60 animate-in fade-in zoom-in-95 duration-300">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/30">
             <LifeBuoy className="h-8 w-8 text-white" />
