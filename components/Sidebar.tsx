@@ -69,6 +69,7 @@ export const Sidebar: FC<SidebarProps> = ({
     // --- MÓDULO VEÍCULOS ---
     { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
     { id: 'fleet-issues', label: 'Inconsistências', icon: ShieldCheck, modules: ['VEHICLES'] },
+    { id: 'command-center', label: 'Comando Diario', icon: LayoutDashboard, modules: ['VEHICLES', 'MECHANICAL', 'FUEL', 'TIRES'] },
     { id: 'fuel', label: 'Abastecimento', icon: Fuel, modules: ['FUEL'] },
     { id: 'fuel-gas', label: 'Abastecimento a GÁS', icon: Fuel, modules: ['FUEL'] },
     { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
