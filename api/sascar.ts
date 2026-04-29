@@ -1,75 +1,68 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as soap from 'soap';
 
+// URL do WSDL da Sascar
 const SASCAR_WSDL = 'https://ws.sascar.com.br/WSSascar/SascarService?wsdl';
 
-// Cache volátil para evitar chamadas repetitivas na mesma execução
-let soapClient: any = null;
-
-async function getSoapClient() {
-  if (!soapClient) {
-    soapClient = await soap.createClientAsync(SASCAR_WSDL);
-  }
-  return soapClient;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // 1. Configuração de Headers para evitar cache antigo no navegador
+  // Impede que a Vercel faça cache da resposta de erro
   res.setHeader('Cache-Control', 'no-store, max-age=0');
 
+  const user = process.env.SASCAR_USER;
+  const password = process.env.SASCAR_PASSWORD;
+
+  if (!user || !password) {
+    return res.status(500).json({ error: "Credenciais ausentes no ambiente" });
+  }
+
   try {
-    const user = process.env.SASCAR_USER;
-    const password = process.env.SASCAR_PASSWORD;
+    // 1. Criar cliente com timeout curto para não travar a função
+    const client = await Promise.race([
+      soap.createClientAsync(SASCAR_WSDL, { timeout: 10000 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout WSDL')), 12000))
+    ]) as any;
 
-    if (!user || !password) {
-      return res.status(500).json({ error: "Credenciais Sascar não configuradas" });
-    }
-
-    const client = await getSoapClient();
     const auth = { login: user, senha: password };
 
-    // 2. Busca lista de veículos
+    // 2. Obter veículos
     const [vResult] = await client.obterVeiculosAsync(auth);
-    const vehicles = vResult.return || [];
+    const vehicles = vResult?.return || [];
 
-    // 3. Otimização: Se houver muitos veículos, processamos apenas os 15 primeiros 
-    // ou usamos a placa enviada via query para evitar timeout na Vercel.
+    // 3. Filtragem de segurança para evitar estouro de memória na Vercel
     const { plate } = req.query;
-    let vehiclesToProcess = vehicles;
-
+    let list = Array.isArray(vehicles) ? vehicles : [vehicles];
+    
     if (plate) {
-      vehiclesToProcess = vehicles.filter((v: any) => v.placa === plate);
+      list = list.filter((v: any) => v.placa === plate);
     } else {
-      vehiclesToProcess = vehicles.slice(0, 20); // Limite de segurança
+      list = list.slice(0, 10); // Retorna apenas 10 por vez se não houver placa
     }
 
-    // 4. Busca posições em paralelo (Muito mais rápido que o loop 'for')
-    const results = await Promise.all(
-      vehiclesToProcess.map(async (v: any) => {
+    // 4. Busca de posições em paralelo limitado
+    const data = await Promise.all(
+      list.map(async (v: any) => {
         try {
-          const [pos] = await client.obterUltimaPosicaoVeiculoAsync({ 
-            ...auth, 
-            idVeiculo: v.id 
-          });
+          const [pos] = await client.obterUltimaPosicaoVeiculoAsync({ ...auth, idVeiculo: v.id });
           return {
             id: v.id,
             placa: v.placa,
-            vin: v.vin,
-            ...pos.return
+            ...pos?.return
           };
         } catch (e) {
-          return { id: v.id, placa: v.placa, error: "Posição indisponível" };
+          return { id: v.id, placa: v.placa, status: 'offline' };
         }
       })
     );
 
-    return res.status(200).json(results);
+    return res.status(200).json(data);
 
   } catch (error: any) {
-    console.error('Sascar Error:', error.message);
-    return res.status(500).json({ 
-      error: "Falha na comunicação com Sascar",
-      details: error.message 
+    console.error('[SASCAR_FATAL]:', error.message);
+    
+    // Resposta amigável para o frontend não quebrar[cite: 1]
+    return res.status(502).json({ 
+      error: "Falha na comunicação com Sascar", 
+      message: error.message 
     });
   }
 }
