@@ -222,10 +222,16 @@ export const sascarService = {
     }
 
     const vehicles = Array.from(allVehiclesMap.values());
-    const filteredVehicles = targetTerms.length > 0
-      ? vehicles.filter(vehicle => targetTerms.some(term => matchesTerm(vehicle, term)))
-      : vehicles;
+    const matchedByRequestedTerms = targetTerms.length > 0
+      ? vehicles.filter(vehicle => targetTerms.some(term => matchesTerm(vehicle, term))).length
+      : vehicles.length;
 
-    return { success: true, data: filteredVehicles };
+    console.info('[Sascar Sync] Pacote Sascar processado', {
+      veiculosRetornados: vehicles.length,
+      termosSolicitados: targetTerms.length,
+      correspondenciasDiretas: matchedByRequestedTerms
+    });
+
+    return { success: true, data: vehicles };
   }
 };

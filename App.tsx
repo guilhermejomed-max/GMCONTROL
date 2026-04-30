@@ -762,11 +762,11 @@ export const App = () => {
       currentVehicles.forEach(v => {
         if (vehicleIds && vehicleIds.length > 0) {
           if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
-          else if (v.plate) searchTerms.add(normalizePlate(v.plate));
+          if (v.plate) searchTerms.add(normalizePlate(v.plate));
           return;
         }
         if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
-        else if (v.plate) searchTerms.add(normalizePlate(v.plate));
+        if (v.plate) searchTerms.add(normalizePlate(v.plate));
       });
       
       const plates = Array.from(searchTerms).filter(p => p.length > 0);
@@ -778,6 +778,7 @@ export const App = () => {
       try {
           console.log(`[Sascar Sync] Solicitando posições...`);
           const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
+          console.log(`[Sascar Sync] Sascar retornou ${result.data?.length || 0} posicoes normalizadas.`);
           results.push(result.data || []);
       } catch (error: any) {
           console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
