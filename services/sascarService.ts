@@ -8,6 +8,11 @@ type SascarResponse = {
   details?: string;
 };
 
+type SascarRequestItem = {
+  code: string;
+  plate?: string;
+};
+
 const SASCAR_VEHICLES_ENDPOINT = '/api/sascar-vehicles';
 const REQUEST_CHUNK_SIZE = 4;
 
@@ -25,14 +30,24 @@ const resolveEndpoint = (settings?: TrackerSettings) => {
 };
 
 export const sascarService = {
-  getVehicles: async (plates: string[] = [], trackerSettings?: TrackerSettings): Promise<SascarResponse> => {
+  getVehicles: async (plates: Array<string | SascarRequestItem> = [], trackerSettings?: TrackerSettings): Promise<SascarResponse> => {
     const endpoint = resolveEndpoint(trackerSettings);
-    const uniquePlates = Array.from(new Set(plates.map(value => String(value || '').trim()).filter(Boolean)));
+    const requestItems = plates.map(value => {
+      if (typeof value === 'object' && value) {
+        return {
+          code: String(value.code || '').trim(),
+          plate: String(value.plate || '').trim()
+        };
+      }
+      return { code: String(value || '').trim() };
+    }).filter(item => item.code);
+    const dedupedItems = Array.from(new Map(requestItems.map(item => [item.code, item])).values());
+    const uniquePlates = dedupedItems.map(item => item.code);
 
     if (uniquePlates.length > REQUEST_CHUNK_SIZE) {
-      const chunks: string[][] = [];
-      for (let i = 0; i < uniquePlates.length; i += REQUEST_CHUNK_SIZE) {
-        chunks.push(uniquePlates.slice(i, i + REQUEST_CHUNK_SIZE));
+      const chunks: SascarRequestItem[][] = [];
+      for (let i = 0; i < dedupedItems.length; i += REQUEST_CHUNK_SIZE) {
+        chunks.push(dedupedItems.slice(i, i + REQUEST_CHUNK_SIZE));
       }
 
       const responses = await Promise.all(chunks.map(chunk => sascarService.getVehicles(chunk, {
@@ -54,6 +69,7 @@ export const sascarService = {
       },
       body: JSON.stringify({
         plates: uniquePlates,
+        vehicles: dedupedItems,
         trackerSettings
       })
     });

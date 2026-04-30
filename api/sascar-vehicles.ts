@@ -341,6 +341,7 @@ export default async function sascarVehicles(req: any, res: any) {
   try {
     const body = await getBody(req);
     const plates = asArray(body?.plates).map(normalizeKey).filter(Boolean);
+    const requestedVehicles = asArray(body?.vehicles);
     const settings = body?.trackerSettings || {};
     const user = settings.user || DEFAULT_USER;
     const pass = settings.pass || DEFAULT_PASS;
@@ -348,11 +349,16 @@ export default async function sascarVehicles(req: any, res: any) {
 
     let rawVehicles: any[] = [];
     let idToPlate = new Map<string, string>();
+    requestedVehicles.forEach(vehicle => {
+      const id = String(vehicle?.code || vehicle?.idVeiculo || vehicle?.id || '').trim();
+      const plate = stripSascarPlateSuffix(vehicle?.plate || vehicle?.placa || '');
+      if (id && plate) idToPlate.set(id, plate);
+    });
 
     const ids = plates.filter(term => /^\d+$/.test(term));
     if (ids.length > 0) {
       const now = new Date();
-      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       const formatDate = (date: Date) => date.toISOString().slice(0, 19).replace('T', ' ');
 
       const individualResults = await Promise.allSettled(ids.slice(0, 4).map(idVeiculo =>
@@ -387,7 +393,12 @@ export default async function sascarVehicles(req: any, res: any) {
     return res.status(200).json({
       success: true,
       message: `Sincronizacao concluida. ${vehicles.length} veiculos processados.`,
-      data: vehicles
+      data: vehicles,
+      debug: {
+        requestedCodes: ids,
+        rawItems: rawVehicles.length,
+        returnedVehicles: vehicles.length
+      }
     });
   } catch (error: any) {
     return res.status(502).json({

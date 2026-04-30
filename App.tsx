@@ -758,12 +758,13 @@ export const App = () => {
 
     try {
       // 1. Otimização de Dados: Incluir tanto placas quanto códigos Sascar para busca
-      const searchTerms = new Set<string>();
-      currentVehicles.forEach(v => {
-        if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
-      });
-      
-      const plates = Array.from(searchTerms).filter(p => p.length > 0);
+      const sascarTargets = currentVehicles
+        .map(v => ({
+          code: String(v.sascarCode || '').trim(),
+          plate: String(v.plate || '').trim()
+        }))
+        .filter(item => item.code.length > 0);
+      const plates = Array.from(new Set(sascarTargets.map(item => item.code)));
       if (plates.length === 0) {
         if (showModal) addToast('warning', 'Sem Codigo Sascar', 'Preencha o Codigo da Sascar nos veiculos para sincronizar.');
         return 0;
@@ -775,7 +776,7 @@ export const App = () => {
       const results = [];
       try {
           console.log(`[Sascar Sync] Solicitando posições...`);
-          const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
+          const result = await sascarService.getVehicles(sascarTargets, trackerSettings || undefined);
           results.push(result.data || []);
       } catch (error: any) {
           console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
