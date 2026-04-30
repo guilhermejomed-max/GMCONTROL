@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "rewrites": [
     {
       "source": "/api/sascar/vehicles",
@@ -7,25 +6,17 @@
     },
     {
       "source": "/proxy-sascar/:path*",
-      "destination": "/api/proxy-sascar/:path*"
+      "destination": "https://sasintegra.sascar.com.br/SasIntegra/:path*"
+    },
+    {
+      "source": "/((?!api/.*).*)",
+      "destination": "/index.html"
     }
   ],
   "functions": {
-    "api/sascar.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    },
-    "api/sascar-vehicles.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    },
-    "api/sascar/vehicles.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    },
-    "api/proxy-sascar/[...path].ts": {
-      "maxDuration": 30,
-      "memory": 1024
+    "api/**/*.ts": {
+      "includeFiles": "api/sascar-wsdl.xml",
+      "maxDuration": 30
     }
   }
 }

@@ -2,6 +2,12 @@ const SASCAR_URL = 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSServ
 const DEFAULT_USER = process.env.SASCAR_USER || 'JOMEDELOGTORREOPENTECH';
 const DEFAULT_PASS = process.env.SASCAR_PASS || 'sascar';
 const MAX_REASONABLE_ODOMETER_KM = 2000000;
+const SASCAR_SYNC_QUANTITY = Number(process.env.SASCAR_SYNC_QUANTITY || 1500);
+const SASCAR_TIMEOUT_MS = Number(process.env.SASCAR_TIMEOUT_MS || 8500);
+
+export const config = {
+  maxDuration: 30
+};
 
 const asArray = (value: any): any[] => Array.isArray(value) ? value : (value ? [value] : []);
 
@@ -187,7 +193,7 @@ const parseSascarReturns = (xml: string): any[] => {
   return items;
 };
 
-const postSoap = async (method: string, body: string): Promise<any[]> => {
+const postSoap = async (method: string, body: string, timeoutMs = SASCAR_TIMEOUT_MS): Promise<any[]> => {
   const envelope = `
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
   <soapenv:Header/>
@@ -199,7 +205,7 @@ const postSoap = async (method: string, body: string): Promise<any[]> => {
 </soapenv:Envelope>`.trim();
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 50000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(SASCAR_URL, {
@@ -314,45 +320,42 @@ export default async function sascarVehicles(req: any, res: any) {
     const pass = settings.pass || DEFAULT_PASS;
     const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
 
-    let rawVehicles: any[] = [];
+    const quantity = Number.isFinite(SASCAR_SYNC_QUANTITY) && SASCAR_SYNC_QUANTITY > 0
+      ? Math.min(Math.floor(SASCAR_SYNC_QUANTITY), 2000)
+      : 1500;
 
-    try {
-      rawVehicles = await postSoap('obterPacotePosicoesJSON', `${auth}<quantidade>5000</quantidade>`);
-    } catch (error: any) {
-      rawVehicles = [];
-    }
+    const rawVehicles = await postSoap(
+      'obterPacotePosicoesJSON',
+      `${auth}<quantidade>${quantity}</quantidade>`
+    );
 
-    if (rawVehicles.length === 0) {
-      rawVehicles = await postSoap('obterUltimaPosicaoTodosVeiculos', auth);
-    }
-
-    if (rawVehicles.length === 0 && plates.length > 0) {
-      const individualResults = await Promise.allSettled(plates.slice(0, 5).map(plate =>
-        postSoap('obterPacotePosicoesJSONComPlaca', `${auth}<placa>${escapeXml(plate)}</placa><quantidade>5000</quantidade>`)
-      ));
-      rawVehicles = individualResults.flatMap(result => result.status === 'fulfilled' ? result.value : []);
-    }
-
-    let vehicles = uniqueLatest(rawVehicles);
-
-    if (plates.length > 0) {
-      vehicles = vehicles.filter(vehicle =>
-        plates.includes(normalizeKey(vehicle.placa)) ||
-        plates.includes(normalizeKey(vehicle.plate)) ||
-        plates.includes(normalizeKey(vehicle.idVeiculo))
-      );
-    }
+    const vehicles = uniqueLatest(rawVehicles);
 
     return res.status(200).json({
       success: true,
       message: `Sincronizacao concluida. ${vehicles.length} veiculos processados.`,
-      data: vehicles
+      data: vehicles,
+      debug: {
+        rawVehicles: rawVehicles.length,
+        filteredVehicles: vehicles.length,
+        requestedTerms: plates.length,
+        quantity
+      }
     });
   } catch (error: any) {
+    const message = error?.name === 'AbortError'
+      ? `Timeout Sascar apos ${SASCAR_TIMEOUT_MS}ms`
+      : (error?.message || String(error));
+
     return res.status(502).json({
       success: false,
       error: 'Falha ao comunicar com a Sascar',
-      details: error?.message || String(error)
+      details: message,
+      debug: {
+        route: 'api/sascar-vehicles',
+        timeoutMs: SASCAR_TIMEOUT_MS,
+        quantity: SASCAR_SYNC_QUANTITY
+      }
     });
   }
 }
