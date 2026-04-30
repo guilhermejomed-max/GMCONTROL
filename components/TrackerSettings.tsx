@@ -11,7 +11,7 @@ interface TrackerSettingsProps {
 
 const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSave }) => {
   const [settings, setSettings] = useState<TrackerSettings>({
-    apiUrl: '/api/sascar/vehicles',
+    apiUrl: '/api/sascar-vehicles',
     user: 'JOMEDELOGTORREOPENTECH',
     pass: 'sascar',
     active: true
@@ -98,11 +98,11 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
               type="text"
               value={settings.apiUrl}
               onChange={(e) => setSettings({ ...settings, apiUrl: e.target.value })}
-              placeholder="/api/sascar/vehicles"
+              placeholder="/api/sascar-vehicles"
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
               required
             />
-            <p className="mt-1.5 text-xs text-slate-400">Ex: /api/sascar/vehicles</p>
+            <p className="mt-1.5 text-xs text-slate-400">Ex: /api/sascar-vehicles</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -2,6 +2,10 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/sascar/vehicles",
+      "destination": "/api/sascar-vehicles"
+    },
+    {
       "source": "/proxy-sascar/:path*",
       "destination": "/api/proxy-sascar/:path*"
     }

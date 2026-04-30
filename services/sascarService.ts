@@ -8,7 +8,7 @@ type SascarResponse = {
   details?: string;
 };
 
-const SASCAR_VEHICLES_ENDPOINT = '/api/sascar/vehicles';
+const SASCAR_VEHICLES_ENDPOINT = '/api/sascar-vehicles';
 
 const isLegacyProxyUrl = (value?: string) => {
   const url = String(value || '').trim();
@@ -36,11 +36,14 @@ export const sascarService = {
       })
     });
 
+    const rawText = await response.text();
     let payload: SascarResponse = {};
     try {
-      payload = await response.json();
+      payload = rawText ? JSON.parse(rawText) : {};
     } catch {
-      payload = {};
+      payload = {
+        error: rawText.slice(0, 500)
+      };
     }
 
     if (!response.ok || payload.success === false) {
