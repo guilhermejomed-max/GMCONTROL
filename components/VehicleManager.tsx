@@ -1768,7 +1768,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     try {
       // Passar os IDs (sascarCode) e placas para buscar os veículos cadastrados
       const plates = vehicles
-        .map(v => ({ code: String(v.sascarCode || "").trim(), plate: String(v.plate || "").trim() }))
+        .map(v => ({ code: String(v.sascarCode || "").replace(/\D/g, ""), plate: String(v.plate || "").trim() }))
         .filter(item => item.code.length > 0);
       const normalizeSascarPlate = (value: any) => String(value || '').trim().replace(/(-\d+)+$/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
       

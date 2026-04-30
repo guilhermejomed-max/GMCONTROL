@@ -760,7 +760,7 @@ export const App = () => {
       // 1. Otimização de Dados: Incluir tanto placas quanto códigos Sascar para busca
       const sascarTargets = currentVehicles
         .map(v => ({
-          code: String(v.sascarCode || '').trim(),
+          code: normalizeSascarId(v.sascarCode),
           plate: String(v.plate || '').trim()
         }))
         .filter(item => item.code.length > 0);
@@ -833,7 +833,7 @@ export const App = () => {
           processedLocalIds.add(localVehicle.id);
           const incomingPositionTime = parseSascarDate(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || sv.dataHora || '');
           const savedPositionTime = parseSascarDate(localVehicle.lastLocation?.updatedAt || '');
-          if (savedPositionTime > 0 && incomingPositionTime > 0 && incomingPositionTime <= savedPositionTime) {
+          if (!showModal && savedPositionTime > 0 && incomingPositionTime > 0 && incomingPositionTime <= savedPositionTime) {
             stalePositionCount++;
             return;
           }

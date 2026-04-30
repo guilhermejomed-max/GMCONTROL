@@ -16,6 +16,12 @@ type SascarRequestItem = {
 const SASCAR_VEHICLES_ENDPOINT = '/api/sascar-vehicles';
 const REQUEST_CHUNK_SIZE = 4;
 
+const normalizeSascarCode = (value: any) => {
+  const text = String(value || '').trim();
+  const digits = text.replace(/\D/g, '');
+  return digits.length >= 4 ? digits : text;
+};
+
 const isLegacyProxyUrl = (value?: string) => {
   const url = String(value || '').trim();
   return !url ||
@@ -35,11 +41,11 @@ export const sascarService = {
     const requestItems = plates.map(value => {
       if (typeof value === 'object' && value) {
         return {
-          code: String(value.code || '').trim(),
+          code: normalizeSascarCode(value.code),
           plate: String(value.plate || '').trim()
         };
       }
-      return { code: String(value || '').trim() };
+      return { code: normalizeSascarCode(value) };
     }).filter(item => item.code);
     const dedupedItems = Array.from(new Map(requestItems.map(item => [item.code, item])).values());
     const uniquePlates = dedupedItems.map(item => item.code);
