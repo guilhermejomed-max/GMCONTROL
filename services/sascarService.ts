@@ -185,37 +185,8 @@ export const sascarService = {
     const pass = trackerSettings?.pass || DEFAULT_PASS;
     const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
 
-    const fetchIndividual = async (idOrPlate: string): Promise<any | null> => {
-      const escapedTerm = escapeXml(idOrPlate);
-      const isId = /^\d+$/.test(idOrPlate);
-      const methods = isId
-        ? [{ name: 'obterUltimaPosicaoVeiculo', param: 'idVeiculo' }, { name: 'obterUltimaPosicaoVeiculoComPlaca', param: 'placa' }]
-        : [{ name: 'obterUltimaPosicaoVeiculoComPlaca', param: 'placa' }, { name: 'obterUltimaPosicaoVeiculo', param: 'idVeiculo' }];
-
-      for (const method of methods) {
-        try {
-          const items = await postSoap(
-            method.name,
-            `${auth}<${method.param}>${escapedTerm}</${method.param}>`,
-            30000
-          );
-          const found = items.find((v: any) => v?.placa || v?.idVeiculo);
-          if (found) return found;
-        } catch (error) {
-          console.warn(`Erro no metodo ${method.name} para ${idOrPlate}:`, error);
-        }
-      }
-      return null;
-    };
-
     const allVehiclesMap = new Map<string, any>();
     const targetTerms = Array.isArray(plates) ? plates.filter(Boolean) : [];
-
-    if (targetTerms.length > 0 && targetTerms.length <= 2) {
-      const fastResults = await Promise.all(targetTerms.map(term => fetchIndividual(term)));
-      fastResults.filter(Boolean).forEach(vehicle => upsertLatest(allVehiclesMap, vehicle));
-      return { success: true, data: Array.from(allVehiclesMap.values()) };
-    }
 
     let hasMoreData = true;
     let loopCount = 0;
@@ -246,24 +217,6 @@ export const sascarService = {
           } else {
             await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)));
           }
-        }
-      }
-    }
-
-    if (targetTerms.length > 0) {
-      const missingTerms = targetTerms.filter(term =>
-        !Array.from(allVehiclesMap.values()).some(vehicle => matchesTerm(vehicle, term))
-      );
-
-      if (missingTerms.length > 0) {
-        console.log(`[Sascar Sync] ${missingTerms.length} termos nao encontrados no pacote. Buscando individualmente...`);
-        const concurrencyLimit = 5;
-        for (let i = 0; i < missingTerms.length; i += concurrencyLimit) {
-          const chunk = missingTerms.slice(i, i + concurrencyLimit);
-          await Promise.all(chunk.map(async term => {
-            const vehicle = await fetchIndividual(term);
-            if (vehicle) upsertLatest(allVehiclesMap, vehicle);
-          }));
         }
       }
     }
