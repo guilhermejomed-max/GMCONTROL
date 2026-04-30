@@ -292,6 +292,29 @@ async function fetchLatestSascarPositionsManually(user: string, pass: string, ti
   return postSascarSoap('obterUltimaPosicaoTodosVeiculos', auth, timeout);
 }
 
+function addSascarPositionsToMap(items: any[], latestPositions: Map<string, any>, idToPlateMap: Map<string, string>) {
+  for (const item of items) {
+    let pos = item;
+    if (typeof item === 'string') {
+      try { pos = JSON.parse(item); } catch { continue; }
+    }
+    if (!pos || typeof pos !== 'object') continue;
+
+    const sascarId = pos.idVeiculo ? String(pos.idVeiculo) : '';
+    const plate = pos.placa ? String(pos.placa).trim().toUpperCase() : '';
+    const mappedPlate = sascarId ? idToPlateMap.get(sascarId) : '';
+    if (!pos.placa && mappedPlate) pos.placa = mappedPlate;
+
+    const key = sascarId || normalizeVehicleKey(plate);
+    if (!key) continue;
+
+    const existing = latestPositions.get(key);
+    const newDate = parseSascarDate(pos.dataPosicao || pos.dataHora).getTime();
+    const oldDate = existing ? parseSascarDate(existing.dataPosicao || existing.dataHora).getTime() : 0;
+    if (!existing || newDate >= oldDate) latestPositions.set(key, pos);
+  }
+}
+
 async function findPublicVehicleDoc(vehicleId: string, plate?: string): Promise<any | null> {
   const targetId = String(vehicleId || '').trim();
   const targetKey = normalizeVehicleKey(targetId);
@@ -755,11 +778,7 @@ async function startServer() {
       
       user = trackerSettings?.user || SASCAR_USER;
       const pass = trackerSettings?.pass || SASCAR_PASS;
-      const wsdl = trackerSettings?.apiUrl || SASCAR_WSDL;
-      
-      logToFile(`[Server] Attempting to get SOAP client for user: ${user} using WSDL: ${wsdl}`);
-      const client = await getSoapClient(wsdl);
-      logToFile("[Server] SOAP client obtained successfully");
+      let client: any = null;
       
       let allVehiclesRaw: any[] = [];
       let latestPositions = new Map<string, any>();
@@ -794,23 +813,14 @@ async function startServer() {
                   logToFile(`[Sascar] Buscando lista de veículos para mapeamento de placas...`);
                   const result = await synchronizedSascarCall(async () => {
                       if (Date.now() - fetchStartTime > currentTimeout) return null;
-                      return client.obterVeiculosJsonAsync({
-                          usuario: user,
-                          senha: pass,
-                          quantidade: 5000
-                      }, { timeout: 60000 }).then(([res]: any) => res);
+                      const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
+                      return postSascarSoap('obterVeiculosJson', `${auth}<quantidade>5000</quantidade>`, 60000);
                   }, 2, isBackground) as any;
                   
                   if (!result) return;
                   
-                  const veiculosEmTexto = result ? (result.return || result.retornar) : null;
-                  if (veiculosEmTexto) {
-                      let veiculosArray = [];
-                      if (typeof veiculosEmTexto === 'string') {
-                          try { veiculosArray = JSON.parse(veiculosEmTexto); } catch(e) {}
-                      } else if (Array.isArray(veiculosEmTexto)) {
-                          veiculosArray = veiculosEmTexto;
-                      }
+                  const veiculosArray = Array.isArray(result) ? result : [];
+                  if (veiculosArray.length > 0) {
                       
                       for (const item of veiculosArray) {
                           let v = item;
@@ -846,17 +856,14 @@ async function startServer() {
           }
           
           if (MAX_QUEUE_ITERATIONS > 0) {
-              await drainSascarQueue(
-                  user, 
-                  pass, 
-                  client, 
-                  latestPositions, 
-                  idToPlateMap, 
-                  MAX_QUEUE_ITERATIONS, 
-                  fetchStartTime, 
-                  currentTimeout,
-                  isBackground
-              );
+              const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
+              const pacoteArray = await synchronizedSascarCall(async () => {
+                  if (Date.now() - fetchStartTime > currentTimeout) return [];
+                  return postSascarSoap('obterPacotePosicoesJSON', `${auth}<quantidade>5000</quantidade>`, Math.min(60000, currentTimeout));
+              }, 2, isBackground) as any[];
+              addSascarPositionsToMap(Array.isArray(pacoteArray) ? pacoteArray : [], latestPositions, idToPlateMap);
+              if (latestPositions.size > 0) sascarCache.reachedRealTimeOnce = true;
+              logToFile(`[Sascar] Pacote de posicoes retornou ${latestPositions.size} veiculos unicos.`);
           } else {
               logToFile(`[Sascar] Modo ultima posicao ativo: fila FIFO ignorada para evitar backlog e excesso de gravacoes.`);
               try {
