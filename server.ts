@@ -778,6 +778,106 @@ async function startServer() {
       
       user = trackerSettings?.user || SASCAR_USER;
       const pass = trackerSettings?.pass || SASCAR_PASS;
+
+      try {
+        const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
+        const idToPlateMapDirect = new Map<string, string>();
+
+        try {
+          const vehicles = await synchronizedSascarCall(() =>
+            postSascarSoap('obterVeiculosJson', `${auth}<quantidade>5000</quantidade>`, 60000),
+            2,
+            false
+          );
+
+          for (const item of vehicles) {
+            const vehicle = parseSascarVehicle(item);
+            if (vehicle?.idVeiculo && vehicle?.placa) {
+              idToPlateMapDirect.set(String(vehicle.idVeiculo), String(vehicle.placa).trim().toUpperCase());
+            }
+          }
+          logToFile(`[Sascar Direct] Mapa carregado com ${idToPlateMapDirect.size} veiculos.`);
+        } catch (mapError: any) {
+          logToFile(`[Sascar Direct] Falha ao carregar mapa de placas: ${mapError.message}`);
+        }
+
+        const rawPositions = await synchronizedSascarCall(() =>
+          postSascarSoap('obterPacotePosicoesJSON', `${auth}<quantidade>5000</quantidade>`, 60000),
+          2,
+          false
+        );
+
+        const vehicleMapDirect = new Map<string, any>();
+        for (const item of rawPositions) {
+          const position = parseSascarVehicle(item);
+          if (!position) continue;
+
+          const sascarId = position.idVeiculo ? String(position.idVeiculo) : '';
+          if (sascarId && !position.placa && idToPlateMapDirect.has(sascarId)) {
+            position.placa = idToPlateMapDirect.get(sascarId);
+          }
+
+          const plateKey = normalizeVehicleKey(position.placa);
+          const key = sascarId || plateKey;
+          if (!key) continue;
+
+          const existing = vehicleMapDirect.get(key);
+          const currentDate = parseSascarDate(position.dataPosicao || position.dataHora).getTime();
+          const existingDate = existing ? parseSascarDate(existing.dataPosicao || existing.dataHora).getTime() : 0;
+          if (!existing || currentDate >= existingDate) vehicleMapDirect.set(key, position);
+        }
+
+        const processedVehicles = Array.from(vehicleMapDirect.values()).map((v: any) => {
+          const rawLat = parseSascarOptionalNumber(v.latitude) ?? 0;
+          const rawLng = parseSascarOptionalNumber(v.longitude) ?? 0;
+          const odometerKm = parseSascarOdometerKm(v);
+          const rawInstantaneo = parseSascarNumber(v.consumoInstantaneo || 0);
+          const litrometer = parseSascarOptionalNumber(v.litrometro, v.litrometro2, v.litrometroTotal, v.totalLitros, v.totalCombustivel);
+          const speed = Number(v.velocidade ?? 0);
+          const ignition = v.ignicao === 'S' || v.ignicao === true || v.ignicao === 'true' || v.ignicao === '1' || v.ignicao === 1;
+
+          return {
+            idVeiculo: v.idVeiculo ? String(v.idVeiculo) : '',
+            placa: v.placa || '',
+            plate: v.placa || v.idVeiculo || '',
+            latitude: rawLat,
+            longitude: rawLng,
+            odometer: odometerKm,
+            speed,
+            ignition,
+            ...(litrometer !== undefined ? { litrometer } : {}),
+            consumoInstantaneo: rawInstantaneo,
+            lastLocation: {
+              lat: rawLat,
+              lng: rawLng,
+              address: v.rua || '',
+              city: v.cidade || '',
+              state: v.uf || '',
+              updatedAt: parseSascarDate(v.dataPosicao || v.dataHora).toISOString()
+            }
+          };
+        });
+
+        logToFile(`[Sascar Direct] Sincronizacao concluida com ${processedVehicles.length} veiculos.`);
+        return res.json({
+          success: true,
+          message: `Sincronizacao concluida. ${processedVehicles.length} veiculos processados.`,
+          data: processedVehicles,
+          debug: {
+            rawPositions: rawPositions.length,
+            mappedPlates: idToPlateMapDirect.size
+          }
+        });
+      } catch (directError: any) {
+        logToFile(`[Sascar Direct] Falha no fluxo direto: ${directError.message}`);
+        return res.status(502).json({
+          success: false,
+          error: "Falha ao comunicar com a Sascar",
+          details: directError.message,
+          debug: { userUsed: user, route: "direct-soap" }
+        });
+      }
+
       let client: any = null;
       
       let allVehiclesRaw: any[] = [];

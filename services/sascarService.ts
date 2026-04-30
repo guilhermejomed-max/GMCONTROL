@@ -1,4 +1,4 @@
-import { TrackerSettings } from '../types';
+import type { TrackerSettings } from '../types';
 
 interface SascarVehiclesResponse {
   success: boolean;
@@ -24,7 +24,9 @@ export const sascarService = {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok || payload.success === false) {
-      throw new Error(payload.details || payload.error || `Falha HTTP ${response.status} ao consultar Sascar`);
+      const details = payload.details || payload.error || response.statusText || 'erro sem detalhes';
+      const debug = payload.debug ? ` | debug=${JSON.stringify(payload.debug)}` : '';
+      throw new Error(`Falha HTTP ${response.status} ao consultar Sascar: ${details}${debug}`);
     }
 
     return {
