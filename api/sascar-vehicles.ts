@@ -2,6 +2,9 @@ const SASCAR_URL = 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSServ
 const DEFAULT_USER = process.env.SASCAR_USER || 'JOMEDELOGTORREOPENTECH';
 const DEFAULT_PASS = process.env.SASCAR_PASS || 'sascar';
 const MAX_REASONABLE_ODOMETER_KM = 2000000;
+const HISTORY_LOOKBACK_HOURS = Number(process.env.SASCAR_HISTORY_LOOKBACK_HOURS || 24);
+const MAX_HISTORY_IDS_PER_REQUEST = 2;
+const SASCAR_TIME_ZONE = 'America/Sao_Paulo';
 
 const asArray = (value: any): any[] => Array.isArray(value) ? value : (value ? [value] : []);
 
@@ -139,8 +142,12 @@ const parseOptionalNumber = (...values: any[]): number | undefined => {
 const parseSascarDate = (value: any): Date => {
   if (!value) return new Date(0);
   const text = String(value).trim();
-  const nativeDate = new Date(text);
-  if (!Number.isNaN(nativeDate.getTime())) return nativeDate;
+  const hasExplicitTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(text);
+
+  if (!hasExplicitTimezone && /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(text)) {
+    const parsed = new Date(`${text.replace(' ', 'T')}-03:00`);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
 
   if (text.includes('/')) {
     const [date, time = '00:00:00'] = text.split(' ');
@@ -149,13 +156,32 @@ const parseSascarDate = (value: any): Date => {
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
 
+  const nativeDate = new Date(text);
+  if (!Number.isNaN(nativeDate.getTime())) return nativeDate;
+
   const parsed = new Date(`${text.replace(' ', 'T')}-03:00`);
   return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
 };
 
+const formatSascarDate = (date: Date): string => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SASCAR_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    hourCycle: 'h23'
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map(part => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+};
+
 const parseObjectFromXml = (xml: string): Record<string, any> => {
   const output: Record<string, any> = {};
-  const tagRegex = /<[^:/>\s]*(?::)?([A-Za-z0-9_]+)[^>]*>([\s\S]*?)<\/[^:/>\s]*(?::)?\1>/g;
+  const tagRegex = /<(?:[^:/>\s]+:)?([A-Za-z0-9_]+)\b[^>]*>([\s\S]*?)<\/(?:[^:/>\s]+:)?\1>/g;
   let match: RegExpExecArray | null;
 
   while ((match = tagRegex.exec(xml))) {
@@ -204,7 +230,7 @@ const postSoap = async (method: string, body: string): Promise<any[]> => {
 </soapenv:Envelope>`.trim();
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 18000);
+  const timeoutId = setTimeout(() => controller.abort(), 9000);
 
   try {
     const response = await fetch(SASCAR_URL, {
@@ -349,22 +375,29 @@ export default async function sascarVehicles(req: any, res: any) {
 
     let rawVehicles: any[] = [];
     let idToPlate = new Map<string, string>();
+    const queryErrors: string[] = [];
     requestedVehicles.forEach(vehicle => {
-      const id = String(vehicle?.code || vehicle?.idVeiculo || vehicle?.id || '').trim();
+      const id = String(vehicle?.code || vehicle?.idVeiculo || vehicle?.id || '').replace(/\D/g, '');
       const plate = stripSascarPlateSuffix(vehicle?.plate || vehicle?.placa || '');
       if (id && plate) idToPlate.set(id, plate);
     });
 
-    const ids = plates.filter(term => /^\d+$/.test(term));
+    const ids = Array.from(new Set(plates.map(term => String(term || '').replace(/\D/g, '')).filter(Boolean)));
+    const queriedIds = ids.slice(0, MAX_HISTORY_IDS_PER_REQUEST);
     if (ids.length > 0) {
       const now = new Date();
-      const start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      const formatDate = (date: Date) => date.toISOString().slice(0, 19).replace('T', ' ');
+      const start = new Date(now.getTime() - HISTORY_LOOKBACK_HOURS * 60 * 60 * 1000);
 
-      const individualResults = await Promise.allSettled(ids.slice(0, 4).map(idVeiculo =>
-        postSoap('obterPacotePosicaoHistorico', `${auth}<idVeiculo>${escapeXml(idVeiculo)}</idVeiculo><dataInicio>${formatDate(start)}</dataInicio><dataFinal>${formatDate(now)}</dataFinal>`)
-      ));
-      rawVehicles = individualResults.flatMap(result => result.status === 'fulfilled' ? result.value : []);
+      for (const idVeiculo of queriedIds) {
+        try {
+          rawVehicles.push(...await postSoap(
+            'obterPacotePosicaoHistorico',
+            `${auth}<idVeiculo>${escapeXml(idVeiculo)}</idVeiculo><dataInicio>${formatSascarDate(start)}</dataInicio><dataFinal>${formatSascarDate(now)}</dataFinal>`
+          ));
+        } catch (error: any) {
+          queryErrors.push(`${idVeiculo}: ${error?.message || String(error)}`);
+        }
+      }
     } else {
       const rawVehicleList = await postSoap('obterVeiculosJson', `${auth}<quantidade>5000</quantidade>`)
         .catch(() => []);
@@ -390,14 +423,23 @@ export default async function sascarVehicles(req: any, res: any) {
       );
     }
 
-    return res.status(200).json({
-      success: true,
+    const hasOnlyErrors = queryErrors.length > 0 && vehicles.length === 0;
+
+    return res.status(hasOnlyErrors ? 502 : 200).json({
+      success: !hasOnlyErrors,
       message: `Sincronizacao concluida. ${vehicles.length} veiculos processados.`,
+      ...(hasOnlyErrors ? {
+        error: 'Falha ao consultar Sascar',
+        details: queryErrors.join(' | ')
+      } : {}),
       data: vehicles,
       debug: {
         requestedCodes: ids,
+        queriedCodes: queriedIds,
+        historyLookbackHours: HISTORY_LOOKBACK_HOURS,
         rawItems: rawVehicles.length,
-        returnedVehicles: vehicles.length
+        returnedVehicles: vehicles.length,
+        errors: queryErrors
       }
     });
   } catch (error: any) {

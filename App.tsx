@@ -774,16 +774,35 @@ export const App = () => {
       storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${currentVehicles.length} veículos`, 'VEHICLES');
       
       const results = [];
+      let syncRequestError = '';
+      let sascarResponseMessage = '';
+      let sascarDebug: any = null;
       try {
           console.log(`[Sascar Sync] Solicitando posições...`);
           const result = await sascarService.getVehicles(sascarTargets, trackerSettings || undefined);
+          sascarResponseMessage = result.message || '';
+          sascarDebug = result.debug || null;
+          console.log('[Sascar Sync] Resposta da API Sascar:', {
+            recebidos: result.data?.length || 0,
+            mensagem: sascarResponseMessage,
+            debug: sascarDebug
+          });
           results.push(result.data || []);
       } catch (error: any) {
+          syncRequestError = error.message || String(error);
           console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
       }
 
       // 4. Consolidação: Processar todos os itens recebidos
       const allRawItems = results.flat();
+      if (allRawItems.length === 0) {
+        console.warn('[Sascar Sync] Nenhuma posição retornada pela Sascar.', {
+          codigosSolicitados: plates,
+          mensagem: sascarResponseMessage,
+          erro: syncRequestError,
+          debug: sascarDebug
+        });
+      }
       const updatesBatch: any[] = [];
       const processedLocalIds = new Set<string>();
       const updatedPlatesList: string[] = [];
@@ -951,7 +970,15 @@ export const App = () => {
         if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
       } else {
         console.log("[Sascar Sync] Nenhum dado novo para atualizar.");
-        if (showModal) addToast('info', 'Sincronização', 'Nenhum dado novo encontrado para os veículos cadastrados.');
+        if (showModal) {
+          if (syncRequestError) {
+            addToast('error', 'Erro na Sincronização', syncRequestError);
+          } else if (allRawItems.length === 0) {
+            addToast('info', 'Sincronização', 'A Sascar não retornou posição nas últimas 24h para os códigos cadastrados.');
+          } else {
+            addToast('info', 'Sincronização', 'Nenhum dado novo encontrado para os veículos cadastrados.');
+          }
+        }
       }
       
       if (showModal) {

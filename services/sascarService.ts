@@ -6,6 +6,7 @@ type SascarResponse = {
   data?: any[];
   error?: string;
   details?: string;
+  debug?: any;
 };
 
 type SascarRequestItem = {
@@ -14,7 +15,7 @@ type SascarRequestItem = {
 };
 
 const SASCAR_VEHICLES_ENDPOINT = '/api/sascar-vehicles';
-const REQUEST_CHUNK_SIZE = 4;
+const REQUEST_CHUNK_SIZE = 1;
 
 const normalizeSascarCode = (value: any) => {
   const text = String(value || '').trim();
@@ -56,15 +57,43 @@ export const sascarService = {
         chunks.push(dedupedItems.slice(i, i + REQUEST_CHUNK_SIZE));
       }
 
-      const responses = await Promise.all(chunks.map(chunk => sascarService.getVehicles(chunk, {
-        ...trackerSettings,
-        apiUrl: endpoint
-      } as TrackerSettings)));
+      const responses: SascarResponse[] = [];
+      const errors: string[] = [];
+
+      for (const chunk of chunks) {
+        try {
+          responses.push(await sascarService.getVehicles(chunk, {
+            ...trackerSettings,
+            apiUrl: endpoint
+          } as TrackerSettings));
+        } catch (error: any) {
+          errors.push(error?.message || String(error));
+        }
+      }
+
+      if (responses.length === 0 && errors.length > 0) {
+        throw new Error(errors.join(' | '));
+      }
 
       return {
-        success: responses.every(response => response.success !== false),
-        message: `Sincronizacao concluida em ${responses.length} lotes.`,
-        data: responses.flatMap(response => response.data || [])
+        success: errors.length === 0 || responses.length > 0,
+        message: errors.length > 0
+          ? `Sincronizacao parcial em ${responses.length}/${chunks.length} lotes.`
+          : `Sincronizacao concluida em ${responses.length} lotes.`,
+        details: errors.join(' | '),
+        data: responses.flatMap(response => response.data || []),
+        debug: {
+          chunkSize: REQUEST_CHUNK_SIZE,
+          chunks: chunks.length,
+          successfulChunks: responses.length,
+          errors,
+          responses: responses.map((response, index) => ({
+            chunk: index + 1,
+            message: response.message,
+            count: response.data?.length || 0,
+            debug: response.debug
+          }))
+        }
       };
     }
 
