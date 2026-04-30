@@ -81,7 +81,7 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
           severity: 'WARNING',
           title: 'Sem código de rastreador',
           detail: 'Veículo não possui CÓD. RASTREADOR/Sascar cadastrado.',
-          recommendation: 'Cadastre o código do rastreador no RG do veículo para permitir posição, KM e litrometro automáticos.',
+          recommendation: 'Cadastre o codigo do rastreador no cadastro do veiculo para permitir posicao, KM e litrometro automaticos.',
           actionLabel: 'Abrir cadastro do veículo',
           actionType: 'OPEN_VEHICLE',
           canAutoFix: false

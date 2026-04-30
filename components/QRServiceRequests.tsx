@@ -100,7 +100,7 @@ export const QRServiceRequests: React.FC<QRServiceRequestsProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
           <div>
             <h2 className="text-xl font-black text-slate-800 dark:text-white">Solicitacoes do QR</h2>
-            <p className="text-sm font-bold text-slate-500">Pedidos enviados pelos motoristas no RG digital do veiculo.</p>
+            <p className="text-sm font-bold text-slate-500">Pedidos enviados pelos motoristas no portal do veiculo.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative">

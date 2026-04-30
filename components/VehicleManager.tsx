@@ -636,9 +636,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     const url = getVehicleRgUrl(vehicle);
     try {
       await navigator.clipboard.writeText(url);
-      alert('Link do RG copiado.');
+      alert('Link do portal copiado.');
     } catch {
-      window.prompt('Copie o link do RG do veículo:', url);
+      window.prompt('Copie o link do portal do veículo:', url);
     }
   };
 
@@ -1767,10 +1767,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     setIsSyncingSascar(true);
     try {
       // Passar os IDs (sascarCode) e placas para buscar os veículos cadastrados
-      const plates = vehicles
-        .map(v => ({ code: String(v.sascarCode || "").replace(/\D/g, ""), plate: String(v.plate || "").trim() }))
-        .filter(item => item.code.length > 0);
-      const normalizeSascarPlate = (value: any) => String(value || '').trim().replace(/(-\d+)+$/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const plates = vehicles.flatMap(v => [String(v.sascarCode || ""), String(v.plate || "")]).filter(p => p && p.length > 0);
       
       console.log(`[Sascar Sync Debug] Veículos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} identificadores...`);
@@ -1809,8 +1806,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   }
 
                   const idSascar = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
-                  const fullPlate = normalizeSascarPlate(sv.placa || sv.plate || "");
-                  const sascarPlate = normalizeSascarPlate(sv.placa || sv.plate || "");
+                  const fullPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9-]/gi, '').toUpperCase();
+                  const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
                   
                   if (isNaN(idSascar) && !sascarPlate) return;
 
@@ -1821,7 +1818,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       if (!isNaN(idApp) && !isNaN(idSascar) && idApp === idSascar) return true;
                       
                       // Match por Placa
-                      const plateApp = normalizeSascarPlate(v.plate);
+                      const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
                       if (plateApp && sascarPlate && plateApp === sascarPlate) return true;
                       
                       return false;
@@ -2120,7 +2117,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         <button
                             onClick={(e) => { e.stopPropagation(); handleOpenVehicleQr(vehicle); }}
                             className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                            title="QR Code do RG"
+                            title="QR Code do portal"
                         >
                             <QrCode className="h-4 w-4" />
                         </button>
@@ -2262,7 +2259,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
               <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
                 <Truck className="h-6 w-6 text-blue-600" /> 
-                RG do Veículo: {selectedVehicleRG.plate}
+                Portal do Veículo: {selectedVehicleRG.plate}
               </h3>
               <div className="flex items-center gap-2">
                 <button 
@@ -3551,7 +3548,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase text-slate-400">QR Code do RG</p>
+                <p className="text-[10px] font-black uppercase text-slate-400">QR Code do portal</p>
                 <h3 className="text-xl font-black text-slate-800 dark:text-white">{qrVehicle.plate}</h3>
               </div>
               <button onClick={() => setQrVehicle(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
@@ -3563,7 +3560,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 <QRCode value={getVehicleRgUrl(qrVehicle)} size={220} />
               </div>
               <div className="rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
-                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Link do RG</p>
+                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Link do portal</p>
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300 break-all">{getVehicleRgUrl(qrVehicle)}</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -3571,7 +3568,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   onClick={() => window.open(getVehicleRgUrl(qrVehicle), '_blank')}
                   className="px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-black"
                 >
-                  Abrir RG
+                  Abrir portal
                 </button>
                 <button
                   onClick={() => copyVehicleRgUrl(qrVehicle)}

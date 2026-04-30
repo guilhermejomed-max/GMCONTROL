@@ -1284,7 +1284,7 @@ export const App = () => {
   const handleConvertPublicServiceRequest = async (request: PublicServiceRequest): Promise<void> => {
       const vehicle = vehicles.find(v => v.id === request.vehicleId || v.plate === request.vehiclePlate);
       const detailLines = [
-          'Solicitação enviada pelo QR do RG do veículo.',
+          'Solicitacao enviada pelo portal do veiculo.',
           `Motorista: ${request.driverName}`,
           request.driverPhone ? `Telefone: ${request.driverPhone}` : '',
           request.problemType ? `Tipo informado: ${request.problemType}` : '',
@@ -1505,7 +1505,7 @@ export const App = () => {
           const vehicle = vehicles.find(item => item.id === vehicleRgId || item.plate === vehicleRgId);
           if (!vehicle) throw new Error('Veículo não encontrado.');
           const detailLines = [
-            'Solicitação enviada pelo RG do veículo.',
+            'Solicitacao enviada pelo portal do veiculo.',
             `Motorista: ${request.driverName}`,
             request.driverPhone ? `Telefone: ${request.driverPhone}` : '',
             request.problemType ? `Tipo informado: ${request.problemType}` : '',

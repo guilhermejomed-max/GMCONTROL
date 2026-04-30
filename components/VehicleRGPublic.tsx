@@ -83,6 +83,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
     loadOk: true,
     observations: ''
   });
+  const [isChecklistStarted, setIsChecklistStarted] = useState(false);
 
   if (isLoading) {
     return (
@@ -101,7 +102,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
         <div className="w-full max-w-md rounded-lg bg-white border border-slate-200 p-6 text-center shadow-sm">
           <Truck className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-          <h1 className="text-2xl font-black text-slate-900">RG do veiculo nao encontrado</h1>
+          <h1 className="text-2xl font-black text-slate-900">Portal do veiculo nao encontrado</h1>
           <p className="mt-2 text-sm font-bold text-slate-500">{error || 'Confira se o QR Code foi gerado novamente no cadastro do veiculo.'}</p>
           {onBack && (
             <button onClick={onBack} className="mt-6 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black">
@@ -235,7 +236,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
             <div className="w-14 h-14 rounded-lg bg-blue-600 flex items-center justify-center mb-5">
               <Truck className="h-8 w-8" />
             </div>
-            <p className="text-xs font-black uppercase text-blue-300">RG digital do veiculo</p>
+            <p className="text-xs font-black uppercase text-blue-300">Portal do motorista</p>
             <h1 className="text-4xl font-black leading-none mt-1">{vehicle.plate}</h1>
             <p className="text-sm font-bold text-slate-300 mt-3">{vehicle.brand || '-'} {vehicle.model || ''}</p>
           </div>
@@ -253,7 +254,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
             </div>
             <button className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-black flex items-center justify-center gap-2">
               <LogIn className="h-5 w-5" />
-              Entrar no RG
+              Entrar no portal
             </button>
           </div>
         </form>
@@ -297,7 +298,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
                 <Truck className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase text-blue-300">RG digital do veiculo</p>
+                <p className="text-[10px] font-black uppercase text-blue-300">Portal do motorista</p>
                 <h1 className="text-3xl md:text-5xl font-black leading-none">{vehicle.plate}</h1>
               </div>
             </div>
@@ -334,6 +335,41 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-5 space-y-5">
+        <section className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              setIsChecklistStarted(true);
+              window.setTimeout(() => document.getElementById('checklist-pre-viagem')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+            }}
+            className="text-left rounded-lg border border-blue-200 bg-blue-600 p-5 text-white shadow-sm hover:bg-blue-700 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase text-blue-100">Antes de sair</p>
+                <h2 className="mt-1 text-2xl font-black">Iniciar check-list</h2>
+                <p className="mt-2 text-sm font-bold text-blue-100">Confirme pneus, freios, luzes, vazamentos, documentos e carga.</p>
+              </div>
+              <ShieldCheck className="h-9 w-9 text-blue-100" />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => document.getElementById('solicitar-servico')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="text-left rounded-lg border border-slate-200 bg-white p-5 shadow-sm hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400">Precisa de apoio?</p>
+                <h2 className="mt-1 text-xl font-black text-slate-900">Solicitar manutencao</h2>
+                <p className="mt-2 text-sm font-bold text-slate-500">Abra uma solicitacao para a oficina com fotos e observacoes.</p>
+              </div>
+              <Wrench className="h-8 w-8 text-slate-500" />
+            </div>
+          </button>
+        </section>
+
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {metricCards.map(card => {
             const Icon = card.icon;
@@ -416,7 +452,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
           </div>
         </section>
 
-        <section className={`rounded-lg border bg-white p-5 shadow-sm ${checklistCritical ? 'border-red-200' : checklistWarnings > 0 ? 'border-amber-200' : 'border-blue-100'}`}>
+        <section id="checklist-pre-viagem" className={`rounded-lg border bg-white p-5 shadow-sm ${checklistCritical ? 'border-red-200' : checklistWarnings > 0 ? 'border-amber-200' : 'border-blue-100'}`}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className={`h-5 w-5 ${checklistCritical ? 'text-red-600' : checklistWarnings > 0 ? 'text-amber-600' : 'text-blue-600'}`} />
@@ -429,42 +465,58 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
               {checklistCritical ? 'BLOQUEIA SAIDA' : checklistWarnings > 0 ? 'ATENCAO' : 'LIBERADO'}
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {[
-              ['tiresOk', 'Pneus em condicao'],
-              ['lightsOk', 'Luzes e eletrica ok'],
-              ['brakesOk', 'Freios ok'],
-              ['leaksOk', 'Sem vazamentos'],
-              ['documentsOk', 'Documentacao ok'],
-              ['loadOk', 'Carga/amarracao ok']
-            ].map(([key, label]) => (
-              <label key={key} className={`rounded-lg border p-3 text-sm font-black cursor-pointer ${checklist[key as keyof typeof checklist] ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(checklist[key as keyof typeof checklist])}
-                  onChange={event => setChecklist(prev => ({ ...prev, [key]: event.target.checked }))}
-                  className="mr-2"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-          <textarea
-            value={checklist.observations}
-            onChange={event => setChecklist(prev => ({ ...prev, observations: event.target.value }))}
-            className="mt-3 w-full min-h-20 p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Observacoes do checklist, se houver"
-          />
+          {!isChecklistStarted ? (
+            <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-5">
+              <p className="text-sm font-bold text-blue-900">O check-list ainda nao foi iniciado para esta viagem.</p>
+              <button
+                type="button"
+                onClick={() => setIsChecklistStarted(true)}
+                className="mt-4 px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-black inline-flex items-center gap-2"
+              >
+                <ShieldCheck className="h-5 w-5" />
+                Iniciar check-list
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {[
+                  ['tiresOk', 'Pneus em condicao'],
+                  ['lightsOk', 'Luzes e eletrica ok'],
+                  ['brakesOk', 'Freios ok'],
+                  ['leaksOk', 'Sem vazamentos'],
+                  ['documentsOk', 'Documentacao ok'],
+                  ['loadOk', 'Carga/amarracao ok']
+                ].map(([key, label]) => (
+                  <label key={key} className={`rounded-lg border p-3 text-sm font-black cursor-pointer ${checklist[key as keyof typeof checklist] ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(checklist[key as keyof typeof checklist])}
+                      onChange={event => setChecklist(prev => ({ ...prev, [key]: event.target.checked }))}
+                      className="mr-2"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <textarea
+                value={checklist.observations}
+                onChange={event => setChecklist(prev => ({ ...prev, observations: event.target.value }))}
+                className="mt-3 w-full min-h-20 p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Observacoes do checklist, se houver"
+              />
+            </>
+          )}
         </section>
 
-        <section className="rounded-lg border border-emerald-200 bg-white p-5 shadow-sm">
+        <section id="solicitar-servico" className="rounded-lg border border-emerald-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-5">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <Calendar className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="font-black text-slate-900">Agendar servico</h2>
+                <h2 className="font-black text-slate-900">Solicitar manutencao</h2>
                 <p className="text-sm font-bold text-slate-500">A solicitacao sera enviada para a oficina.</p>
               </div>
             </div>
@@ -619,7 +671,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
         </section>
 
         <p className="pb-6 text-center text-[11px] font-bold text-slate-400">
-          RG digital atualizado em {formatDate((vehicle as any).updatedAt)}.
+          Portal do motorista atualizado em {formatDate((vehicle as any).updatedAt)}.
         </p>
       </main>
     </div>

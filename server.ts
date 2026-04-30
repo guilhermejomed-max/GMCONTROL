@@ -1393,7 +1393,7 @@ async function startServer() {
       res.json({ success: true, vehicle, fuelEntries, serviceOrders });
     } catch (error: any) {
       logToFile(`Error in /api/public/vehicle-rg: ${error.message}`);
-      res.status(500).json({ success: false, error: "Falha ao carregar RG do veículo" });
+      res.status(500).json({ success: false, error: "Falha ao carregar portal do veiculo" });
     }
   });
 
