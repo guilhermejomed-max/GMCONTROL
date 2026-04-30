@@ -209,6 +209,89 @@ function normalizeVehicleKey(value: any): string {
   return String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
 }
 
+function escapeXml(value: any): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .trim();
+}
+
+function parseSascarSoapReturns(xml: string): any[] {
+  const fault = xml.match(/<[^>]*faultstring[^>]*>([\s\S]*?)<\/[^>]*faultstring>/i);
+  if (fault?.[1]) throw new Error(`Erro Sascar: ${decodeXml(fault[1])}`);
+
+  const items: any[] = [];
+  const returnRegex = /<[^>]*return[^>]*>([\s\S]*?)<\/[^>]*return>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = returnRegex.exec(xml))) {
+    const content = decodeXml(match[1]);
+    if (!content) continue;
+
+    try {
+      const parsed = JSON.parse(content);
+      items.push(...(Array.isArray(parsed) ? parsed : [parsed]));
+      continue;
+    } catch {
+      const output: Record<string, any> = {};
+      const tagRegex = /<[^:/>\s]*(?::)?([A-Za-z0-9_]+)[^>]*>([\s\S]*?)<\/[^:/>\s]*(?::)?\1>/g;
+      let tagMatch: RegExpExecArray | null;
+      while ((tagMatch = tagRegex.exec(content))) {
+        const key = tagMatch[1];
+        const value = decodeXml(tagMatch[2].replace(/<[^>]+>/g, ''));
+        if (key && key !== 'return' && value !== '') output[key] = value;
+      }
+      if (Object.keys(output).length > 0) items.push(output);
+    }
+  }
+
+  return items;
+}
+
+async function postSascarSoap(method: string, body: string, timeout = 60000): Promise<any[]> {
+  const soapEnvelope = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <int:${method}>
+         ${body}
+      </int:${method}>
+   </soapenv:Body>
+</soapenv:Envelope>`.trim();
+
+  const response = await axios.post(
+    'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService',
+    soapEnvelope,
+    {
+      headers: {
+        'Content-Type': 'text/xml;charset=UTF-8',
+        SOAPAction: '""'
+      },
+      timeout,
+      httpsAgent: new https.Agent({ rejectUnauthorized: false })
+    }
+  );
+
+  return parseSascarSoapReturns(String(response.data || ''));
+}
+
+async function fetchLatestSascarPositionsManually(user: string, pass: string, timeout = 60000): Promise<any[]> {
+  const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
+  return postSascarSoap('obterUltimaPosicaoTodosVeiculos', auth, timeout);
+}
+
 async function findPublicVehicleDoc(vehicleId: string, plate?: string): Promise<any | null> {
   const targetId = String(vehicleId || '').trim();
   const targetKey = normalizeVehicleKey(targetId);
@@ -751,7 +834,10 @@ async function startServer() {
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
-      const MAX_QUEUE_ITERATIONS = 0; 
+      const queueIterationsSetting = Number(process.env.SASCAR_QUEUE_ITERATIONS ?? (isBackground ? 25 : 3));
+      const MAX_QUEUE_ITERATIONS = Number.isFinite(queueIterationsSetting) && queueIterationsSetting >= 0
+          ? queueIterationsSetting
+          : (isBackground ? 25 : 3);
           
           if (!isBackground) {
               logToFile(`[Sascar] Foreground request: modo ultima posicao ativo, sem drenagem FIFO.`);
@@ -774,53 +860,12 @@ async function startServer() {
           } else {
               logToFile(`[Sascar] Modo ultima posicao ativo: fila FIFO ignorada para evitar backlog e excesso de gravacoes.`);
               try {
-                  const latestResult = await synchronizedSascarCall(async () => {
+                  const latestArray = await synchronizedSascarCall(async () => {
                       if (Date.now() - fetchStartTime > currentTimeout) return null;
-                      if (typeof client.obterUltimaPosicaoTodosVeiculosAsync === 'function') {
-                          return client.obterUltimaPosicaoTodosVeiculosAsync({
-                              usuario: user,
-                              senha: pass
-                          }, { timeout: 60000 }).then(([res]: any) => res);
-                      }
-
-                      const soapEnvelope = `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:int="http://webservice.web.integracao.sascar.com.br/">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <int:obterUltimaPosicaoTodosVeiculos>
-         <usuario>${user}</usuario>
-         <senha>${pass}</senha>
-      </int:obterUltimaPosicaoTodosVeiculos>
-   </soapenv:Body>
-</soapenv:Envelope>`.trim();
-
-                      const response = await axios.post(
-                          'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService',
-                          soapEnvelope,
-                          {
-                              headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
-                              timeout: 60000,
-                              httpsAgent: new https.Agent({ rejectUnauthorized: false })
-                          }
-                      );
-                      return { __rawXml: response.data };
+                      return fetchLatestSascarPositionsManually(user, pass, 60000);
                   }, 2, isBackground) as any;
 
-                  let latestRaw = latestResult ? (latestResult.return || latestResult.retornar) : null;
-                  if (!latestRaw && latestResult?.__rawXml) {
-                      const returns = String(latestResult.__rawXml).match(/<[^>]*return[^>]*>([\s\S]*?)<\/[^>]*return>/gi) || [];
-                      latestRaw = returns.map((block: string) => block
-                          .replace(/^<[^>]*return[^>]*>/i, '')
-                          .replace(/<\/[^>]*return>$/i, '')
-                          .replace(/&quot;/g, '"')
-                          .replace(/&lt;/g, '<')
-                          .replace(/&gt;/g, '>')
-                          .replace(/&amp;/g, '&')
-                      );
-                  }
-                  const latestArray = Array.isArray(latestRaw) ? latestRaw : (latestRaw ? [latestRaw] : []);
-
-                  latestArray.forEach((item: any) => {
+                  (Array.isArray(latestArray) ? latestArray : []).forEach((item: any) => {
                       let pos = item;
                       if (typeof item === 'string') {
                           try { pos = JSON.parse(item); } catch {}
@@ -843,9 +888,34 @@ async function startServer() {
                   logToFile(`[Sascar] Ultima posicao todos retornou ${latestPositions.size} posicoes.`);
                   if (latestPositions.size > 0) {
                       sascarCache.reachedRealTimeOnce = true;
+                  } else {
+                      logToFile(`[Sascar] Ultima posicao retornou vazio. Usando pacote de posicoes como fallback curto.`);
+                      await drainSascarQueue(
+                          user,
+                          pass,
+                          client,
+                          latestPositions,
+                          idToPlateMap,
+                          isBackground ? 25 : 3,
+                          fetchStartTime,
+                          currentTimeout,
+                          isBackground
+                      );
                   }
               } catch (error: any) {
                   logToFile(`[Sascar] Falha em obterUltimaPosicaoTodosVeiculos: ${error.message}`);
+                  logToFile(`[Sascar] Usando pacote de posicoes como fallback apos falha da ultima posicao.`);
+                  await drainSascarQueue(
+                      user,
+                      pass,
+                      client,
+                      latestPositions,
+                      idToPlateMap,
+                      isBackground ? 25 : 3,
+                      fetchStartTime,
+                      currentTimeout,
+                      isBackground
+                  );
               }
           }
           

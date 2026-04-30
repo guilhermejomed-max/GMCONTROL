@@ -2,18 +2,10 @@ const SASCAR_URL = 'https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSServ
 const DEFAULT_USER = process.env.SASCAR_USER || 'JOMEDELOGTORREOPENTECH';
 const DEFAULT_PASS = process.env.SASCAR_PASS || 'sascar';
 const MAX_REASONABLE_ODOMETER_KM = 2000000;
-const HISTORY_LOOKBACK_HOURS = Number(process.env.SASCAR_HISTORY_LOOKBACK_HOURS || 24);
-const MAX_HISTORY_IDS_PER_REQUEST = 2;
-const SASCAR_TIME_ZONE = 'America/Sao_Paulo';
 
 const asArray = (value: any): any[] => Array.isArray(value) ? value : (value ? [value] : []);
 
-const stripSascarPlateSuffix = (value: any): string => String(value || '')
-  .trim()
-  .toUpperCase()
-  .replace(/(-\d+)+$/g, '');
-
-const normalizeKey = (value: any): string => stripSascarPlateSuffix(value)
+const normalizeKey = (value: any): string => String(value || '')
   .replace(/[^A-Z0-9]/gi, '')
   .toUpperCase();
 
@@ -142,12 +134,8 @@ const parseOptionalNumber = (...values: any[]): number | undefined => {
 const parseSascarDate = (value: any): Date => {
   if (!value) return new Date(0);
   const text = String(value).trim();
-  const hasExplicitTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(text);
-
-  if (!hasExplicitTimezone && /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(text)) {
-    const parsed = new Date(`${text.replace(' ', 'T')}-03:00`);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
+  const nativeDate = new Date(text);
+  if (!Number.isNaN(nativeDate.getTime())) return nativeDate;
 
   if (text.includes('/')) {
     const [date, time = '00:00:00'] = text.split(' ');
@@ -156,32 +144,13 @@ const parseSascarDate = (value: any): Date => {
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
 
-  const nativeDate = new Date(text);
-  if (!Number.isNaN(nativeDate.getTime())) return nativeDate;
-
   const parsed = new Date(`${text.replace(' ', 'T')}-03:00`);
   return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
 };
 
-const formatSascarDate = (date: Date): string => {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: SASCAR_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    hourCycle: 'h23'
-  });
-  const parts = Object.fromEntries(formatter.formatToParts(date).map(part => [part.type, part.value]));
-  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
-};
-
 const parseObjectFromXml = (xml: string): Record<string, any> => {
   const output: Record<string, any> = {};
-  const tagRegex = /<(?:[^:/>\s]+:)?([A-Za-z0-9_]+)\b[^>]*>([\s\S]*?)<\/(?:[^:/>\s]+:)?\1>/g;
+  const tagRegex = /<[^:/>\s]*(?::)?([A-Za-z0-9_]+)[^>]*>([\s\S]*?)<\/[^:/>\s]*(?::)?\1>/g;
   let match: RegExpExecArray | null;
 
   while ((match = tagRegex.exec(xml))) {
@@ -230,14 +199,14 @@ const postSoap = async (method: string, body: string): Promise<any[]> => {
 </soapenv:Envelope>`.trim();
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  const timeoutId = setTimeout(() => controller.abort(), 50000);
 
   try {
     const response = await fetch(SASCAR_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml;charset=UTF-8',
-        SOAPAction: ''
+        SOAPAction: '""'
       },
       body: envelope,
       signal: controller.signal
@@ -256,7 +225,7 @@ const postSoap = async (method: string, body: string): Promise<any[]> => {
 };
 
 const normalizeVehicle = (vehicle: any) => {
-  const plate = stripSascarPlateSuffix(vehicle.placa || vehicle.plate || '');
+  const plate = vehicle.placa || vehicle.plate || '';
   const latitude = parseNumber(vehicle.latitude);
   const longitude = parseNumber(vehicle.longitude);
   const litrometer = parseOptionalNumber(
@@ -307,33 +276,6 @@ const uniqueLatest = (vehicles: any[]) => {
   return Array.from(map.values());
 };
 
-const buildVehicleMaps = (vehicles: any[]) => {
-  const idToPlate = new Map<string, string>();
-  const plateToId = new Map<string, string>();
-
-  vehicles.forEach(vehicle => {
-    const id = String(vehicle.idVeiculo || vehicle.id || '').trim();
-    const plate = stripSascarPlateSuffix(vehicle.placa || vehicle.plate || '');
-    const plateKey = normalizeKey(plate);
-
-    if (id && plate) idToPlate.set(id, plate);
-    if (plateKey && id) plateToId.set(plateKey, id);
-  });
-
-  return { idToPlate, plateToId };
-};
-
-const attachMappedPlates = (positions: any[], idToPlate: Map<string, string>) => positions.map(position => {
-  const id = String(position?.idVeiculo || position?.id || '').trim();
-  const mappedPlate = id ? idToPlate.get(id) : '';
-  const plate = stripSascarPlateSuffix(position?.placa || position?.plate || mappedPlate || '');
-
-  return {
-    ...position,
-    ...(plate ? { placa: plate, plate } : {})
-  };
-});
-
 const getBody = async (req: any): Promise<any> => {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') {
@@ -367,80 +309,44 @@ export default async function sascarVehicles(req: any, res: any) {
   try {
     const body = await getBody(req);
     const plates = asArray(body?.plates).map(normalizeKey).filter(Boolean);
-    const requestedVehicles = asArray(body?.vehicles);
     const settings = body?.trackerSettings || {};
     const user = settings.user || DEFAULT_USER;
     const pass = settings.pass || DEFAULT_PASS;
     const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
 
     let rawVehicles: any[] = [];
-    let idToPlate = new Map<string, string>();
-    const queryErrors: string[] = [];
-    requestedVehicles.forEach(vehicle => {
-      const id = String(vehicle?.code || vehicle?.idVeiculo || vehicle?.id || '').replace(/\D/g, '');
-      const plate = stripSascarPlateSuffix(vehicle?.plate || vehicle?.placa || '');
-      if (id && plate) idToPlate.set(id, plate);
-    });
 
-    const ids = Array.from(new Set(plates.map(term => String(term || '').replace(/\D/g, '')).filter(Boolean)));
-    const queriedIds = ids.slice(0, MAX_HISTORY_IDS_PER_REQUEST);
-    if (ids.length > 0) {
-      const now = new Date();
-      const start = new Date(now.getTime() - HISTORY_LOOKBACK_HOURS * 60 * 60 * 1000);
-
-      for (const idVeiculo of queriedIds) {
-        try {
-          rawVehicles.push(...await postSoap(
-            'obterPacotePosicaoHistorico',
-            `${auth}<idVeiculo>${escapeXml(idVeiculo)}</idVeiculo><dataInicio>${formatSascarDate(start)}</dataInicio><dataFinal>${formatSascarDate(now)}</dataFinal>`
-          ));
-        } catch (error: any) {
-          queryErrors.push(`${idVeiculo}: ${error?.message || String(error)}`);
-        }
-      }
-    } else {
-      const rawVehicleList = await postSoap('obterVeiculosJson', `${auth}<quantidade>5000</quantidade>`)
-        .catch(() => []);
-      const maps = buildVehicleMaps(rawVehicleList);
-      idToPlate = maps.idToPlate;
-
-      try {
-        rawVehicles = await postSoap('obterPacotePosicoesJSONComPlaca', `${auth}<quantidade>500</quantidade>`);
-      } catch (error: any) {
-        rawVehicles = await postSoap('obterPacotePosicoesComPlaca', `${auth}<quantidade>500</quantidade>`)
-          .catch(() => []);
-      }
+    try {
+      rawVehicles = await postSoap('obterPacotePosicoesJSON', `${auth}<quantidade>5000</quantidade>`);
+    } catch (error: any) {
+      rawVehicles = [];
     }
 
-    let vehicles = uniqueLatest(attachMappedPlates(rawVehicles, idToPlate));
+    if (rawVehicles.length === 0) {
+      rawVehicles = await postSoap('obterUltimaPosicaoTodosVeiculos', auth);
+    }
+
+    if (rawVehicles.length === 0 && plates.length > 0) {
+      const individualResults = await Promise.allSettled(plates.map(plate =>
+        postSoap('obterUltimaPosicaoVeiculoComPlaca', `${auth}<placa>${escapeXml(plate)}</placa>`)
+      ));
+      rawVehicles = individualResults.flatMap(result => result.status === 'fulfilled' ? result.value : []);
+    }
+
+    let vehicles = uniqueLatest(rawVehicles);
 
     if (plates.length > 0) {
       vehicles = vehicles.filter(vehicle =>
         plates.includes(normalizeKey(vehicle.placa)) ||
         plates.includes(normalizeKey(vehicle.plate)) ||
-        plates.includes(normalizeKey(vehicle.idVeiculo)) ||
-        plates.includes(String(vehicle.idVeiculo || vehicle.id || '').trim())
+        plates.includes(normalizeKey(vehicle.idVeiculo))
       );
     }
 
-    const hasOnlyErrors = queryErrors.length > 0 && vehicles.length === 0;
-
-    return res.status(hasOnlyErrors ? 502 : 200).json({
-      success: !hasOnlyErrors,
+    return res.status(200).json({
+      success: true,
       message: `Sincronizacao concluida. ${vehicles.length} veiculos processados.`,
-      ...(hasOnlyErrors ? {
-        error: 'Falha ao consultar Sascar',
-        details: queryErrors.join(' | ')
-      } : {}),
-      data: vehicles,
-      debug: {
-        requestedCodes: ids,
-        queriedCodes: queriedIds,
-        historyLookbackHours: HISTORY_LOOKBACK_HOURS,
-        rawItems: rawVehicles.length,
-        returnedVehicles: vehicles.length,
-        errors: queryErrors
-      }
+      data: vehicles
     });
   } catch (error: any) {
     return res.status(502).json({
