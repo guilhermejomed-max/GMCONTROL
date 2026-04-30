@@ -5,7 +5,12 @@ const MAX_REASONABLE_ODOMETER_KM = 2000000;
 
 const asArray = (value: any): any[] => Array.isArray(value) ? value : (value ? [value] : []);
 
-const normalizeKey = (value: any): string => String(value || '')
+const stripSascarPlateSuffix = (value: any): string => String(value || '')
+  .trim()
+  .toUpperCase()
+  .replace(/(-\d+)+$/g, '');
+
+const normalizeKey = (value: any): string => stripSascarPlateSuffix(value)
   .replace(/[^A-Z0-9]/gi, '')
   .toUpperCase();
 
@@ -225,7 +230,7 @@ const postSoap = async (method: string, body: string): Promise<any[]> => {
 };
 
 const normalizeVehicle = (vehicle: any) => {
-  const plate = vehicle.placa || vehicle.plate || '';
+  const plate = stripSascarPlateSuffix(vehicle.placa || vehicle.plate || '');
   const latitude = parseNumber(vehicle.latitude);
   const longitude = parseNumber(vehicle.longitude);
   const litrometer = parseOptionalNumber(
@@ -276,6 +281,33 @@ const uniqueLatest = (vehicles: any[]) => {
   return Array.from(map.values());
 };
 
+const buildVehicleMaps = (vehicles: any[]) => {
+  const idToPlate = new Map<string, string>();
+  const plateToId = new Map<string, string>();
+
+  vehicles.forEach(vehicle => {
+    const id = String(vehicle.idVeiculo || vehicle.id || '').trim();
+    const plate = stripSascarPlateSuffix(vehicle.placa || vehicle.plate || '');
+    const plateKey = normalizeKey(plate);
+
+    if (id && plate) idToPlate.set(id, plate);
+    if (plateKey && id) plateToId.set(plateKey, id);
+  });
+
+  return { idToPlate, plateToId };
+};
+
+const attachMappedPlates = (positions: any[], idToPlate: Map<string, string>) => positions.map(position => {
+  const id = String(position?.idVeiculo || position?.id || '').trim();
+  const mappedPlate = id ? idToPlate.get(id) : '';
+  const plate = stripSascarPlateSuffix(position?.placa || position?.plate || mappedPlate || '');
+
+  return {
+    ...position,
+    ...(plate ? { placa: plate, plate } : {})
+  };
+});
+
 const getBody = async (req: any): Promise<any> => {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') {
@@ -314,28 +346,41 @@ export default async function sascarVehicles(req: any, res: any) {
     const pass = settings.pass || DEFAULT_PASS;
     const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
 
+    const rawVehicleList = await postSoap('obterVeiculosJson', `${auth}<quantidade>5000</quantidade>`)
+      .catch(() => []);
+    const { idToPlate, plateToId } = buildVehicleMaps(rawVehicleList);
+
     let rawVehicles: any[] = [];
 
     try {
-      rawVehicles = await postSoap('obterUltimaPosicaoTodosVeiculos', auth);
+      rawVehicles = await postSoap('obterPacotePosicoesJSONComPlaca', `${auth}<quantidade>5000</quantidade>`);
     } catch (error: any) {
-      if (plates.length === 0) throw error;
+      rawVehicles = await postSoap('obterPacotePosicoesComPlaca', `${auth}<quantidade>5000</quantidade>`)
+        .catch(() => []);
     }
 
     if (rawVehicles.length === 0 && plates.length > 0) {
-      const individualResults = await Promise.allSettled(plates.map(plate =>
-        postSoap('obterUltimaPosicaoVeiculoComPlaca', `${auth}<placa>${escapeXml(plate)}</placa>`)
+      const now = new Date();
+      const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const formatDate = (date: Date) => date.toISOString().slice(0, 19).replace('T', ' ');
+      const ids = plates
+        .map(term => /^\d+$/.test(term) ? term : plateToId.get(term))
+        .filter(Boolean) as string[];
+
+      const individualResults = await Promise.allSettled(ids.slice(0, 25).map(idVeiculo =>
+        postSoap('obterPacotePosicaoHistorico', `${auth}<idVeiculo>${escapeXml(idVeiculo)}</idVeiculo><dataInicio>${formatDate(start)}</dataInicio><dataFinal>${formatDate(now)}</dataFinal>`)
       ));
       rawVehicles = individualResults.flatMap(result => result.status === 'fulfilled' ? result.value : []);
     }
 
-    let vehicles = uniqueLatest(rawVehicles);
+    let vehicles = uniqueLatest(attachMappedPlates(rawVehicles, idToPlate));
 
     if (plates.length > 0) {
       vehicles = vehicles.filter(vehicle =>
         plates.includes(normalizeKey(vehicle.placa)) ||
         plates.includes(normalizeKey(vehicle.plate)) ||
-        plates.includes(normalizeKey(vehicle.idVeiculo))
+        plates.includes(normalizeKey(vehicle.idVeiculo)) ||
+        plates.includes(String(vehicle.idVeiculo || vehicle.id || '').trim())
       );
     }
 

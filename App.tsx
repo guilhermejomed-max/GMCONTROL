@@ -745,7 +745,7 @@ export const App = () => {
 
     isSyncingRef.current = true;
     let totalUpdated = 0;
-    const normalizePlate = (value: any) => String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const normalizePlate = (value: any) => String(value || '').trim().replace(/(-\d+)+$/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const normalizeSascarId = (value: any) => String(value || '').replace(/\D/g, '');
     const parseTelemetryNumber = (value: any): number | undefined => {
       if (value === undefined || value === null || value === '') return undefined;

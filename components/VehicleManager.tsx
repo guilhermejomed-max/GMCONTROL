@@ -1768,6 +1768,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     try {
       // Passar os IDs (sascarCode) e placas para buscar os veículos cadastrados
       const plates = vehicles.flatMap(v => [String(v.sascarCode || ""), String(v.plate || "")]).filter(p => p && p.length > 0);
+      const normalizeSascarPlate = (value: any) => String(value || '').trim().replace(/(-\d+)+$/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
       
       console.log(`[Sascar Sync Debug] Veículos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
       console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} identificadores...`);
@@ -1806,8 +1807,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   }
 
                   const idSascar = parseInt(String(sv.idVeiculo || sv.id || "").replace(/\D/g, ""), 10);
-                  const fullPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-                  const sascarPlate = String(sv.placa || sv.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                  const fullPlate = normalizeSascarPlate(sv.placa || sv.plate || "");
+                  const sascarPlate = normalizeSascarPlate(sv.placa || sv.plate || "");
                   
                   if (isNaN(idSascar) && !sascarPlate) return;
 
@@ -1818,7 +1819,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       if (!isNaN(idApp) && !isNaN(idSascar) && idApp === idSascar) return true;
                       
                       // Match por Placa
-                      const plateApp = String(v.plate || "").replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                      const plateApp = normalizeSascarPlate(v.plate);
                       if (plateApp && sascarPlate && plateApp === sascarPlate) return true;
                       
                       return false;
