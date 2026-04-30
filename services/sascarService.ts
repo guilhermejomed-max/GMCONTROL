@@ -179,6 +179,51 @@ const matchesTerm = (vehicle: any, term: string) => {
   return (vehiclePlate && vehiclePlate === termPlate) || (termId && vehicleId === termId);
 };
 
+const formatSascarDateBRT = (date: Date): string => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+  const getPart = (type: string) => parts.find(part => part.type === type)?.value;
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+};
+
+const fetchHistoryById = async (
+  auth: string,
+  idVeiculo: string,
+  idToPlateMap: Map<string, string>
+): Promise<any | null> => {
+  const now = new Date();
+  const start = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+  const items = await postSoap(
+    'obterPacotePosicaoHistorico',
+    `${auth}<idVeiculo>${escapeXml(idVeiculo)}</idVeiculo><dataInicio>${formatSascarDateBRT(start)}</dataInicio><dataFinal>${formatSascarDateBRT(now)}</dataFinal>`,
+    30000
+  );
+
+  let latest: any | null = null;
+  let latestTime = 0;
+  for (const item of items) {
+    if (!item?.idVeiculo && !item?.placa) continue;
+    if (item.idVeiculo && !item.placa && idToPlateMap.has(String(item.idVeiculo))) {
+      item.placa = idToPlateMap.get(String(item.idVeiculo));
+    }
+    const itemTime = parseSascarDate(item.dataPosicao || item.dataHora).getTime();
+    if (itemTime >= latestTime) {
+      latestTime = itemTime;
+      latest = item;
+    }
+  }
+
+  return latest;
+};
+
 export const sascarService = {
   getVehicles: async (plates?: string[], trackerSettings?: TrackerSettings, retries = 2) => {
     const user = trackerSettings?.user || DEFAULT_USER;
@@ -187,6 +232,22 @@ export const sascarService = {
 
     const allVehiclesMap = new Map<string, any>();
     const targetTerms = Array.isArray(plates) ? plates.filter(Boolean) : [];
+    const idToPlateMap = new Map<string, string>();
+
+    try {
+      const vehicles = await postSoap(
+        'obterVeiculosJson',
+        `${auth}<quantidade>5000</quantidade>`,
+        30000
+      );
+      vehicles.forEach(vehicle => {
+        if (vehicle?.idVeiculo && vehicle?.placa) {
+          idToPlateMap.set(String(vehicle.idVeiculo), String(vehicle.placa).trim().toUpperCase());
+        }
+      });
+    } catch (error) {
+      console.warn('[Sascar Sync] Nao foi possivel carregar mapa id->placa:', error);
+    }
 
     let hasMoreData = true;
     let loopCount = 0;
@@ -206,6 +267,9 @@ export const sascarService = {
 
           if (items.length < 3000) hasMoreData = false;
           items.forEach(vehicle => {
+            if (vehicle?.idVeiculo && !vehicle?.placa && idToPlateMap.has(String(vehicle.idVeiculo))) {
+              vehicle.placa = idToPlateMap.get(String(vehicle.idVeiculo));
+            }
             if (vehicle?.placa || vehicle?.idVeiculo) upsertLatest(allVehiclesMap, vehicle);
           });
           break;
@@ -221,6 +285,35 @@ export const sascarService = {
       }
     }
 
+    const missingNumericIds = Array.from(new Set(
+      targetTerms
+        .map(term => String(term).trim())
+        .filter(term => /^\d+$/.test(term))
+        .filter(term => !Array.from(allVehiclesMap.values()).some(vehicle => matchesTerm(vehicle, term)))
+    ));
+
+    let historicoEncontrados = 0;
+    if (missingNumericIds.length > 0) {
+      console.info('[Sascar Sync] Buscando historico para IDs sem match', {
+        idsSemMatch: missingNumericIds.length
+      });
+
+      const concurrencyLimit = 6;
+      for (let i = 0; i < missingNumericIds.length; i += concurrencyLimit) {
+        const chunk = missingNumericIds.slice(i, i + concurrencyLimit);
+        const results = await Promise.allSettled(
+          chunk.map(id => fetchHistoryById(auth, id, idToPlateMap))
+        );
+
+        results.forEach(result => {
+          if (result.status === 'fulfilled' && result.value) {
+            upsertLatest(allVehiclesMap, result.value);
+            historicoEncontrados++;
+          }
+        });
+      }
+    }
+
     const vehicles = Array.from(allVehiclesMap.values());
     const matchedByRequestedTerms = targetTerms.length > 0
       ? vehicles.filter(vehicle => targetTerms.some(term => matchesTerm(vehicle, term))).length
@@ -229,7 +322,9 @@ export const sascarService = {
     console.info('[Sascar Sync] Pacote Sascar processado', {
       veiculosRetornados: vehicles.length,
       termosSolicitados: targetTerms.length,
-      correspondenciasDiretas: matchedByRequestedTerms
+      correspondenciasDiretas: matchedByRequestedTerms,
+      mapaIdPlaca: idToPlateMap.size,
+      historicoEncontrados
     });
 
     return { success: true, data: vehicles };
