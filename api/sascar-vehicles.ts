@@ -204,7 +204,7 @@ const postSoap = async (method: string, body: string): Promise<any[]> => {
 </soapenv:Envelope>`.trim();
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 50000);
+  const timeoutId = setTimeout(() => controller.abort(), 18000);
 
   try {
     const response = await fetch(SASCAR_URL, {
@@ -346,31 +346,31 @@ export default async function sascarVehicles(req: any, res: any) {
     const pass = settings.pass || DEFAULT_PASS;
     const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
 
-    const rawVehicleList = await postSoap('obterVeiculosJson', `${auth}<quantidade>5000</quantidade>`)
-      .catch(() => []);
-    const { idToPlate, plateToId } = buildVehicleMaps(rawVehicleList);
-
     let rawVehicles: any[] = [];
+    let idToPlate = new Map<string, string>();
 
-    try {
-      rawVehicles = await postSoap('obterPacotePosicoesJSONComPlaca', `${auth}<quantidade>5000</quantidade>`);
-    } catch (error: any) {
-      rawVehicles = await postSoap('obterPacotePosicoesComPlaca', `${auth}<quantidade>5000</quantidade>`)
-        .catch(() => []);
-    }
-
-    if (rawVehicles.length === 0 && plates.length > 0) {
+    const ids = plates.filter(term => /^\d+$/.test(term));
+    if (ids.length > 0) {
       const now = new Date();
-      const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const formatDate = (date: Date) => date.toISOString().slice(0, 19).replace('T', ' ');
-      const ids = plates
-        .map(term => /^\d+$/.test(term) ? term : plateToId.get(term))
-        .filter(Boolean) as string[];
 
-      const individualResults = await Promise.allSettled(ids.slice(0, 25).map(idVeiculo =>
+      const individualResults = await Promise.allSettled(ids.slice(0, 4).map(idVeiculo =>
         postSoap('obterPacotePosicaoHistorico', `${auth}<idVeiculo>${escapeXml(idVeiculo)}</idVeiculo><dataInicio>${formatDate(start)}</dataInicio><dataFinal>${formatDate(now)}</dataFinal>`)
       ));
       rawVehicles = individualResults.flatMap(result => result.status === 'fulfilled' ? result.value : []);
+    } else {
+      const rawVehicleList = await postSoap('obterVeiculosJson', `${auth}<quantidade>5000</quantidade>`)
+        .catch(() => []);
+      const maps = buildVehicleMaps(rawVehicleList);
+      idToPlate = maps.idToPlate;
+
+      try {
+        rawVehicles = await postSoap('obterPacotePosicoesJSONComPlaca', `${auth}<quantidade>500</quantidade>`);
+      } catch (error: any) {
+        rawVehicles = await postSoap('obterPacotePosicoesComPlaca', `${auth}<quantidade>500</quantidade>`)
+          .catch(() => []);
+      }
     }
 
     let vehicles = uniqueLatest(attachMappedPlates(rawVehicles, idToPlate));

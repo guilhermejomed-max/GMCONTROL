@@ -760,17 +760,15 @@ export const App = () => {
       // 1. Otimização de Dados: Incluir tanto placas quanto códigos Sascar para busca
       const searchTerms = new Set<string>();
       currentVehicles.forEach(v => {
-        if (vehicleIds && vehicleIds.length > 0) {
-          if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
-          else if (v.plate) searchTerms.add(normalizePlate(v.plate));
-          return;
-        }
         if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
-        else if (v.plate) searchTerms.add(normalizePlate(v.plate));
       });
       
       const plates = Array.from(searchTerms).filter(p => p.length > 0);
-      
+      if (plates.length === 0) {
+        if (showModal) addToast('warning', 'Sem Codigo Sascar', 'Preencha o Codigo da Sascar nos veiculos para sincronizar.');
+        return 0;
+      }
+
       console.log(`[Sascar Sync] Iniciando sincronização para ${currentVehicles.length} veículos locais usando ${plates.length} termos de busca...`);
       storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${currentVehicles.length} veículos`, 'VEHICLES');
       

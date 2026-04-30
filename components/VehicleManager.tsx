@@ -1767,7 +1767,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     setIsSyncingSascar(true);
     try {
       // Passar os IDs (sascarCode) e placas para buscar os veículos cadastrados
-      const plates = vehicles.flatMap(v => [String(v.sascarCode || ""), String(v.plate || "")]).filter(p => p && p.length > 0);
+      const plates = vehicles.map(v => String(v.sascarCode || "").trim()).filter(p => p && p.length > 0);
       const normalizeSascarPlate = (value: any) => String(value || '').trim().replace(/(-\d+)+$/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
       
       console.log(`[Sascar Sync Debug] Veículos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
