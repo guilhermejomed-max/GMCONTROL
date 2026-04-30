@@ -327,8 +327,8 @@ export default async function sascarVehicles(req: any, res: any) {
     }
 
     if (rawVehicles.length === 0 && plates.length > 0) {
-      const individualResults = await Promise.allSettled(plates.map(plate =>
-        postSoap('obterUltimaPosicaoVeiculoComPlaca', `${auth}<placa>${escapeXml(plate)}</placa>`)
+      const individualResults = await Promise.allSettled(plates.slice(0, 5).map(plate =>
+        postSoap('obterPacotePosicoesJSONComPlaca', `${auth}<placa>${escapeXml(plate)}</placa><quantidade>5000</quantidade>`)
       ));
       rawVehicles = individualResults.flatMap(result => result.status === 'fulfilled' ? result.value : []);
     }

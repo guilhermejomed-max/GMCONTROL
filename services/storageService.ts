@@ -1656,7 +1656,7 @@ export const storageService = {
 
   subscribeToTrackerSettings: (orgId: string, callback: (settings: TrackerSettings) => void) => {
     const DEFAULT_TRACKER: TrackerSettings = { 
-      apiUrl: '/api/sascar-vehicles', 
+      apiUrl: '/proxy-sascar/SasIntegraWSService', 
       user: 'JOMEDELOGTORREOPENTECH', 
       pass: 'sascar', 
       active: true 
