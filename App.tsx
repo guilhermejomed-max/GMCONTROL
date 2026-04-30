@@ -745,7 +745,7 @@ export const App = () => {
 
     isSyncingRef.current = true;
     let totalUpdated = 0;
-    const normalizePlate = (value: any) => String(value || '').trim().replace(/(-\d+)+$/g, '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const normalizePlate = (value: any) => String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const normalizeSascarId = (value: any) => String(value || '').replace(/\D/g, '');
     const parseTelemetryNumber = (value: any): number | undefined => {
       if (value === undefined || value === null || value === '') return undefined;
@@ -758,51 +758,33 @@ export const App = () => {
 
     try {
       // 1. Otimização de Dados: Incluir tanto placas quanto códigos Sascar para busca
-      const sascarTargets = currentVehicles
-        .map(v => ({
-          code: normalizeSascarId(v.sascarCode),
-          plate: String(v.plate || '').trim()
-        }))
-        .filter(item => item.code.length > 0);
-      const plates = Array.from(new Set(sascarTargets.map(item => item.code)));
-      if (plates.length === 0) {
-        if (showModal) addToast('warning', 'Sem Codigo Sascar', 'Preencha o Codigo da Sascar nos veiculos para sincronizar.');
-        return 0;
-      }
-
+      const searchTerms = new Set<string>();
+      currentVehicles.forEach(v => {
+        if (vehicleIds && vehicleIds.length > 0) {
+          if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
+          else if (v.plate) searchTerms.add(normalizePlate(v.plate));
+          return;
+        }
+        if (v.sascarCode) searchTerms.add(String(v.sascarCode).trim());
+        else if (v.plate) searchTerms.add(normalizePlate(v.plate));
+      });
+      
+      const plates = Array.from(searchTerms).filter(p => p.length > 0);
+      
       console.log(`[Sascar Sync] Iniciando sincronização para ${currentVehicles.length} veículos locais usando ${plates.length} termos de busca...`);
       storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${currentVehicles.length} veículos`, 'VEHICLES');
       
       const results = [];
-      let syncRequestError = '';
-      let sascarResponseMessage = '';
-      let sascarDebug: any = null;
       try {
           console.log(`[Sascar Sync] Solicitando posições...`);
-          const result = await sascarService.getVehicles(sascarTargets, trackerSettings || undefined);
-          sascarResponseMessage = result.message || '';
-          sascarDebug = result.debug || null;
-          console.log('[Sascar Sync] Resposta da API Sascar:', {
-            recebidos: result.data?.length || 0,
-            mensagem: sascarResponseMessage,
-            debug: sascarDebug
-          });
+          const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
           results.push(result.data || []);
       } catch (error: any) {
-          syncRequestError = error.message || String(error);
           console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
       }
 
       // 4. Consolidação: Processar todos os itens recebidos
       const allRawItems = results.flat();
-      if (allRawItems.length === 0) {
-        console.warn('[Sascar Sync] Nenhuma posição retornada pela Sascar.', {
-          codigosSolicitados: plates,
-          mensagem: sascarResponseMessage,
-          erro: syncRequestError,
-          debug: sascarDebug
-        });
-      }
       const updatesBatch: any[] = [];
       const processedLocalIds = new Set<string>();
       const updatedPlatesList: string[] = [];
@@ -851,12 +833,6 @@ export const App = () => {
         if (localVehicle) {
           processedLocalIds.add(localVehicle.id);
           const incomingPositionTime = parseSascarDate(sv.lastLocation?.updatedAt || sv.dataPosicaoIso || sv.dataPosicao || sv.dataHora || '');
-          const savedPositionTime = parseSascarDate(localVehicle.lastLocation?.updatedAt || '');
-          if (!showModal && savedPositionTime > 0 && incomingPositionTime > 0 && incomingPositionTime <= savedPositionTime) {
-            stalePositionCount++;
-            return;
-          }
-
           const trackerOdo = Math.round(parseOdometerKm(sv));
           if (trackerOdo <= 0) missingOdometerCount++;
           const finalOdo = chooseAuthoritativeOdometer(localVehicle.odometer || 0, trackerOdo);
@@ -970,15 +946,7 @@ export const App = () => {
         if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
       } else {
         console.log("[Sascar Sync] Nenhum dado novo para atualizar.");
-        if (showModal) {
-          if (syncRequestError) {
-            addToast('error', 'Erro na Sincronização', syncRequestError);
-          } else if (allRawItems.length === 0) {
-            addToast('info', 'Sincronização', 'A Sascar não retornou posição nas últimas 24h para os códigos cadastrados.');
-          } else {
-            addToast('info', 'Sincronização', 'Nenhum dado novo encontrado para os veículos cadastrados.');
-          }
-        }
+        if (showModal) addToast('info', 'Sincronização', 'Nenhum dado novo encontrado para os veículos cadastrados.');
       }
       
       if (showModal) {
