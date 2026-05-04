@@ -3,13 +3,11 @@ import {
   Activity,
   ArrowRight,
   CheckCircle2,
-  ClipboardCheck,
   DollarSign,
   FileText,
   Fuel,
   Gauge,
   MapPin,
-  ShieldAlert,
   TrendingDown,
   TrendingUp,
   Truck,
@@ -513,44 +511,90 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   );
 
   const maxCost = Math.max(1, ...data.costBreakdown.map(item => item.value));
+  const topAlerts = data.alerts.slice(0, 3);
+  const healthColor = data.healthScore >= 80
+    ? 'text-emerald-500'
+    : data.healthScore >= 60
+      ? 'text-amber-500'
+      : 'text-red-500';
+  const executiveStatus = data.criticalAlerts > 0
+    ? 'Atencao imediata'
+    : data.alerts.length > 0
+      ? 'Operacao com pontos de atencao'
+      : 'Operacao sob controle';
 
   return (
     <div className="space-y-5 pb-10 animate-in fade-in duration-500">
-      <div className="rounded-lg bg-slate-950 text-white overflow-hidden shadow-sm">
-        <div className="p-5 md:p-6 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300">Centro de comando da frota</p>
-            <h1 className="mt-2 text-2xl md:text-4xl font-black tracking-tight">Painel Executivo</h1>
-            <p className="mt-2 text-sm font-bold text-slate-300 max-w-3xl">
-              {data.branchName} | {data.activeVehicles} veiculos | {data.alerts.length} sinais acionaveis
-            </p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 xl:min-w-[420px]">
-            <div className="rounded-lg bg-white/10 border border-white/10 p-3">
-              <p className="text-[10px] font-black uppercase text-slate-400">Saude</p>
-              <p className="text-2xl font-black">{data.healthScore}/100</p>
+      <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-4">
+        <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">Painel Executivo</p>
+              <h1 className="mt-2 text-2xl md:text-3xl font-black text-slate-950 dark:text-white tracking-tight">Visao de 30 segundos</h1>
+              <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+                {data.branchName} | {executiveStatus}
+              </p>
             </div>
-            <div className="rounded-lg bg-white/10 border border-white/10 p-3">
-              <p className="text-[10px] font-black uppercase text-slate-400">Criticos</p>
-              <p className="text-2xl font-black text-red-300">{data.criticalAlerts}</p>
-            </div>
-            <div className="rounded-lg bg-white/10 border border-white/10 p-3 col-span-2 sm:col-span-1">
-              <p className="text-[10px] font-black uppercase text-slate-400">Perda evitavel</p>
-              <p className="text-2xl font-black text-emerald-300">{money(data.estimatedLoss, true)}</p>
+            <div className="rounded-lg bg-slate-950 dark:bg-slate-800 text-white px-4 py-3 min-w-[220px]">
+              <p className="text-[10px] font-black uppercase text-slate-400">Indice operacional</p>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <p className={`text-4xl font-black ${healthColor}`}>{data.healthScore}</p>
+                <p className="text-xs font-black text-slate-400 mb-1">/100</p>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-blue-500" style={{ width: `${data.healthScore}%` }} />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KpiCard label="Frota ativa" value={data.activeVehicles} detail={`${data.stoppedVehicles} parados ou sem movimento`} icon={Truck} tone="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300" />
-        <KpiCard label="Custo por km" value={data.monthKm > 0 ? money(data.costPerKm) : '-'} detail={`${number(data.monthKm)} km medidos no mes`} icon={Gauge} tone="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" />
-        <KpiCard label="Abastecimento mes" value={money(data.fuelCostMonth, true)} detail={`${number(data.fuelVolumeMonth)} L/m3 importados`} icon={Fuel} tone="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300" />
-        <KpiCard label="Manutencao vencida" value={data.maintenanceOverdue} detail={`${data.openOrders} O.S. abertas`} icon={Wrench} tone="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300" />
-        <KpiCard label="Multas pendentes" value={data.pendingFinesCount} detail={money(data.pendingFinesAmount, true)} icon={DollarSign} tone="bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300" />
-        <KpiCard label="Documentos vencendo" value={data.documentsDueCount} detail="Financeiro e CNH nos proximos 30 dias" icon={FileText} tone="bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300" />
-        <KpiCard label="Checklist / QR" value={data.qrPending} detail="Solicitacoes aguardando triagem" icon={ClipboardCheck} tone="bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-300" />
-        <KpiCard label="Ocorrencias abertas" value={data.openOccurrences} detail="Pendencias operacionais sem resolucao" icon={ShieldAlert} tone="bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-300" />
+          <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard label="Frota" value={data.activeVehicles} detail={`${data.stoppedVehicles} parados`} icon={Truck} tone="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300" />
+            <KpiCard label="Custo/km" value={data.monthKm > 0 ? money(data.costPerKm) : '-'} detail={`${number(data.monthKm)} km no mes`} icon={Gauge} tone="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" />
+            <KpiCard label="Gasto mes" value={money(data.totalMonthCost, true)} detail="Combustivel + manutencao + financeiro" icon={DollarSign} tone="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300" />
+            <KpiCard label="Perda evitavel" value={money(data.estimatedLoss, true)} detail="Consumo e postos acima da media" icon={TrendingDown} tone="bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300" />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              { label: 'Abastecimento', value: money(data.fuelCostMonth, true), tab: 'fuel' as TabView },
+              { label: 'Manutencao', value: `${data.maintenanceOverdue} venc.`, tab: 'maintenance' as TabView },
+              { label: 'Multas', value: `${data.pendingFinesCount} pend.`, tab: 'financial' as TabView },
+              { label: 'Documentos', value: `${data.documentsDueCount} vencendo`, tab: 'drivers' as TabView }
+            ].map(item => (
+              <button key={item.label} onClick={() => onNavigate(item.tab)} className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-left hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+                <p className="text-[10px] font-black uppercase text-slate-400">{item.label}</p>
+                <p className="mt-1 text-sm font-black text-slate-800 dark:text-white">{item.value}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-950 text-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-300">Prioridade agora</p>
+              <h2 className="mt-2 text-xl font-black">O que precisa de decisao</h2>
+            </div>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-slate-300">{data.criticalAlerts} criticos</span>
+          </div>
+          <div className="mt-4 space-y-2">
+            {topAlerts.length > 0 ? topAlerts.map(alert => (
+              <button key={alert.id} onClick={() => onNavigate(alert.tab)} className="w-full rounded-lg bg-white/10 border border-white/10 p-3 text-left hover:bg-white/15 transition-colors">
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`px-2 py-1 rounded-md text-[10px] font-black ${alert.severity === 'CRITICO' ? 'bg-red-500 text-white' : alert.severity === 'ALTO' ? 'bg-amber-400 text-slate-950' : 'bg-blue-400 text-slate-950'}`}>{alert.severity}</span>
+                  <ArrowRight className="h-4 w-4 text-slate-400" />
+                </div>
+                <p className="mt-2 font-black text-white">{alert.title}</p>
+                <p className="mt-1 text-xs font-bold text-slate-400">{alert.impact || alert.detail}</p>
+              </button>
+            )) : (
+              <div className="py-10 text-center text-slate-400">
+                <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-400 mb-2" />
+                <p className="text-sm font-black">Sem decisao urgente.</p>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_0.8fr] gap-4">

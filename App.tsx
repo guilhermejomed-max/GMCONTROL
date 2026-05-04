@@ -1762,7 +1762,7 @@ export const App = () => {
               const next = allowedModules[nextIndex];
               
               if (next === 'FUEL') setCurrentTab('fuel');
-              if (next === 'TIRES') setCurrentTab('dashboard');
+              if (next === 'TIRES') setCurrentTab('inventory');
               if (next === 'VEHICLES') setCurrentTab('fleet');
               if (next === 'MECHANICAL') setCurrentTab('maintenance');
               return next;
@@ -1771,7 +1771,7 @@ export const App = () => {
           onSelectModule={(mod) => {
             setActiveModule(mod);
             if (mod === 'FUEL') setCurrentTab('fuel');
-            if (mod === 'TIRES') setCurrentTab('dashboard');
+            if (mod === 'TIRES') setCurrentTab('inventory');
             if (mod === 'VEHICLES') setCurrentTab('fleet');
             if (mod === 'MECHANICAL') setCurrentTab('maintenance');
           }}
@@ -1821,6 +1821,19 @@ export const App = () => {
                               </select>
                           </div>
                       )}
+
+                      <button
+                          onClick={() => setCurrentTab('dashboard')}
+                          className={`hidden md:flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-black shadow-sm backdrop-blur-sm transition-all ${
+                            currentTab === 'dashboard'
+                              ? 'bg-slate-950 text-white border-slate-950 dark:bg-blue-600 dark:border-blue-500'
+                              : 'bg-white/50 dark:bg-slate-900/50 border-slate-200/50 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 hover:text-blue-600'
+                          }`}
+                          title="Abrir Painel Executivo"
+                      >
+                          <LayoutDashboard className="h-4 w-4" />
+                          Painel Executivo
+                      </button>
 
                       <span className="hidden lg:flex bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 items-center gap-2 shadow-sm backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-slate-900 cursor-default">
                           <Calendar className="h-4 w-4 text-blue-600" /> 
