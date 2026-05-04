@@ -1,5 +1,5 @@
 import React from 'react';
-import { Truck, MapPin, User, Trash2, Fuel } from 'lucide-react';
+import { Truck, MapPin, User, Trash2, Fuel, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FuelEntry, Branch } from '../types';
 import { calculateEntryEfficiency } from '../lib/fuelUtils';
 
@@ -99,9 +99,9 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
           <button
             onClick={() => onPageChange(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1 text-[10px] font-black"
           >
-            Anterior
+            <ChevronLeft className="h-3 w-3" /> Anterior
           </button>
           
           <div className="flex gap-1 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
@@ -136,9 +136,9 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
           <button
             onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1 text-[10px] font-black"
           >
-            Próxima
+            Proxima <ChevronRight className="h-3 w-3" />
           </button>
         </div>
       )}

@@ -9,6 +9,7 @@ interface ImportModalProps {
   vehicles: Vehicle[];
   branches: Branch[];
   fuelStations: FuelStation[];
+  fuelCategory?: 'LIQUID' | 'GAS';
 }
 
 const CloseIconComp = ({ className }: { className?: string }) => (
@@ -17,10 +18,21 @@ const CloseIconComp = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose, onImport, vehicles, branches, fuelStations }) => {
+export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose, onImport, vehicles, branches, fuelStations, fuelCategory = 'LIQUID' }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<{ success: FuelEntry[], errors: string[] } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const isGasImport = fuelCategory === 'GAS';
+  const expectedColumns = isGasImport
+    ? ['NOME DO POSTO', 'DATA', 'PLACA', 'QUANTIDADE KG', 'QUANTIDADE M3', 'VALOR', 'ULTIMO KM', 'KM ATUAL']
+    : ['CNPJ', 'DATA', 'PLACA', 'QUANTIDADE DE LITROS ABASTECIDO', 'VALOR', 'ULTIMO KM', 'KM ATUAL'];
+  const modalTitle = isGasImport ? 'Importar Abastecimentos a Gas' : 'Importar Abastecimentos';
+  const modalSubtitle = isGasImport
+    ? 'LAYOUT DE GAS VIA ARQUIVO EXCEL (.XLSX, .XLS)'
+    : 'LAYOUT DE DIESEL / LIQUIDO VIA ARQUIVO EXCEL (.XLSX, .XLS)';
+  const layoutHint = isGasImport
+    ? '* O layout de gas continua usando nome do posto, quantidade KG e/ou quantidade M3.'
+    : '* No layout de diesel/liquido, VALOR deve ser o valor total do abastecimento; o preco unitario sera calculado pelos litros.';
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -108,32 +120,53 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       return str;
     };
 
+    const normalizeHeader = (value: string): string =>
+      String(value).trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+
     data.forEach((row: any, i) => {
       const normalizedRow: any = {};
       Object.keys(row).forEach(key => {
-        normalizedRow[key.trim().toUpperCase()] = row[key];
+        normalizedRow[normalizeHeader(key)] = row[key];
       });
 
       const dateStr = parseDate(normalizedRow['DATA']);
       const plate = String(normalizedRow['PLACA'] || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
       const cnpj = String(normalizedRow['CNPJ'] || normalizedRow['CPNJ'] || '');
+      const normalizedCnpj = cnpj.replace(/\D/g, '');
+      const stationNameFromRow = String(normalizedRow['NOME DO POSTO'] || normalizedRow['POSTO'] || '').trim();
       
-      const m3 = parseNum(normalizedRow['QUANTIDADE M3']);
-      const kilograms = parseNum(normalizedRow['QUANTIDADE KG']);
-      const liters = m3 > 0 ? m3 : parseNum(normalizedRow['QUANTIDADE DE LT ABASTECIDO'] || normalizedRow['LITROS'] || normalizedRow['QUANTIDADE'] || normalizedRow['QTD']);
+      const m3 = isGasImport ? parseNum(normalizedRow['QUANTIDADE M3']) : 0;
+      const kilograms = isGasImport ? parseNum(normalizedRow['QUANTIDADE KG']) : 0;
+      const liters = isGasImport
+        ? (m3 > 0 ? m3 : parseNum(normalizedRow['QUANTIDADE DE LT ABASTECIDO'] || normalizedRow['LITROS'] || normalizedRow['QUANTIDADE'] || normalizedRow['QTD']))
+        : parseNum(
+            normalizedRow['QUANTIDADE DE LITROS ABASTECIDO'] ||
+            normalizedRow['QUANTIDADE DE LITROS ABASTECIDOS'] ||
+            normalizedRow['QUANTIDADE DE LITROS'] ||
+            normalizedRow['QUANTIDADE DE LT ABASTECIDO'] ||
+            normalizedRow['QUANTIDADE DE LT ABASTECIDOS'] ||
+            normalizedRow['LITROS'] ||
+            normalizedRow['QUANTIDADE'] ||
+            normalizedRow['QTD']
+          );
       
       const rawValor = parseNum(normalizedRow['VALOR'] || normalizedRow['VALOR TOTAL'] || normalizedRow['TOTAL'] || normalizedRow['VALOR PAGO']);
-      const rawUnitPrice = parseNum(normalizedRow['PREÇO UNITÁRIO'] || normalizedRow['VALOR UNITÁRIO'] || normalizedRow['UNITÁRIO'] || normalizedRow['PREÇO']);
+      const rawUnitPrice = parseNum(normalizedRow['PRECO UNITARIO'] || normalizedRow['VALOR UNITARIO'] || normalizedRow['UNITARIO'] || normalizedRow['PRECO']);
       
       const odometer = parseNum(normalizedRow['KM ATUAL'] || normalizedRow['ODOMETRO'] || normalizedRow['KM']);
       const lastOdo = parseNum(normalizedRow['ULTIMO KM'] || normalizedRow['KM ANTERIOR']);
       const kmDriven = parseNum(normalizedRow['KM RODADO'] || normalizedRow['DISTANCIA']);
       
       const vehicle = vehicles.find(v => v.plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() === plate);
-      const branch = branches.find(b => b.cnpj.replace(/\D/g, '') === cnpj?.replace(/\D/g, ''));
+      const branch = normalizedCnpj ? branches.find(b => b.cnpj.replace(/\D/g, '') === normalizedCnpj) : undefined;
 
       if (!plate) {
         errors.push(`Linha ${i + 2}: Placa não informada.`);
+        return;
+      }
+
+      if (!isGasImport && !normalizedCnpj) {
+        errors.push(`Linha ${i + 2}: CNPJ nao informado.`);
         return;
       }
 
@@ -150,9 +183,12 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       let totalCost = 0;
       let unitPrice = 0;
 
-      const mainVolume = liters > 0 ? liters : kilograms; // Fallback to kg if m3/liters is 0?
+      const mainVolume = isGasImport ? (liters > 0 ? liters : kilograms) : liters;
 
-      if (rawValor > 0 && rawUnitPrice > 0) {
+      if (!isGasImport && rawValor > 0 && mainVolume > 0) {
+        totalCost = rawValor;
+        unitPrice = totalCost / mainVolume;
+      } else if (rawValor > 0 && rawUnitPrice > 0) {
         totalCost = rawValor;
         unitPrice = rawUnitPrice;
       } else if (rawValor > 0) {
@@ -168,9 +204,26 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
         totalCost = mainVolume * unitPrice;
       }
 
-      const fuelT = String(normalizedRow['COMBUSTÍVEL'] || normalizedRow['TIPO'] || (m3 > 0 || kilograms > 0 ? 'GNV' : 'DIESEL S10')).toUpperCase();
-      const isGas = (m3 > 0 || kilograms > 0 || fuelT.includes('GNV') || fuelT.includes('GÁS'));
-      const station = fuelStations.find(s => s.cnpj.replace(/\D/g, '') === cnpj.replace(/\D/g, ''));
+      if (mainVolume <= 0) {
+        errors.push(`Linha ${i + 2}: Quantidade abastecida nao informada ou invalida.`);
+        return;
+      }
+
+      if (finalOdometer <= 0) {
+        errors.push(`Linha ${i + 2}: KM atual nao informado ou invalido.`);
+        return;
+      }
+
+      const fuelT = String(normalizedRow['COMBUSTIVEL'] || normalizedRow['TIPO'] || (isGasImport ? 'GNV' : 'DIESEL S10')).toUpperCase();
+      const isGas = isGasImport;
+      const station = normalizedCnpj
+        ? fuelStations.find(s => s.cnpj.replace(/\D/g, '') === normalizedCnpj)
+        : stationNameFromRow
+          ? fuelStations.find(s => s.name.trim().toUpperCase() === stationNameFromRow.toUpperCase())
+          : undefined;
+      const kmPerLiter = lastOdo > 0 && finalOdometer > lastOdo && mainVolume > 0
+        ? (finalOdometer - lastOdo) / mainVolume
+        : undefined;
 
       entries.push({
         id: `import-${Date.now()}-${i}`,
@@ -178,16 +231,17 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
         vehiclePlate: vehicle.plate,
         date: dateStr || new Date().toISOString().split('T')[0],
         odometer: finalOdometer,
-        liters: liters || m3 || kilograms, // Store m3 or kg in liters if they are the primary unit
+        liters: mainVolume,
         kg: kilograms > 0 ? kilograms : undefined,
         unitPrice: unitPrice,
         totalCost: totalCost,
         fuelType: fuelT,
         category: isGas ? 'GAS' : 'LIQUID',
-        stationName: station ? station.name : String(normalizedRow['NOME DO POSTO'] || normalizedRow['POSTO'] || ''),
-        stationCnpj: cnpj,
+        stationName: station ? station.name : stationNameFromRow,
+        stationCnpj: normalizedCnpj || station?.cnpj,
         branchId: branch?.id || vehicle.branchId,
-        driverName: String(normalizedRow['MOTORISTA'] || normalizedRow['NOME'] || '')
+        driverName: String(normalizedRow['MOTORISTA'] || normalizedRow['NOME'] || ''),
+        kmPerLiter
       });
     });
 
@@ -206,10 +260,10 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
               </div>
               <div>
                 <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">
-                  Importar Abastecimentos
+                  {modalTitle}
                 </h2>
                 <p className="text-slate-400 dark:text-slate-500 text-xs font-black uppercase tracking-widest mt-1">
-                  IMPORTAÇÃO EM MASSA VIA ARQUIVO EXCEL (.XLSX, .XLS)
+                  {modalSubtitle}
                 </p>
               </div>
             </div>
@@ -228,14 +282,14 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {['NOME DO POSTO', 'DATA', 'PLACA', 'QUANTIDADE KG', 'QUANTIDADE M3', 'VALOR', 'ULTIMO KM', 'KM ATUAL'].map(col => (
+                  {expectedColumns.map(col => (
                     <div key={col} className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-blue-50 dark:border-slate-700 text-center">
                       <span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">{col}</span>
                     </div>
                   ))}
                 </div>
                 <p className="text-[10px] font-bold text-blue-400 mt-6 italic">
-                  * O sistema identificará automaticamente as colunas pelo nome no cabeçalho.
+                  {layoutHint}
                 </p>
               </div>
 
