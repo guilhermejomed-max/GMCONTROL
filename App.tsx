@@ -1895,6 +1895,7 @@ export const App = () => {
                 serviceOrders={serviceOrders} 
                 maintenancePlans={maintenancePlans} 
                 maintenanceSchedules={maintenanceSchedules} 
+                settings={settings}
                 onDelete={(id) => storageService.deleteTire(orgId, id)} 
                 onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
                 onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} 

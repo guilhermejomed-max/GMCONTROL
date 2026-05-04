@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Tire, TireStatus, Vehicle, UserLevel, ServiceOrder, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType } from '../types';
+import { Tire, TireStatus, Vehicle, UserLevel, ServiceOrder, MaintenancePlan, MaintenanceSchedule, Branch, VehicleType, SystemSettings } from '../types';
 import { 
   Search, Filter, Plus, Trash2, PenLine, FileText, 
   AlertTriangle, CheckCircle2, X, Archive, History, 
@@ -14,6 +14,8 @@ import {
 import QRCode from 'react-qr-code';
 import { Scanner } from './Scanner';
 import { isSteerAxle, getAllValidPositions } from '../lib/vehicleUtils';
+import { buildTireIntelligence, getTireCpk, getTireInvestment, getTireLiveKm, getTireTimeline } from '../lib/tireIntelligence';
+import type { TireIntelligenceSummary } from '../lib/tireIntelligence';
 
 interface InventoryListProps {
   tires: Tire[];
@@ -23,6 +25,7 @@ interface InventoryListProps {
   serviceOrders?: ServiceOrder[];
   maintenancePlans?: MaintenancePlan[];
   maintenanceSchedules?: MaintenanceSchedule[];
+  settings?: SystemSettings;
   onDelete: (id: string) => Promise<void>;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onUpdateServiceOrder?: (id: string, updates: Partial<ServiceOrder>) => Promise<void>;
@@ -123,6 +126,189 @@ const getHealthColor = (depth: number) => {
     if (depth <= 3) return 'bg-red-500';
     if (depth <= 5) return 'bg-amber-500';
     return 'bg-emerald-500';
+};
+
+const compactMoney = (val: number) => new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  maximumFractionDigits: 0
+}).format(val || 0);
+
+const cpkMoney = (val: number) => new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 4
+}).format(val || 0);
+
+const TireIntelligencePanel: React.FC<{
+  summary: TireIntelligenceSummary;
+  onOpenTire: (tire: Tire) => void;
+}> = ({ summary, onOpenTire }) => {
+  const tiresById = useMemo(() => new Map(summary.rows.map(row => [row.tire.id, row.tire])), [summary.rows]);
+  const topAlerts = summary.alerts.slice(0, 5);
+  const topForecast = summary.purchaseForecast.slice(0, 3);
+  const topVehicles = summary.vehicleRiskRows.slice(0, 3);
+  const topRetreaders = summary.retreaderRows.slice(0, 3);
+
+  const getSeverityStyle = (severity: string) => {
+    if (severity === 'CRITICAL') return 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/40';
+    if (severity === 'WARNING') return 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-900/40';
+    return 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/40';
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 md:p-7 shadow-xl shadow-slate-200/30 dark:shadow-none">
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 mb-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-slate-900">
+              <Gauge className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">CPK, risco e compra</p>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Inteligencia de Pneus</h2>
+            </div>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-3xl">
+            Leitura cruzada de sulco, pressao, KM de montagem, posicao, recapagem e historico para encontrar dinheiro vazando antes de virar prejuizo.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full xl:max-w-2xl">
+          <div className="rounded-2xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Criticos</p>
+            <p className="text-2xl font-black text-red-700 dark:text-red-300">{summary.criticalCount}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">CPK medio</p>
+            <p className="text-xl font-black text-slate-900 dark:text-white">{cpkMoney(summary.avgCpk)}</p>
+          </div>
+          <div className="rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Compra prevista</p>
+            <p className="text-2xl font-black text-amber-700 dark:text-amber-300">{summary.forecastPurchaseCount}</p>
+          </div>
+          <div className="rounded-2xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Estimativa</p>
+            <p className="text-xl font-black text-blue-700 dark:text-blue-300">{compactMoney(summary.estimatedPurchaseCost)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="xl:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="px-5 py-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Alertas inteligentes</h3>
+            </div>
+            <span className="text-[11px] font-black text-slate-400">{summary.alerts.length} ocorrencias</span>
+          </div>
+
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {topAlerts.length === 0 ? (
+              <div className="p-6 text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Nenhum alerta grave nos pneus filtrados.
+              </div>
+            ) : (
+              topAlerts.map(alert => {
+                const tire = tiresById.get(alert.tireId);
+                return (
+                  <button
+                    key={alert.id}
+                    onClick={() => tire && onOpenTire(tire)}
+                    className="w-full p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex items-start justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${getSeverityStyle(alert.severity)}`}>
+                          {alert.severity === 'CRITICAL' ? 'Critico' : 'Atencao'}
+                        </span>
+                        <span className="text-sm font-black text-slate-900 dark:text-white">Pneu {alert.fireNumber}</span>
+                        {alert.vehiclePlate && <span className="text-xs font-bold text-slate-400">Placa {alert.vehiclePlate}</span>}
+                      </div>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{alert.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{alert.message}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-slate-300 shrink-0 mt-2" />
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Package className="h-4 w-4 text-amber-600" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Previsao de compra</h3>
+            </div>
+            {topForecast.length === 0 ? (
+              <p className="text-sm text-slate-400 font-bold">Sem compra urgente pelos limites atuais.</p>
+            ) : (
+              <div className="space-y-3">
+                {topForecast.map(item => (
+                  <div key={item.size} className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-slate-800 dark:text-white">{item.size}</p>
+                      <p className="text-xs text-slate-400">{item.count} pneu(s) em risco</p>
+                    </div>
+                    <p className="text-sm font-black text-amber-700 dark:text-amber-300">{compactMoney(item.estimatedCost)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Truck className="h-4 w-4 text-blue-600" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Veiculos que mais castigam pneu</h3>
+            </div>
+            {topVehicles.length === 0 ? (
+              <p className="text-sm text-slate-400 font-bold">Sem veiculo fora da curva agora.</p>
+            ) : (
+              <div className="space-y-3">
+                {topVehicles.map(item => (
+                  <div key={item.vehicle.id} className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-slate-800 dark:text-white">{item.vehicle.plate}</p>
+                      <p className="text-xs text-slate-400">{item.criticalCount} critico(s), {item.alertCount} alerta(s)</p>
+                    </div>
+                    <p className="text-xs font-black text-blue-600 dark:text-blue-300">{cpkMoney(item.avgCpk)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Layers className="h-4 w-4 text-purple-600" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Recapadoras</h3>
+            </div>
+            {topRetreaders.length === 0 ? (
+              <p className="text-sm text-slate-400 font-bold">Sem dados suficientes de recapagem.</p>
+            ) : (
+              <div className="space-y-3">
+                {topRetreaders.map(item => (
+                  <div key={item.retreader} className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-slate-800 dark:text-white">{item.retreader}</p>
+                      <p className="text-xs text-slate-400">{item.tireCount} pneu(s), {item.rejectionLikeCount} baixa(s)/risco</p>
+                    </div>
+                    <p className="text-xs font-black text-purple-600 dark:text-purple-300">{Math.round(item.avgKm).toLocaleString('pt-BR')} km</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const LinkOSModal: React.FC<{
@@ -233,19 +419,14 @@ const TireDetailModal: React.FC<{
     
     // Cálculo de CPK Individual
     // Se o pneu estiver rodando agora, somamos a km atual ao histórico
-    let currentRun = 0;
-    if (vehicle && tire.installOdometer) {
-        currentRun = Math.max(0, vehicle.odometer - tire.installOdometer);
-    }
-    const totalKm = (tire.totalKms || 0) + currentRun;
-    const totalCost = Number(tire.totalInvestment || tire.price || 0);
-    const cpk = totalKm > 0 ? totalCost / totalKm : 0;
+    const totalKm = getTireLiveKm(tire, vehicle);
+    const totalCost = getTireInvestment(tire);
+    const cpk = getTireCpk(tire, vehicle);
 
     // Processamento do Histórico para Linha do Tempo de Vidas
     const timelineEvents = useMemo(() => {
-        const events = [...(tire.history || [])].sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
-        return events;
-    }, [tire.history]);
+        return getTireTimeline(tire, serviceOrders);
+    }, [tire, serviceOrders]);
 
     const lifeStageLabel = tire.retreadCount === 0 ? '1ª Vida (Original)' : `${tire.retreadCount + 1}ª Vida (${tire.retreadCount}ª Reforma)`;
 
@@ -372,38 +553,42 @@ const TireDetailModal: React.FC<{
                                 
                                 <div className="relative pl-4 border-l-2 border-slate-100 dark:border-slate-800 space-y-8">
                                     {timelineEvents.map((log, idx) => {
+                                        const actionLabel = log.label;
                                         let icon = <CheckCircle2 className="h-4 w-4 text-slate-400" />;
                                         let colorClass = "bg-slate-100 border-slate-200 text-slate-500";
                                         
-                                        if (log.action === 'CADASTRADO') {
+                                        if (actionLabel === 'CADASTRADO' || log.source === 'purchase') {
                                             icon = <Plus className="h-4 w-4 text-white" />;
                                             colorClass = "bg-blue-500 border-blue-600 text-white shadow-blue-200";
-                                        } else if (log.action === 'MONTADO') {
+                                        } else if (actionLabel === 'MONTADO') {
                                             icon = <Truck className="h-4 w-4 text-white" />;
                                             colorClass = "bg-emerald-500 border-emerald-600 text-white shadow-emerald-200";
-                                        } else if (log.action === 'DESMONTADO') {
+                                        } else if (actionLabel === 'DESMONTADO') {
                                             icon = <Archive className="h-4 w-4 text-white" />;
                                             colorClass = "bg-amber-500 border-amber-600 text-white shadow-amber-200";
-                                        } else if (log.action === 'RETORNO_RECAPAGEM') {
+                                        } else if (actionLabel === 'RETORNO_RECAPAGEM') {
                                             icon = <RefreshCw className="h-4 w-4 text-white" />;
                                             colorClass = "bg-purple-500 border-purple-600 text-white shadow-purple-200";
-                                        } else if (log.action === 'ENVIADO_RECAPAGEM') {
+                                        } else if (actionLabel === 'ENVIADO_RECAPAGEM') {
                                             icon = <Layers className="h-4 w-4 text-white" />;
                                             colorClass = "bg-indigo-500 border-indigo-600 text-white";
-                                        } else if (log.action === 'DESCARTE') {
+                                        } else if (actionLabel === 'DESCARTE') {
                                             icon = <Trash2 className="h-4 w-4 text-white" />;
                                             colorClass = "bg-red-500 border-red-600 text-white";
+                                        } else if (log.source === 'service-order') {
+                                            icon = <ClipboardList className="h-4 w-4 text-white" />;
+                                            colorClass = "bg-slate-700 border-slate-800 text-white";
                                         }
 
                                         return (
-                                            <div key={idx} className="relative pl-8">
+                                            <div key={log.id || idx} className="relative pl-8">
                                                 <div className={`absolute -left-[25px] top-0 w-8 h-8 rounded-full border-4 border-white dark:border-slate-900 flex items-center justify-center shadow-sm z-10 ${colorClass}`}>
                                                     {icon}
                                                 </div>
                                                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
                                                     <div className="flex justify-between items-center mb-2">
                                                         <span className="text-xs font-black uppercase tracking-wide text-slate-700 dark:text-slate-200">
-                                                            {log.action.replace(/_/g, ' ')}
+                                                            {actionLabel.replace(/_/g, ' ')}
                                                         </span>
                                                         <span className="text-xs font-bold text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded">
                                                             {new Date(log.date + (log.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}
@@ -837,6 +1022,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   serviceOrders = [],
   maintenancePlans = [],
   maintenanceSchedules = [],
+  settings,
   onDelete, 
   onUpdateTire, 
   onUpdateServiceOrder,
@@ -908,6 +1094,10 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     
     return { totalInStock, totalRunning, totalValue, byStatus, lowTread, byBrand, byTreadType };
   }, [filteredByBranchTires]);
+
+  const tireIntelligence = useMemo(() => (
+    buildTireIntelligence(filteredByBranchTires, vehicles, settings, serviceOrders)
+  ), [filteredByBranchTires, vehicles, settings, serviceOrders]);
 
   const handleSort = (key: keyof Tire | 'health' | 'cpk') => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -984,16 +1174,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   };
 
   const getTireCPK = (t: Tire) => {
-    let currentRun = 0;
-    if (t.vehicleId) {
-      const vehicle = vehicles.find(v => v.id === t.vehicleId);
-      if (vehicle && t.installOdometer) {
-        currentRun = Math.max(0, vehicle.odometer - t.installOdometer);
-      }
-    }
-    const totalKm = (t.totalKms || 0) + currentRun;
-    const totalCost = Number(t.totalInvestment || t.price || 0);
-    return totalKm > 0 ? totalCost / totalKm : 0;
+    const vehicle = t.vehicleId ? vehicles.find(v => v.id === t.vehicleId) : undefined;
+    return getTireCpk(t, vehicle);
   };
 
   const sortedTires = useMemo(() => {
@@ -1057,7 +1239,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       });
     }
     return items;
-  }, [tires, searchTerm, activeCategory, sortConfig, defaultBranchId]);
+  }, [filteredByBranchTires, searchTerm, activeCategory, sortConfig, branches, vehicles]);
 
   const filteredTires = sortedTires; // Replace filteredTires with sortedTires
 
@@ -1209,6 +1391,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           </div>
         </div>
       </div>
+
+      {viewMode !== 'scrap' && (
+        <TireIntelligencePanel
+          summary={tireIntelligence}
+          onOpenTire={setSelectedTire}
+        />
+      )}
 
       {/* LIST SECTION */}
       <div className="space-y-8">
