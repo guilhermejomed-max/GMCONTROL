@@ -49,7 +49,7 @@ export const Sidebar: FC<SidebarProps> = ({
   const allMenuItems = [
     // --- MÓDULO PNEUS ---
     { id: 'register', label: 'Cadastrar Pneu', icon: PlusCircle, modules: ['TIRES'] },
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, modules: ['TIRES'] },
+    { id: 'dashboard', label: 'Executivo', icon: LayoutDashboard, modules: ['TIRES', 'VEHICLES', 'MECHANICAL', 'FUEL'] },
     { id: 'inventory', label: 'Estoque de Pneus', icon: Disc, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
     { id: 'inspection', label: 'Inspeção Pro', icon: ClipboardCheck, modules: ['TIRES'] },

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { WasteManagement } from './components/WasteManagement';
 import { PartnerManager } from './components/PartnerManager';
 import { Sidebar } from './components/Sidebar';
-import { Dashboard } from './components/Dashboard';
+import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { InventoryList } from './components/InventoryList';
 import { TireForm } from './components/TireForm';
 import { TireMovement } from './components/TireMovement';
@@ -487,7 +487,7 @@ export const App = () => {
 
   // 3. Tires Module Data (Lazy)
   useEffect(() => {
-    if (!user || activeModule !== 'TIRES') return;
+    if (!user || (activeModule !== 'TIRES' && currentTab !== 'dashboard')) return;
     const unsubFinancialRecords = storageService.subscribeToFinancialRecords(orgId, setFinancialRecords);
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
     const unsubTireLoans = storageService.subscribeToTireLoans(orgId, setTireLoans);
@@ -497,11 +497,11 @@ export const App = () => {
         unsubRetreadOrders();
         unsubTireLoans();
     };
-  }, [user, activeModule]);
+  }, [user, activeModule, currentTab]);
 
   // 4. Mechanical Module Data (Lazy)
   useEffect(() => {
-    if (!user || activeModule !== 'MECHANICAL') return;
+    if (!user || (activeModule !== 'MECHANICAL' && currentTab !== 'dashboard' && currentTab !== 'command-center')) return;
     const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
     const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
     const unsubPublicRequests = storageService.subscribeToPublicServiceRequests(setPublicServiceRequests);
@@ -511,21 +511,21 @@ export const App = () => {
         unsubPartners();
         unsubPublicRequests();
     };
-  }, [user, activeModule]);
+  }, [user, activeModule, currentTab]);
 
   // 5. Fuel Module Data (Lazy)
   useEffect(() => {
-    if ((!user && !isVehicleRgRoute) || (activeModule !== 'FUEL' && !isVehicleRgRoute)) return;
+    if ((!user && !isVehicleRgRoute) || (activeModule !== 'FUEL' && currentTab !== 'dashboard' && !isVehicleRgRoute)) return;
     const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries, limits.fuelEntries);
     
     return () => {
         unsubFuelEntries();
     };
-  }, [user, activeModule, limits.fuelEntries, isVehicleRgRoute]);
+  }, [user, activeModule, currentTab, limits.fuelEntries, isVehicleRgRoute]);
 
   // 6. Other Data (Lazy - Occurrences and Fleet Specifics)
   useEffect(() => {
-    if (!user || (activeModule !== 'VEHICLES' && activeModule !== 'MECHANICAL' && activeModule !== 'JMDSSMAQ' && currentTab !== 'location' && currentTab !== 'occurrences' && currentTab !== 'service-orders')) return;
+    if (!user || (activeModule !== 'VEHICLES' && activeModule !== 'MECHANICAL' && activeModule !== 'JMDSSMAQ' && currentTab !== 'dashboard' && currentTab !== 'location' && currentTab !== 'occurrences' && currentTab !== 'service-orders')) return;
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
     const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
     const unsubOccurrenceReasons = storageService.subscribeToOccurrenceReasons(orgId, setOccurrenceReasons);
@@ -1343,7 +1343,7 @@ export const App = () => {
 
   const getPageTitle = (tab: TabView) => {
     switch (tab) {
-      case 'dashboard': return 'Painel de Controle';
+      case 'dashboard': return 'Painel Executivo';
       case 'command-center': return 'Painel de Comando Diário';
       case 'inventory': return 'Estoque de Pneus';
       case 'register': return 'Novo Pneu';
@@ -1846,20 +1846,19 @@ export const App = () => {
             )}
 
             {currentTab === 'dashboard' && (
-              <Dashboard 
-                tires={tires} 
-                vehicles={vehicles} 
+              <ExecutiveDashboard
+                vehicles={vehicles}
+                tires={tires}
                 branches={branches}
                 defaultBranchId={selectedBranchId}
-                serviceOrders={serviceOrders} 
-                onNavigate={setCurrentTab} 
-                settings={settings} 
-                vehicleTypes={vehicleTypes}
-                onOpenServiceOrder={(vehicleId) => {
-                  setPreselectedVehicleId(vehicleId);
-                  setShouldOpenOSModal(true);
-                  setCurrentTab('service-orders');
-                }}
+                serviceOrders={serviceOrders}
+                fuelEntries={fuelEntries}
+                financialRecords={financialRecords}
+                drivers={drivers}
+                publicServiceRequests={publicServiceRequests}
+                occurrences={occurrences}
+                maintenanceSchedules={maintenanceSchedules}
+                onNavigate={setCurrentTab}
               />
             )}
             {currentTab === 'command-center' && (
