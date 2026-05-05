@@ -146,7 +146,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
     const tireRows = getTireServiceRows(order);
     const partsTotal = order.parts?.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0) || 0;
-    const rowsHtml = isTireServiceOrder(order)
+    const tireOrder = isTireServiceOrder(order);
+    const rowsHtml = tireOrder
       ? tireRows.map(row => `
           <tr>
             <td>${escapePrintHtml(row.removedFireNumber || 'N/A')}</td>
@@ -161,6 +162,44 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           <tr>
             <td colspan="6">${escapePrintHtml(order.details || 'Sem observacoes.')}</td>
           </tr>
+        `;
+    const serviceSectionHtml = tireOrder
+      ? `
+          <h2>${escapePrintHtml(order.title)}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Pneu retirado</th>
+                <th>Pneu aplicado</th>
+                <th>Eixo / posicao</th>
+                <th>Quem fez</th>
+                <th>Valor aplicado</th>
+                <th>Observacoes</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        `
+      : `
+          <h2>${escapePrintHtml(order.title)}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Servico</th>
+                <th>Tipo</th>
+                <th>Responsavel</th>
+                <th>Observacoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${escapePrintHtml(order.title)}</td>
+                <td>${escapePrintHtml(order.sectorName || order.classificationName || order.serviceType || 'Manutencao')}</td>
+                <td>${escapePrintHtml(order.collaboratorName || order.providerName || order.createdBy || 'N/A')}</td>
+                <td>${escapePrintHtml(order.details || 'Sem observacoes.')}</td>
+              </tr>
+            </tbody>
+          </table>
         `;
 
     const partsHtml = order.parts?.length
@@ -206,7 +245,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
             <div>
               <div class="muted">GM Control</div>
               <h1>Ordem de Servico #${String(order.orderNumber).padStart(4, '0')}</h1>
-              <div class="muted">${escapePrintHtml(isTireServiceOrder(order) ? 'OS de pneus' : 'OS de manutencao')}</div>
+              <div class="muted">${escapePrintHtml(tireOrder ? 'OS de pneus' : 'OS de manutencao')}</div>
             </div>
             <div>
               <div class="muted">Veiculo</div>
@@ -221,20 +260,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
             <div class="box"><span class="label">Responsavel</span><div class="value">${escapePrintHtml(order.collaboratorName || order.providerName || order.createdBy || 'N/A')}</div></div>
           </section>
 
-          <h2>${escapePrintHtml(order.title)}</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Pneu retirado</th>
-                <th>Pneu aplicado</th>
-                <th>Eixo / posicao</th>
-                <th>Quem fez</th>
-                <th>Valor aplicado</th>
-                <th>Observacoes</th>
-              </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
+          ${serviceSectionHtml}
 
           <h2>Valores</h2>
           <section class="totals">

@@ -24,6 +24,16 @@ interface ProjectionResult {
   estimatedCost: number;
   confidence: 'REAL' | 'ESTIMATIVA';
   monthKey: string;
+  currentTreadDepth: number;
+  safetyLimit: number;
+  monthlyKm: number;
+  dataSource: string;
+}
+
+interface IgnoredForecastItem {
+  fireNumber: string;
+  vehiclePlate?: string;
+  reason: string;
 }
 
 export const DemandForecast: FC<DemandForecastProps> = ({ 
@@ -34,7 +44,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
   settings 
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sÃƒÆ’Ã‚Â£o universais
     return allTires;
   }, [allTires]);
 
@@ -43,79 +53,131 @@ export const DemandForecast: FC<DemandForecastProps> = ({
 
   const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  const forecast = useMemo(() => {
+  const isValidNumber = (value: unknown, min = 0, max = Number.POSITIVE_INFINITY): value is number => {
+    return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+  };
+
+  const forecastData = useMemo(() => {
     const results: ProjectionResult[] = [];
-    const mountedTires = tires.filter(t => t.vehicleId && t.status !== TireStatus.DAMAGED);
+    const ignored: IgnoredForecastItem[] = [];
+    const mountedTires = tires.filter(t => t.vehicleId && t.status !== TireStatus.DAMAGED && t.status !== TireStatus.RETREADING);
     const today = new Date();
     
     mountedTires.forEach(tire => {
       const vehicle = vehicles.find(v => v.id === tire.vehicleId);
-      if (!vehicle) return;
+      if (!vehicle) {
+        ignored.push({ fireNumber: tire.fireNumber, reason: 'veiculo vinculado nao encontrado' });
+        return;
+      }
 
-      const original = tire.originalTreadDepth || 18.0;
-      const current = tire.currentTreadDepth;
-      const safetyLimit = settings?.minTreadDepth || 3.0;
-      const monthlyKm = vehicle.avgMonthlyKm || settings?.defaultMonthlyKm || 10000;
+      const modelDef = settings?.tireModels?.find(m => m.brand === tire.brand && m.model === tire.model);
+      const current = isValidNumber(tire.currentTreadDepth, 0.1, 35) ? tire.currentTreadDepth : tire.lastMeasuredDepth;
+      if (!isValidNumber(current, 0.1, 35)) {
+        ignored.push({ fireNumber: tire.fireNumber, vehiclePlate: vehicle.plate, reason: 'sulco atual ausente ou invalido' });
+        return;
+      }
+
+      const originalCandidate = isValidNumber(tire.originalTreadDepth, 1, 35)
+        ? tire.originalTreadDepth
+        : modelDef?.originalDepth;
+      if (!isValidNumber(originalCandidate, 1, 35)) {
+        ignored.push({ fireNumber: tire.fireNumber, vehiclePlate: vehicle.plate, reason: 'sulco original ausente ou invalido' });
+        return;
+      }
+
+      const original = Math.max(originalCandidate, current);
+      const modelLimit = modelDef?.limitDepth;
+      const safetyLimitCandidate = isValidNumber(modelLimit, 0.5, 20) ? modelLimit : settings?.minTreadDepth;
+      const safetyLimit = isValidNumber(safetyLimitCandidate, 0.5, 20) ? safetyLimitCandidate : 3.0;
+      if (safetyLimit >= original) {
+        ignored.push({ fireNumber: tire.fireNumber, vehiclePlate: vehicle.plate, reason: 'limite de sulco maior que sulco original' });
+        return;
+      }
+
+      const monthlyKm = isValidNumber(vehicle.avgMonthlyKm, 100, 50000) ? vehicle.avgMonthlyKm : undefined;
+      if (!monthlyKm) {
+        ignored.push({ fireNumber: tire.fireNumber, vehiclePlate: vehicle.plate, reason: 'KM mensal do veiculo nao informado' });
+        return;
+      }
       const dailyKm = monthlyKm / 30;
 
-      let remainingKm = 80000;
+      let remainingKm = 0;
       let confidence: 'REAL' | 'ESTIMATIVA' = 'ESTIMATIVA';
 
-      // Cálculo de KM Rodado Real
       const kmRun = getTireLiveKm(tire, vehicle);
-
       const wear = original - current;
+      const remainingRubber = Math.max(0, current - safetyLimit);
+      const usableRubber = Math.max(0.1, original - safetyLimit);
 
-      // Lógica de Projeção Smart
-      if (kmRun >= 5000 && wear >= 1.0) {
-        // Temos dados reais suficientes
+      if (remainingRubber <= 0) {
+        remainingKm = 0;
+        confidence = 'REAL';
+      } else if (isValidNumber(kmRun, 5000) && wear >= 1.0) {
         const wearRate = wear / kmRun;
-        const remainingRubber = Math.max(0, current - safetyLimit);
         remainingKm = remainingRubber / wearRate;
         confidence = 'REAL';
       } else {
-        // Usar benchmark do catálogo ou média global
-        const modelDef = settings?.tireModels?.find(m => m.brand === tire.brand && m.model === tire.model);
         const estimatedTotalLife = modelDef?.estimatedLifespanKm || 80000;
-        remainingKm = Math.max(0, estimatedTotalLife - kmRun);
+        remainingKm = estimatedTotalLife * (remainingRubber / usableRubber);
         confidence = 'ESTIMATIVA';
       }
 
-      // Cap de segurança para evitar datas infinitas
+      if (!Number.isFinite(remainingKm) || remainingKm < 0) {
+        ignored.push({ fireNumber: tire.fireNumber, vehiclePlate: vehicle.plate, reason: 'resultado de KM restante invalido' });
+        return;
+      }
+
       if (remainingKm > 200000) remainingKm = 200000;
 
-      const daysToReplacement = dailyKm > 0 ? remainingKm / dailyKm : 365;
+      const daysToReplacement = Math.ceil(remainingKm / dailyKm);
       const replacementDate = new Date();
       replacementDate.setDate(today.getDate() + daysToReplacement);
 
       const monthKey = `${replacementDate.getFullYear()}-${String(replacementDate.getMonth() + 1).padStart(2, '0')}`;
+      const estimatedCost = isValidNumber(tire.price, 1)
+        ? tire.price
+        : isValidNumber(tire.totalInvestment, 1)
+          ? tire.totalInvestment
+          : 2500;
 
       results.push({
         tire,
         vehiclePlate: vehicle.plate,
         remainingKm: Math.round(remainingKm),
         replacementDate,
-        estimatedCost: tire.price || 2500,
+        estimatedCost,
         confidence,
-        monthKey
+        monthKey,
+        currentTreadDepth: current,
+        safetyLimit,
+        monthlyKm,
+        dataSource: 'KM do veiculo'
       });
     });
 
-    return results.sort((a, b) => a.replacementDate.getTime() - b.replacementDate.getTime());
+    return {
+      results: results.sort((a, b) => a.replacementDate.getTime() - b.replacementDate.getTime()),
+      ignored
+    };
   }, [tires, vehicles, settings]);
+
+  const forecast = forecastData.results;
 
   const stats = useMemo(() => {
     const today = new Date();
     const next30 = new Date(); next30.setDate(today.getDate() + 30);
     const next90 = new Date(); next90.setDate(today.getDate() + 90);
+    const next365 = new Date(); next365.setDate(today.getDate() + 365);
 
     const urgent = forecast.filter(f => f.replacementDate <= next30);
     const quarter = forecast.filter(f => f.replacementDate <= next90);
+    const annual = forecast.filter(f => f.replacementDate <= next365);
 
     const budgetUrgent = urgent.reduce((a, b) => a + b.estimatedCost, 0);
     const budgetQuarter = quarter.reduce((a, b) => a + b.estimatedCost, 0);
+    const budgetAnnual = annual.reduce((a, b) => a + b.estimatedCost, 0);
 
-    // Dados para o Gráfico Mensal
+    // Dados para o GrÃƒÆ’Ã‚Â¡fico Mensal
     const monthlyData: Record<string, { name: string, qty: number, cost: number }> = {};
     for (let i = 0; i < 12; i++) {
         const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
@@ -132,7 +194,8 @@ export const DemandForecast: FC<DemandForecastProps> = ({
 
     // Agrupamento por Medida (Essencial para Compras)
     const bySize: Record<string, { size: string, qty: number, budget: number }> = {};
-    forecast.slice(0, 30).forEach(f => { // Foca nos 30 mais próximos
+    const purchaseWindow = annual.length > 0 ? annual : forecast.slice(0, 30);
+    purchaseWindow.forEach(f => {
         const key = `${f.tire.width}/${f.tire.profile} R${f.tire.rim}`;
         if (!bySize[key]) bySize[key] = { size: key, qty: 0, budget: 0 };
         bySize[key].qty++;
@@ -142,8 +205,10 @@ export const DemandForecast: FC<DemandForecastProps> = ({
     return {
         urgentCount: urgent.length,
         quarterCount: quarter.length,
+        annualCount: annual.length,
         budgetUrgent,
         budgetQuarter,
+        budgetAnnual,
         chartData: Object.values(monthlyData),
         sizeData: Object.values(bySize).sort((a,b) => b.qty - a.qty)
     };
@@ -155,14 +220,14 @@ export const DemandForecast: FC<DemandForecastProps> = ({
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Urgência (30 dias)</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">UrgÃƒÆ’Ã‚Âªncia (30 dias)</p>
           <h3 className="text-3xl font-black text-red-600">{stats.urgentCount} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
           <div className="mt-2 text-xs font-bold text-slate-500 flex items-center gap-1">
              <Wallet className="h-3 w-3" /> {money(stats.budgetUrgent)}
           </div>
         </div>
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Próximo Trimestre</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PrÃƒÆ’Ã‚Â³ximo Trimestre</p>
           <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.quarterCount} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
           <div className="mt-2 text-xs font-bold text-slate-500 flex items-center gap-1">
              <Wallet className="h-3 w-3" /> {money(stats.budgetQuarter)}
@@ -170,13 +235,27 @@ export const DemandForecast: FC<DemandForecastProps> = ({
         </div>
         <div className="md:col-span-2 bg-indigo-600 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 text-white flex justify-between items-center relative overflow-hidden">
            <div className="relative z-10">
-              <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">Previsão Orçamentária Anual</p>
-              <h3 className="text-4xl font-black">{money(forecast.reduce((a,b) => a + b.estimatedCost, 0))}</h3>
-              <p className="text-[10px] text-indigo-100 mt-2 opacity-80">*Baseado nos custos atuais de aquisição registrados.</p>
+              <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">PrevisÃƒÆ’Ã‚Â£o OrÃƒÆ’Ã‚Â§amentÃƒÆ’Ã‚Â¡ria Anual</p>
+              <h3 className="text-4xl font-black">{money(stats.budgetAnnual)}</h3>
+              <p className="text-[10px] text-indigo-100 mt-2 opacity-80">{stats.annualCount} pneus previstos nos proximos 12 meses.</p>
            </div>
            <div className="opacity-20"><ShoppingCart className="h-20 w-20" /></div>
         </div>
       </div>
+
+      {forecastData.ignored.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-3xl p-4 flex flex-col md:flex-row md:items-center gap-3">
+          <div className="h-10 w-10 rounded-2xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+            <BadgeAlert className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-black text-amber-900 dark:text-amber-100">Previsao revisada: {forecastData.ignored.length} pneus foram ignorados por dados invalidos.</p>
+            <p className="text-xs text-amber-800/70 dark:text-amber-200/70 mt-1">
+              Principais motivos: {Array.from(new Set(forecastData.ignored.slice(0, 6).map(item => item.reason))).join(', ')}.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -185,7 +264,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex justify-between items-center mb-8">
               <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-indigo-500" /> Fluxo de Reposição Mensal
+                <BarChart3 className="h-5 w-5 text-indigo-500" /> Fluxo de ReposiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o Mensal
               </h3>
             </div>
             <div className="h-72 w-full">
@@ -214,7 +293,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-orange-500" /> Cronograma Detalhado (Próximos)
+                <Calendar className="h-5 w-5 text-orange-500" /> Cronograma Detalhado (PrÃƒÆ’Ã‚Â³ximos)
               </h3>
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                  <button onClick={() => setViewMode('TIMELINE')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'TIMELINE' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Por Data</button>
@@ -227,10 +306,10 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 dark:bg-slate-950 text-slate-400 font-black text-[10px] uppercase border-b border-slate-100 dark:border-slate-800">
                     <tr>
-                      <th className="p-4">Previsão</th>
-                      <th className="p-4">Pneu / Veículo</th>
+                      <th className="p-4">PrevisÃƒÆ’Ã‚Â£o</th>
+                      <th className="p-4">Pneu / VeÃƒÆ’Ã‚Â­culo</th>
                       <th className="p-4">KM Restante</th>
-                      <th className="p-4">Confiança</th>
+                      <th className="p-4">ConfianÃƒÆ’Ã‚Â§a</th>
                       <th className="p-4 text-right">Custo Est.</th>
                     </tr>
                   </thead>
@@ -251,6 +330,8 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                         </td>
                         <td className="p-4">
                            <div className="font-mono font-bold text-slate-600 dark:text-slate-400">{f.remainingKm.toLocaleString()} <span className="text-[10px]">km</span></div>
+                           <div className="text-[10px] text-slate-400 font-bold mt-1">Sulco {f.currentTreadDepth.toFixed(1)}mm / limite {f.safetyLimit.toFixed(1)}mm</div>
+                           <div className="text-[10px] text-slate-400">{f.monthlyKm.toLocaleString()} km/mes - {f.dataSource}</div>
                         </td>
                         <td className="p-4">
                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${f.confidence === 'REAL' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -300,7 +381,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                        </div>
                        <div>
                           <p className="text-xs font-black text-slate-800 dark:text-white">{f.tire.fireNumber} ({f.vehiclePlate})</p>
-                          <p className="text-[10px] text-slate-500 leading-tight mt-1">Desgaste real acelerado. Previsão para <strong>{f.replacementDate.toLocaleDateString()}</strong>.</p>
+                          <p className="text-[10px] text-slate-500 leading-tight mt-1">Desgaste real acelerado. PrevisÃƒÆ’Ã‚Â£o para <strong>{f.replacementDate.toLocaleDateString()}</strong>.</p>
                        </div>
                     </div>
                  ))}
@@ -310,11 +391,11 @@ export const DemandForecast: FC<DemandForecastProps> = ({
            {/* BUDGET SUMMARY BY QUARTER */}
            <div className="bg-slate-900 p-6 rounded-3xl shadow-xl text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp className="h-24 w-24" /></div>
-              <h4 className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-6">Projeção de Verba</h4>
+              <h4 className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-6">ProjeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de Verba</h4>
               <div className="space-y-6 relative z-10">
                  <div>
                     <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
-                       <span>Restante do Mês</span>
+                       <span>Restante do MÃƒÆ’Ã‚Âªs</span>
                        <span>{stats.urgentCount} un</span>
                     </div>
                     <div className="flex justify-between items-end">
@@ -326,7 +407,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                  </div>
                  <div>
                     <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
-                       <span>Próximo Trimestre</span>
+                       <span>PrÃƒÆ’Ã‚Â³ximo Trimestre</span>
                        <span>{stats.quarterCount} un</span>
                     </div>
                     <div className="flex justify-between items-end">
@@ -338,16 +419,16 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                  </div>
               </div>
               <button className="w-full mt-8 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
-                 <Package className="h-4 w-4" /> Solicitar Cotação em Lote
+                 <Package className="h-4 w-4" /> Solicitar CotaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o em Lote
               </button>
            </div>
 
            <div className="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-3xl border border-blue-100 dark:border-blue-800">
               <h4 className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                 <Info className="h-4 w-4" /> Nota Técnica
+                 <Info className="h-4 w-4" /> Nota TÃƒÆ’Ã‚Â©cnica
               </h4>
               <p className="text-[10px] text-blue-700/70 dark:text-blue-300/60 leading-relaxed">
-                 As projeções de troca são baseadas na taxa de consumo de borracha (mm/km) calculada entre a profundidade original do pneu e a última medição de sulco registrada na inspeção. Pneus sem inspeção recente utilizam a média teórica do catálogo.
+                 As projeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de troca sÃƒÆ’Ã‚Â£o baseadas na taxa de consumo de borracha (mm/km) calculada entre a profundidade original do pneu e a ÃƒÆ’Ã‚Âºltima mediÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de sulco registrada na inspeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o. Pneus sem inspeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o recente utilizam a mÃƒÆ’Ã‚Â©dia teÃƒÆ’Ã‚Â³rica do catÃƒÆ’Ã‚Â¡logo.
               </p>
            </div>
 

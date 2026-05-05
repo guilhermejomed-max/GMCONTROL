@@ -15,7 +15,7 @@ interface SidebarProps {
   userLevel: UserLevel;
   userName: string;
   userPhotoUrl?: string;
-  onUpdatePhoto?: (base64: string) => void;
+  onOpenProfile?: () => void;
   settings?: SystemSettings;
   activeModule: ModuleType;
   allowedModules: ModuleType[];
@@ -36,7 +36,7 @@ export const Sidebar: FC<SidebarProps> = ({
   userLevel, 
   userName, 
   userPhotoUrl,
-  onUpdatePhoto,
+  onOpenProfile,
   settings, 
   activeModule, 
   allowedModules,
@@ -269,7 +269,7 @@ export const Sidebar: FC<SidebarProps> = ({
           </button>
           
           <div className="bg-slate-900/80 rounded-2xl p-3 flex items-center gap-3 border border-slate-800">
-            <label className="relative group cursor-pointer">
+            <button type="button" onClick={onOpenProfile} className="relative group cursor-pointer shrink-0">
               <div className="h-10 w-10 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center transition-all group-hover:border-blue-500">
                 {userPhotoUrl ? (
                   <img src={userPhotoUrl} alt="User" className="w-full h-full object-cover" />
@@ -280,25 +280,7 @@ export const Sidebar: FC<SidebarProps> = ({
                   <SwitchCamera className="h-4 w-4 text-white" />
                 </div>
               </div>
-              <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  if (file.size > 500 * 1024) {
-                    alert("A foto deve ter no máximo 500KB.");
-                    return;
-                  }
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    if (onUpdatePhoto) onUpdatePhoto(reader.result as string);
-                  };
-                  reader.readAsDataURL(file);
-                }} 
-              />
-            </label>
+            </button>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-white truncate leading-tight">
                 {userName.includes('@') 

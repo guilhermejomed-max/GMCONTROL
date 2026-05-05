@@ -267,6 +267,7 @@ export const App = () => {
   const [scheduleTime, setScheduleTime] = useState('');
   const [scheduleNotes, setScheduleNotes] = useState('');
   const [activeScheduleAlert, setActiveScheduleAlert] = useState<ProfileSchedule | null>(null);
+  const [profileSchedulesLoaded, setProfileSchedulesLoaded] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
@@ -435,6 +436,46 @@ export const App = () => {
     });
     return () => unsubAuth();
   }, []);
+
+  useEffect(() => {
+    setProfileSchedulesLoaded(false);
+    if (!user?.uid) return;
+    const saved = localStorage.getItem(`gmcontrol:schedules:${user.uid}`);
+    if (!saved) {
+      setProfileSchedules([]);
+      setProfileSchedulesLoaded(true);
+      return;
+    }
+
+    try {
+      setProfileSchedules(JSON.parse(saved));
+    } catch {
+      setProfileSchedules([]);
+    }
+    setProfileSchedulesLoaded(true);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid || !profileSchedulesLoaded) return;
+    localStorage.setItem(`gmcontrol:schedules:${user.uid}`, JSON.stringify(profileSchedules));
+  }, [user?.uid, profileSchedules, profileSchedulesLoaded]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const timer = window.setInterval(() => {
+      const now = new Date();
+      const currentTime = now.toTimeString().slice(0, 5);
+      const currentDate = now.toISOString().split('T')[0];
+      const due = profileSchedules.find(item => item.enabled && item.time === currentTime && item.lastTriggeredDate !== currentDate);
+
+      if (due) {
+        setActiveScheduleAlert(due);
+        setProfileSchedules(prev => prev.map(item => item.id === due.id ? { ...item, lastTriggeredDate: currentDate } : item));
+      }
+    }, 15000);
+
+    return () => window.clearInterval(timer);
+  }, [user?.uid, profileSchedules]);
 
   // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {
@@ -1435,6 +1476,39 @@ export const App = () => {
     }
   };
 
+  const handleProfilePhotoInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert('A foto deve ter no maximo 500KB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => handleUpdateUserPhoto(reader.result as string);
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
+  const handleAddSchedule = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!scheduleTitle.trim() || !scheduleTime) return;
+
+    setProfileSchedules(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        title: scheduleTitle.trim(),
+        time: scheduleTime,
+        notes: scheduleNotes.trim() || undefined,
+        enabled: true
+      }
+    ]);
+    setScheduleTitle('');
+    setScheduleTime('');
+    setScheduleNotes('');
+  };
+
   const multitaskOptions: { tab: TabView; label: string; module?: ModuleType }[] = [
     { tab: 'fleet', label: 'Cadastro de Veiculos', module: 'VEHICLES' },
     { tab: 'movement', label: 'Movimentacao de Pneus', module: 'TIRES' },
@@ -1870,7 +1944,7 @@ export const App = () => {
           userLevel={userRole}
           userName={user.displayName || user.name || user.email || 'Usuário'}
           userPhotoUrl={user.photoUrl}
-          onUpdatePhoto={handleUpdateUserPhoto}
+          onOpenProfile={() => setIsProfileOpen(true)}
           settings={settings}
           activeModule={activeModule}
           allowedModules={allowedModules}
@@ -2456,6 +2530,142 @@ export const App = () => {
             )}
         </div>
       </main>
+
+      {isProfileOpen && (
+        <div className="fixed inset-0 z-[10000] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950">
+              <div className="flex items-center gap-4">
+                <label className="relative group cursor-pointer">
+                  <div className="h-16 w-16 rounded-2xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 overflow-hidden flex items-center justify-center">
+                    {user.photoUrl ? (
+                      <img src={user.photoUrl} alt="Perfil" className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCircle className="h-9 w-9 text-slate-500" />
+                    )}
+                    <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <SwitchCamera className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoInput} />
+                </label>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-white">Meu Perfil</h3>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{userRole}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsProfileOpen(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6">
+              <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome</span>
+                  <p className="text-sm font-black text-slate-800 dark:text-white mt-1">{user.displayName || user.name || 'Usuario'}</p>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail</span>
+                  <p className="text-sm font-black text-slate-800 dark:text-white mt-1 break-all">{user.email || 'N/A'}</p>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filial</span>
+                  <p className="text-sm font-black text-slate-800 dark:text-white mt-1">{branches.find(branch => branch.id === selectedBranchId)?.name || 'Todas'}</p>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissao</span>
+                  <p className="text-sm font-black text-slate-800 dark:text-white mt-1">{userRole}</p>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Agendamento</h4>
+                  <span className="text-[10px] font-bold text-slate-400">{profileSchedules.filter(item => item.enabled).length} ativo(s)</span>
+                </div>
+
+                <form onSubmit={handleAddSchedule} className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4">
+                  <input
+                    type="text"
+                    placeholder="Tarefa diaria"
+                    value={scheduleTitle}
+                    onChange={event => setScheduleTitle(event.target.value)}
+                    className="px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={event => setScheduleTime(event.target.value)}
+                    className="px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Observacao"
+                    value={scheduleNotes}
+                    onChange={event => setScheduleNotes(event.target.value)}
+                    className="md:col-span-2 px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button className="md:col-span-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-colors">
+                    Agendar tarefa
+                  </button>
+                </form>
+
+                <div className="space-y-2">
+                  {profileSchedules.length === 0 ? (
+                    <div className="p-5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-sm font-bold text-slate-400">
+                      Nenhuma tarefa agendada.
+                    </div>
+                  ) : profileSchedules.map(item => (
+                    <div key={item.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-slate-800 dark:text-white truncate">{item.title}</p>
+                        <p className="text-xs font-bold text-slate-500">{item.time} {item.notes ? `- ${item.notes}` : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setProfileSchedules(prev => prev.map(schedule => schedule.id === item.id ? { ...schedule, enabled: !schedule.enabled } : schedule))}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase ${item.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
+                        >
+                          {item.enabled ? 'Ativo' : 'Pausado'}
+                        </button>
+                        <button
+                          onClick={() => setProfileSchedules(prev => prev.filter(schedule => schedule.id !== item.id))}
+                          className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeScheduleAlert && (
+        <div className="fixed inset-0 z-[10001] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center mx-auto mb-4">
+              <Bell className="h-7 w-7" />
+            </div>
+            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Agendamento</p>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white">{activeScheduleAlert.title}</h3>
+            <p className="text-sm font-bold text-slate-500 mt-2">Ja esta na hora de fazer esta tarefa.</p>
+            {activeScheduleAlert.notes && <p className="text-xs text-slate-500 mt-2">{activeScheduleAlert.notes}</p>}
+            <button
+              onClick={() => setActiveScheduleAlert(null)}
+              className="mt-6 w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
 
       <NotificationsPanel 
         isOpen={showNotifications} 

@@ -33,15 +33,15 @@ const MovementSchematic: FC<{
   vehicleTypes?: VehicleType[];
 }> = ({ vehicle, mountedTires, selectedPos, onSelectPos, rotationSourcePos, settings, vehicleTypes = [] }) => {
   
-  const width = 280; 
+  const width = 360; 
   const cx = width / 2;
   const startY = 70;
-  const axleSpacing = 85; 
+  const axleSpacing = 92; 
   const totalHeight = startY + (vehicle.axles * axleSpacing) + 20;
 
   // Graphic Element Constants
-  const tireW = 28;
-  const tireH = 48;
+  const tireW = 30;
+  const tireH = 50;
   
   const renderTire = (pos: string, x: number, y: number) => {
     const tire = mountedTires.find(t => t.position === pos);
@@ -116,11 +116,11 @@ const MovementSchematic: FC<{
         )}
 
         {/* Info Badge */}
-        <g transform={`translate(${x}, ${y + 32})`}>
+        <g transform={`translate(${x}, ${y + 36})`}>
             {tire ? (
                 <>
-                    <rect x="-20" y="-6" width="40" height="12" rx="2" fill="white" stroke="none" filter="drop-shadow(0 1px 1px rgba(0,0,0,0.1))" />
-                    <text y="3" textAnchor="middle" fontSize="7" fontWeight="900" fill="#0f172a">{tire.fireNumber}</text>
+                    <rect x="-18" y="-7" width="36" height="14" rx="3" fill="white" stroke="#e2e8f0" strokeWidth="0.6" filter="drop-shadow(0 1px 1px rgba(0,0,0,0.12))" />
+                    <text y="3" textAnchor="middle" fontSize="7.2" fontWeight="900" fill="#0f172a">{tire.fireNumber}</text>
                 </>
             ) : (
                 <text y="2" textAnchor="middle" fontSize="6" fontWeight="bold" fill="#64748b" className="group-hover:fill-blue-500 transition-colors">VAGO</text>
@@ -149,26 +149,26 @@ const MovementSchematic: FC<{
           const isSupport = vehicle.type === 'BI-TRUCK' && i === vehicle.axles - 1;
           return (
             <g key={i}>
-              <rect x={cx - 100} y={y - 3} width={200} height={6} rx="2" fill="#1e293b" />
+        <rect x={cx - 135} y={y - 3} width={270} height={6} rx="2" fill="#1e293b" />
               {isSteer ? (
                 <>
-                  {renderTire(`${i + 1}E`, cx - 75, y)}
-                  {renderTire(`${i + 1}D`, cx + 75, y)}
+                  {renderTire(`${i + 1}E`, cx - 115, y)}
+                  {renderTire(`${i + 1}D`, cx + 115, y)}
                 </>
               ) : isSupport ? (
                 <>
                   {/* Eixo de apoio (ex: 4º eixo do bi-truck) tem 4 pneus ou 2? Vamos assumir 4 por padrão ou 2 dependendo da regra. A regra em getAxlePositions diz que se não for steer, são 4. */}
-                  {renderTire(`${i + 1}EE`, cx - 95, y)}
-                  {renderTire(`${i + 1}EI`, cx - 60, y)}
-                  {renderTire(`${i + 1}DI`, cx + 60, y)}
-                  {renderTire(`${i + 1}DE`, cx + 95, y)}
+                  {renderTire(`${i + 1}EE`, cx - 130, y)}
+                  {renderTire(`${i + 1}EI`, cx - 82, y)}
+                  {renderTire(`${i + 1}DI`, cx + 82, y)}
+                  {renderTire(`${i + 1}DE`, cx + 130, y)}
                 </>
               ) : (
                 <>
-                  {renderTire(`${i + 1}EE`, cx - 95, y)}
-                  {renderTire(`${i + 1}EI`, cx - 60, y)}
-                  {renderTire(`${i + 1}DI`, cx + 60, y)}
-                  {renderTire(`${i + 1}DE`, cx + 95, y)}
+                  {renderTire(`${i + 1}EE`, cx - 130, y)}
+                  {renderTire(`${i + 1}EI`, cx - 82, y)}
+                  {renderTire(`${i + 1}DI`, cx + 82, y)}
+                  {renderTire(`${i + 1}DE`, cx + 130, y)}
                 </>
               )}
             </g>
@@ -832,7 +832,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                         vehicleTypes={vehicleTypes}
                     />
                     {!selectedPos && !rotationSource && (
-                        <div className="absolute top-10 flex items-center gap-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-6 py-4 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 animate-bounce cursor-default pointer-events-none">
+                        <div className="absolute top-6 flex items-center gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-5 py-3 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 cursor-default pointer-events-none">
                             <div className="p-2 bg-purple-600 rounded-full text-white">
                                 <MousePointerClick className="h-5 w-5" />
                             </div>

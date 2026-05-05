@@ -33,6 +33,7 @@ interface WasteManagementProps {
 }
 
 export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partners, collaborators, type }) => {
+  const isTireDisposal = type === 'TIRE';
   const [disposals, setDisposals] = useState<WasteDisposal[]>([]);
   const [wasteTypes, setWasteTypes] = useState<WasteType[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,8 +89,23 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
     return wasteTypes.filter(t => t.category === type);
   }, [wasteTypes, type]);
 
+  const allowedWasteTypeIds = useMemo(() => {
+    return new Set(filteredWasteTypes.map(t => t.id));
+  }, [filteredWasteTypes]);
+
+  const getVisibleItems = (disposal: WasteDisposal) => {
+    if (!isTireDisposal) return disposal.items;
+    return disposal.items.filter(item => allowedWasteTypeIds.has(item.wasteTypeId) || item.wasteTypeName.toLowerCase().includes('pneu'));
+  };
+
   const handleAddItem = () => {
     if (!currentItem.wasteTypeId || !currentItem.quantity) return;
+    const parsedQuantity = Number(currentItem.quantity);
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) return;
+    if (isTireDisposal && !Number.isInteger(parsedQuantity)) {
+      alert('No descarte de pneus, informe a quantidade em unidades inteiras.');
+      return;
+    }
     
     const wasteType = filteredWasteTypes.find(t => t.id === currentItem.wasteTypeId);
     if (!wasteType) return;
@@ -97,7 +113,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
     const newItem: WasteDisposalItem = {
       wasteTypeId: wasteType.id,
       wasteTypeName: wasteType.name,
-      quantity: Number(currentItem.quantity),
+      quantity: parsedQuantity,
       unit: wasteType.unit
     };
 
@@ -111,8 +127,12 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0 || !metadata.responsibleId || !metadata.partnerId) {
-      alert('Por favor, adicione pelo menos um item e preencha o responsável e parceiro.');
+    const submitItems = isTireDisposal
+      ? items.filter(item => allowedWasteTypeIds.has(item.wasteTypeId) || item.wasteTypeName.toLowerCase().includes('pneu'))
+      : items;
+
+    if (submitItems.length === 0 || !metadata.responsibleId || !metadata.partnerId) {
+      alert(isTireDisposal ? 'Adicione pelo menos um pneu e preencha o responsavel e destino ambiental.' : 'Por favor, adicione pelo menos um item e preencha o responsavel e parceiro.');
       return;
     }
 
@@ -132,7 +152,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
       const newDisposal: WasteDisposal = {
         id: Date.now().toString(),
         orgId,
-        items,
+        items: submitItems,
         date: metadata.date,
         responsibleId: responsible.id,
         responsibleName: responsible.name,
@@ -179,22 +199,25 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
     disposals
       .filter(d => d.disposalType === type)
       .forEach(d => {
-        d.items.forEach(item => {
+        getVisibleItems(d).forEach(item => {
           totalByUnit[item.unit] = (totalByUnit[item.unit] || 0) + item.quantity;
         });
       });
     return totalByUnit;
-  }, [disposals, type]);
+  }, [disposals, type, allowedWasteTypeIds, isTireDisposal]);
 
   const getLabels = () => {
     switch (type) {
-      case 'PPE': return { title: 'Descarte de EPI', desc: 'Gerencie e registre o descarte de Equipamentos de Proteção Individual.', item: 'EPI' };
-      case 'TIRE': return { title: 'Descarte de Pneus', desc: 'Gerencie e registre o descarte ambiental de pneus inservíveis.', item: 'Pneu/Sucata' };
-      default: return { title: 'Descarte de Resíduos', desc: 'Gerencie e registre o descarte ambiental da oficina.', item: 'Item de Resíduo' };
+      case 'PPE': return { title: 'Descarte de EPI', desc: 'Gerencie e registre o descarte de Equipamentos de ProteÃƒÂ§ÃƒÂ£o Individual.', item: 'EPI' };
+      case 'TIRE': return { title: 'Descarte de Pneus', desc: 'Controle exclusivo da baixa ambiental de pneus inserviveis, sucata e MTR de pneus.', item: 'Tipo de Pneu/Sucata' };
+      default: return { title: 'Descarte de ResÃƒÂ­duos', desc: 'Gerencie e registre o descarte ambiental da oficina.', item: 'Item de ResÃƒÂ­duo' };
     }
   };
 
   const labels = getLabels();
+  const visibleDisposals = isTireDisposal
+    ? filteredDisposals.filter(disposal => getVisibleItems(disposal).length > 0)
+    : filteredDisposals;
 
   return (
     <div className="space-y-6">
@@ -211,9 +234,19 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
           className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-orange-600/20 active:scale-95"
         >
           <Plus className="h-5 w-5" />
-          Novo Descarte / Agendamento
+          {isTireDisposal ? 'Novo Descarte de Pneu' : 'Novo Descarte / Agendamento'}
         </button>
       </div>
+
+      {isTireDisposal && (
+        <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-black text-orange-900 dark:text-orange-100">Esta tela e exclusiva para pneus.</p>
+            <p className="text-xs text-orange-800/70 dark:text-orange-200/70 mt-1">EPI, oleo, sucata metalica e demais residuos devem ser lancados nas telas proprias de descarte.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {Object.entries(getStats).map(([unit, total]) => (
@@ -241,7 +274,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Buscar por item, parceiro, certificado..."
+                placeholder={isTireDisposal ? 'Buscar por pneu, parceiro, MTR...' : 'Buscar por item, parceiro, certificado...'}
                 className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -258,16 +291,16 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status / Estágio</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Itens / Data</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Quantidades</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Veículo / Motorista</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Certificado / Laudo</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status / EstÃƒÂ¡gio</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTireDisposal ? 'Pneus / Data' : 'Itens / Data'}</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTireDisposal ? 'Quantidade de Pneus' : 'Quantidades'}</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTireDisposal ? 'Coleta / Transportador' : 'VeÃƒÂ­culo / Motorista'}</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">{isTireDisposal ? 'MTR / Laudo Ambiental' : 'Certificado / Laudo'}</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider text-right">AÃƒÂ§ÃƒÂµes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredDisposals.map((disposal) => (
+              {visibleDisposals.map((disposal) => (
                 <tr key={disposal.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-2">
@@ -275,7 +308,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black w-fit uppercase">Agendamento</span>
                        )}
                        {disposal.stage === 'EMISSAO_MTR' && (
-                         <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black w-fit uppercase">Emissão de MTR</span>
+                         <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black w-fit uppercase">EmissÃƒÂ£o de MTR</span>
                        )}
                        {disposal.stage === 'RETIRADA' && (
                          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-[10px] font-black w-fit uppercase">Aguardando Retirada</span>
@@ -292,7 +325,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                              onClick={() => storageService.updateWasteDisposal(orgId, disposal.id, { stage: 'EMISSAO_MTR' })}
                             className="text-[9px] font-black text-blue-600 hover:underline uppercase"
                            >
-                             Emitir MTR →
+                             Emitir MTR Ã¢â€ â€™
                            </button>
                          )}
                          {disposal.stage === 'EMISSAO_MTR' && (
@@ -300,7 +333,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                              onClick={() => storageService.updateWasteDisposal(orgId, disposal.id, { stage: 'RETIRADA' })}
                             className="text-[9px] font-black text-amber-600 hover:underline uppercase"
                            >
-                             Marcar Retirada →
+                             Marcar Retirada Ã¢â€ â€™
                            </button>
                          )}
                          {disposal.stage === 'RETIRADA' && !disposal.attachmentUrl && (
@@ -330,7 +363,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                               onClick={() => storageService.updateWasteDisposal(orgId, disposal.id, { stage: 'FINALIZADO' })}
                               className="text-[9px] font-black text-emerald-600 hover:underline uppercase"
                             >
-                              Finalizar →
+                              Finalizar Ã¢â€ â€™
                             </button>
                          )}
                        </div>
@@ -343,7 +376,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                       </div>
                       <div className="min-w-0">
                         <div className="space-y-1">
-                          {disposal.items.map((item, idx) => (
+                          {getVisibleItems(disposal).map((item, idx) => (
                             <p key={idx} className="font-bold text-slate-800 dark:text-white truncate">
                               {item.wasteTypeName}
                             </p>
@@ -357,7 +390,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      {disposal.items.map((item, idx) => (
+                      {getVisibleItems(disposal).map((item, idx) => (
                         <span key={idx} className="px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-black w-fit">
                           {item.quantity} {item.unit}
                         </span>
@@ -368,11 +401,11 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                     <div className="flex flex-col gap-1 text-slate-600 dark:text-slate-300">
                       <div className="flex items-center gap-2">
                         <Truck className="h-4 w-4 opacity-50" />
-                        <span className="text-sm font-bold">{disposal.vehiclePlate || 'Não inf.'}</span>
+                        <span className="text-sm font-bold">{disposal.vehiclePlate || 'NÃƒÂ£o inf.'}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 opacity-50" />
-                        <span className="text-xs">{disposal.driverName || 'Não inf.'}</span>
+                        <span className="text-xs">{disposal.driverName || 'NÃƒÂ£o inf.'}</span>
                       </div>
                       <p className="text-[10px] font-medium text-slate-400 ml-6">{disposal.partnerName}</p>
                     </div>
@@ -407,7 +440,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                   </td>
                 </tr>
               ))}
-              {filteredDisposals.length === 0 && !loading && (
+              {visibleDisposals.length === 0 && !loading && (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">
                     Nenhum registro encontrado para esta busca.
@@ -439,7 +472,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
                   <Plus className="h-5 w-5 text-orange-600" />
-                  Agendar {labels.title}
+                  {isTireDisposal ? 'Registrar baixa ambiental de pneus' : `Agendar ${labels.title}`}
                 </h3>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                   <X className="h-5 w-5 text-slate-500" />
@@ -450,7 +483,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                 {/* Item Section */}
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                      <ListPlus className="h-4 w-4" /> Adicionar Itens ao Descarte
+                      <ListPlus className="h-4 w-4" /> {isTireDisposal ? 'Adicionar pneus ao descarte' : 'Adicionar Itens ao Descarte'}
                    </h4>
                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
                       <div className="sm:col-span-3">
@@ -465,12 +498,16 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                               <option key={t.id} value={t.id}>{t.name} ({t.unit})</option>
                             ))}
                          </select>
+                         {isTireDisposal && filteredWasteTypes.length === 0 && (
+                           <p className="text-[10px] font-bold text-red-500 mt-2">Cadastre um tipo de residuo da categoria PNEU nas configuracoes para registrar descarte de pneus.</p>
+                         )}
                       </div>
                       <div className="sm:col-span-1">
                          <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Qtd</label>
                          <input
                             type="number"
-                            step="0.01"
+                            step={isTireDisposal ? "1" : "0.01"}
+                            min={isTireDisposal ? "1" : "0"}
                             className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm text-center"
                             value={currentItem.quantity}
                             onChange={(e) => setCurrentItem({...currentItem, quantity: e.target.value})}
@@ -480,7 +517,8 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                       <button 
                         type="button"
                         onClick={handleAddItem}
-                        className="p-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all flex items-center justify-center"
+                        disabled={isTireDisposal && filteredWasteTypes.length === 0}
+                        className="p-2.5 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                          <Plus className="h-5 w-5" />
                       </button>
@@ -542,36 +580,36 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
 
                    <div className="col-span-2 grid grid-cols-2 gap-4">
                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Motorista</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">{isTireDisposal ? 'Transportador / Motorista' : 'Motorista'}</label>
                         <input
                           type="text"
                           className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
                           value={metadata.driverName}
                           onChange={(e) => setMetadata({...metadata, driverName: e.target.value})}
-                          placeholder="Nome do motorista"
+                          placeholder={isTireDisposal ? 'Transportador ou motorista da coleta' : 'Nome do motorista'}
                         />
                      </div>
                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Placa do Veículo</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">{isTireDisposal ? 'Placa da coleta' : 'Placa do VeÃƒÂ­culo'}</label>
                         <input
                           type="text"
                           className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
                           value={metadata.vehiclePlate}
                           onChange={(e) => setMetadata({...metadata, vehiclePlate: e.target.value})}
-                          placeholder="Placa do veículo"
+                          placeholder={isTireDisposal ? 'Placa do veiculo de coleta' : 'Placa do veÃƒÂ­culo'}
                         />
                      </div>
                    </div>
 
                     <div className="col-span-2">
-                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Responsável *</label>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">ResponsÃƒÂ¡vel *</label>
                        <select
                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
                          value={metadata.responsibleId}
                          onChange={(e) => setMetadata({...metadata, responsibleId: e.target.value})}
                          required
                        >
-                         <option value="">Selecione o Responsável...</option>
+                         <option value="">Selecione o ResponsÃƒÂ¡vel...</option>
                          {collaborators.map(c => (
                            <option key={c.id} value={c.id}>{c.name}</option>
                          ))}
@@ -584,23 +622,23 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm min-h-[60px]"
                          value={metadata.mtrDetails}
                          onChange={(e) => setMetadata({...metadata, mtrDetails: e.target.value})}
-                         placeholder="Informações relevantes sobre o MTR..."
+                         placeholder={isTireDisposal ? 'Numero do MTR, destino ambiental, lote de pneus e observacoes da coleta...' : 'InformaÃƒÂ§ÃƒÂµes relevantes sobre o MTR...'}
                        />
                     </div>
 
                     <div>
-                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Nº Certificado / MTR</label>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">NÃ‚Âº Certificado / MTR</label>
                        <input
                          type="text"
                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm"
                          value={metadata.certificateNumber}
                          onChange={(e) => setMetadata({...metadata, certificateNumber: e.target.value})}
-                         placeholder="Ex: MTR-2024-001"
+                         placeholder={isTireDisposal ? 'Ex: MTR-PNEUS-2024-001' : 'Ex: MTR-2024-001'}
                        />
                     </div>
 
                     <div>
-                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Custo Logístico Total (R$)</label>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">{isTireDisposal ? 'Custo da coleta/destinacao (R$)' : 'Custo LogÃƒÂ­stico Total (R$)'}</label>
                        <input
                          type="number"
                          step="0.01"
@@ -612,7 +650,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                     </div>
 
                     <div className="col-span-2">
-                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Anexar Laudo de Descarte</label>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">{isTireDisposal ? 'Anexar MTR ou laudo ambiental dos pneus' : 'Anexar Laudo de Descarte'}</label>
                        <div className="mt-1 flex items-center gap-3">
                           <label className="flex flex-1 items-center justify-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-orange-500 transition-all group">
                              <input 
@@ -638,12 +676,12 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                     </div>
 
                     <div className="col-span-2">
-                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Observações</label>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">ObservaÃƒÂ§ÃƒÂµes</label>
                        <textarea
                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-sm min-h-[100px]"
                          value={metadata.notes}
                          onChange={(e) => setMetadata({...metadata, notes: e.target.value})}
-                         placeholder="Detalhes adicionais sobre o descarte..."
+                         placeholder={isTireDisposal ? 'Motivo do descarte dos pneus, lote, recapagens recusadas, avarias e observacoes ambientais...' : 'Detalhes adicionais sobre o descarte...'}
                        />
                     </div>
                 </div>
@@ -659,7 +697,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                   </button>
                   <button
                     type="submit"
-                    disabled={uploading || items.length === 0}
+                    disabled={uploading || items.length === 0 || (isTireDisposal && filteredWasteTypes.length === 0)}
                     className="flex-[2] px-6 py-4 bg-orange-600 text-white rounded-2xl font-extrabold shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {uploading ? (
@@ -668,7 +706,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                         Enviando...
                       </>
                     ) : (
-                      'Confirmar Lançamento'
+                      'Confirmar LanÃƒÂ§amento'
                     )}
                   </button>
                 </div>
