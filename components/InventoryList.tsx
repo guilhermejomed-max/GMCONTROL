@@ -1054,6 +1054,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   
   const [showReportsModal, setShowReportsModal] = useState(false);
   const [showMissingTiresReport, setShowMissingTiresReport] = useState(false);
+  const [showIntelligenceModal, setShowIntelligenceModal] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
   
   const [sortConfig, setSortConfig] = useState<{ key: keyof Tire | 'health' | 'cpk'; direction: 'asc' | 'desc' } | null>(null);
   const [showAllTires, setShowAllTires] = useState(false);
@@ -1344,22 +1346,21 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-500 pb-20">
+    <div className="space-y-5 animate-in fade-in duration-500 pb-20">
       
       {/* HERO HEADER SECTION */}
-      <div className="relative overflow-hidden bg-slate-900 dark:bg-slate-950 rounded-[3rem] p-8 md:p-12 text-white shadow-2xl shadow-slate-900/20">
-        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-indigo-600/10 rounded-full blur-[80px]"></div>
+      <div className="relative overflow-hidden bg-slate-900 dark:bg-slate-950 rounded-2xl p-4 md:p-5 text-white shadow-lg shadow-slate-900/10">
+        <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]"></div>
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">
               <Activity className="h-3 w-3" /> Gestão de Ativos
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none mb-4">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tighter uppercase leading-none mb-3">
               Estoque de <span className="text-blue-500">Pneus</span>
             </h1>
-            <div className="flex flex-wrap items-center gap-6">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-white/10 rounded-lg">
                   <Package className="h-5 w-5 text-blue-400" />
@@ -1384,8 +1385,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
           <div className="flex flex-wrap items-center gap-4">
             {onRegister && (
-              <button onClick={onRegister} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/40 flex items-center gap-3 transition-all hover:scale-105 active:scale-95">
-                <Plus className="h-5 w-5"/> <span>Novo Pneu</span>
+              <button onClick={onRegister} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95">
+                <Plus className="h-4 w-4"/> <span>Novo</span>
               </button>
             )}
           </div>
@@ -1393,20 +1394,56 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       </div>
 
       {viewMode !== 'scrap' && (
-        <TireIntelligencePanel
-          summary={tireIntelligence}
-          onOpenTire={setSelectedTire}
-        />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <button onClick={() => setShowIntelligenceModal(true)} className="text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 hover:border-red-200 dark:hover:border-red-900 transition-colors">
+            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Criticos</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{tireIntelligence.criticalCount}</p>
+          </button>
+          <button onClick={() => setShowIntelligenceModal(true)} className="text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 hover:border-amber-200 dark:hover:border-amber-900 transition-colors">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Compra prevista</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{tireIntelligence.forecastPurchaseCount}</p>
+          </button>
+          <button onClick={() => setShowIntelligenceModal(true)} className="text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 hover:border-blue-200 dark:hover:border-blue-900 transition-colors">
+            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">CPK medio</p>
+            <p className="text-lg font-black text-slate-900 dark:text-white">{cpkMoney(tireIntelligence.avgCpk)}</p>
+          </button>
+          <button onClick={() => setShowIntelligenceModal(true)} className="text-left bg-slate-900 dark:bg-white rounded-2xl p-4 text-white dark:text-slate-900">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Abrir</p>
+            <p className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Gauge className="h-4 w-4" /> Inteligencia</p>
+          </button>
+        </div>
       )}
 
       {/* LIST SECTION */}
-      <div className="space-y-8">
+      <div className="space-y-4">
         <div className="flex items-center gap-4 mb-2">
           <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
           <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Listagem e Filtros</h2>
         </div>
 
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">
+        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative flex-1">
+                <Search className="absolute left-4 top-3 h-4 w-4 text-slate-400" />
+                <input 
+                    type="text" 
+                    placeholder="Buscar por fogo, marca ou modelo..." 
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <div className="flex items-center gap-2">
+                <button onClick={() => setShowFiltersModal(true)} className="px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:border-blue-300 transition-all">
+                    <Filter className="h-4 w-4"/> Filtros
+                </button>
+                <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 rounded-xl shrink-0">
+                    <button onClick={() => setLayoutMode('GRID')} className={`p-2 rounded-lg transition-all ${layoutMode === 'GRID' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualizacao em Grade"><LayoutGrid className="h-5 w-5"/></button>
+                    <button onClick={() => setLayoutMode('LIST')} className={`p-2 rounded-lg transition-all ${layoutMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualizacao em Lista"><List className="h-5 w-5"/></button>
+                </div>
+            </div>
+        </div>
+
+        <div className="hidden flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">
             
             <div className="flex bg-slate-100 dark:bg-slate-950 p-2 rounded-2xl w-full lg:w-auto overflow-x-auto no-scrollbar">
                 <button onClick={() => setActiveCategory('STOCK')} className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight flex items-center gap-2 whitespace-nowrap transition-all ${activeCategory === 'STOCK' ? 'bg-white dark:bg-slate-800 shadow-md text-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -1602,7 +1639,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           onChange={toggleAllSelection}
                                       />
                                   </th>
-                                  <th className="p-5 w-20 text-center uppercase text-xs font-bold text-slate-500">Foto</th>
+                                  <th className="hidden xl:table-cell p-5 w-20 text-center uppercase text-xs font-bold text-slate-500">Foto</th>
                                   <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('fireNumber')}>
                                       <div className="flex items-center gap-1">
                                           Fogo / ID 
@@ -1630,7 +1667,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           </div>
                                       </div>
                                   </th>
-                                  <th className="p-5 text-center cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('lastInspectionDate')}>
+                                  <th className="hidden 2xl:table-cell p-5 text-center cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('lastInspectionDate')}>
                                       <div className="flex items-center gap-1 justify-center">
                                           Última Insp. 
                                           <div className="flex flex-col">
@@ -1648,7 +1685,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           </div>
                                       </div>
                                   </th>
-                                  <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('branchId')}>
+                                  <th className="hidden 2xl:table-cell p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('branchId')}>
                                       <div className="flex items-center gap-1">
                                           Filial
                                           <div className="flex flex-col">
@@ -1666,7 +1703,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           </div>
                                       </div>
                                   </th>
-                                  <th className="p-5 text-right cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('price')}>
+                                  <th className="hidden 2xl:table-cell p-5 text-right cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('price')}>
                                       <div className="flex items-center gap-1 justify-end">
                                           Valor 
                                           <div className="flex flex-col">
@@ -1698,7 +1735,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                               onChange={(e) => toggleTireSelection(t.id, e as any)}
                                           />
                                       </td>
-                                      <td className="px-5 py-2">
+                                      <td className="hidden xl:table-cell px-5 py-2">
                                           <div className="h-10 w-10 mx-auto rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden">
                                               {t.imageUrl ? (
                                                   <img src={t.imageUrl} alt={t.fireNumber} className="w-full h-full object-cover" />
@@ -1720,7 +1757,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                               {t.currentTreadDepth}mm
                                           </span>
                                       </td>
-                                      <td className="p-5 text-center text-xs text-slate-500 font-medium">
+                                      <td className="hidden 2xl:table-cell p-5 text-center text-xs text-slate-500 font-medium">
                                           {t.lastInspectionDate ? new Date(t.lastInspectionDate).toLocaleDateString('pt-BR') : '-'}
                                       </td>
                                       <td className="p-5 text-slate-600 dark:text-slate-400 font-medium">
@@ -1728,7 +1765,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                               <span className="flex items-center gap-1 text-blue-600"><CheckCircle2 className="h-3 w-3"/> {t.location}</span>
                                           ) : t.location}
                                       </td>
-                                      <td className="p-5 text-slate-600 dark:text-slate-400 font-bold">
+                                      <td className="hidden 2xl:table-cell p-5 text-slate-600 dark:text-slate-400 font-bold">
                                           {t.branchId ? (
                                               <span className="flex items-center gap-1 text-blue-600">
                                                   <Building2 className="h-3 w-3"/>
@@ -1752,7 +1789,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                                t.status === TireStatus.USED ? 'Usado' : t.status}
                                           </span>
                                       </td>
-                                      <td className="p-5 text-right font-mono text-slate-600 dark:text-slate-400">{money(t.price)}</td>
+                                      <td className="hidden 2xl:table-cell p-5 text-right font-mono text-slate-600 dark:text-slate-400">{money(t.price)}</td>
                                       <td className="p-5 text-right font-mono font-bold text-blue-600 dark:text-blue-400">
                                           {getTireCPK(t).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 4 })}
                                       </td>
@@ -1798,6 +1835,102 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           </>
       )}
       </div>
+
+      {showIntelligenceModal && (
+        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-950 w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Gauge className="h-5 w-5 text-blue-600" />
+                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Inteligencia de Pneus</h3>
+              </div>
+              <button onClick={() => setShowIntelligenceModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <TireIntelligencePanel
+                summary={tireIntelligence}
+                onOpenTire={(tire) => {
+                  setShowIntelligenceModal(false);
+                  setSelectedTire(tire);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFiltersModal && (
+        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Filter className="h-5 w-5 text-blue-600" />
+                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Filtros do estoque</h3>
+              </div>
+              <button onClick={() => setShowFiltersModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-5">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Filial</label>
+                <select 
+                  value={activeBranch}
+                  onChange={e => setActiveBranch(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all py-3 px-4"
+                >
+                  <option value="ALL">Todas as Filiais</option>
+                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Categoria</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {([
+                    ['STOCK', 'Estoque', Package],
+                    ['ALL', 'Todos', LayoutGrid],
+                    ['NEW', 'Novos', Disc],
+                    ['RETREADED', 'Recapagem', Layers],
+                    ['USED', 'Usados', Activity],
+                    ['MOUNTED', 'Em Uso', Truck],
+                    ['SCRAP', 'Sucata', Trash2],
+                    ['LISO', 'Liso', CircleDot],
+                    ['BORRACHUDO', 'Borracha', Grid3X3],
+                  ] as Array<[typeof activeCategory, string, React.ElementType]>).map(([key, label, FilterIcon]) => {
+                    return (
+                      <button
+                        key={String(key)}
+                        onClick={() => setActiveCategory(key as typeof activeCategory)}
+                        className={`px-3 py-3 rounded-xl text-xs font-black uppercase tracking-tight flex items-center justify-center gap-2 transition-all border ${activeCategory === key ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-blue-300'}`}
+                      >
+                        <FilterIcon className="h-4 w-4" /> {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                <button
+                  onClick={() => { setActiveCategory('ALL'); setSearchTerm(''); setSortConfig(null); setActiveBranch('ALL'); }}
+                  className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" /> Limpar
+                </button>
+                <button
+                  onClick={() => setShowFiltersModal(false)}
+                  className="px-5 py-3 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest"
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedTire && (
           <TireDetailModal 
