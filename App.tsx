@@ -844,17 +844,18 @@ const deltaLambda = (alert.targetLng - lng) * Math.PI / 180;
 
       settings.savedPoints?.forEach(point => {
         // Calculate distance (Haversine formula)
-        const R = 6371e3; // metres
-        const Ï†1 = lat * Math.PI/180;
-        const Ï†2 = point.lat * Math.PI/180;
-        const Î”Ï† = (point.lat - lat) * Math.PI/180;
-        const Î”Î» = (point.lng - lng) * Math.PI/180;
+const R = 6371e3; // metres
+const phi1 = lat * Math.PI / 180;
+const phi2 = point.lat * Math.PI / 180;
+const deltaPhi = (point.lat - lat) * Math.PI / 180;
+const deltaLambda = (point.lng - lng) * Math.PI / 180;
 
-        const a = Math.sin(Î”Ï†/2) * Math.sin(Î”Ï†/2) +
-                Math.cos(Ï†1) * Math.cos(Ï†2) *
-                Math.sin(Î”Î»/2) * Math.sin(Î”Î»/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const distance = R * c; // in metres
+const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+          Math.cos(phi1) * Math.cos(phi2) *
+          Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+const distance = R * c;; // in metres
 
         const radius = point.radius || 500;
         if (distance <= radius) {
