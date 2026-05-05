@@ -209,6 +209,15 @@ const LoginScreen = ({
   );
 };
 
+type ProfileSchedule = {
+  id: string;
+  title: string;
+  time: string;
+  notes?: string;
+  enabled: boolean;
+  lastTriggeredDate?: string;
+};
+
 export const App = () => {
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -220,6 +229,8 @@ export const App = () => {
   const [multitaskTabs, setMultitaskTabs] = useState<[TabView, TabView]>(['fleet', 'movement']);
   const [isReportsFullScreen, setIsReportsFullScreen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [editingTire, setEditingTire] = useState<Tire | null>(null);
   
@@ -251,6 +262,11 @@ export const App = () => {
   const [paymentMethods, setPaymentMethods] = useState<import('./types').PaymentMethod[]>([]);
   const [teamMembers, setTeamMembers] = useState<import('./types').TeamMember[]>([]);
   const [notifications, setNotifications] = useState<import('./types').AppNotification[]>([]);
+  const [profileSchedules, setProfileSchedules] = useState<ProfileSchedule[]>([]);
+  const [scheduleTitle, setScheduleTitle] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [scheduleNotes, setScheduleNotes] = useState('');
+  const [activeScheduleAlert, setActiveScheduleAlert] = useState<ProfileSchedule | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
@@ -1847,6 +1863,7 @@ export const App = () => {
           onTabChange={setCurrentTab}
           isMobileOpen={isMobileOpen}
           setIsMobileOpen={setIsMobileOpen}
+          isDesktopCollapsed={isSidebarCollapsed}
           onLogout={storageService.logout}
           onExportData={() => {}}
           onImportData={() => {}}
@@ -1883,12 +1900,19 @@ export const App = () => {
         />
       )}
       
-      <main className={`${!isReportsFullScreen ? 'lg:ml-72' : ''} min-h-screen p-3 md:p-4 lg:py-6 lg:px-8 transition-all duration-300`}>
+      <main className={`${!isReportsFullScreen && !isSidebarCollapsed ? 'lg:ml-72' : ''} min-h-screen p-3 md:p-4 lg:py-6 lg:px-8 transition-all duration-300`}>
         <div className="w-full space-y-4 md:space-y-6">
             {!isReportsFullScreen && (
               <header className="sticky top-0 z-30 mb-4 md:mb-6 px-3 py-2 md:py-3 bg-slate-100/90 dark:bg-slate-950/90 backdrop-blur-md flex items-center gap-3 border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm rounded-xl md:rounded-2xl">
                   <div className="flex items-center gap-2 pl-1 min-w-fit">
                       <button className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors" onClick={() => setIsMobileOpen(true)}>
+                          <Menu className="h-6 w-6" />
+                      </button>
+                      <button
+                          className="hidden lg:flex p-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                          onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                          title={isSidebarCollapsed ? 'Mostrar menu lateral' : 'Ocultar menu lateral'}
+                      >
                           <Menu className="h-6 w-6" />
                       </button>
                       <h1 className="text-lg md:text-xl font-black text-slate-800 dark:text-white hidden sm:block whitespace-nowrap">
