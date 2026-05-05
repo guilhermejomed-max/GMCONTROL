@@ -49,54 +49,54 @@ export const Sidebar: FC<SidebarProps> = ({
   const [isModuleDropdownOpen, setIsModuleDropdownOpen] = useState(false);
 
   const allMenuItems = [
-    // --- MÓDULO PNEUS ---
+    // --- MODULO PNEUS ---
     { id: 'register', label: 'Cadastrar Pneu', icon: PlusCircle, modules: ['TIRES'] },
     { id: 'inventory', label: 'Estoque de Pneus', icon: Disc, modules: ['TIRES'] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, modules: ['TIRES'] }, 
-    { id: 'inspection', label: 'Inspeção Pro', icon: ClipboardCheck, modules: ['TIRES'] },
-    { id: 'movement', label: 'Movimentação', icon: ArrowRightLeft, modules: ['TIRES'] },
-    { id: 'demand-forecast', label: 'Previsão de Compra', icon: TrendingUp, modules: ['TIRES'] },
+    { id: 'inspection', label: 'Inspecao Pro', icon: ClipboardCheck, modules: ['TIRES'] },
+    { id: 'movement', label: 'Movimentacao', icon: ArrowRightLeft, modules: ['TIRES'] },
+    { id: 'demand-forecast', label: 'Previsao de Compra', icon: TrendingUp, modules: ['TIRES'] },
     { id: 'retreader-ranking', label: 'Ranking de Fornecedores', icon: Trophy, modules: ['TIRES'] },
     { id: 'retreading', label: 'Recapagem', icon: Recycle, modules: ['TIRES'] },
-    { id: 'scrap', label: 'Sucata (Geral)', icon: Trash2, modules: ['JMDSSMAQ'], section: 'Segurança do Trabalho' },
+    { id: 'scrap', label: 'Sucata (Geral)', icon: Trash2, modules: ['JMDSSMAQ'], section: 'Seguranca do Trabalho' },
     { id: 'tire-disposal', label: 'Descarte de Pneus', icon: Trash2, modules: ['TIRES'] },
     
-    // --- MÓDULO JMDSSMAQ ---
+    // --- MODULO JMDSSMAQ ---
     { id: 'esg-panel', label: 'Painel ESG', icon: Leaf, modules: ['JMDSSMAQ'] },
-    { id: 'ambulatory', label: 'Ambulatório', icon: HeartPulse, modules: ['JMDSSMAQ'] },
-    { id: 'ppe-stock', label: 'Estoque de EPI', icon: Package, modules: ['JMDSSMAQ'], section: 'Segurança do Trabalho' },
-    { id: 'ppe-disposal', label: 'Descarte de EPI', icon: Trash2, modules: ['JMDSSMAQ'], section: 'Segurança do Trabalho' },
+    { id: 'ambulatory', label: 'Ambulatorio', icon: HeartPulse, modules: ['JMDSSMAQ'] },
+    { id: 'ppe-stock', label: 'Estoque de EPI', icon: Package, modules: ['JMDSSMAQ'], section: 'Seguranca do Trabalho' },
+    { id: 'ppe-disposal', label: 'Descarte de EPI', icon: Trash2, modules: ['JMDSSMAQ'], section: 'Seguranca do Trabalho' },
     
-    // --- MÓDULO VEÍCULOS ---
-    { id: 'fleet', label: 'Cadastro de Veículos', icon: Truck, modules: ['VEHICLES'] },
-    { id: 'fleet-issues', label: 'Inconsistências', icon: ShieldCheck, modules: ['VEHICLES'] },
+    // --- MODULO VEICULOS ---
+    { id: 'fleet', label: 'Cadastro de Veiculos', icon: Truck, modules: ['VEHICLES'] },
+    { id: 'fleet-issues', label: 'Inconsistencias', icon: ShieldCheck, modules: ['VEHICLES'] },
     { id: 'command-center', label: 'Comando Diario', icon: LayoutDashboard, modules: ['VEHICLES', 'MECHANICAL', 'FUEL', 'TIRES'] },
     { id: 'fuel', label: 'Abastecimento', icon: Fuel, modules: ['FUEL'] },
-    { id: 'fuel-gas', label: 'Abastecimento a GÁS', icon: Fuel, modules: ['FUEL'] },
-    { id: 'maintenance', label: 'Manutenção', icon: Activity, modules: ['MECHANICAL'] },
-    { id: 'maintenance-tv', label: 'Painel TV Manutenção', icon: LayoutDashboard, modules: ['MECHANICAL'] },
+    { id: 'fuel-gas', label: 'Abastecimento a GAS', icon: Fuel, modules: ['FUEL'] },
+    { id: 'maintenance', label: 'Manutencao', icon: Activity, modules: ['MECHANICAL'] },
+    { id: 'maintenance-tv', label: 'Painel TV Manutencao', icon: LayoutDashboard, modules: ['MECHANICAL'] },
     { id: 'brand-models', label: 'Marcas e Modelos', icon: Car, modules: ['VEHICLES'] },
     { id: 'drivers', label: 'Motoristas', icon: UserSquare2, modules: ['VEHICLES'] },
     { id: 'service-orders', label: 'Oficina', icon: Wrench, modules: ['MECHANICAL'] },
-    { id: 'qr-service-requests', label: 'Solicitações do QR', icon: QrCode, modules: ['MECHANICAL'] },
+    { id: 'qr-service-requests', label: 'Solicitacoes do QR', icon: QrCode, modules: ['MECHANICAL'] },
     { id: 'tracker', label: 'Rastreador', icon: Radio, modules: ['VEHICLES'], creatorOnly: true },
     { id: 'location', label: 'Rastreamento', icon: MapPin, modules: ['VEHICLES'] },
-    { id: 'occurrences', label: 'Ocorrências', icon: AlertTriangle, modules: ['VEHICLES'] },
-    { id: 'reports-tires', label: 'Relatórios de Pneus', icon: FileBarChart, modules: ['TIRES'] },
-    { id: 'reports-vehicles', label: 'Relatórios de Veículos', icon: FileBarChart, modules: ['VEHICLES'] },
-    { id: 'reports-maintenance', label: 'Relatórios de Manutenção', icon: FileBarChart, modules: ['MECHANICAL'] },
-    { id: 'reports-fuel', label: 'Relatórios de Abastecimento', icon: FileBarChart, modules: ['FUEL'] },
-    { id: 'vehicle-types', label: 'Tipos de Veículos', icon: Layers, modules: ['VEHICLES'] },
-    { id: 'fuel-types', label: 'Tipos de Combustíveis', icon: Droplets, modules: ['FUEL'] },
+    { id: 'occurrences', label: 'Ocorrencias', icon: AlertTriangle, modules: ['VEHICLES'] },
+    { id: 'reports-tires', label: 'Relatorios de Pneus', icon: FileBarChart, modules: ['TIRES'] },
+    { id: 'reports-vehicles', label: 'Relatorios de Veiculos', icon: FileBarChart, modules: ['VEHICLES'] },
+    { id: 'reports-maintenance', label: 'Relatorios de Manutencao', icon: FileBarChart, modules: ['MECHANICAL'] },
+    { id: 'reports-fuel', label: 'Relatorios de Abastecimento', icon: FileBarChart, modules: ['FUEL'] },
+    { id: 'vehicle-types', label: 'Tipos de Veiculos', icon: Layers, modules: ['VEHICLES'] },
+    { id: 'fuel-types', label: 'Tipos de Combustiveis', icon: Droplets, modules: ['FUEL'] },
 
-    // --- MÓDULO OFICINA/PEÇAS ---
-    { id: 'service', label: 'Almoxarifado (Peças)', icon: Package, modules: ['MECHANICAL'] },
-    { id: 'waste-disposal', label: 'Descarte de Resíduos', icon: Trash2, modules: ['MECHANICAL'] },
+    // --- MODULO OFICINA/PECAS ---
+    { id: 'service', label: 'Almoxarifado (Pecas)', icon: Package, modules: ['MECHANICAL'] },
+    { id: 'waste-disposal', label: 'Descarte de Residuos', icon: Trash2, modules: ['MECHANICAL'] },
     { id: 'partners', label: 'Parceiros/Fornecedores', icon: Users, modules: ['MECHANICAL', 'TIRES'] },
 
     // --- COMPARTILHADOS ---
-    { id: 'rh', label: 'RH - Funcionários', icon: Users, modules: ['HR'] },
-    { id: 'settings', label: 'Configurações', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'HR'] }
+    { id: 'rh', label: 'RH - Funcionarios', icon: Users, modules: ['HR'] },
+    { id: 'settings', label: 'Configuracoes', icon: Settings, modules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'HR'] }
   ];
 
   const menuItems = allMenuItems.filter(item => {
@@ -105,7 +105,7 @@ export const Sidebar: FC<SidebarProps> = ({
     return isModuleMatch && isCreatorMatch;
   });
 
-  // Alteração: Z-Index aumentado para sobrepor elementos do mapa (z-[9999])
+  // Alteracao: Z-Index aumentado para sobrepor elementos do mapa (z-[9999])
   const baseClasses = `fixed z-[9999] w-72 bg-[#020617] text-slate-300 transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-800/50 h-screen inset-y-0 left-0`;
   const mobileClasses = isMobileOpen ? "translate-x-0" : isDesktopCollapsed ? "-translate-x-full" : "-translate-x-full lg:translate-x-0";
 
@@ -120,7 +120,7 @@ export const Sidebar: FC<SidebarProps> = ({
 
   const getModuleLabelFor = (mod: ModuleType) => {
     if (mod === 'TIRES') return 'Pneus';
-    if (mod === 'VEHICLES') return 'Veículo';
+    if (mod === 'VEHICLES') return 'Veiculo';
     if (mod === 'FUEL') return 'Abastecimento';
     if (mod === 'JMDSSMAQ') return 'JMDSSMAQ';
     if (mod === 'HR') return 'RH';
@@ -181,7 +181,7 @@ export const Sidebar: FC<SidebarProps> = ({
                      {getModuleIcon()}
                   </div>
                   <div className="text-left">
-                     <p className="text-[10px] text-slate-500 uppercase font-bold leading-none mb-1">Módulo Ativo</p>
+                     <p className="text-[10px] text-slate-500 uppercase font-bold leading-none mb-1">Modulo Ativo</p>
                      <p className="text-sm font-bold text-white leading-none">{getModuleLabel()}</p>
                   </div>
                </div>

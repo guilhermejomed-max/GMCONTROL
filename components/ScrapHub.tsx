@@ -78,7 +78,7 @@ const ScrapHub: React.FC<ScrapHubProps> = ({ orgId, partners, collaborators }) =
 
   const getTypeName = (type: string) => {
     switch (type) {
-      case 'WASTE': return 'Resíduo';
+      case 'WASTE': return 'Residuo';
       case 'PPE': return 'EPI';
       case 'TIRE': return 'Pneu';
       default: return type;
@@ -91,9 +91,9 @@ const ScrapHub: React.FC<ScrapHubProps> = ({ orgId, partners, collaborators }) =
         <div>
           <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
             <Trash2 className="h-8 w-8 text-slate-600" />
-            Sucata Geral - Histórico de Descartes
+            Sucata Geral - Historico de Descartes
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Visualização consolidada de todos os descartes realizados (Resíduos, EPI e Pneus).</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Visualizacao consolidada de todos os descartes realizados (Residuos, EPI e Pneus).</p>
         </div>
       </div>
 
@@ -103,7 +103,7 @@ const ScrapHub: React.FC<ScrapHubProps> = ({ orgId, partners, collaborators }) =
           <p className="text-2xl font-black text-slate-800 dark:text-white">{getStats.TOTAL_RECORDS}</p>
         </div>
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-orange-500">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Descartes de Resíduos</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Descartes de Residuos</p>
           <p className="text-2xl font-black text-orange-600">{getStats.WASTE}</p>
         </div>
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-purple-500">

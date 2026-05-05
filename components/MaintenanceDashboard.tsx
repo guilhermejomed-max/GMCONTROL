@@ -125,7 +125,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
       const fuel = item.fuelType?.toUpperCase() || '';
       const matchesFuel = fuelFilter === 'ALL' || 
                          (fuelFilter === 'DIESEL' && fuel.includes('DIESEL')) ||
-                         (fuelFilter === 'GAS' && (fuel.includes('GAS') || fuel.includes('GÁS')));
+                         (fuelFilter === 'GAS' && (fuel.includes('GAS') || fuel.includes('GAS')));
       return matchesSearch && matchesStatus && matchesFuel;
     });
   }, [maintenanceData, searchTerm, filterStatus, fuelFilter]);
@@ -155,10 +155,10 @@ export const MaintenanceDashboard: React.FC<Props> = ({
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
             <Wrench className="h-8 w-8 text-orange-600 dark:text-orange-400" />
-            Dashboard de Manutenção
+            Dashboard de Manutencao
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 text-sm">
-            Monitoramento de trocas preventivas e saúde da frota.
+            Monitoramento de trocas preventivas e saude da frota.
           </p>
         </div>
       </div>
@@ -174,7 +174,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
             <h3 className="text-3xl font-black text-emerald-600">{stats.ok}</h3>
          </div>
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-amber-500">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-amber-500"/> Próximas Trocas</p>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-amber-500"/> Proximas Trocas</p>
             <h3 className="text-3xl font-black text-amber-600">{stats.warning}</h3>
          </div>
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-red-500">
@@ -186,7 +186,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
       {/* FINANCIAL SUMMARY */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
         <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide mb-4 flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-emerald-500"/> Custo Total de Manutenção
+            <Wallet className="h-4 w-4 text-emerald-500"/> Custo Total de Manutencao
         </h3>
         <p className="text-4xl font-black text-slate-900 dark:text-white">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalMaintenanceCost)}
@@ -208,7 +208,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
           <button onClick={() => setFilterStatus('ALL')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'ALL' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>TODOS</button>
           <button onClick={() => setFilterStatus('OK')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'OK' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>EM DIA</button>
-          <button onClick={() => setFilterStatus('WARNING')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'WARNING' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}>PRÓXIMAS</button>
+          <button onClick={() => setFilterStatus('WARNING')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'WARNING' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}>PROXIMAS</button>
           <button onClick={() => setFilterStatus('OVERDUE')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${filterStatus === 'OVERDUE' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}>VENCIDAS</button>
           
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2 hidden md:block"></div>
@@ -230,7 +230,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
               onClick={() => setFuelFilter('GAS')} 
               className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${fuelFilter === 'GAS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-emerald-600'}`}
             >
-              GÁS
+              GAS
             </button>
           </div>
         </div>
@@ -242,11 +242,11 @@ export const MaintenanceDashboard: React.FC<Props> = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Veículo</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider text-center">Óleo (L)</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Última Preventiva</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Veiculo</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider text-center">Oleo (L)</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Ultima Preventiva</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status KM</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-wider text-right">Acoes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -285,13 +285,13 @@ export const MaintenanceDashboard: React.FC<Props> = ({
                   <td className="px-6 py-4">
                     <div className="space-y-2">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] font-bold text-slate-500">PRÓXIMA: {item.nextPreventiveKm.toLocaleString()} km</span>
+                        <span className="text-[10px] font-bold text-slate-500">PROXIMA: {item.nextPreventiveKm.toLocaleString()} km</span>
                         <span className={`text-[10px] font-black ${
                           item.status === 'OK' ? 'text-emerald-600' :
                           item.status === 'WARNING' ? 'text-amber-600' :
                           'text-red-600'
                         }`}>
-                          {item.kmRemaining > 0 ? `Faltam ${item.kmRemaining.toLocaleString()} km` : `Vencida há ${Math.abs(item.kmRemaining).toLocaleString()} km`}
+                          {item.kmRemaining > 0 ? `Faltam ${item.kmRemaining.toLocaleString()} km` : `Vencida ha ${Math.abs(item.kmRemaining).toLocaleString()} km`}
                         </span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -322,7 +322,7 @@ export const MaintenanceDashboard: React.FC<Props> = ({
         {filteredData.length === 0 && (
           <div className="py-20 text-center">
             <Truck className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-            <p className="text-slate-500 font-medium">Nenhum veículo encontrado com os filtros aplicados.</p>
+            <p className="text-slate-500 font-medium">Nenhum veiculo encontrado com os filtros aplicados.</p>
           </div>
         )}
       </div>

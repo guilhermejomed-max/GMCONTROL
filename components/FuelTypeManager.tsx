@@ -43,7 +43,7 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
       handleCloseModal();
     } catch (error) {
       console.error("Error saving fuel type:", error);
-      alert("Erro ao salvar tipo de combustível. Por favor, tente novamente.");
+      alert("Erro ao salvar tipo de combustivel. Por favor, tente novamente.");
     }
   };
 
@@ -69,7 +69,7 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
         setTypeToDelete(null);
       } catch (error) {
         console.error("Error deleting fuel type:", error);
-        alert("Erro ao excluir tipo de combustível. Por favor, tente novamente.");
+        alert("Erro ao excluir tipo de combustivel. Por favor, tente novamente.");
       }
     }
   };
@@ -97,9 +97,9 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
         <div>
           <h1 className="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-3">
             <Droplets className="h-8 w-8 text-blue-600" />
-            Tipos de Combustíveis
+            Tipos de Combustiveis
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Gerencie os tipos de combustíveis disponíveis no sistema</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Gerencie os tipos de combustiveis disponiveis no sistema</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -140,7 +140,7 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
             </div>
 
             <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1 uppercase">{type.name}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 line-clamp-2">{type.description || 'Sem descrição'}</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 line-clamp-2">{type.description || 'Sem descricao'}</p>
             
             <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg w-fit">
               <Info className="h-3.5 w-3.5" />
@@ -164,7 +164,7 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
                     <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase">
                       {viewingType.name}
                     </h2>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Detalhes do Combustível</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Detalhes do Combustivel</p>
                   </div>
                 </div>
                 <button 
@@ -205,8 +205,8 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
               ) : (
                 <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
                   <Truck className="h-8 w-8 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum modelo de veículo vinculado a este combustível.</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Vá em "Modelos de Veículos" para vincular.</p>
+                  <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum modelo de veiculo vinculado a este combustivel.</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Va em "Modelos de Veiculos" para vincular.</p>
                 </div>
               )}
             </div>
@@ -221,9 +221,9 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-slate-800 dark:text-white">
-                    {editingType ? 'Editar Tipo' : 'Novo Tipo de Combustível'}
+                    {editingType ? 'Editar Tipo' : 'Novo Tipo de Combustivel'}
                   </h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Configure as características do combustível</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Configure as caracteristicas do combustivel</p>
                 </div>
                 <button 
                   onClick={handleCloseModal}
@@ -247,11 +247,11 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Descrição (Opcional)</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Descricao (Opcional)</label>
                   <textarea
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 dark:text-white transition-all resize-none"
                     rows={3}
-                    placeholder="Breve descrição do tipo de combustível..."
+                    placeholder="Breve descricao do tipo de combustivel..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   />
@@ -270,7 +270,7 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
                     className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
                   >
                     <Save className="h-5 w-5" />
-                    Salvar Alterações
+                    Salvar Alteracoes
                   </button>
                 </div>
               </form>
@@ -288,14 +288,14 @@ export const FuelTypeManager: FC<FuelTypeManagerProps> = ({ orgId = 'default', v
               </div>
               <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2">Excluir Tipo?</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-8">
-                Tem certeza que deseja excluir este tipo de combustível? Esta ação não pode ser desfeita.
+                Tem certeza que deseja excluir este tipo de combustivel? Esta acao nao pode ser desfeita.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setIsDeleteConfirmOpen(false)}
                   className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-xl transition-all"
                 >
-                  Não, manter
+                  Nao, manter
                 </button>
                 <button
                   onClick={confirmDelete}

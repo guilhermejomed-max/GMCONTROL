@@ -168,7 +168,7 @@ export const VehicleRGPublic: React.FC<VehicleRGPublicProps> = ({
         !checklist.leaksOk ? 'Vazamentos' : '',
         !checklist.lightsOk ? 'Luzes/eletrica' : '',
         !checklist.documentsOk ? 'Documentacao' : '',
-        !checklist.loadOk ? 'Carga/amarração' : ''
+        !checklist.loadOk ? 'Carga/amarracao' : ''
       ].filter(Boolean);
       const checklistStatus = criticalItems.some(item => ['Pneus', 'Freios', 'Vazamentos'].includes(item))
         ? 'BLOQUEADO'

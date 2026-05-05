@@ -33,8 +33,8 @@ const OrderTimeline: React.FC<{ order: RetreadOrder }> = ({ order }) => {
     if (order.status === 'CONCLUIDO' || returnDate) {
         currentStepIndex = 2;
     } else {
-        // Simulação de progresso temporal para "Na Recapadora"
-        // Se passou mais de 2 dias do envio e ainda não voltou, assume "Em Produção"
+        // Simulacao de progresso temporal para "Na Recapadora"
+        // Se passou mais de 2 dias do envio e ainda nao voltou, assume "Em Producao"
         const daysSinceSent = (now.getTime() - sentDate.getTime()) / (1000 * 60 * 60 * 24);
         if (daysSinceSent > 2) {
             currentStepIndex = 1;
@@ -83,7 +83,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
   settings 
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    // Pneus agora sao universais, mostramos todos independentemente da filial selecionada
     return allTires;
   }, [allTires]);
 
@@ -117,7 +117,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
   // DATE SELECTION STATE (Substitui dias fixos)
   const [returnDate, setReturnDate] = useState(() => {
       const d = new Date();
-      d.setDate(d.getDate() + 15); // Padrão 15 dias
+      d.setDate(d.getDate() + 15); // Padrao 15 dias
       return d.toISOString().split('T')[0];
   });
 
@@ -303,7 +303,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
       const file = e.target.files?.[0];
       if (file) {
           if (file.size > 2 * 1024 * 1024) { // 2MB limit
-              onNotification('warning', 'Arquivo Grande', 'O anexo deve ter no máximo 2MB.');
+              onNotification('warning', 'Arquivo Grande', 'O anexo deve ter no maximo 2MB.');
               return;
           }
           const reader = new FileReader();
@@ -316,14 +316,14 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
 
   const handleAddToStage = () => {
       if (selectedTireIds.size === 0) {
-          onNotification('warning', 'Seleção Vazia', 'Selecione ao menos um pneu para adicionar ao lote.');
+          onNotification('warning', 'Selecao Vazia', 'Selecione ao menos um pneu para adicionar ao lote.');
           return;
       }
       
       let itemName = '';
       if (serviceMode === 'RETREAD') {
           if (!treadPatternId) {
-              onNotification('warning', 'Banda Obrigatória', 'Selecione o desenho da banda de rodagem.');
+              onNotification('warning', 'Banda Obrigatoria', 'Selecione o desenho da banda de rodagem.');
               return;
           }
           const pattern = treadPatterns.find(p => p.id === treadPatternId);
@@ -331,7 +331,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
           itemName = pattern.name;
       } else {
           if (!selectedServiceType) {
-              onNotification('warning', 'Serviço Obrigatório', 'Selecione o tipo de serviço.');
+              onNotification('warning', 'Servico Obrigatorio', 'Selecione o tipo de servico.');
               return;
           }
           itemName = selectedServiceType;
@@ -370,7 +370,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
     const partner = partners.find(p => p.id === retreaderId);
     
     if (stagedItems.length === 0 || !partner) {
-      onNotification('error', 'Ordem Incompleta', 'A cesta está vazia ou o parceiro não foi selecionado.');
+      onNotification('error', 'Ordem Incompleta', 'A cesta esta vazia ou o parceiro nao foi selecionado.');
       return;
     }
     
@@ -383,7 +383,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
     const expectedDateStr = expectedDate.toISOString();
 
     const distinctPatterns = Array.from(new Set(stagedItems.map(i => i.pattern))) as string[];
-    const patternLabel = distinctPatterns.length === 1 ? distinctPatterns[0] : 'MISTO / VÁRIOS';
+    const patternLabel = distinctPatterns.length === 1 ? distinctPatterns[0] : 'MISTO / VARIOS';
 
     const totalEstimatedCost = stagedItems.reduce((acc, item) => acc + (item.cost || 0), 0);
 
@@ -416,7 +416,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                 history: [...(tire.history || []), {
                     date: new Date().toISOString(),
                     action: 'ENVIADO_RECAPAGEM',
-                    details: `Enviado para ${partnerName}. Serviço: ${item.pattern}. ${item.serviceDetails ? `Obs: ${item.serviceDetails}` : ''}`
+                    details: `Enviado para ${partnerName}. Servico: ${item.pattern}. ${item.serviceDetails ? `Obs: ${item.serviceDetails}` : ''}`
                 }]
             });
         }
@@ -447,9 +447,9 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
   };
 
   const handleDeletePartner = async (id: string) => {
-      if (confirm("Remover este parceiro do catálogo? Isso não afetará ordens passadas.")) {
+      if (confirm("Remover este parceiro do catalogo? Isso nao afetara ordens passadas.")) {
           await storageService.deleteRetreader(orgId, id);
-          onNotification('info', 'Removido', 'Parceiro removido do catálogo.');
+          onNotification('info', 'Removido', 'Parceiro removido do catalogo.');
       }
   };
 
@@ -470,7 +470,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
 
   const handleAddTreadPattern = async () => {
       if (!newTreadPattern.name?.trim() || !newTreadPattern.retreaderId) {
-          onNotification('warning', 'Dados Incompletos', 'Informe o nome da banda e a recapadora responsável.');
+          onNotification('warning', 'Dados Incompletos', 'Informe o nome da banda e a recapadora responsavel.');
           return;
       }
 
@@ -488,19 +488,19 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
 
       if (editingPatternId) {
           await storageService.updateTreadPattern(orgId, editingPatternId, patternData);
-          onNotification('success', 'Banda Atualizada', 'Informações do desenho atualizadas.');
+          onNotification('success', 'Banda Atualizada', 'Informacoes do desenho atualizadas.');
       } else {
           await storageService.addTreadPattern(orgId, patternData);
-          onNotification('success', 'Banda Cadastrada', 'Novo desenho adicionado ao catálogo.');
+          onNotification('success', 'Banda Cadastrada', 'Novo desenho adicionado ao catalogo.');
       }
       
       resetForm();
   };
 
   const handleDeleteTreadPattern = async (id: string) => {
-      if (confirm("Remover esta banda de rodagem do catálogo?")) {
+      if (confirm("Remover esta banda de rodagem do catalogo?")) {
           await storageService.deleteTreadPattern(orgId, id);
-          onNotification('info', 'Removido', 'Desenho de banda excluído.');
+          onNotification('info', 'Removido', 'Desenho de banda excluido.');
       }
   };
 
@@ -587,7 +587,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
         totalCost
     });
     
-    onNotification('success', 'Recebimento Concluído', `Ordem #${receivingOrder.orderNumber} finalizada. Pneus processados.`);
+    onNotification('success', 'Recebimento Concluido', `Ordem #${receivingOrder.orderNumber} finalizada. Pneus processados.`);
     setReceivingOrder(null);
     setReceiveData({});
   };
@@ -634,7 +634,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                   <p><strong>Ordem:</strong> #${String(order.orderNumber).padStart(4, '0')}</p>
                   <p><strong>Parceiro (Recapadora):</strong> ${order.retreaderName}</p>
                   <p><strong>Data de Envio:</strong> ${new Date(order.sentDate + (order.sentDate.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}</p>
-                  <p><strong>Previsão de Retorno:</strong> ${new Date((order.expectedReturnDate || '') + ((order.expectedReturnDate || '').includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}</p>
+                  <p><strong>Previsao de Retorno:</strong> ${new Date((order.expectedReturnDate || '') + ((order.expectedReturnDate || '').includes('T') ? '' : 'T12:00:00')).toLocaleDateString()}</p>
                   <p><strong>Total de Pneus:</strong> ${order.tireIds.length}</p>
               </div>
               
@@ -642,8 +642,8 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                   <thead>
                       <tr>
                           <th>Item</th>
-                          <th>Nº de Fogo</th>
-                          <th>Serviço Solicitado</th>
+                          <th>No de Fogo</th>
+                          <th>Servico Solicitado</th>
                           <th>Detalhes</th>
                       </tr>
                   </thead>
@@ -661,7 +661,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
 
               <div class="signature">
                   <div style="text-align: center;">
-                      <div class="sig-line">Assinatura do Responsável (Envio)</div>
+                      <div class="sig-line">Assinatura do Responsavel (Envio)</div>
                   </div>
                   <div style="text-align: center;">
                       <div class="sig-line">Assinatura do Recebedor (Recapadora)</div>
@@ -687,14 +687,14 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
-              <Recycle className="h-7 w-7 text-purple-600" /> Controle de Reformas & Serviços
+              <Recycle className="h-7 w-7 text-purple-600" /> Controle de Reformas & Servicos
            </h2>
-           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gerencie o ciclo de vida estendido e serviços externos da frota.</p>
+           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gerencie o ciclo de vida estendido e servicos externos da frota.</p>
         </div>
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full lg:w-auto overflow-x-auto shadow-inner">
            <button onClick={() => setActiveTab('TRACK')} className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'TRACK' ? 'bg-white dark:bg-slate-700 shadow-md text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><Clock className="h-4 w-4"/> Cronograma</button>
            <button onClick={() => setActiveTab('SEND')} className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'SEND' ? 'bg-white dark:bg-slate-700 shadow-md text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><Send className="h-4 w-4"/> Enviar Pneus</button>
-           <button onClick={() => setActiveTab('PARTNERS')} className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'PARTNERS' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><Users className="h-4 w-4"/> Catálogo</button>
+           <button onClick={() => setActiveTab('PARTNERS')} className={`flex-1 lg:flex-none px-6 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'PARTNERS' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><Users className="h-4 w-4"/> Catalogo</button>
         </div>
       </div>
 
@@ -704,7 +704,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
             {partnerPerformance.length > 0 && (
               <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <h3 className="font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-purple-500" /> Performance dos Parceiros (Tempo Médio de Retorno)
+                  <TrendingDown className="h-5 w-5 text-purple-500" /> Performance dos Parceiros (Tempo Medio de Retorno)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {partnerPerformance.map((p, idx) => (
@@ -715,7 +715,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                       <div>
                         <p className="font-black text-slate-800 dark:text-white text-sm truncate w-32">{p.name}</p>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
-                          <span className="text-purple-600">{p.avgDays} dias</span> médios
+                          <span className="text-purple-600">{p.avgDays} dias</span> medios
                         </p>
                       </div>
                     </div>
@@ -791,14 +791,14 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                               step="0.1" 
                               value={depthInput} 
                               onChange={e => setDepthInput(e.target.value)} 
-                              placeholder="Sulco Padrão..." 
+                              placeholder="Sulco Padrao..." 
                               className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold pr-10" 
                            />
                            <span className="absolute right-3 top-3.5 text-xs font-bold text-slate-400">mm</span>
                         </div>
                         <select value={newTreadPattern.type} onChange={e => setNewTreadPattern({...newTreadPattern, type: e.target.value as any})} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-800 dark:text-white">
                            <option value="LISO">LISO (Direcional/Livre)</option>
-                           <option value="BORRACHUDO">BORRACHUDO (Tração)</option>
+                           <option value="BORRACHUDO">BORRACHUDO (Tracao)</option>
                         </select>
                      </div>
                      
@@ -817,10 +817,10 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                </div>
 
                <div className="space-y-3">
-                  <h3 className="font-bold text-slate-400 text-xs uppercase tracking-widest px-1 flex items-center gap-2"><ListTodo className="h-4 w-4"/> Bandas Disponíveis ({treadPatterns.length})</h3>
+                  <h3 className="font-bold text-slate-400 text-xs uppercase tracking-widest px-1 flex items-center gap-2"><ListTodo className="h-4 w-4"/> Bandas Disponiveis ({treadPatterns.length})</h3>
                   <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto custom-scrollbar">
                      {treadPatterns.map(p => {
-                        const partnerName = partners.find(ptr => ptr.id === p.retreaderId)?.name || 'Recapadora não definida';
+                        const partnerName = partners.find(ptr => ptr.id === p.retreaderId)?.name || 'Recapadora nao definida';
                         return (
                            <div key={p.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center group hover:border-blue-300 transition-all shadow-sm">
                               <div className="flex items-center gap-3">
@@ -874,9 +874,9 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                   className={`p-5 rounded-3xl border shadow-sm relative overflow-hidden group transition-all text-left ${showDashboard ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white'}`}
                 >
                     <div className={`absolute right-0 top-0 p-4 opacity-20 group-hover:scale-110 transition-transform ${showDashboard ? 'text-white' : 'text-purple-500'}`}><BarChart3 className="h-16 w-16"/></div>
-                    <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${showDashboard ? 'text-purple-100' : 'text-slate-400'}`}>Dashboard Analítico</p>
+                    <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${showDashboard ? 'text-purple-100' : 'text-slate-400'}`}>Dashboard Analitico</p>
                     <h3 className="text-xl font-black flex items-center gap-2">
-                      {showDashboard ? 'Ocultar Gráficos' : 'Ver Estatísticas'}
+                      {showDashboard ? 'Ocultar Graficos' : 'Ver Estatisticas'}
                       <ChevronRight className={`h-5 w-5 transition-transform ${showDashboard ? 'rotate-90' : ''}`} />
                     </h3>
                 </button>
@@ -940,7 +940,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                     type="text" 
                     value={orderSearchTerm}
                     onChange={(e) => setOrderSearchTerm(e.target.value)}
-                    placeholder="Buscar por Nº Ordem, Recapadora ou Nº Fogo..."
+                    placeholder="Buscar por No Ordem, Recapadora ou No Fogo..."
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 dark:text-white"
                   />
                </div>
@@ -964,8 +964,8 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                   >
                     <option value="ALL">Todos os Status</option>
                     <option value="ENVIADO">Enviado</option>
-                    <option value="EM_PRODUCAO">Em Produção</option>
-                    <option value="CONCLUIDO">Concluído</option>
+                    <option value="EM_PRODUCAO">Em Producao</option>
+                    <option value="CONCLUIDO">Concluido</option>
                   </select>
                </div>
                <div className="flex-1 w-full relative">
@@ -977,7 +977,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                   >
                     <option value="DATE_DESC">Mais Recentes</option>
                     <option value="DATE_ASC">Mais Antigos</option>
-                    <option value="ORDER_NUM">Nº da Ordem</option>
+                    <option value="ORDER_NUM">No da Ordem</option>
                   </select>
                </div>
             </div>
@@ -1023,7 +1023,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                                         <div className="flex flex-col items-end w-full md:w-auto">
                                             <div className={`text-xs font-bold mb-2 flex items-center gap-1 ${isLate ? 'text-red-500' : 'text-slate-500'}`}>
                                                 {isLate ? <AlertTriangle className="h-3 w-3"/> : <Clock className="h-3 w-3"/>}
-                                                {isLate ? `ATRASADO ${Math.abs(daysLeft)} DIAS` : `PREVISÃO: ${daysLeft} DIAS`}
+                                                {isLate ? `ATRASADO ${Math.abs(daysLeft)} DIAS` : `PREVISAO: ${daysLeft} DIAS`}
                                             </div>
                                             <div className="text-[10px] text-slate-400 font-bold mt-1">
                                                 Retorno em: {new Date(order.expectedReturnDate || new Date()).toLocaleDateString()}
@@ -1093,8 +1093,8 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                   <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row justify-between items-center gap-4">
                       <div className="flex items-center gap-4">
                           <div>
-                              <h3 className="font-bold text-slate-700 dark:text-white flex items-center gap-2"><ListTodo className="h-5 w-5 text-blue-500"/> Estoque de Carcaças</h3>
-                              <p className="text-xs text-slate-400">Pneus "Usados" disponíveis para serviço externo</p>
+                              <h3 className="font-bold text-slate-700 dark:text-white flex items-center gap-2"><ListTodo className="h-5 w-5 text-blue-500"/> Estoque de Carcacas</h3>
+                              <p className="text-xs text-slate-400">Pneus "Usados" disponiveis para servico externo</p>
                           </div>
                           {selectedTireIds.size > 0 && (
                             <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 animate-in zoom-in-95">
@@ -1121,7 +1121,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                           {eligibleTires.length === 0 ? (
                               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
                                   <AlertCircle className="h-10 w-10 mb-2 opacity-30"/>
-                                  <p className="font-medium">Nenhum pneu disponível com o filtro atual.</p>
+                                  <p className="font-medium">Nenhum pneu disponivel com o filtro atual.</p>
                               </div>
                           ) : (
                               <div className="min-w-full inline-block align-middle">
@@ -1243,7 +1243,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                               onClick={() => setServiceMode('REPAIR')}
                               className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${serviceMode === 'REPAIR' ? 'bg-white dark:bg-slate-700 shadow text-orange-600 dark:text-orange-300' : 'text-slate-500'}`}
                           >
-                              Outros Serviços
+                              Outros Servicos
                           </button>
                       </div>
 
@@ -1271,10 +1271,10 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                                       onChange={(e) => setSelectedServiceType(e.target.value)}
                                       className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-orange-500"
                                   >
-                                      <option value="">Tipo de Serviço...</option>
+                                      <option value="">Tipo de Servico...</option>
                                       {settings?.serviceTypes?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                                       <option value="Conserto">Conserto Geral</option>
-                                      <option value="Vulcanizacao">Vulcanização</option>
+                                      <option value="Vulcanizacao">Vulcanizacao</option>
                                       <option value="Duplagem">Duplagem</option>
                                   </select>
                               )}
@@ -1282,7 +1282,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                               <div className="relative">
                                   <input 
                                       type="number" 
-                                      placeholder="Custo Unitário (R$)..." 
+                                      placeholder="Custo Unitario (R$)..." 
                                       className="w-full pl-9 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-emerald-500"
                                       value={batchCost}
                                       onChange={e => setBatchCost(e.target.value)}
@@ -1303,14 +1303,14 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                                   disabled={selectedTireIds.size === 0 || (serviceMode === 'RETREAD' ? !treadPatternId : !selectedServiceType)}
                                   className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white rounded-xl font-bold text-xs hover:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm"
                               >
-                                  <PlusCircle className="h-4 w-4"/> Adicionar à Cesta
+                                  <PlusCircle className="h-4 w-4"/> Adicionar a Cesta
                               </button>
                           </div>
                       </div>
 
                       {/* DATE SELECTOR (NEW REQUIREMENT) */}
                       <div>
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">4. Previsão de Retorno</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">4. Previsao de Retorno</label>
                           <input 
                               type="date"
                               className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
@@ -1370,7 +1370,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                           disabled={stagedItems.length === 0}
                           className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                       >
-                          <Send className="h-5 w-5 group-hover:translate-x-1 transition-transform"/> Gerar Ordem de Serviço
+                          <Send className="h-5 w-5 group-hover:translate-x-1 transition-transform"/> Gerar Ordem de Servico
                       </button>
                   </div>
               </div>
@@ -1394,7 +1394,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
                           <thead className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-bold uppercase text-xs border-b border-slate-100 dark:border-slate-800 sticky top-0 shadow-sm z-10">
                               <tr>
                                   <th className="p-4">Fogo</th>
-                                  <th className="p-4">Serviço/Banda</th>
+                                  <th className="p-4">Servico/Banda</th>
                                   <th className="p-4 w-32">Status</th>
                                   <th className="p-4 w-48">Detalhes (Sulco / Motivo)</th>
                                   <th className="p-4 w-40">Custo Final (R$)</th>
@@ -1474,7 +1474,7 @@ export const RetreadingHub: React.FC<RetreadingHubProps> = ({
 
                   <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
                       <div>
-                          <p className="text-xs font-bold text-slate-500 uppercase">Custo Total do Serviço</p>
+                          <p className="text-xs font-bold text-slate-500 uppercase">Custo Total do Servico</p>
                           <p className="text-2xl font-black text-green-600 dark:text-green-400">{money(Object.values(receiveData).reduce<number>((a, b: any) => a + (b.cost || 0), 0))}</p>
                       </div>
                       <div className="flex gap-3">

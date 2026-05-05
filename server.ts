@@ -54,7 +54,7 @@ async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, isBa
   
   if (activeSascarCalls >= MAX_CONCURRENT_SASCAR_CALLS) {
     const timeoutPromise = new Promise<void>((_, reject) => 
-      setTimeout(() => reject(new Error('Timeout na fila de sincronização Sascar')), queueTimeout)
+      setTimeout(() => reject(new Error('Timeout na fila de sincronizacao Sascar')), queueTimeout)
     );
     
     let resolveFn: () => void;
@@ -66,7 +66,7 @@ async function synchronizedSascarCall<T>(fn: () => Promise<T>, retries = 2, isBa
     try {
       await Promise.race([queuePromise, timeoutPromise]);
     } catch (err) {
-      // Se deu timeout, remove da fila para não vazar memória
+      // Se deu timeout, remove da fila para nao vazar memoria
       const index = sascarCallQueue.indexOf(resolveFn!);
       if (index > -1) {
         sascarCallQueue.splice(index, 1);
@@ -184,7 +184,7 @@ function parseSascarNumber(val: any): number {
   const s = String(val).trim();
   if (!s) return 0;
   
-  // Se for hexadecimal (contém A-F ou é explicitamente hex)
+  // Se for hexadecimal (contem A-F ou e explicitamente hex)
   if (/^[0-9A-Fa-f]+$/.test(s) && (/[A-Fa-f]/.test(s) || s.length > 6)) {
     return parseInt(s, 16);
   }
@@ -348,8 +348,8 @@ function parseSascarVehicle(item: any): any {
 }
 
 /**
- * Função para drenar a fila FIFO da Sascar até alcançar o tempo real.
- * Descarta pacotes antigos e só começa a salvar quando atingir a data de hoje ou a fila esvaziar.
+ * Funcao para drenar a fila FIFO da Sascar ate alcancar o tempo real.
+ * Descarta pacotes antigos e so comeca a salvar quando atingir a data de hoje ou a fila esvaziar.
  */
 async function drainSascarQueue(
     user: string, 
@@ -367,7 +367,7 @@ async function drainSascarQueue(
     let total = 0;
     let iterations = 0;
     
-    // Data alvo: Hoje (início do dia em BRT)
+    // Data alvo: Hoje (inicio do dia em BRT)
     const now = new Date();
     const brtFormatter = new Intl.DateTimeFormat('en-GB', {
         timeZone: "America/Sao_Paulo",
@@ -379,11 +379,11 @@ async function drainSascarQueue(
     const targetDateIso = `${getPart('year')}-${getPart('month')}-${getPart('day')}T00:00:00-03:00`;
     const targetDate = new Date(targetDateIso);
     
-    // Também definimos um alvo de "agora" para tentar chegar o mais perto possível do tempo real
-    const nowBrt = new Date(Date.now() - (15 * 60 * 1000)); // 15 minutos atrás
+    // Tambem definimos um alvo de "agora" para tentar chegar o mais perto possivel do tempo real
+    const nowBrt = new Date(Date.now() - (15 * 60 * 1000)); // 15 minutos atras
     
     logToFile(`[Sascar Drenagem] Alvo Real-Time (Hoje): ${targetDate.toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'})}`);
-    logToFile(`[Sascar Drenagem] Alvo Atual (15min atrás): ${nowBrt.toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'})}`);
+    logToFile(`[Sascar Drenagem] Alvo Atual (15min atras): ${nowBrt.toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'})}`);
     
     let reachedRealTime = false;
     let reachedNow = false;
@@ -391,13 +391,13 @@ async function drainSascarQueue(
 
     while (hasMore && iterations < maxIterations) {
         if (Date.now() - fetchStartTime > currentTimeout) {
-            logToFile(`[Sascar] Timeout iminente (${currentTimeout}ms). Interrompendo limpeza da fila na iteração ${iterations}.`);
+            logToFile(`[Sascar] Timeout iminente (${currentTimeout}ms). Interrompendo limpeza da fila na iteracao ${iterations}.`);
             break;
         }
         
         iterations++;
         try {
-            // Se for background, damos um pequeno respiro para não monopolizar o lock
+            // Se for background, damos um pequeno respiro para nao monopolizar o lock
             if (isBackground) {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
@@ -440,12 +440,12 @@ async function drainSascarQueue(
                 const lastDate = parseSascarDate(lastItem.dataPosicao || lastItem.dataHora);
                 
                 // Log de progresso da fila
-                logToFile(`[Sascar Drenagem] Iteração ${iterations}/${maxIterations}: ${frotaArray.length} itens. Lote: ${firstDate.toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'})} até ${lastDate.toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'})}`);
+                logToFile(`[Sascar Drenagem] Iteracao ${iterations}/${maxIterations}: ${frotaArray.length} itens. Lote: ${firstDate.toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'})} ate ${lastDate.toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'})}`);
 
-                // Verifica se já alcançamos pacotes de hoje
+                // Verifica se ja alcancamos pacotes de hoje
                 if (lastDate >= targetDate) {
                     if (!reachedRealTime) {
-                        logToFile(`[Sascar Drenagem] Alcançamos o tempo real hoje: ${lastDate.toISOString()}!`);
+                        logToFile(`[Sascar Drenagem] Alcancamos o tempo real hoje: ${lastDate.toISOString()}!`);
                     }
                     reachedRealTime = true;
                     sascarCache.reachedRealTimeOnce = true;
@@ -453,16 +453,16 @@ async function drainSascarQueue(
                 
                 if (lastDate >= nowBrt) {
                     if (!reachedNow) {
-                        logToFile(`[Sascar Drenagem] Alcançamos o tempo atual (últimos 15min): ${lastDate.toISOString()}!`);
+                        logToFile(`[Sascar Drenagem] Alcancamos o tempo atual (ultimos 15min): ${lastDate.toISOString()}!`);
                     }
                     reachedNow = true;
                 }
 
-                // Se já chegamos no "agora", podemos parar para economizar tempo e liberar a fila
-                // No background, permitimos um pouco mais de iterações para garantir que limpamos bem, mas não 1500 se já estamos no real-time
+                // Se ja chegamos no "agora", podemos parar para economizar tempo e liberar a fila
+                // No background, permitimos um pouco mais de iteracoes para garantir que limpamos bem, mas nao 1500 se ja estamos no real-time
                 const stopThreshold = isBackground ? 50 : 20;
                 if (reachedNow && iterations >= stopThreshold) {
-                    logToFile(`[Sascar Drenagem] Alcançamos o tempo atual e já fizemos ${iterations} iterações. Parando para liberar a fila.`);
+                    logToFile(`[Sascar Drenagem] Alcancamos o tempo atual e ja fizemos ${iterations} iteracoes. Parando para liberar a fila.`);
                     hasMore = false;
                 }
                 
@@ -477,7 +477,7 @@ async function drainSascarQueue(
                     
                     const itemDate = parseSascarDate(sv.dataPosicao || sv.dataHora);
                     
-                    // Sempre sobrescreve com a posição mais recente da fila (se for mais nova que a que já temos)
+                    // Sempre sobrescreve com a posicao mais recente da fila (se for mais nova que a que ja temos)
                     const idVeiculo = String(sv.idVeiculo || sv.id || "");
                     if (idVeiculo) {
                         if (!sv.placa && idToPlateMap.has(idVeiculo)) {
@@ -503,12 +503,12 @@ async function drainSascarQueue(
                 hasMore = false;
             }
         } catch (error: any) {
-            logToFile(`[Sascar Drenagem] Erro na iteração ${iterations}: ${error.message}`);
-            hasMore = false; // Para em caso de erro para não ficar em loop infinito falhando
+            logToFile(`[Sascar Drenagem] Erro na iteracao ${iterations}: ${error.message}`);
+            hasMore = false; // Para em caso de erro para nao ficar em loop infinito falhando
         }
     }
     
-    logToFile(`[Sascar Drenagem] Finalizada. Total consumido: ${total} pacotes em ${iterations} iterações. Veículos únicos salvos: ${latestPositions.size}`);
+    logToFile(`[Sascar Drenagem] Finalizada. Total consumido: ${total} pacotes em ${iterations} iteracoes. Veiculos unicos salvos: ${latestPositions.size}`);
     return { total_flushed: total, iterations, reachedRealTime };
 }
 
@@ -518,11 +518,11 @@ async function runSascarAutomation() {
     if (isAutomatedSyncing) return;
     isAutomatedSyncing = true;
     
-    logToFile("[Automation] Iniciando tarefa agendada de sincronização Sascar (15 min)...");
+    logToFile("[Automation] Iniciando tarefa agendada de sincronizacao Sascar (15 min)...");
     
     try {
         if (!db) {
-            logToFile("[Automation] Erro: Firestore não inicializado.");
+            logToFile("[Automation] Erro: Firestore nao inicializado.");
             isAutomatedSyncing = false;
             return;
         }
@@ -532,7 +532,7 @@ async function runSascarAutomation() {
         const settings = settingsDoc.data();
         
         if (!settings?.active || !settings?.user || !settings?.pass) {
-            logToFile("[Automation] Sascar inativo ou não configurado no Firestore.");
+            logToFile("[Automation] Sascar inativo ou nao configurado no Firestore.");
             isAutomatedSyncing = false;
             return;
         }
@@ -556,7 +556,7 @@ async function runSascarAutomation() {
         });
 
         if (plateToDocId.size === 0 && sascarIdToDocId.size === 0) {
-            logToFile("[Automation] Nenhum veículo encontrado no Firestore para atualizar.");
+            logToFile("[Automation] Nenhum veiculo encontrado no Firestore para atualizar.");
             isAutomatedSyncing = false;
             return;
         }
@@ -569,7 +569,7 @@ async function runSascarAutomation() {
         const currentTimeout = 600000; // 10 minutes for automation
         
         // First, get the vehicle list to map IDs to plates
-        logToFile(`[Automation] Buscando lista de veículos Sascar...`);
+        logToFile(`[Automation] Buscando lista de veiculos Sascar...`);
         const vehicleListResult = await synchronizedSascarCall(async () => {
             return client.obterVeiculosJsonAsync({
                 usuario: user,
@@ -600,7 +600,7 @@ async function runSascarAutomation() {
         await drainSascarQueue(user, pass, client, latestPositions, idToPlateMap, 1500, fetchStartTime, currentTimeout, true);
 
         // 4. Update Firestore
-        logToFile(`[Automation] Atualizando ${latestPositions.size} posições no Firestore...`);
+        logToFile(`[Automation] Atualizando ${latestPositions.size} posicoes no Firestore...`);
         let currentBatch = db.batch();
         let countInBatch = 0;
         let totalUpdated = 0;
@@ -612,7 +612,7 @@ async function runSascarAutomation() {
             const docId = sascarIdToDocId.get(sascarId) || plateToDocId.get(normalizedPlate);
             
             if (plate === 'BSX3G15') {
-                logToFile(`[Debug] Veículo BSX3G15 encontrado na Sascar. Dados: ${JSON.stringify(pos)}`);
+                logToFile(`[Debug] Veiculo BSX3G15 encontrado na Sascar. Dados: ${JSON.stringify(pos)}`);
             }
             
             if (docId) {
@@ -660,7 +660,7 @@ async function runSascarAutomation() {
             await currentBatch.commit();
         }
 
-        logToFile(`[Automation] Sincronização automática finalizada. ${totalUpdated} veículos atualizados.`);
+        logToFile(`[Automation] Sincronizacao automatica finalizada. ${totalUpdated} veiculos atualizados.`);
         
         // Update last sync time in Firestore
         await db.collection("settings").doc("tracker").update({
@@ -676,7 +676,7 @@ async function runSascarAutomation() {
         sascarCache.lastMapFetchTime = Date.now();
 
     } catch (error: any) {
-        logToFile(`[Automation] Erro crítico na sincronização automática: ${error.message}`);
+        logToFile(`[Automation] Erro critico na sincronizacao automatica: ${error.message}`);
     } finally {
         isAutomatedSyncing = false;
     }
@@ -712,7 +712,7 @@ async function startServer() {
       lastFetchTime: 0,
       lastMapFetchTime: 0,
       fetchPromise: null as Promise<void> | null,
-      reachedRealTimeOnce: false // Flag para saber se já limpamos o backlog alguma vez
+      reachedRealTimeOnce: false // Flag para saber se ja limpamos o backlog alguma vez
   };
 
   // --- SASCAR LOGIC CONSOLIDATED ---
@@ -725,7 +725,7 @@ async function startServer() {
       try {
           const client = await getSoapClient("https://sasintegra.sascar.com.br/SasIntegra/SasIntegraWSService?wsdl");
           const start = Date.now();
-          // Para o flush manual, usamos mapas temporários
+          // Para o flush manual, usamos mapas temporarios
           const tempPositions = new Map();
           const tempMap = new Map();
           const stats = await drainSascarQueue(user, pass, client, tempPositions, tempMap, 20, start, 20 * 1000, false);
@@ -884,10 +884,10 @@ async function startServer() {
       let latestPositions = new Map<string, any>();
       let idToPlateMap = new Map<string, string>();
 
-      // Aumentar o timeout da requisição para evitar "Failed to fetch" no frontend
+      // Aumentar o timeout da requisicao para evitar "Failed to fetch" no frontend
       const startTime = Date.now();
       const MAX_REQUEST_TIME = 45000; // Reduzido para 45s para garantir resposta antes do proxy (60s)
-      const CACHE_TTL = 1 * 60 * 1000; // 1 minuto (reduzido de 5 para ser mais ágil)
+      const CACHE_TTL = 1 * 60 * 1000; // 1 minuto (reduzido de 5 para ser mais agil)
       const MAP_CACHE_TTL = 60 * 60 * 1000; // 1 hora para o mapa de placas
 
       const formatDateBRT = (d: Date) => {
@@ -910,7 +910,7 @@ async function startServer() {
           // 0. Mapeamento de Placas (Cacheado por 1 hora)
           try {
               if (sascarCache.idToPlateMap.size === 0 || (Date.now() - sascarCache.lastMapFetchTime > MAP_CACHE_TTL)) {
-                  logToFile(`[Sascar] Buscando lista de veículos para mapeamento de placas...`);
+                  logToFile(`[Sascar] Buscando lista de veiculos para mapeamento de placas...`);
                   const result = await synchronizedSascarCall(async () => {
                       if (Date.now() - fetchStartTime > currentTimeout) return null;
                       const auth = `<usuario>${escapeXml(user)}</usuario><senha>${escapeXml(pass)}</senha>`;
@@ -933,14 +933,14 @@ async function startServer() {
                       }
                       sascarCache.idToPlateMap = idToPlateMap;
                       sascarCache.lastMapFetchTime = Date.now();
-                      logToFile(`[Sascar] Mapeamento concluído. ${idToPlateMap.size} veículos com placa mapeados.`);
+                      logToFile(`[Sascar] Mapeamento concluido. ${idToPlateMap.size} veiculos com placa mapeados.`);
                   }
               } else {
                   idToPlateMap = sascarCache.idToPlateMap;
               }
           } catch (error: any) {
-              logToFile(`[Sascar] Erro ao buscar lista de veículos: ${error.message}`);
-              // Fallback para o que já temos no cache
+              logToFile(`[Sascar] Erro ao buscar lista de veiculos: ${error.message}`);
+              // Fallback para o que ja temos no cache
               idToPlateMap = sascarCache.idToPlateMap;
           }
 
@@ -1053,7 +1053,7 @@ async function startServer() {
                   });
               }
           } else {
-              logToFile(`[Sascar] Usando cache válido (idade: ${Math.round((Date.now() - sascarCache.lastFetchTime)/1000)}s)`);
+              logToFile(`[Sascar] Usando cache valido (idade: ${Math.round((Date.now() - sascarCache.lastFetchTime)/1000)}s)`);
           }
           idToPlateMap = sascarCache.idToPlateMap;
           latestPositions = new Map(sascarCache.latestPositions); // clone
@@ -1066,20 +1066,20 @@ async function startServer() {
           }
           logToFile(`[Sascar] Sem cache. Aguardando fetch global...`);
           try {
-              // Espera pelo fetch global, mas com um timeout de segurança para não travar a requisição do usuário
+              // Espera pelo fetch global, mas com um timeout de seguranca para nao travar a requisicao do usuario
               const fetchPromiseWithTimeout = Promise.race([
                   sascarCache.fetchPromise,
                   new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout aguardando fetch global')), 30000))
               ]);
               await fetchPromiseWithTimeout;
           } catch (e: any) {
-              logToFile(`[Sascar] Aviso no fetch global: ${e.message}. Retornando cache parcial se disponível.`);
+              logToFile(`[Sascar] Aviso no fetch global: ${e.message}. Retornando cache parcial se disponivel.`);
           }
           idToPlateMap = sascarCache.idToPlateMap;
           latestPositions = new Map(sascarCache.latestPositions); // clone
       }
 
-      // 2. Se placas específicas foram pedidas, busca histórico apenas para as que NÃO vieram na fila
+      // 2. Se placas especificas foram pedidas, busca historico apenas para as que NAO vieram na fila
       if (platesQuery && Array.isArray(platesQuery) && platesQuery.length > 0) {
           // Create reverse map for plate -> id
           const plateToIdMap = new Map<string, string>();
@@ -1092,15 +1092,15 @@ async function startServer() {
               const id = plateToIdMap.get(cleanP) || p;
               
               const pos = latestPositions.get(id);
-              if (!pos) return true; // Não está na fila
+              if (!pos) return true; // Nao esta na fila
               
-              // Se ainda não limpamos o backlog (FIFO) pelo menos uma vez hoje, 
-              // forçamos a busca por histórico para garantir dados de hoje.
+              // Se ainda nao limpamos o backlog (FIFO) pelo menos uma vez hoje, 
+              // forcamos a busca por historico para garantir dados de hoje.
               if (!sascarCache.reachedRealTimeOnce) {
                   return true;
               }
               
-              // Se a posição for mais antiga que 30 minutos, tenta buscar o histórico para garantir tempo real
+              // Se a posicao for mais antiga que 30 minutos, tenta buscar o historico para garantir tempo real
               const posDate = parseSascarDate(pos.dataPosicao || pos.dataHora).getTime();
               const thirtyMinsAgo = Date.now() - (30 * 60 * 1000);
               if (posDate < thirtyMinsAgo) return true;
@@ -1110,21 +1110,21 @@ async function startServer() {
           
           if (missingPlates.length > 0) {
               const fetchHistoryForPlates = async (platesToFetch: string[], isBackground: boolean) => {
-                  logToFile(`[Sascar] Buscando histórico para ${platesToFetch.length} veículos (Background: ${isBackground})...`);
+                  logToFile(`[Sascar] Buscando historico para ${platesToFetch.length} veiculos (Background: ${isBackground})...`);
                   
                   const now = new Date();
-                  // Busca apenas as últimas 4 horas para ser mais ágil e evitar payloads gigantes
+                  // Busca apenas as ultimas 4 horas para ser mais agil e evitar payloads gigantes
                   const fourHoursAgo = new Date(now.getTime() - (4 * 60 * 60 * 1000));
                   const dataInicio = formatDateBRT(fourHoursAgo);
                   const dataFinal = formatDateBRT(now);
 
                   // Processa em lotes paralelos menores para velocidade
-                  const BATCH_SIZE = 3; // Reduzido para diminuir pressão no lock e evitar timeouts
+                  const BATCH_SIZE = 3; // Reduzido para diminuir pressao no lock e evitar timeouts
                   for (let i = 0; i < platesToFetch.length; i += BATCH_SIZE) {
-                      // No foreground, paramos mais cedo para garantir que o histórico tenha tempo de rodar
+                      // No foreground, paramos mais cedo para garantir que o historico tenha tempo de rodar
                       const bufferTime = 12000; // Aumentado para 12s de margem
                       if (!isBackground && i > 0 && Date.now() - startTime >= MAX_REQUEST_TIME - bufferTime) {
-                          logToFile(`[Sascar] Tempo esgotado para histórico no foreground. Interrompendo no lote ${i}/${platesToFetch.length}`);
+                          logToFile(`[Sascar] Tempo esgotado para historico no foreground. Interrompendo no lote ${i}/${platesToFetch.length}`);
                           break;
                       }
                       
@@ -1153,7 +1153,7 @@ async function startServer() {
                               if (frotaEmTexto) {
                                   const frotaArray = Array.isArray(frotaEmTexto) ? frotaEmTexto : [frotaEmTexto];
                                   if (frotaArray.length > 0) {
-                                      // Pega a posição mais recente do histórico
+                                      // Pega a posicao mais recente do historico
                                       let latest = null;
                                       let latestTime = 0;
                                       
@@ -1174,7 +1174,7 @@ async function startServer() {
                                               latest.placa = idToPlateMap.get(String(idVeiculo));
                                           }
                                           
-                                          // Só atualiza se for mais novo que o que já temos
+                                          // So atualiza se for mais novo que o que ja temos
                                           const existing = latestPositions.get(String(idVeiculo));
                                           const existingTime = existing ? parseSascarDate(existing.dataPosicao || existing.dataHora).getTime() : 0;
                                           
@@ -1188,13 +1188,13 @@ async function startServer() {
                                   }
                               }
                           } catch (error: any) {
-                              logToFile(`[Sascar] Erro histórico ${idVeiculo}: ${error.message}`);
+                              logToFile(`[Sascar] Erro historico ${idVeiculo}: ${error.message}`);
                           }
                       }));
                   }
               };
 
-              // Tenta buscar o histórico para no máximo 5 ausentes por vez no foreground (reduzido de 20 para evitar timeouts)
+              // Tenta buscar o historico para no maximo 5 ausentes por vez no foreground (reduzido de 20 para evitar timeouts)
               const foregroundPlates = missingPlates.slice(0, 5);
               const backgroundPlates = missingPlates.slice(5);
 
@@ -1204,18 +1204,18 @@ async function startServer() {
                   await Promise.race([
                       fetchHistoryForPlates(foregroundPlates, false),
                       new Promise(resolve => setTimeout(() => {
-                          logToFile(`[Sascar] Timeout iminente (${timeRemaining}ms). Interrompendo espera do histórico no foreground.`);
+                          logToFile(`[Sascar] Timeout iminente (${timeRemaining}ms). Interrompendo espera do historico no foreground.`);
                           resolve(null);
                       }, timeRemaining))
                   ]);
               } else {
-                  logToFile(`[Sascar] Tempo esgotado antes de iniciar busca de histórico no foreground.`);
+                  logToFile(`[Sascar] Tempo esgotado antes de iniciar busca de historico no foreground.`);
               }
 
               // Inicia fetch em background para o restante das placas
               if (backgroundPlates.length > 0) {
                   fetchHistoryForPlates(backgroundPlates, true).catch(err => {
-                      logToFile(`[Sascar] Erro no fetch de histórico em background: ${err.message}`);
+                      logToFile(`[Sascar] Erro no fetch de historico em background: ${err.message}`);
                   });
               }
           }
@@ -1223,7 +1223,7 @@ async function startServer() {
 
       // 3. Retornar os dados que temos no cache
       allVehiclesRaw = Array.from(latestPositions.values());
-      logToFile(`[Sascar] Sincronização de dados concluída. Total de veículos para processar: ${allVehiclesRaw.length}`);
+      logToFile(`[Sascar] Sincronizacao de dados concluida. Total de veiculos para processar: ${allVehiclesRaw.length}`);
       
       const vehicleMap = new Map<string, any>();
       
@@ -1244,18 +1244,18 @@ async function startServer() {
                   const vehicleData = parseSascarVehicle(item);
                   if (!vehicleData) return;
 
-                  // Normalizar placa para chave (remover hífens e espaços)
+                  // Normalizar placa para chave (remover hifens e espacos)
                   const fullPlate = vehicleData.placa ? vehicleData.placa.replace(/[^A-Z0-9-]/gi, '').toUpperCase() : '';
                   const sascarId = vehicleData.idVeiculo ? vehicleData.idVeiculo.toString() : '';
                   
-                  // Usar ID como chave primária se disponível, senão placa
+                  // Usar ID como chave primaria se disponivel, senao placa
                   const key = sascarId || fullPlate;
                   
                   if (!key) return;
 
                   const existing = vehicleMap.get(key);
                   
-                  // Comparação de datas para manter apenas a mais recente
+                  // Comparacao de datas para manter apenas a mais recente
                   const currentDate = vehicleData.dataPosicaoIso ? new Date(vehicleData.dataPosicaoIso).getTime() : 0;
                   const existingDate = existing?.dataPosicaoIso ? new Date(existing.dataPosicaoIso).getTime() : 0;
 
@@ -1270,25 +1270,25 @@ async function startServer() {
 
       const rawValues = Array.from(vehicleMap.values());
       
-      // --- DEBUG: Inspeção do Payload Bruto ---
-      logToFile(`[Sascar Debug] Inspecionando payload bruto antes do mapeamento (${rawValues.length} veículos):`);
+      // --- DEBUG: Inspecao do Payload Bruto ---
+      logToFile(`[Sascar Debug] Inspecionando payload bruto antes do mapeamento (${rawValues.length} veiculos):`);
       rawValues.slice(0, 5).forEach((v: any, index: number) => {
           const rawDate = v.dataPosicao || v.dataHora || 'NENHUMA_DATA';
-          logToFile(`[Sascar Debug] Veículo ${index + 1} | Placa/ID: ${v.placa || v.idVeiculo} | dataPosicao bruta: ${rawDate}`);
+          logToFile(`[Sascar Debug] Veiculo ${index + 1} | Placa/ID: ${v.placa || v.idVeiculo} | dataPosicao bruta: ${rawDate}`);
       });
       // ----------------------------------------
 
       const processedVehicles = rawValues.map((v: any, index: number) => {
-          // Extração com fallback para 0 caso o valor venha nulo/undefined
+          // Extracao com fallback para 0 caso o valor venha nulo/undefined
           const rawLat = parseSascarOptionalNumber(v.latitude) ?? 0;
           const rawLng = parseSascarOptionalNumber(v.longitude) ?? 0;
           
           // Log raw values for debugging issues
           if (v.placa === 'BSX3G15' || v.idVeiculo === 'BSX3G15') {
-            console.log(`[Sascar Debug] Veículo BSX3G15 | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
+            console.log(`[Sascar Debug] Veiculo BSX3G15 | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
           }
           if (index < 5) {
-            logToFile(`[Sascar Debug] Veículo ${v.placa || v.idVeiculo} | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
+            logToFile(`[Sascar Debug] Veiculo ${v.placa || v.idVeiculo} | Raw: odometroExato=${v.odometroExato}, odometro=${v.odometro}, consumoInstantaneo=${v.consumoInstantaneo}`);
           }
 
           const odometerKm = parseSascarOdometerKm(v);
@@ -1323,11 +1323,11 @@ async function startServer() {
           };
       });
 
-      logToFile(`[Sascar] Sincronização finalizada: ${processedVehicles.length} veículos únicos encontrados.`);
+      logToFile(`[Sascar] Sincronizacao finalizada: ${processedVehicles.length} veiculos unicos encontrados.`);
 
       res.json({
         success: true,
-        message: `Sincronização concluída. ${processedVehicles.length} veículos processados.`,
+        message: `Sincronizacao concluida. ${processedVehicles.length} veiculos processados.`,
         data: processedVehicles
       });
     } catch (error: any) {
@@ -1346,13 +1346,13 @@ async function startServer() {
       const vehicleId = String(req.query.id || req.query.vehicleRg || '').trim();
       const plate = String(req.query.plate || '').trim();
       if (!vehicleId) {
-        return res.status(400).json({ success: false, error: "Veículo inválido" });
+        return res.status(400).json({ success: false, error: "Veiculo invalido" });
       }
 
       const vehicleDoc = await findPublicVehicleDoc(vehicleId, plate);
 
       if (!vehicleDoc) {
-        return res.status(404).json({ success: false, error: "Veículo não encontrado" });
+        return res.status(404).json({ success: false, error: "Veiculo nao encontrado" });
       }
 
       const rawVehicle = { ...vehicleDoc.data(), id: vehicleDoc.id } as any;
@@ -1417,13 +1417,13 @@ async function startServer() {
       } = req.body || {};
 
       if (!vehicleId || !String(driverName || '').trim() || !String(title || '').trim() || !String(details || '').trim()) {
-        return res.status(400).json({ success: false, error: "Dados obrigatórios ausentes" });
+        return res.status(400).json({ success: false, error: "Dados obrigatorios ausentes" });
       }
 
       const vehicleDoc = await findPublicVehicleDoc(vehicleId, plate);
 
       if (!vehicleDoc) {
-        return res.status(404).json({ success: false, error: "Veículo não encontrado" });
+        return res.status(404).json({ success: false, error: "Veiculo nao encontrado" });
       }
 
       const vehicle = { ...vehicleDoc.data(), id: vehicleDoc.id } as any;
@@ -1433,14 +1433,14 @@ async function startServer() {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const detailLines = [
-        'Solicitação enviada pelo RG público do veículo.',
+        'Solicitacao enviada pelo RG publico do veiculo.',
         `Motorista: ${String(driverName).trim()}`,
         driverPhone ? `Telefone: ${String(driverPhone).trim()}` : '',
         problemType ? `Tipo informado: ${String(problemType).trim()}` : '',
         informedOdometer ? `KM informado pelo motorista: ${Number(informedOdometer).toLocaleString('pt-BR')}` : '',
         driverLocation ? `Local informado: ${String(driverLocation).trim()}` : '',
-        `Veículo parado: ${vehicleStopped ? 'SIM' : 'NÃO'}`,
-        `Urgência: ${String(urgency || 'NORMAL')}`,
+        `Veiculo parado: ${vehicleStopped ? 'SIM' : 'NAO'}`,
+        `Urgencia: ${String(urgency || 'NORMAL')}`,
         checklist?.status ? `Checklist pre-viagem: ${String(checklist.status)}` : '',
         Array.isArray(checklist?.criticalItems) && checklist.criticalItems.length ? `Itens com alerta: ${checklist.criticalItems.join(', ')}` : '',
         checklist?.observations ? `Observacoes do checklist: ${String(checklist.observations).trim()}` : '',
@@ -1463,14 +1463,14 @@ async function startServer() {
         driverName: String(driverName).trim(),
         contactName: String(driverName).trim(),
         ...(Array.isArray(attachments) ? { attachments } : {}),
-        createdBy: `RG Público - ${String(driverName).trim()}`,
+        createdBy: `RG Publico - ${String(driverName).trim()}`,
         createdAt: now
       };
 
       await db.collection("service_orders").doc(id).set(order);
       await db.collection("logs").doc(`${Date.now()}-${Math.random().toString(36).slice(2, 8)}`).set({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        action: "Agendamento pelo RG Público",
+        action: "Agendamento pelo RG Publico",
         details: `${vehicle.plate}: ${order.title} solicitado por ${order.driverName}`,
         module: "VEHICLES",
         date: now,
@@ -1480,7 +1480,7 @@ async function startServer() {
       res.json({ success: true, order });
     } catch (error: any) {
       logToFile(`Error in /api/public/vehicle-rg service-request: ${error.message}`);
-      res.status(500).json({ success: false, error: "Falha ao criar solicitação de serviço" });
+      res.status(500).json({ success: false, error: "Falha ao criar solicitacao de servico" });
     }
   });
 
@@ -1493,21 +1493,30 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // Serve static files in production
-    app.use(express.static("dist"));
+    app.use(express.static("dist", {
+      setHeaders: (res, filePath) => {
+        if (/\.(js|css|html|json)$/i.test(filePath)) {
+          const currentType = res.getHeader("Content-Type");
+          if (typeof currentType === "string" && !/charset=/i.test(currentType)) {
+            res.setHeader("Content-Type", `${currentType}; charset=utf-8`);
+          }
+        }
+      }
+    }));
   }
 
   if (!process.env.VERCEL) {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
       
-      // Iniciar automação Sascar a cada 15 minutos para ser mais ágil sem sobrecarregar
+      // Iniciar automacao Sascar a cada 15 minutos para ser mais agil sem sobrecarregar
       const FIFTEEN_MINUTES = 15 * 60 * 1000;
       void FIFTEEN_MINUTES;
       // Removal of automatic interval as requested by user
       // setInterval(runSascarAutomation, FIFTEEN_MINUTES);
-      logToFile("[Server] Automação Sascar agendada para cada 15 minutos.");
+      logToFile("[Server] Automacao Sascar agendada para cada 15 minutos.");
       
-      // Executar uma vez após 10 segundos do boot para garantir que os dados estejam frescos
+      // Executar uma vez apos 10 segundos do boot para garantir que os dados estejam frescos
       // setTimeout(runSascarAutomation, 10000);
     });
   }

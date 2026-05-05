@@ -30,7 +30,7 @@ interface ModelStrategicData {
   key: string;
   brand: string;
   model: string;
-  displayName: string; // Adicionado para exibição no gráfico
+  displayName: string; // Adicionado para exibicao no grafico
   count: number;
   avgPurchasePrice: number;
   avgTotalInvestment: number;
@@ -49,7 +49,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="font-bold mb-1 border-b border-slate-700 pb-1">{data.displayName || data.name}</p>
         <div className="space-y-1">
            {data.avgRealCpk && <div className="flex justify-between gap-3"><span>CPK Real:</span> <span className="font-mono text-green-400 font-bold">R$ {data.avgRealCpk.toFixed(5)}</span></div>}
-           {data.avgProjectedLife && <div className="flex justify-between gap-3"><span>Vida Útil:</span> <span className="font-mono font-bold">{Math.round(data.avgProjectedLife).toLocaleString()} km</span></div>}
+           {data.avgProjectedLife && <div className="flex justify-between gap-3"><span>Vida Util:</span> <span className="font-mono font-bold">{Math.round(data.avgProjectedLife).toLocaleString()} km</span></div>}
            {data.value !== undefined && <div className="flex justify-between gap-3"><span>Qtd:</span> <span>{data.value}</span></div>}
         </div>
       </div>
@@ -67,7 +67,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
   vehicleTypes = []
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    // Pneus agora sao universais, mostramos todos independentemente da filial selecionada
     return allTires;
   }, [allTires]);
 
@@ -80,11 +80,11 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
   const money = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const getOperation = (vType: string, pos: string): OperationFilter => {
-    // Busca o tipo de veículo dinâmico
+    // Busca o tipo de veiculo dinamico
     const vehicleType = vehicleTypes.find(vt => vt.id === vType || vt.name === vType);
     
     if (!vehicleType) {
-      // Fallback para tipos conhecidos se não encontrar o objeto de tipo
+      // Fallback para tipos conhecidos se nao encontrar o objeto de tipo
       if (vType === 'CARRETA') return 'CARRETA';
       if (['CAVALO', 'BI-TRUCK', 'BITRUCK', '3/4'].includes(vType)) {
         if (['1E', '1D', '1E1', '1D1', '2E', '2D'].includes(pos)) return 'DIRECIONAL';
@@ -93,12 +93,12 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
       return 'ALL';
     }
 
-    // Se for um tipo que não tem eixos direcionais ou é explicitamente uma carreta
+    // Se for um tipo que nao tem eixos direcionais ou e explicitamente uma carreta
     if (vehicleType.name.toUpperCase().includes('CARRETA') || vehicleType.steerAxlesCount === 0) {
       return 'CARRETA';
     }
 
-    // Lógica baseada na contagem de eixos direcionais
+    // Logica baseada na contagem de eixos direcionais
     const steerAxles = vehicleType.steerAxlesCount ?? 1;
     const steerPositions = [];
     for (let i = 1; i <= steerAxles; i++) {
@@ -110,23 +110,23 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
     return 'TRACAO';
   };
 
-  // --- ANÁLISE DE SUCATA (NOVO) ---
+  // --- ANALISE DE SUCATA (NOVO) ---
   const scrapAnalysis = useMemo(() => {
       const scrappedTires = tires.filter(t => t.status === TireStatus.DAMAGED);
       const reasons: Record<string, number> = {
           'Fim de Vida (Desgaste Natural)': 0,
           'Corte/Dano Acidental': 0,
           'Falha de Recapagem': 0,
-          'Fadiga de Carcaça': 0,
+          'Fadiga de Carcaca': 0,
           'Outros': 0
       };
 
       let totalLossValue = 0;
 
       scrappedTires.forEach(t => {
-          totalLossValue += (t.price || 0); // Simplificação: Custo de aquisição perdido ou valor residual
+          totalLossValue += (t.price || 0); // Simplificacao: Custo de aquisicao perdido ou valor residual
           
-          // Tenta extrair motivo do histórico
+          // Tenta extrair motivo do historico
           const log = t.history?.find(h => h.action === 'DESCARTE');
           const details = log?.details?.toLowerCase() || '';
 
@@ -137,7 +137,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
           } else if (details.includes('recapagem') || details.includes('soltura')) {
               reasons['Falha de Recapagem']++;
           } else if (details.includes('fadiga') || details.includes('estrutura')) {
-              reasons['Fadiga de Carcaça']++;
+              reasons['Fadiga de Carcaca']++;
           } else {
               reasons['Outros']++;
           }
@@ -165,7 +165,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
     tires.forEach(tire => {
       if (tire.status === TireStatus.DAMAGED || !tire.brand || !tire.model) return;
 
-      // Filtro de Operação
+      // Filtro de Operacao
       if (tire.vehicleId) {
         const v = vehicles.find(veh => veh.id === tire.vehicleId);
         if (v && tire.position) {
@@ -235,7 +235,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
         key,
         brand: data.brand,
         model: data.model,
-        displayName: `${data.brand} ${data.model}`, // Nome composto para o gráfico
+        displayName: `${data.brand} ${data.model}`, // Nome composto para o grafico
         count,
         avgPurchasePrice,
         avgTotalInvestment,
@@ -282,7 +282,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
       setSelectedModels(prev => {
           if (prev.includes(key)) return prev.filter(k => k !== key);
           if (prev.length >= 3) {
-              alert("Selecione no máximo 3 modelos para comparar.");
+              alert("Selecione no maximo 3 modelos para comparar.");
               return prev;
           }
           return [...prev, key];
@@ -308,9 +308,9 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <Target className="h-6 w-6 text-indigo-600" /> Inteligência de Compra & Ciclo de Vida
+            <Target className="h-6 w-6 text-indigo-600" /> Inteligencia de Compra & Ciclo de Vida
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise de eficiência baseada em dados reais de rodagem e motivos de descarte.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Analise de eficiencia baseada em dados reais de rodagem e motivos de descarte.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3">
@@ -338,7 +338,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
             {[
               { id: 'ALL', label: 'Global' },
               { id: 'DIRECIONAL', label: 'Direcional' },
-              { id: 'TRACAO', label: 'Tração' },
+              { id: 'TRACAO', label: 'Tracao' },
               { id: 'CARRETA', label: 'Carreta' },
             ].map(opt => (
               <button 
@@ -364,7 +364,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
           </div>
           <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">Dados Insuficientes</h3>
           <p className="text-sm text-slate-400 dark:text-slate-500 mt-2 max-w-md mx-auto">
-            O sistema precisa de mais histórico de rodagem (pneus com &gt;5.000km e desgaste mensurável) para gerar inteligência confiável.
+            O sistema precisa de mais historico de rodagem (pneus com &gt;5.000km e desgaste mensuravel) para gerar inteligencia confiavel.
           </p>
         </div>
       ) : (
@@ -373,7 +373,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group">
                  <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CPK Médio da Frota</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CPK Medio da Frota</p>
                     <h3 className="text-xl font-black text-slate-800 dark:text-white truncate">R$ {globalAvgCpk.toFixed(5)}</h3>
                  </div>
                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400 group-hover:text-indigo-500 transition-colors"><Activity className="h-6 w-6"/></div>
@@ -419,7 +419,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                       <div>
                          <div className="flex items-center gap-2 mb-2">
                             <span className="bg-yellow-400 text-indigo-900 text-xs font-black px-3 py-1 rounded-full uppercase flex items-center gap-1"><Trophy className="h-3 w-3"/> Melhor ROI</span>
-                            <span className="text-indigo-200 text-xs font-bold uppercase tracking-wider">Eficiência {strategicData[0].efficiencyScore}/100</span>
+                            <span className="text-indigo-200 text-xs font-bold uppercase tracking-wider">Eficiencia {strategicData[0].efficiencyScore}/100</span>
                          </div>
                          <h3 className="text-3xl font-black tracking-tight mb-1 truncate">{strategicData[0].brand}</h3>
                          <p className="text-lg text-indigo-200 font-medium truncate">{strategicData[0].model}</p>
@@ -431,7 +431,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                             <p className="text-2xl font-black font-mono text-green-400 truncate">R$ {strategicData[0].avgRealCpk.toFixed(5)}</p>
                          </div>
                          <div>
-                            <p className="text-xs font-bold text-indigo-300 uppercase mb-1">Vida Útil Est.</p>
+                            <p className="text-xs font-bold text-indigo-300 uppercase mb-1">Vida Util Est.</p>
                             <p className="text-2xl font-black truncate">{Math.round(strategicData[0].avgProjectedLife).toLocaleString()} km</p>
                          </div>
                       </div>
@@ -442,8 +442,8 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                 {/* BAR CHART: RANKING */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><BarChart3 className="h-5 w-5 text-indigo-500"/> Ranking de Eficiência (CPK)</h3>
-                      <span className="text-xs font-medium text-slate-400">Menor barra é melhor</span>
+                      <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><BarChart3 className="h-5 w-5 text-indigo-500"/> Ranking de Eficiencia (CPK)</h3>
+                      <span className="text-xs font-medium text-slate-400">Menor barra e melhor</span>
                    </div>
                    <div className="h-[350px] w-full">
                       <ResponsiveContainer width="100%" height={350}>
@@ -482,13 +482,13 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col h-[400px]">
                     <div className="mb-6">
                        <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><ScatterIcon className="h-5 w-5 text-purple-500"/> Matriz de Valor</h3>
-                       <p className="text-xs text-slate-500 mt-1">Preço de Compra (X) vs Durabilidade (Y)</p>
+                       <p className="text-xs text-slate-500 mt-1">Preco de Compra (X) vs Durabilidade (Y)</p>
                     </div>
                     <div className="h-[300px] w-full">
                        <ResponsiveContainer width="100%" height={300}>
                           <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
                              <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                             <XAxis type="number" dataKey="avgPurchasePrice" name="Preço" unit="R$" tick={{fontSize: 10, fill: '#94a3b8'}} />
+                             <XAxis type="number" dataKey="avgPurchasePrice" name="Preco" unit="R$" tick={{fontSize: 10, fill: '#94a3b8'}} />
                              <YAxis type="number" dataKey="avgProjectedLife" name="Vida" unit="km" tick={{fontSize: 10, fill: '#94a3b8'}} />
                              <ZAxis type="number" dataKey="count" range={[60, 400]} />
                              <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
@@ -502,11 +502,11 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                     </div>
                 </div>
 
-                {/* NOVO: ANÁLISE DE SUCATA (PIE CHART) */}
+                {/* NOVO: ANALISE DE SUCATA (PIE CHART) */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col h-[400px]">
                     <div className="mb-2">
-                       <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><Trash2 className="h-5 w-5 text-red-500"/> Análise de Sucateamento</h3>
-                       <p className="text-xs text-slate-500 mt-1">Motivos de saída definitiva da frota.</p>
+                       <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><Trash2 className="h-5 w-5 text-red-500"/> Analise de Sucateamento</h3>
+                       <p className="text-xs text-slate-500 mt-1">Motivos de saida definitiva da frota.</p>
                     </div>
                     
                     {scrapAnalysis.chartData.length > 0 ? (
@@ -557,7 +557,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
           {/* 5. DETAILED TABLE WITH COMPARISON */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
              <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">Detalhamento Técnico</h3>
+                <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide">Detalhamento Tecnico</h3>
                 <span className="text-xs text-slate-400 font-medium">Selecione para comparar</span>
              </div>
              <div className="overflow-x-auto">
@@ -568,10 +568,10 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                          <th className="p-4">Rank</th>
                          <th className="p-4">Marca / Modelo</th>
                          <th className="p-4 text-center">Amostra</th>
-                         <th className="p-4 text-right">Custo Médio (Novo)</th>
-                         <th className="p-4 text-right">Vida Útil (Proj)</th>
+                         <th className="p-4 text-right">Custo Medio (Novo)</th>
+                         <th className="p-4 text-right">Vida Util (Proj)</th>
                          <th className="p-4 text-right">CPK Efetivo</th>
-                         <th className="p-4 text-center">Confiança</th>
+                         <th className="p-4 text-center">Confianca</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -641,7 +641,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                               <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
                                   <Scale className="h-6 w-6 text-blue-600"/> Comparativo Direto
                               </h3>
-                              <p className="text-sm text-slate-500">Análise Head-to-Head de Performance</p>
+                              <p className="text-sm text-slate-500">Analise Head-to-Head de Performance</p>
                           </div>
                           <button onClick={() => setIsCompareModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6"/></button>
                       </div>
@@ -657,7 +657,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                                       <div key={item.key} className={`relative p-6 rounded-3xl border-2 transition-all ${isWinner ? 'bg-white dark:bg-slate-900 border-green-500 shadow-xl scale-105 z-10' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-90'}`}>
                                           {isWinner && (
                                               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-1">
-                                                  <Crown className="h-3 w-3"/> Melhor Opção
+                                                  <Crown className="h-3 w-3"/> Melhor Opcao
                                               </div>
                                           )}
                                           
@@ -676,13 +676,13 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
 
                                               <div className="grid grid-cols-2 gap-3">
                                                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-center">
-                                                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Vida Útil</p>
+                                                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Vida Util</p>
                                                       <p className={`text-sm font-black ${isLifeWinner ? 'text-blue-600' : 'text-slate-700 dark:text-slate-300'}`}>
                                                           {Math.round(item.avgProjectedLife / 1000)}k km
                                                       </p>
                                                   </div>
                                                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-center">
-                                                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Preço Médio</p>
+                                                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Preco Medio</p>
                                                       <p className="text-sm font-black text-slate-700 dark:text-slate-300">
                                                           {money(item.avgPurchasePrice)}
                                                       </p>
@@ -695,7 +695,7 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                                                           <TrendingDown className="h-3 w-3"/> Custo Extra
                                                       </p>
                                                       <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
-                                                          Este pneu custa <strong>{money(savings)}</strong> a mais que o líder a cada 100.000 km rodados.
+                                                          Este pneu custa <strong>{money(savings)}</strong> a mais que o lider a cada 100.000 km rodados.
                                                       </p>
                                                   </div>
                                               )}
@@ -703,10 +703,10 @@ export const StrategicAnalysis: FC<StrategicAnalysisProps> = ({
                                               {isWinner && (
                                                   <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-900/50">
                                                       <p className="text-[10px] font-bold text-green-600 uppercase flex items-center gap-1 mb-1">
-                                                          <CheckCircle2 className="h-3 w-3"/> Eficiência Máxima
+                                                          <CheckCircle2 className="h-3 w-3"/> Eficiencia Maxima
                                                       </p>
                                                       <p className="text-xs text-green-700 dark:text-green-400 leading-relaxed">
-                                                          A melhor relação custo-benefício baseada no histórico da sua frota.
+                                                          A melhor relacao custo-beneficio baseada no historico da sua frota.
                                                       </p>
                                                   </div>
                                               )}

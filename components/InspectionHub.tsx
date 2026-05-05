@@ -88,14 +88,14 @@ const SmartTreadGuideModal: FC<{ onClose: () => void; onCapture: (val: number) =
             onCapture(val);
             onClose();
         } else {
-            alert("Insira um valor válido.");
+            alert("Insira um valor valido.");
         }
     };
 
     return (
         <div className="fixed inset-0 z-[200] bg-black flex flex-col">
             <div className="p-4 flex justify-between items-center text-white bg-black/50 absolute top-0 left-0 right-0 z-10">
-                <h3 className="font-bold flex items-center gap-2"><ScanLine className="h-5 w-5 text-green-400"/> Guia de Medição TWI</h3>
+                <h3 className="font-bold flex items-center gap-2"><ScanLine className="h-5 w-5 text-green-400"/> Guia de Medicao TWI</h3>
                 <button onClick={onClose}><X className="h-6 w-6"/></button>
             </div>
 
@@ -108,7 +108,7 @@ const SmartTreadGuideModal: FC<{ onClose: () => void; onCapture: (val: number) =
                         <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
                             <div className="w-64 h-64 border-2 border-green-500/50 rounded-lg relative">
                                 <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 shadow-sm"></div>
-                                <p className="absolute -top-8 w-full text-center text-green-400 font-bold text-xs bg-black/50 px-2 py-1 rounded">Alinhe a régua/paquímetro aqui</p>
+                                <p className="absolute -top-8 w-full text-center text-green-400 font-bold text-xs bg-black/50 px-2 py-1 rounded">Alinhe a regua/paquimetro aqui</p>
                             </div>
                         </div>
 
@@ -300,7 +300,7 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 w-full md:w-[400px] shrink-0 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-20">
       <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
         <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Posição {tire.position}</span>
+            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Posicao {tire.position}</span>
             <span className="text-[10px] font-bold text-slate-400 uppercase">{tire.brand} {tire.model}</span>
         </div>
         <h2 className="text-4xl font-black text-slate-800 dark:text-white leading-none">{tire.fireNumber}</h2>
@@ -308,11 +308,11 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
             <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-tight">
                 <span>Km Total: <span className="text-slate-800 dark:text-white">{liveTotalKm.toLocaleString()}</span></span>
                 <span className="w-px h-3 bg-slate-200 dark:bg-slate-700"></span>
-                <span>Média Atual: <span className="text-slate-800 dark:text-white font-black">{data.depth?.toFixed(1) || tire.currentTreadDepth.toFixed(1)}mm</span></span>
+                <span>Media Atual: <span className="text-slate-800 dark:text-white font-black">{data.depth?.toFixed(1) || tire.currentTreadDepth.toFixed(1)}mm</span></span>
             </div>
             <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase border-t border-slate-50 dark:border-slate-800 pt-2">
-                <span>Última Inspeção: <span className="text-slate-600 dark:text-slate-300">{tire.lastInspectionDate ? new Date(tire.lastInspectionDate).toLocaleDateString() : 'N/A'}</span></span>
-                <span className="bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded text-blue-600 dark:text-blue-400">Última Média: <span className="font-black">{tire.currentTreadDepth.toFixed(1)}mm</span></span>
+                <span>Ultima Inspecao: <span className="text-slate-600 dark:text-slate-300">{tire.lastInspectionDate ? new Date(tire.lastInspectionDate).toLocaleDateString() : 'N/A'}</span></span>
+                <span className="bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded text-blue-600 dark:text-blue-400">Ultima Media: <span className="font-black">{tire.currentTreadDepth.toFixed(1)}mm</span></span>
             </div>
         </div>
       </div>
@@ -321,7 +321,7 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
         {/* PRESSURE SECTION */}
         <div className="space-y-2">
             <div className="flex justify-between items-end">
-               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><Gauge className="h-4 w-4 text-blue-500"/> Pressão PSI</h4>
+               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><Gauge className="h-4 w-4 text-blue-500"/> Pressao PSI</h4>
                <span className="text-[10px] font-bold text-slate-500">Alvo: {tire.targetPressure || 110}</span>
             </div>
             <input 
@@ -336,7 +336,7 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
         {/* DEPTH SECTION - FIXED 4 POINTS ALWAYS */}
         <div className="space-y-1">
             <div className="flex justify-between items-center mb-1">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><Ruler className="h-4 w-4 text-indigo-500"/> Medição de Sulcos (mm)</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><Ruler className="h-4 w-4 text-indigo-500"/> Medicao de Sulcos (mm)</h4>
                 <button 
                     onClick={() => setShowCamera(true)}
                     className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded text-[10px] font-bold hover:bg-indigo-100 transition-colors"
@@ -345,7 +345,7 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
                 </button>
             </div>
             
-            {/* Ilustração ultra-compacta com cores preto/verde */}
+            {/* Ilustracao ultra-compacta com cores preto/verde */}
             <TireWearProfile 
                 d1={Number(data.depth1) || tire.currentTreadDepth} 
                 d2={Number(data.depth2) || tire.currentTreadDepth} 
@@ -375,9 +375,9 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
             </div>
         </div>
 
-        {/* CHECKLIST DE INSPEÇÃO (QUICK FORM) */}
+        {/* CHECKLIST DE INSPECAO (QUICK FORM) */}
         <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500"/> Checklist de Inspeção</h4>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500"/> Checklist de Inspecao</h4>
             <div className="grid grid-cols-1 gap-2">
                 {DAMAGE_OPTIONS.map(opt => {
                     const isSelected = (data.visualDamages || []).includes(opt.id);
@@ -435,7 +435,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
   const [showComparison, setShowComparison] = useState(false);
 
   const tires = useMemo(() => {
-    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    // Pneus agora sao universais, mostramos todos independentemente da filial selecionada
     return allTires;
   }, [allTires]);
 
@@ -485,7 +485,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
         const d3 = Number(field === 'depth3' ? value : (current.depth3 || 0));
         const d4 = Number(field === 'depth4' ? value : (current.depth4 || 0));
         
-        // Calcula a média baseada nos 4 pontos obrigatoriamente
+        // Calcula a media baseada nos 4 pontos obrigatoriamente
         const avg = (d1 + d2 + d3 + d4) / 4;
         updates.depth = parseFloat(avg.toFixed(1));
       }
@@ -519,7 +519,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
         history: [...(activeTire.history || []), {
             date: new Date().toISOString(),
             action: 'INSPECAO',
-            details: `Inspeção realizada. KM apurado do pneu: ${liveTotalKms}km. Sulco Médio: ${data.depth}mm.`
+            details: `Inspecao realizada. KM apurado do pneu: ${liveTotalKms}km. Sulco Medio: ${data.depth}mm.`
         }]
       };
 
@@ -541,9 +541,9 @@ export const InspectionHub: FC<InspectionHubProps> = ({
                     <div className="p-3 bg-blue-600 rounded-2xl shadow-lg shadow-blue-600/20 text-white">
                         <CheckCircle2 className="h-8 w-8" />
                     </div>
-                    Terminal de Inspeção
+                    Terminal de Inspecao
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Selecione uma placa para iniciar o diagnóstico técnico detalhado.</p>
+                <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Selecione uma placa para iniciar o diagnostico tecnico detalhado.</p>
             </div>
         </div>
 
@@ -551,7 +551,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
           <Search className="absolute left-5 top-5 text-slate-400 h-6 w-6 group-focus-within:text-blue-500 transition-colors" />
           <input 
             type="text" 
-            placeholder="Buscar por placa ou modelo do veículo..." 
+            placeholder="Buscar por placa ou modelo do veiculo..." 
             className="w-full p-5 pl-14 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 text-lg font-bold shadow-sm transition-all" 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
@@ -579,13 +579,13 @@ export const InspectionHub: FC<InspectionHubProps> = ({
                                 setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
                                 setFilterPointId('current');
                             }, (err) => {
-                                alert("Erro ao obter localização: " + err.message);
+                                alert("Erro ao obter localizacao: " + err.message);
                             });
                         }
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${filterPointId === 'current' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-slate-300'}`}
                 >
-                    <Navigation className="h-3 w-3" /> Minha Localização
+                    <Navigation className="h-3 w-3" /> Minha Localizacao
                 </button>
 
                 {settings?.savedPoints?.map(point => (
@@ -628,7 +628,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
           </button>
           <div>
             <h2 className="text-xl font-black text-slate-800 dark:text-white leading-none">{selectedVehicle.plate}</h2>
-            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Inspeção Profissional</span>
+            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Inspecao Profissional</span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -659,7 +659,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
                   </div>
                   <div>
                     <p className="font-black text-slate-800 dark:text-white text-sm">Selecione um Pneu</p>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Toque na posição no esquema ao lado</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Toque na posicao no esquema ao lado</p>
                   </div>
               </div>
           )}

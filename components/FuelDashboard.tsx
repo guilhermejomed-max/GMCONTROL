@@ -68,7 +68,7 @@ export const FuelDashboard: React.FC<Props> = ({
       const fuelT = String(e.fuelType || '').toUpperCase();
       const isGasFuel = e.category === 'GAS' || 
                         fuelT.includes('GNV') || 
-                        fuelT.includes('GÁS') || 
+                        fuelT.includes('GAS') || 
                         fuelT === 'GAS' ||
                         fuelT.includes('GAS ') ||
                         (e.kg && e.kg > 0);
@@ -322,7 +322,7 @@ export const FuelDashboard: React.FC<Props> = ({
     
     fuelEntries.forEach(e => {
       const vehicle = vehicles.find(v => v.id === e.vehicleId);
-      const modelName = vehicle?.model || 'Não Identificado';
+      const modelName = vehicle?.model || 'Nao Identificado';
       
       if (!modelGroups[modelName]) {
         modelGroups[modelName] = { vehicleIds: new Set(), entries: [] };
@@ -359,7 +359,7 @@ export const FuelDashboard: React.FC<Props> = ({
             totalLiters += sorted.slice(1).reduce((acc, e) => {
               const isGasE = e.category === 'GAS' || 
                              String(e.fuelType || '').toUpperCase().includes('GNV') || 
-                             String(e.fuelType || '').toUpperCase().includes('GÁS') ||
+                             String(e.fuelType || '').toUpperCase().includes('GAS') ||
                              (Number(e.kg) > 0);
               const volume = isGasE ? (Number(e.liters) || Number(e.kg) || 0) : (Number(e.liters) || 0);
               return acc + volume;
@@ -413,17 +413,17 @@ export const FuelDashboard: React.FC<Props> = ({
       .sort((a, b) => Number(b.odometer || 0) - Number(a.odometer || 0))[0];
 
     if (isImplausibleImportedOdometer(entryOdometer)) {
-      alert(`KM inválido para abastecimento: ${entryOdometer.toLocaleString('pt-BR')} km.`);
+      alert(`KM invalido para abastecimento: ${entryOdometer.toLocaleString('pt-BR')} km.`);
       return;
     }
 
     if (latestVehicleEntry && entryOdometer <= Number(latestVehicleEntry.odometer || 0)) {
-      alert(`KM regressivo no abastecimento.\n\nÚltimo KM registrado: ${Number(latestVehicleEntry.odometer || 0).toLocaleString('pt-BR')} km\nKM informado: ${entryOdometer.toLocaleString('pt-BR')} km`);
+      alert(`KM regressivo no abastecimento.\n\nUltimo KM registrado: ${Number(latestVehicleEntry.odometer || 0).toLocaleString('pt-BR')} km\nKM informado: ${entryOdometer.toLocaleString('pt-BR')} km`);
       return;
     }
 
     if (vehicle?.odometer && entryOdometer < vehicle.odometer && vehicle.odometer - entryOdometer > 1000) {
-      const proceed = confirm(`O KM informado está ${Number(vehicle.odometer - entryOdometer).toLocaleString('pt-BR')} km abaixo do hodômetro atual do veículo.\n\nDeseja registrar mesmo assim?`);
+      const proceed = confirm(`O KM informado esta ${Number(vehicle.odometer - entryOdometer).toLocaleString('pt-BR')} km abaixo do hodometro atual do veiculo.\n\nDeseja registrar mesmo assim?`);
       if (!proceed) return;
     }
     let stationName = newEntry.stationName;
@@ -512,10 +512,10 @@ export const FuelDashboard: React.FC<Props> = ({
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
             <Fuel className="h-7 w-7 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
-            Controle de Abastecimento {fuelCategory === 'GAS' ? 'a GÁS' : ''}
+            Controle de Abastecimento {fuelCategory === 'GAS' ? 'a GAS' : ''}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 text-sm">
-            Gestão de consumo, médias de {unitKm} e custos de combustível.
+            Gestao de consumo, medias de {unitKm} e custos de combustivel.
           </p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
@@ -586,11 +586,11 @@ export const FuelDashboard: React.FC<Props> = ({
                 value={periodFilter}
                 onChange={e => setPeriodFilter(e.target.value as any)}
               >
-                <option value="ALL">Todo Período</option>
-                <option value="30D">Últimos 30 Dias</option>
-                <option value="60D">Últimos 60 Dias</option>
-                <option value="90D">Últimos 90 Dias</option>
-                <option value="1Y">Último Ano</option>
+                <option value="ALL">Todo Periodo</option>
+                <option value="30D">Ultimos 30 Dias</option>
+                <option value="60D">Ultimos 60 Dias</option>
+                <option value="90D">Ultimos 90 Dias</option>
+                <option value="1Y">Ultimo Ano</option>
                 <option value="CUSTOM">Personalizado</option>
               </select>
             </div>
@@ -603,7 +603,7 @@ export const FuelDashboard: React.FC<Props> = ({
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
                 />
-                <span className="text-slate-300">até</span>
+                <span className="text-slate-300">ate</span>
                 <input 
                   type="date" 
                   className="text-[10px] font-bold bg-slate-50 dark:bg-slate-800 border-none rounded-lg px-2 py-1 outline-none dark:text-white"
@@ -627,7 +627,7 @@ export const FuelDashboard: React.FC<Props> = ({
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input 
                     type="text" 
-                    placeholder="Buscar veículo..." 
+                    placeholder="Buscar veiculo..." 
                     className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
@@ -635,7 +635,7 @@ export const FuelDashboard: React.FC<Props> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-slate-400" />
-                  <span className="text-xs font-bold text-slate-500 uppercase">Médias por Modelo ({unitKm})</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Medias por Modelo ({unitKm})</span>
                 </div>
               </div>
 
@@ -672,14 +672,14 @@ export const FuelDashboard: React.FC<Props> = ({
               <div className="bg-white dark:bg-slate-900 pl-4 pt-[10px] pr-4 pb-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <HistoryIcon className="h-4 w-4 text-purple-500" /> Histórico Recente
+                    <HistoryIcon className="h-4 w-4 text-purple-500" /> Historico Recente
                   </h3>
                   <select 
                     className="text-[10px] font-bold bg-slate-50 dark:bg-slate-800 border-none rounded-lg px-2 py-1 outline-none dark:text-white"
                     value={filterVehicleId}
                     onChange={e => setFilterVehicleId(e.target.value)}
                   >
-                    <option value="ALL">Todos Veículos</option>
+                    <option value="ALL">Todos Veiculos</option>
                     {vehicles.filter(v => v.type === 'CAVALO').map(v => (
                       <option key={v.id} value={v.id}>{v.plate}</option>
                     ))}

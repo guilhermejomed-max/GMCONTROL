@@ -39,7 +39,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 500 * 1024) {
-      alert("A foto deve ter no máximo 500KB.");
+      alert("A foto deve ter no maximo 500KB.");
       return;
     }
     const reader = new FileReader();
@@ -150,7 +150,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
             <ShieldCheck className="h-8 w-8 text-purple-600" />
             Estoque de EPI
           </h2>
-          <p className="text-slate-500 font-medium">Controle de Equipamentos de Proteção Individual</p>
+          <p className="text-slate-500 font-medium">Controle de Equipamentos de Protecao Individual</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -185,7 +185,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
           <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 w-fit mb-4">
             <AlertTriangle className="h-6 w-6" />
           </div>
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Abaixo do Mínimo</p>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Abaixo do Minimo</p>
           <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{itemsBelowMin}</p>
         </motion.div>
 
@@ -229,9 +229,9 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">CA</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Item</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Quantidade</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Mínimo</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Minimo</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Acoes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -278,7 +278,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                     {item.quantity < item.minQuantity ? (
                       <span className="flex items-center gap-1.5 text-red-600 font-black text-[10px] uppercase bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded w-fit">
                         <AlertTriangle className="h-3 w-3" />
-                        Reposição
+                        Reposicao
                       </span>
                     ) : (
                       <span className="text-emerald-600 font-black text-[10px] uppercase bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded w-fit flex items-center gap-1.5">
@@ -295,7 +295,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                           setIsMovementModalOpen(true);
                         }}
                         className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" 
-                        title="Dar Baixa (Saída)"
+                        title="Dar Baixa (Saida)"
                       >
                         <ArrowDownRight className="h-5 w-5" />
                       </button>
@@ -385,7 +385,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                       className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 font-bold dark:text-white"
                       value={newItemData.name}
                       onChange={e => setNewItemData({...newItemData, name: e.target.value.toUpperCase()})}
-                      placeholder="EX: CAPACETE DE SEGURANÇA"
+                      placeholder="EX: CAPACETE DE SEGURANCA"
                    />
                 </div>
 
@@ -428,7 +428,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                       />
                    </div>
                    <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Qtd Mínima</label>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Qtd Minima</label>
                       <input
                           type="number"
                           required
@@ -440,7 +440,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                 </div>
 
                 <div>
-                   <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Descrição</label>
+                   <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Descricao</label>
                    <textarea
                       className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 font-bold dark:text-white min-h-[80px]"
                       value={newItemData.description}
@@ -461,7 +461,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
         )}
       </AnimatePresence>
 
-      {/* MODAL: MOVIMENTAÇÃO (ENTRADA/BAIXA) */}
+      {/* MODAL: MOVIMENTACAO (ENTRADA/BAIXA) */}
       <AnimatePresence>
         {isMovementModalOpen && selectedItem && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -528,7 +528,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                 )}
 
                 <div>
-                   <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Anotações</label>
+                   <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Anotacoes</label>
                    <textarea
                       className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-600 font-bold dark:text-white min-h-[60px]"
                       value={movementData.notes}
@@ -582,27 +582,27 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
 
                    <div className="space-y-6">
                       <div>
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 block">CA (Certificado de Aprovação)</label>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 block">CA (Certificado de Aprovacao)</label>
                          <div className="text-lg font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-1.5 rounded-xl inline-block border border-emerald-100 dark:border-emerald-500/20">
-                            {selectedDetailItem.caNumber || 'NÃO INFORMADO'}
+                            {selectedDetailItem.caNumber || 'NAO INFORMADO'}
                          </div>
                          <h2 className="text-2xl font-black text-slate-800 dark:text-white mt-4 uppercase leading-tight">{selectedDetailItem.name}</h2>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                          <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Disponível</label>
+                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Disponivel</label>
                             <div className="text-xl font-black text-slate-800 dark:text-white">{selectedDetailItem.quantity} {selectedDetailItem.unit}</div>
                          </div>
                          <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Mínimo</label>
+                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Minimo</label>
                             <div className="text-xl font-black text-slate-800 dark:text-white">{selectedDetailItem.minQuantity} {selectedDetailItem.unit}</div>
                          </div>
                       </div>
 
                       {selectedDetailItem.description && (
                          <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Descrição</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Descricao</label>
                             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{selectedDetailItem.description}</p>
                          </div>
                       )}
@@ -611,7 +611,7 @@ export const PpeStock: FC<PpeStockProps> = ({ orgId, collaborators }) => {
                          <div className="flex items-center gap-2">
                             <div className={`h-2.5 w-2.5 rounded-full ${selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`} />
                             <span className={`text-[10px] font-black uppercase ${selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'text-red-500' : 'text-emerald-500'}`}>
-                               {selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'REPOSIÇÃO NECESSÁRIA' : 'ESTOQUE ADEQUADO'}
+                               {selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'REPOSICAO NECESSARIA' : 'ESTOQUE ADEQUADO'}
                             </span>
                          </div>
                       </div>

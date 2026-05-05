@@ -33,7 +33,7 @@ export const DriversHub: FC<DriversHubProps> = ({
   const vehicles = allVehicles;
 
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -177,9 +177,9 @@ export const DriversHub: FC<DriversHubProps> = ({
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
           <div>
              <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
-                <UserSquare2 className="h-7 w-7 text-blue-600" /> Gestão de Motoristas
+                <UserSquare2 className="h-7 w-7 text-blue-600" /> Gestao de Motoristas
              </h2>
-             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Controle de condutores e atribuição de veículos.</p>
+             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Controle de condutores e atribuicao de veiculos.</p>
           </div>
           <button 
              onClick={() => handleOpenModal()} 
@@ -236,8 +236,8 @@ export const DriversHub: FC<DriversHubProps> = ({
                    
                    <div className="space-y-2 mb-4">
                       <div className="flex items-center justify-between text-sm p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
-                         <span className="text-slate-500 dark:text-slate-400 flex items-center gap-2"><Truck className="h-4 w-4"/> Veículo</span>
-                         <span className="font-bold text-slate-800 dark:text-white">{assignedVehicle ? assignedVehicle.plate : 'Não atribuído'}</span>
+                         <span className="text-slate-500 dark:text-slate-400 flex items-center gap-2"><Truck className="h-4 w-4"/> Veiculo</span>
+                         <span className="font-bold text-slate-800 dark:text-white">{assignedVehicle ? assignedVehicle.plate : 'Nao atribuido'}</span>
                       </div>
                       <div className="flex items-center justify-between text-sm p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-2"><Phone className="h-4 w-4"/> Contato</span>
@@ -246,7 +246,7 @@ export const DriversHub: FC<DriversHubProps> = ({
                    </div>
 
                    <div className="flex items-center gap-2 text-xs text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
-                      <Calendar className="h-3 w-3" /> Admissão: {new Date(driver.hiredDate).toLocaleDateString()}
+                      <Calendar className="h-3 w-3" /> Admissao: {new Date(driver.hiredDate).toLocaleDateString()}
                    </div>
                 </div>
              );
@@ -325,9 +325,9 @@ export const DriversHub: FC<DriversHubProps> = ({
                       <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Telefone</label><input type="text" className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
                    </div>
                    <div>
-                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Veículo Atribuído</label>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Veiculo Atribuido</label>
                       <select className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg outline-none focus:border-blue-500 text-slate-800 dark:text-white" value={assignedVehicleId} onChange={e => setAssignedVehicleId(e.target.value)}>
-                         <option value="">Sem veículo</option>
+                         <option value="">Sem veiculo</option>
                          {[...vehicles].sort((a, b) => a.plate.localeCompare(b.plate)).map(v => (
                             <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
                          ))}

@@ -42,7 +42,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
               <Fuel className="h-6 w-6 text-blue-600" /> Novo Abastecimento
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-              Registre o consumo e custo do veículo
+              Registre o consumo e custo do veiculo
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
@@ -53,7 +53,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
         <form onSubmit={onSubmit} className="p-4 sm:p-8 overflow-y-auto custom-scrollbar flex-1 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Veículo (Cavalo)</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Veiculo (Cavalo)</label>
               <div className="relative">
                 <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <select 
@@ -62,7 +62,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                   onChange={e => setNewEntry(prev => ({ ...prev, vehicleId: e.target.value }))}
                   required
                 >
-                  <option value="">Selecione um veículo</option>
+                  <option value="">Selecione um veiculo</option>
                   {vehicles.filter(v => v.type === 'CAVALO').map(v => (
                     <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
                   ))}
@@ -85,7 +85,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Tipo de Combustível</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Tipo de Combustivel</label>
               <div className="relative">
                 <Droplets className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <select 
@@ -107,7 +107,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                 <input 
                   type="text"
                   className="mt-2 w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white uppercase"
-                  placeholder="DIGITE O TIPO DE COMBUSTÍVEL"
+                  placeholder="DIGITE O TIPO DE COMBUSTIVEL"
                   onChange={e => setNewEntry(prev => ({ ...prev, fuelType: e.target.value.toUpperCase() }))}
                   autoFocus
                 />
@@ -148,7 +148,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
             )}
 
             <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Preço Unitário (R$)</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Preco Unitario (R$)</label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input 
@@ -164,7 +164,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Odômetro Atual (KM)</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Odometro Atual (KM)</label>
               <div className="relative">
                 <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input 
@@ -177,7 +177,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                 />
               </div>
               {lastOdometer > 0 && (
-                <p className="text-[9px] font-bold text-slate-400 mt-1 ml-1">Último registro: {lastOdometer.toLocaleString()} KM</p>
+                <p className="text-[9px] font-bold text-slate-400 mt-1 ml-1">Ultimo registro: {lastOdometer.toLocaleString()} KM</p>
               )}
             </div>
 
@@ -242,7 +242,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                   <TrendingUp className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-orange-800 dark:text-orange-300 uppercase tracking-wider">Média Estimada</p>
+                  <p className="text-[10px] font-black text-orange-800 dark:text-orange-300 uppercase tracking-wider">Media Estimada</p>
                   <p className="text-lg font-black text-orange-600">{currentKmPerLiter.toFixed(2)} {unitKm}</p>
                 </div>
               </div>

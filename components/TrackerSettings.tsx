@@ -34,11 +34,11 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
     setMessage(null);
     try {
       await storageService.saveTrackerSettings(orgId, settings);
-      setMessage({ type: 'success', text: 'Configurações do rastreador salvas com sucesso!' });
+      setMessage({ type: 'success', text: 'Configuracoes do rastreador salvas com sucesso!' });
       if (onSave) onSave();
     } catch (error) {
       console.error('Error saving tracker settings:', error);
-      setMessage({ type: 'error', text: 'Erro ao salvar configurações.' });
+      setMessage({ type: 'error', text: 'Erro ao salvar configuracoes.' });
     } finally {
       setSaving(false);
     }
@@ -60,7 +60,7 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
             <Shield size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Configurações do Rastreador</h2>
+            <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Configuracoes do Rastreador</h2>
             <p className="text-sm text-slate-500 italic">Acesso restrito ao administrador</p>
           </div>
         </div>
@@ -71,7 +71,7 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
           <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-2 text-blue-700">
               <Calendar size={18} />
-              <span className="text-sm font-bold uppercase tracking-tight">Última Sincronização Automática</span>
+              <span className="text-sm font-bold uppercase tracking-tight">Ultima Sincronizacao Automatica</span>
             </div>
             <span className="text-sm font-black text-blue-900">
               {new Date(settings.lastSyncAt).toLocaleString('pt-BR')}
@@ -109,7 +109,7 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
                 <User size={16} className="text-slate-400" />
-                Usuário / Login
+                Usuario / Login
               </label>
               <input
                 type="text"
@@ -149,7 +149,7 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
                 }`}
               />
             </button>
-            <span className="text-sm font-medium text-slate-700">Ativar integração automática</span>
+            <span className="text-sm font-medium text-slate-700">Ativar integracao automatica</span>
           </div>
         </div>
 
@@ -164,7 +164,7 @@ const TrackerSettingsComponent: React.FC<TrackerSettingsProps> = ({ orgId, onSav
             ) : (
               <>
                 <Save size={20} />
-                Salvar Configurações
+                Salvar Configuracoes
               </>
             )}
           </button>

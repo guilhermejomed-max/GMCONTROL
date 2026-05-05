@@ -17,12 +17,12 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
   const minDepth = settings?.minTreadDepth || 3.0;
   const warnDepth = settings?.warningTreadDepth || 5.0;
 
-  // Ordenar pneus por posição para a tabela
+  // Ordenar pneus por posicao para a tabela
   const sortedTires = useMemo(() => {
       return [...tires].sort((a, b) => (a.position || '').localeCompare(b.position || ''));
   }, [tires]);
 
-  // --- MOTOR DE ANÁLISE DETALHADA ---
+  // --- MOTOR DE ANALISE DETALHADA ---
   const tireAnalysis = useMemo(() => {
       return sortedTires.map(t => {
           const data = inspectionData[t.id] || ({} as Partial<InspectionRecord>);
@@ -31,7 +31,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
           const originalDepth = t.originalTreadDepth || 18.0;
           const price = t.price || 0;
 
-          // 1. Vida Útil
+          // 1. Vida Util
           const totalRubber = originalDepth - minDepth;
           const remainingRubber = Math.max(0, currentDepth - minDepth);
           const lifePercentage = totalRubber > 0 ? (remainingRubber / totalRubber) * 100 : 0;
@@ -39,7 +39,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
           // 2. Valor Residual (Quanto $$ ainda tem de borracha)
           const residualValue = price * (lifePercentage / 100);
 
-          // 3. Projeção de KM Total (Passado + Futuro)
+          // 3. Projecao de KM Total (Passado + Futuro)
           const kmRunOnVehicle = t.installOdometer ? Math.max(0, vehicle.odometer - t.installOdometer) : 0;
           const totalKmRun = (t.totalKms || 0) + kmRunOnVehicle;
           
@@ -47,19 +47,19 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
           let remainingKm = 0;
           const depthConsumed = originalDepth - currentDepth;
 
-          // Só projeta se tiver rodagem significativa e desgaste mensurável
+          // So projeta se tiver rodagem significativa e desgaste mensuravel
           if (totalKmRun > 2000 && depthConsumed > 0.5) {
               const mmPerKm = depthConsumed / totalKmRun;
               remainingKm = remainingRubber / mmPerKm;
               
-              // AQUI: A projeção agora é o KM TOTAL (Rodado + Restante)
+              // AQUI: A projecao agora e o KM TOTAL (Rodado + Restante)
               projectedTotalLife = totalKmRun + remainingKm;
               
-              // Cap de segurança para evitar números irreais
+              // Cap de seguranca para evitar numeros irreais
               if (projectedTotalLife > 300000) projectedTotalLife = 300000;
           }
 
-          // 4. Status Técnico
+          // 4. Status Tecnico
           let status: 'OK' | 'WARNING' | 'CRITICAL' = 'OK';
           let action = 'MANTER';
           
@@ -68,7 +68,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
               action = 'TROCAR';
           } else if (currentDepth <= warnDepth) {
               status = 'WARNING';
-              action = 'ATENÇÃO';
+              action = 'ATENCAO';
           }
 
           return {
@@ -80,18 +80,18 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
               projectedTotalLife,
               remainingKm,
               totalKmRun,
-              cpk: 0, // Será calculado depois com a média
+              cpk: 0, // Sera calculado depois com a media
               status,
               action
           };
       });
   }, [sortedTires, inspectionData, vehicle.odometer, minDepth, warnDepth]);
 
-  // --- RECALCULAR PROJEÇÕES COM MÉDIA POR MODELO ---
+  // --- RECALCULAR PROJECOES COM MEDIA POR MODELO ---
   const tireAnalysisWithAverages = useMemo(() => {
       const modelStats: Record<string, { totalProjected: number, count: number }> = {};
       
-      // 1. Calcular média por modelo
+      // 1. Calcular media por modelo
       tireAnalysis.forEach(item => {
           const modelKey = `${item.tire.brand}-${item.tire.model}`;
           if (item.projectedTotalLife > 0) {
@@ -101,7 +101,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
           }
       });
 
-      // 2. Aplicar média e calcular CPK
+      // 2. Aplicar media e calcular CPK
       return tireAnalysis.map(item => {
           const modelKey = `${item.tire.brand}-${item.tire.model}`;
           const stats = modelStats[modelKey];
@@ -118,7 +118,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
       });
   }, [tireAnalysis]);
 
-  // --- ANÁLISE COMPARATIVA DE MARCAS (BENCHMARK) ---
+  // --- ANALISE COMPARATIVA DE MARCAS (BENCHMARK) ---
   const brandAnalysis = useMemo(() => {
       const stats: Record<string, { totalLife: number, totalCpk: number, cpkCount: number, count: number, name: string, totalProjectedKm: number }> = {};
       
@@ -150,7 +150,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                   hasData: s.cpkCount > 0
               };
           })
-          .filter(s => s.hasData) // Só considera marcas com dados suficientes de rodagem
+          .filter(s => s.hasData) // So considera marcas com dados suficientes de rodagem
           .sort((a, b) => a.avgCpk - b.avgCpk); // Menor CPK (Melhor) primeiro
 
       return {
@@ -160,7 +160,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
       };
   }, [tireAnalysis]);
 
-  // --- ANÁLISE DE CONJUNTO (GEMINADOS) ---
+  // --- ANALISE DE CONJUNTO (GEMINADOS) ---
   const twinsAnalysis = useMemo(() => {
       const issues: string[] = [];
       const groups: Record<string, typeof tireAnalysis> = {};
@@ -187,7 +187,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
       return issues;
   }, [tireAnalysis]);
 
-  // --- AUDITORIA AUTOMÁTICA DE DESVIO DE PERFORMANCE (DEEP ANALYTICS) ---
+  // --- AUDITORIA AUTOMATICA DE DESVIO DE PERFORMANCE (DEEP ANALYTICS) ---
   const deepAnalyticsAnomalies = useMemo(() => {
       const anomalies: { 
           title: string; 
@@ -210,7 +210,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
       });
 
       Object.entries(axles).forEach(([axleNum, items]) => {
-          // Filtra pneus com desgaste mensurável para análise confiável
+          // Filtra pneus com desgaste mensuravel para analise confiavel
           const validItems = items.filter(i => (i.tire.originalTreadDepth! - i.currentDepth) > 1.5);
           
           if (validItems.length >= 2) {
@@ -219,7 +219,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                       const t1 = validItems[i];
                       const t2 = validItems[j];
                       
-                      // Usa a taxa de desgaste (mm/km) se ambos tiverem rodagem, senão usa o desgaste absoluto
+                      // Usa a taxa de desgaste (mm/km) se ambos tiverem rodagem, senao usa o desgaste absoluto
                       let wear1 = 0;
                       let wear2 = 0;
                       
@@ -227,7 +227,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                           wear1 = (t1.tire.originalTreadDepth! - t1.currentDepth) / t1.totalKmRun;
                           wear2 = (t2.tire.originalTreadDepth! - t2.currentDepth) / t2.totalKmRun;
                       } else {
-                          // Se não tem km confiável, compara apenas a profundidade atual assumindo que foram instalados juntos
+                          // Se nao tem km confiavel, compara apenas a profundidade atual assumindo que foram instalados juntos
                           wear1 = t1.tire.originalTreadDepth! - t1.currentDepth;
                           wear2 = t2.tire.originalTreadDepth! - t2.currentDepth;
                       }
@@ -235,7 +235,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                       if (wear1 > 0 && wear2 > 0) {
                           const diffRatio = Math.max(wear1, wear2) / Math.min(wear1, wear2);
                           
-                          if (diffRatio > 1.18) { // > 18% de diferença
+                          if (diffRatio > 1.18) { // > 18% de diferenca
                               const faster = wear1 > wear2 ? t1 : t2;
                               const slower = wear1 > wear2 ? t2 : t1;
                               const percentDiff = Math.round((diffRatio - 1) * 100);
@@ -248,23 +248,23 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                               
                               if ((pos1.includes('E') && pos2.includes('D')) || (pos1.includes('D') && pos2.includes('E'))) {
                                   if (axleNum === "1") {
-                                      cause = "Desalinhamento severo (convergência/divergência) ou folga no terminal de direção.";
-                                      action = "Agendar alinhamento de direção e balanceamento imediato.";
+                                      cause = "Desalinhamento severo (convergencia/divergencia) ou folga no terminal de direcao.";
+                                      action = "Agendar alinhamento de direcao e balanceamento imediato.";
                                   } else {
                                       cause = "Arraste por folga no pino rei, embuchamento do tensor desgastado ou excesso de frenagem em curva.";
-                                      action = "Inspecionar suspensão, embuchamento e revisar telemetria de frenagem.";
+                                      action = "Inspecionar suspensao, embuchamento e revisar telemetria de frenagem.";
                                   }
                               } else if ((pos1.includes('I') && pos2.includes('E')) || (pos1.includes('E') && pos2.includes('I'))) {
-                                  cause = "Diferença de pressão entre os geminados (pneu mais vazio arrasta) ou problema de cambagem no eixo.";
-                                  action = "Calibrar imediatamente e verificar válvulas. Se persistir, revisar cambagem do eixo.";
+                                  cause = "Diferenca de pressao entre os geminados (pneu mais vazio arrasta) ou problema de cambagem no eixo.";
+                                  action = "Calibrar imediatamente e verificar valvulas. Se persistir, revisar cambagem do eixo.";
                               } else {
                                   cause = "Desgaste irregular acentuado.";
-                                  action = "Inspecionar conjunto mecânico.";
+                                  action = "Inspecionar conjunto mecanico.";
                               }
 
                               anomalies.push({
-                                  title: `Alerta de Má Condução ou Erro de Montagem`,
-                                  description: `Veículo ${vehicle.plate}: O pneu da posição ${pos1} está desgastando ${percentDiff}% mais rápido que o par (posição ${pos2}).`,
+                                  title: `Alerta de Ma Conducao ou Erro de Montagem`,
+                                  description: `Veiculo ${vehicle.plate}: O pneu da posicao ${pos1} esta desgastando ${percentDiff}% mais rapido que o par (posicao ${pos2}).`,
                                   cause: cause,
                                   action: action,
                                   severity: percentDiff > 25 ? 'high' : 'medium'
@@ -276,7 +276,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
           }
       });
 
-      // Remove duplicatas baseadas na descrição
+      // Remove duplicatas baseadas na descricao
       const uniqueAnomalies = anomalies.filter((v, i, a) => a.findIndex(t => (t.description === v.description)) === i);
       
       return uniqueAnomalies.sort((a, b) => b.severity.localeCompare(a.severity)).slice(0, 1); // Mostra apenas a pior anomalia
@@ -321,20 +321,20 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
           const edgeAvg = (readings[0] + readings[readings.length - 1]) / 2;
 
           let diagnosis = 'Desgaste irregular transversal.';
-          let cause = 'Pode haver desalinhamento, diferença de pressão, folga de suspensão ou montagem inadequada.';
-          let action = 'Conferir pressão, alinhamento, balanceamento e componentes de suspensão.';
+          let cause = 'Pode haver desalinhamento, diferenca de pressao, folga de suspensao ou montagem inadequada.';
+          let action = 'Conferir pressao, alinhamento, balanceamento e componentes de suspensao.';
 
           if (centerAvg + 1.0 < edgeAvg) {
               diagnosis = 'Desgaste maior nas bordas.';
-              cause = 'Pressão baixa, excesso de carga ou rodagem prolongada sem calibragem.';
-              action = 'Calibrar, conferir vazamento de válvula e revisar política de pressão por eixo/carga.';
+              cause = 'Pressao baixa, excesso de carga ou rodagem prolongada sem calibragem.';
+              action = 'Calibrar, conferir vazamento de valvula e revisar politica de pressao por eixo/carga.';
           } else if (edgeAvg + 1.0 < centerAvg) {
               diagnosis = 'Desgaste maior no centro.';
-              cause = 'Pressão acima do ideal ou pneu trabalhando com carga menor que a calibragem aplicada.';
-              action = 'Reduzir para pressão alvo, validar carga real e registrar nova medição após rodagem.';
+              cause = 'Pressao acima do ideal ou pneu trabalhando com carga menor que a calibragem aplicada.';
+              action = 'Reduzir para pressao alvo, validar carga real e registrar nova medicao apos rodagem.';
           } else if (Math.abs(leftAvg - rightAvg) >= 1.2) {
               diagnosis = leftAvg < rightAvg ? 'Lado esquerdo gastando mais.' : 'Lado direito gastando mais.';
-              cause = 'Tendência de desalinhamento, cambagem, eixo arrastando ou rota com esforço lateral repetitivo.';
+              cause = 'Tendencia de desalinhamento, cambagem, eixo arrastando ou rota com esforco lateral repetitivo.';
               action = 'Agendar alinhamento/cambagem e verificar buchas, terminais e rolamentos.';
           }
 
@@ -354,14 +354,14 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
               tire: item.tire,
               pressure: item.pressure,
               target: item.tire.targetPressure,
-              action: item.pressure > item.tire.targetPressure ? 'Baixar pressão e reavaliar desgaste central.' : 'Calibrar e verificar vazamento.'
+              action: item.pressure > item.tire.targetPressure ? 'Baixar pressao e reavaliar desgaste central.' : 'Calibrar e verificar vazamento.'
           }));
 
       const immediateActions = [
           ...scored.filter(item => item.status === 'CRITICAL').map(item => ({
               priority: 'CRITICO',
               title: `${item.tire.position} - ${item.tire.fireNumber}`,
-              action: `Trocar pneu ou retirar de operação. Sulco atual: ${item.currentDepth.toFixed(1)} mm.`
+              action: `Trocar pneu ou retirar de operacao. Sulco atual: ${item.currentDepth.toFixed(1)} mm.`
           })),
           ...irregularWear.slice(0, 4).map(item => ({
               priority: 'ALTO',
@@ -397,12 +397,12 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
 
       const dateStr = new Date().toLocaleDateString('pt-BR');
       
-      // --- GERAR HTML DO PARECER TÉCNICO ---
+      // --- GERAR HTML DO PARECER TECNICO ---
       let verdictHtml = '';
 
       if (brandAnalysis.winner) {
           const w = brandAnalysis.winner;
-          // Se tiver um perdedor (loser), usa ele. Se não, se tiver mais de 1 marca, pega o segundo. Se só tiver 1 marca, null.
+          // Se tiver um perdedor (loser), usa ele. Se nao, se tiver mais de 1 marca, pega o segundo. Se so tiver 1 marca, null.
           const l = brandAnalysis.loser && brandAnalysis.loser.name !== w.name ? brandAnalysis.loser : (brandAnalysis.all.length > 1 ? brandAnalysis.all[1] : null);
           
           if (l) {
@@ -412,14 +412,14 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
 
               verdictHtml = `
                 <div class="benchmark-card">
-                    <div class="benchmark-header">PARECER TÉCNICO: ANÁLISE DE CPK (Custo por KM)</div>
+                    <div class="benchmark-header">PARECER TECNICO: ANALISE DE CPK (Custo por KM)</div>
                     <div class="benchmark-grid">
                         <!-- VENCEDOR -->
                         <div class="bm-col win">
                             <div class="bm-tag">MELHOR DESEMPENHO</div>
                             <h2 class="bm-brand">${w.name}</h2>
                             <div class="bm-stat">
-                                <span>CPK Médio:</span>
+                                <span>CPK Medio:</span>
                                 <strong>${money5(w.avgCpk)}</strong>
                             </div>
                             <div class="bm-stat">
@@ -427,7 +427,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                                 <strong>${Math.round(w.avgLifeKm).toLocaleString()} km</strong>
                             </div>
                             <div class="bm-summary">
-                                Resumo: Apresenta maior durabilidade da borracha, entregando <strong>+${Math.round(kmDiff/1000)}k km</strong> de vida útil média.
+                                Resumo: Apresenta maior durabilidade da borracha, entregando <strong>+${Math.round(kmDiff/1000)}k km</strong> de vida util media.
                             </div>
                         </div>
 
@@ -436,7 +436,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                             <div class="bm-tag gray">COMPARATIVO</div>
                             <h2 class="bm-brand" style="color: #64748b;">${l.name}</h2>
                             <div class="bm-stat">
-                                <span>CPK Médio:</span>
+                                <span>CPK Medio:</span>
                                 <strong>${money5(l.avgCpk)}</strong>
                             </div>
                             <div class="bm-stat">
@@ -444,35 +444,35 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                                 <strong>${Math.round(l.avgLifeKm).toLocaleString()} km</strong>
                             </div>
                             <div class="bm-summary" style="color: #64748b;">
-                                Resumo: Custo quilométrico <strong>${percentDiff.toFixed(1)}% maior</strong> devido ao desgaste mais acelerado nesta operação.
+                                Resumo: Custo quilometrico <strong>${percentDiff.toFixed(1)}% maior</strong> devido ao desgaste mais acelerado nesta operacao.
                             </div>
                         </div>
                     </div>
                     
                     <div class="verdict-footer">
-                        <strong>RESULTADO FINAL:</strong> A utilização de pneus <strong>${w.name}</strong> gera uma economia técnica de 
-                        <strong>R$ ${cpkDiff.toFixed(5)}</strong> a cada quilômetro rodado por pneu em relação à concorrente comparada.
+                        <strong>RESULTADO FINAL:</strong> A utilizacao de pneus <strong>${w.name}</strong> gera uma economia tecnica de 
+                        <strong>R$ ${cpkDiff.toFixed(5)}</strong> a cada quilometro rodado por pneu em relacao a concorrente comparada.
                     </div>
                 </div>
               `;
           } else {
-              // Só uma marca detectada
+              // So uma marca detectada
               verdictHtml = `
                 <div class="benchmark-card">
-                    <div class="benchmark-header">PARECER TÉCNICO: DESEMPENHO UNIFICADO</div>
+                    <div class="benchmark-header">PARECER TECNICO: DESEMPENHO UNIFICADO</div>
                     <div class="benchmark-body" style="text-align: center;">
                         <h2 style="margin: 10px 0; color: #0f172a;">${w.name}</h2>
-                        <p>CPK Médio Apurado: <strong>${money5(w.avgCpk)}</strong></p>
-                        <p>Vida Útil Média Projetada: <strong>${Math.round(w.avgLifeKm).toLocaleString()} km</strong></p>
+                        <p>CPK Medio Apurado: <strong>${money5(w.avgCpk)}</strong></p>
+                        <p>Vida Util Media Projetada: <strong>${Math.round(w.avgLifeKm).toLocaleString()} km</strong></p>
                         <div class="recommendation" style="margin-top: 15px;">
-                            Nota: Apenas uma marca foi identificada com rodagem suficiente para análise. Mantenha o monitoramento para criar histórico comparativo.
+                            Nota: Apenas uma marca foi identificada com rodagem suficiente para analise. Mantenha o monitoramento para criar historico comparativo.
                         </div>
                     </div>
                 </div>
               `;
           }
       } else {
-          verdictHtml = '<div class="benchmark-card" style="border-color:#e2e8f0"><div class="benchmark-body">Dados de rodagem insuficientes para cálculo de CPK e Parecer Técnico.</div></div>';
+          verdictHtml = '<div class="benchmark-card" style="border-color:#e2e8f0"><div class="benchmark-body">Dados de rodagem insuficientes para calculo de CPK e Parecer Tecnico.</div></div>';
       }
 
       // --- GERADOR DE ESQUEMA VISUAL SVG (OTIMIZADO PARA PRINT) ---
@@ -482,7 +482,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
       const svgWidth = 240; 
       const centerX = svgWidth / 2;
       
-      // Aumentar escala para impressão (2x)
+      // Aumentar escala para impressao (2x)
       const printScale = 2.0;
       const printWidth = svgWidth * printScale;
       const printHeight = svgHeight * printScale;
@@ -539,7 +539,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Laudo Técnico - ${vehicle.plate}</title>
+            <title>Laudo Tecnico - ${vehicle.plate}</title>
             <style>
                 @page { size: A4 portrait; margin: 10mm; }
                 body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #334155; font-size: 9px; margin: 0; padding: 0; line-height: 1.3; }
@@ -624,8 +624,8 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                 <div class="brand-block">
                     ${logoHtml}
                     <div class="title-block">
-                        <h1>Laudo Técnico</h1>
-                        <p>Relatório de Performance de Pneus</p>
+                        <h1>Laudo Tecnico</h1>
+                        <p>Relatorio de Performance de Pneus</p>
                     </div>
                 </div>
                 <div class="meta-block">
@@ -636,7 +636,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
 
             <div class="kpi-grid">
                 <div class="kpi-card">
-                    <div class="kpi-label">Saúde Geral</div>
+                    <div class="kpi-label">Saude Geral</div>
                     <div class="kpi-value">${fleetScore}%</div>
                 </div>
                 <div class="kpi-card">
@@ -644,7 +644,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                     <div class="kpi-value text-green">${money(totalResidual)}</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Custo Reposição</div>
+                    <div class="kpi-label">Custo Reposicao</div>
                     <div class="kpi-value text-red">${money(replacementCost)}</div>
                 </div>
             </div>
@@ -658,7 +658,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                         <th>Fogo</th>
                         <th>Marca / Modelo</th>
                         <th style="text-align:center">Sulco</th>
-                        <th style="text-align:center">Vida Útil</th>
+                        <th style="text-align:center">Vida Util</th>
                         <th style="text-align:right">KM Atual</th>
                         <th style="text-align:right">Proj. Total</th>
                         <th style="text-align:center">PSI</th>
@@ -691,7 +691,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
             </table>
 
             <div class="map-section">
-                <span class="map-title">Mapa de Posições e Estado Atual</span>
+                <span class="map-title">Mapa de Posicoes e Estado Atual</span>
                 ${schematicSvg}
             </div>
 
@@ -701,7 +701,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                     <div class="sig-date">Data: ____/____/________</div>
                 </div>
                 <div class="sig-box">
-                    <div class="sig-role">Motorista / Responsável</div>
+                    <div class="sig-role">Motorista / Responsavel</div>
                     <div class="sig-date">Data: ____/____/________</div>
                 </div>
             </div>
@@ -709,7 +709,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
             <div class="footer">
                 <div>
                     GM Control Pro v4.5 &bull; Documento gerado automaticamente.<br/>
-                    Nota: Vida útil calculada com base no sulco original e limite técnico de ${minDepth}mm.
+                    Nota: Vida util calculada com base no sulco original e limite tecnico de ${minDepth}mm.
                 </div>
                 <div>ID: ${vehicle.id.substring(0,8).toUpperCase()}</div>
             </div>
@@ -733,7 +733,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
               <Scale className="h-7 w-7 text-indigo-600" /> Comparativo & Veredito
             </h3>
             <p className="text-sm text-slate-500 font-bold uppercase mt-1 flex items-center gap-2">
-                Veículo: <span className="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-800">{vehicle.plate}</span> 
+                Veiculo: <span className="text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-800">{vehicle.plate}</span> 
             </p>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -741,7 +741,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                 onClick={handlePrint}
                 className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-slate-900/20"
             >
-                <Printer className="h-4 w-4" /> Relatório Veredito
+                <Printer className="h-4 w-4" /> Relatorio Veredito
             </button>
             <button onClick={onClose} className="p-3 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-400 border border-transparent hover:border-slate-300 dark:hover:border-slate-700">
                 <X className="h-5 w-5" />
@@ -765,13 +765,13 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                     <HelpCircle className="h-3 w-3 text-slate-400 opacity-50 group-hover:opacity-100 transition-opacity" />
                 </p>
                 <div className="absolute top-full left-0 mt-2 w-56 p-3 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl z-50 hidden group-hover:block border border-slate-700 animate-in fade-in slide-in-from-top-1">
-                    <p className="font-bold mb-1">Patrimônio Restante</p>
-                    <p className="leading-relaxed opacity-90">Este é o valor financeiro da borracha que <strong>ainda não foi consumida</strong>. Quanto maior, mais "novo" está o pneu em termos contábeis.</p>
+                    <p className="font-bold mb-1">Patrimonio Restante</p>
+                    <p className="leading-relaxed opacity-90">Este e o valor financeiro da borracha que <strong>ainda nao foi consumida</strong>. Quanto maior, mais "novo" esta o pneu em termos contabeis.</p>
                 </div>
                 <div className="flex items-end gap-2">
                     <span className="text-2xl font-black text-green-600 dark:text-green-400">{money(totalResidual)}</span>
                 </div>
-                <p className="text-[9px] text-slate-400 mt-1">Capital imobilizado (Borracha Útil)</p>
+                <p className="text-[9px] text-slate-400 mt-1">Capital imobilizado (Borracha Util)</p>
             </div>
 
             <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
@@ -779,7 +779,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                 <div className="flex items-end gap-2">
                     <span className="text-2xl font-black text-red-600 dark:text-red-400">{money(replacementCost)}</span>
                 </div>
-                <p className="text-[9px] text-slate-400 mt-1">Custo de reposição (Pneus &lt; {minDepth}mm)</p>
+                <p className="text-[9px] text-slate-400 mt-1">Custo de reposicao (Pneus &lt; {minDepth}mm)</p>
             </div>
 
             <div className={`p-4 rounded-2xl border shadow-sm flex flex-col justify-between ${twinsAnalysis.length > 0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900' : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900'}`}>
@@ -789,7 +789,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                 {twinsAnalysis.length > 0 ? (
                     <div>
                         <span className="text-xl font-black text-red-600 dark:text-red-400">{twinsAnalysis.length} Erros</span>
-                        <p className="text-[9px] text-red-500 font-bold mt-1 leading-tight">Diferença de altura em geminados detectada.</p>
+                        <p className="text-[9px] text-red-500 font-bold mt-1 leading-tight">Diferenca de altura em geminados detectada.</p>
                     </div>
                 ) : (
                     <div>
@@ -811,7 +811,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-full ${anomaly.severity === 'high' ? 'text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-100 dark:bg-red-900/50' : 'text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800 bg-amber-100 dark:bg-amber-900/50'}`}>
-                                    Auditoria Automática (Deep Analytics)
+                                    Auditoria Automatica (Deep Analytics)
                                 </span>
                             </div>
                             <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-1">{anomaly.title}</h4>
@@ -819,8 +819,8 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                                 <strong>{anomaly.description}</strong>
                             </p>
                             <div className="bg-white/60 dark:bg-black/20 p-3 rounded-lg border border-black/5 dark:border-white/5">
-                                <p className="text-xs text-slate-700 dark:text-slate-300 mb-1"><span className="font-bold">Causa provável:</span> {anomaly.cause}</p>
-                                <p className="text-xs text-slate-700 dark:text-slate-300"><span className="font-bold">Ação recomendada:</span> {anomaly.action}</p>
+                                <p className="text-xs text-slate-700 dark:text-slate-300 mb-1"><span className="font-bold">Causa provavel:</span> {anomaly.cause}</p>
+                                <p className="text-xs text-slate-700 dark:text-slate-300"><span className="font-bold">Acao recomendada:</span> {anomaly.action}</p>
                             </div>
                         </div>
                     </div>
@@ -846,7 +846,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                             </div>
                             <h3 className="text-2xl font-black text-white">{brandAnalysis.winner.name}</h3>
                             <p className="text-indigo-200 text-xs font-medium mt-1">
-                                Mantém <strong>{Math.round(brandAnalysis.winner.avgLifePct)}%</strong> de vida útil média em {brandAnalysis.winner.count} pneus.
+                                Mantem <strong>{Math.round(brandAnalysis.winner.avgLifePct)}%</strong> de vida util media em {brandAnalysis.winner.count} pneus.
                             </p>
                         </div>
                     </div>
@@ -856,7 +856,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                             <div className="text-right opacity-80">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Concorrente Direto</p>
                                 <h4 className="text-lg font-bold text-slate-300">{brandAnalysis.loser.name}</h4>
-                                <p className="text-xs text-slate-500">{Math.round(brandAnalysis.loser.avgLifePct)}% Vida Média</p>
+                                <p className="text-xs text-slate-500">{Math.round(brandAnalysis.loser.avgLifePct)}% Vida Media</p>
                             </div>
                         )}
                         <div className="bg-indigo-600/50 p-3 rounded-lg border border-indigo-500/50 text-center min-w-[100px]">
@@ -977,17 +977,17 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
             )}
         </div>
 
-        {/* TABELA AVANÇADA */}
+        {/* TABELA AVANCADA */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900 p-6">
           <table className="w-full text-sm text-left border-separate border-spacing-y-2">
             <thead className="text-slate-400 font-bold text-[10px] uppercase tracking-wider sticky top-0 bg-white dark:bg-slate-900 z-10">
               <tr>
                 <th className="pb-4 pl-2">Pos</th>
-                <th className="pb-4">Identificação</th>
-                <th className="pb-4 text-center w-32">Vida Útil Restante</th>
-                <th className="pb-4 text-center">Pressão</th>
-                <th className="pb-4 text-right">Projeção Final</th>
-                <th className="pb-4 pl-4">Diagnóstico & Ação</th>
+                <th className="pb-4">Identificacao</th>
+                <th className="pb-4 text-center w-32">Vida Util Restante</th>
+                <th className="pb-4 text-center">Pressao</th>
+                <th className="pb-4 text-right">Projecao Final</th>
+                <th className="pb-4 pl-4">Diagnostico & Acao</th>
               </tr>
             </thead>
             <tbody>
@@ -998,14 +998,14 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
 
                 return (
                   <tr key={item.tire.id} className="group transition-all hover:translate-x-1">
-                    {/* POSIÇÃO */}
+                    {/* POSICAO */}
                     <td className="align-middle">
                         <div className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 h-12 w-14 rounded-xl font-black text-sm flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm">
                             {item.tire.position}
                         </div>
                     </td>
 
-                    {/* IDENTIFICAÇÃO */}
+                    {/* IDENTIFICACAO */}
                     <td className="align-middle bg-slate-50 dark:bg-slate-800/30 rounded-l-2xl p-4 border-y border-l border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-700">
@@ -1018,7 +1018,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                         </div>
                     </td>
                     
-                    {/* VIDA ÚTIL (BARRA DE SULCO) */}
+                    {/* VIDA UTIL (BARRA DE SULCO) */}
                     <td className="align-middle bg-slate-50 dark:bg-slate-800/30 p-4 border-y border-slate-100 dark:border-slate-800">
                         <div className="flex flex-col gap-2 w-full max-w-[140px] mx-auto">
                             <div className="flex justify-between items-end px-1">
@@ -1033,7 +1033,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                         </div>
                     </td>
 
-                    {/* PRESSÃO */}
+                    {/* PRESSAO */}
                     <td className="align-middle bg-slate-50 dark:bg-slate-800/30 p-4 border-y border-slate-100 dark:border-slate-800 text-center">
                         <div className="inline-flex flex-col items-center justify-center p-2 rounded-xl min-w-[80px] border-2 border-transparent bg-white dark:bg-slate-900 shadow-sm">
                             <span className="font-black text-lg text-slate-600 dark:text-slate-300">
@@ -1043,7 +1043,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                         </div>
                     </td>
 
-                    {/* PROJEÇÃO */}
+                    {/* PROJECAO */}
                     <td className="align-middle bg-slate-50 dark:bg-slate-800/30 p-4 border-y border-slate-100 dark:border-slate-800 text-right">
                         {item.projectedTotalLife > 0 ? (
                             <div>
@@ -1059,7 +1059,7 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
                         )}
                     </td>
 
-                    {/* DECISÃO */}
+                    {/* DECISAO */}
                     <td className="align-middle bg-slate-50 dark:bg-slate-800/30 rounded-r-2xl p-3 border-y border-r border-slate-100 dark:border-slate-800">
                         <div className={`flex items-center justify-between p-3 rounded-xl border border-l-4 shadow-sm h-full ${
                             item.status === 'CRITICAL' ? 'border-l-red-500 bg-white dark:bg-slate-900 border-red-100' : 
@@ -1092,11 +1092,11 @@ export const TireComparison: React.FC<TireComparisonProps> = ({ tires, vehicle, 
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center text-[10px] font-medium text-slate-500">
            <div className="flex items-center gap-2">
                <BarChart3 className="h-4 w-4"/>
-               <span>Cálculos baseados nas medições de sulco atuais vs. originais.</span>
+               <span>Calculos baseados nas medicoes de sulco atuais vs. originais.</span>
            </div>
            <div className="flex gap-4">
-               <span className="flex items-center gap-1.5"><ShieldAlert className="h-3 w-3 text-red-500"/> Crítico: &lt; {minDepth}mm</span>
-               <span className="flex items-center gap-1.5"><AlertTriangle className="h-3 w-3 text-amber-500"/> Atenção: &lt; {warnDepth}mm</span>
+               <span className="flex items-center gap-1.5"><ShieldAlert className="h-3 w-3 text-red-500"/> Critico: &lt; {minDepth}mm</span>
+               <span className="flex items-center gap-1.5"><AlertTriangle className="h-3 w-3 text-amber-500"/> Atencao: &lt; {warnDepth}mm</span>
            </div>
         </div>
       </div>

@@ -164,7 +164,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
           <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
             <Car className="h-7 w-7 text-blue-600" /> Marcas e Modelos
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie as marcas e modelos de veículos da sua frota.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie as marcas e modelos de veiculos da sua frota.</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -240,12 +240,12 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                   <tr className="text-xs font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                     <th className="pb-3 px-2">Modelo</th>
                     <th className="pb-3 px-2">Tipo</th>
-                    <th className="pb-3 px-2">Combustível</th>
+                    <th className="pb-3 px-2">Combustivel</th>
                     <th className="pb-3 px-2">Eixos</th>
-                    <th className="pb-3 px-2">Troca de Óleo</th>
+                    <th className="pb-3 px-2">Troca de Oleo</th>
                     <th className="pb-3 px-2">Litragem</th>
                     <th className="pb-3 px-2">Plano PMJ</th>
-                    <th className="pb-3 px-2 text-right">Ações</th>
+                    <th className="pb-3 px-2 text-right">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -374,7 +374,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">INTERVALO TROCA DE ÓLEO (KM)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">INTERVALO TROCA DE OLEO (KM)</label>
                 <input 
                   type="number" 
                   min="0"
@@ -387,7 +387,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">LITRAGEM DE ÓLEO (L)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">LITRAGEM DE OLEO (L)</label>
                 <input 
                   type="number" 
                   min="0"
@@ -400,13 +400,13 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">TIPO DE COMBUSTÍVEL</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">TIPO DE COMBUSTIVEL</label>
                 <select 
                   className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                   value={formData.fuelType || ''} 
                   onChange={e => setFormData({...formData, fuelType: e.target.value})}
                 >
-                  <option value="">Selecione o combustível</option>
+                  <option value="">Selecione o combustivel</option>
                   {fuelTypes.map(ft => (
                     <option key={ft.id} value={ft.name}>{ft.name}</option>
                   ))}
@@ -414,7 +414,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENÇÃO (PMJ)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENCAO (PMJ)</label>
                 <select 
                   className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                   value={formData.maintenancePlanId || ''} 
@@ -458,7 +458,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase flex items-center gap-3">
                   <BarChart3 className="h-6 w-6 text-indigo-500" /> Comparativo de Marcas e Modelos
                 </h3>
-                <p className="text-sm text-slate-500 font-medium">Análise de rentabilidade, manutenções e desgastes prematuros</p>
+                <p className="text-sm text-slate-500 font-medium">Analise de rentabilidade, manutencoes e desgastes prematuros</p>
               </div>
               <button onClick={() => setIsComparing(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
                 <X className="h-6 w-6 text-slate-500" />
@@ -471,10 +471,10 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                   <thead>
                     <tr className="text-xs font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                       <th className="pb-3 px-2">Marca / Modelo</th>
-                      <th className="pb-3 px-2 text-center">Veículos</th>
-                      <th className="pb-3 px-2 text-center">Manutenções</th>
+                      <th className="pb-3 px-2 text-center">Veiculos</th>
+                      <th className="pb-3 px-2 text-center">Manutencoes</th>
                       <th className="pb-3 px-2 text-right">Custo Total</th>
-                      <th className="pb-3 px-2 text-right">Custo Médio/Veículo</th>
+                      <th className="pb-3 px-2 text-right">Custo Medio/Veiculo</th>
                       <th className="pb-3 px-2 text-center">Desgaste Prematuro (Pneus)</th>
                     </tr>
                   </thead>
@@ -511,7 +511,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
                     {comparisonData.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-slate-500 font-medium">
-                          Nenhum dado disponível para comparação.
+                          Nenhum dado disponivel para comparacao.
                         </td>
                       </tr>
                     )}

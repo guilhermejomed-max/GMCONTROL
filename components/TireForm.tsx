@@ -68,7 +68,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
     if (!file) return;
     
     if (file.size > 500 * 1024) {
-      alert("A foto deve ter no máximo 500KB.");
+      alert("A foto deve ter no maximo 500KB.");
       return;
     }
 
@@ -132,12 +132,12 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
     try {
       const normalizedFireNumber = formData.fireNumber.trim().toUpperCase();
       if (!editingTire && existingTires.some(t => t.fireNumber.toUpperCase() === normalizedFireNumber)) {
-          alert(`Erro: Fogo "${normalizedFireNumber}" já cadastrado.`);
+          alert(`Erro: Fogo "${normalizedFireNumber}" ja cadastrado.`);
           setIsSaving(false);
           return;
       }
       if (editingTire && existingTires.some(t => t.id !== editingTire.id && t.fireNumber.toUpperCase() === normalizedFireNumber)) {
-          alert(`Erro: Fogo "${normalizedFireNumber}" já existe em outro pneu.`);
+          alert(`Erro: Fogo "${normalizedFireNumber}" ja existe em outro pneu.`);
           setIsSaving(false);
           return;
       }
@@ -161,7 +161,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
         model: formData.model.trim().toUpperCase(),
         currentTreadDepth: formData.currentTreadDepth,
         pressure: formData.targetPressure,
-        history: editingTire ? (formData as Tire).history : [{ date: new Date().toISOString(), action: 'CADASTRADO', details: formData.vehicleId ? `Novo pneu registrado e montado no veículo ${selectedVehicle?.plate || ''}.` : 'Novo pneu registrado no estoque.' }],
+        history: editingTire ? (formData as Tire).history : [{ date: new Date().toISOString(), action: 'CADASTRADO', details: formData.vehicleId ? `Novo pneu registrado e montado no veiculo ${selectedVehicle?.plate || ''}.` : 'Novo pneu registrado no estoque.' }],
         totalKms,
         firstLifeKms: formData.firstLifeKms,
         retreadKms: formData.retreadKms,
@@ -228,7 +228,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                     <QRCode value={successTire.fireNumber} size={160} />
                 </div>
                 <div className="mt-4 text-center">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Identificação</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Identificacao</p>
                     <p className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter mt-1">{successTire.fireNumber}</p>
                 </div>
             </div>
@@ -269,7 +269,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                onClick={() => setIsSelectorOpen(true)}
                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
             >
-               <BookOpen className="h-5 w-5" /> Importar do Catálogo
+               <BookOpen className="h-5 w-5" /> Importar do Catalogo
             </button>
          )}
       </div>
@@ -282,12 +282,12 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
            
            <h4 className="text-sm font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2 mb-6">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg"><Flame className="h-4 w-4"/></div>
-              Identificação
+              Identificacao
            </h4>
            
            <div className="space-y-6 relative z-10">
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Filial Responsável</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Filial Responsavel</label>
                 <div className="relative">
                   <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                   <select
@@ -306,7 +306,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Nº Fogo (ID Único)</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">No Fogo (ID Unico)</label>
                 <input 
                     required 
                     type="text" 
@@ -357,13 +357,13 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
            </div>
         </div>
 
-        {/* COL 2: TÉCNICA */}
+        {/* COL 2: TECNICA */}
         <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 relative overflow-hidden group">
            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform"><Layers className="h-32 w-32"/></div>
 
            <h4 className="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-6">
               <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg"><Ruler className="h-4 w-4"/></div>
-              Especificações
+              Especificacoes
            </h4>
            
            <div className="space-y-6 relative z-10">
@@ -388,7 +388,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                            onClick={() => setFormData({...formData, treadType: 'BORRACHUDO'})}
                            className={`p-4 rounded-2xl font-bold text-sm transition-all border-2 ${formData.treadType === 'BORRACHUDO' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-300'}`}
                        >
-                           Borrachudo (Tração)
+                           Borrachudo (Tracao)
                        </button>
                    </div>
                </div>
@@ -399,7 +399,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                       <input type="number" step="0.1" name="originalTreadDepth" value={formData.originalTreadDepth ?? 18.0} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-black text-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
                   </div>
                   <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Pressão Alvo (PSI)</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Pressao Alvo (PSI)</label>
                       <input type="number" name="targetPressure" value={formData.targetPressure ?? 110} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-black text-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
                   </div>
                </div>
@@ -416,7 +416,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                
                <div className="space-y-6">
                    <div>
-                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Condição Inicial</label>
+                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Condicao Inicial</label>
                        <select 
                           className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold outline-none focus:border-emerald-500 text-slate-800 dark:text-white appearance-none"
                           value={formData.status === TireStatus.RETREADED ? 'RETREADED' : (formData.status === TireStatus.USED ? 'USED' : 'NEW')}
@@ -432,7 +432,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 animate-in fade-in slide-in-from-top-2">
                            <div className="grid grid-cols-2 gap-4">
                                <div>
-                                   <label className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-1">KM 1ª Vida</label>
+                                   <label className="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-1">KM 1a Vida</label>
                                    <input type="number" name="totalKms" value={formData.totalKms ?? 0} onChange={handleChange} className="w-full p-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-center outline-none" />
                                </div>
                                <div>
@@ -452,7 +452,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                    </div>
 
                    <div>
-                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Valor Unitário</label>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 ml-1">Valor Unitario</label>
                       <div className="relative">
                          <CircleDollarSign className="absolute left-4 top-4 h-6 w-6 text-emerald-600" />
                          <input type="number" step="0.01" name="price" value={formData.price ?? 0} onChange={handleChange} className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border-2 border-emerald-100 dark:border-emerald-900 rounded-2xl text-2xl font-black outline-none focus:border-emerald-500 text-emerald-700 dark:text-emerald-400 placeholder-emerald-200" placeholder="0.00" />
@@ -476,7 +476,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
             <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 border border-slate-200 dark:border-slate-800">
                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
-                  <h3 className="font-black text-xl text-slate-800 dark:text-white flex items-center gap-3"><BookOpen className="h-6 w-6 text-indigo-600"/> Catálogo de Padrões</h3>
+                  <h3 className="font-black text-xl text-slate-800 dark:text-white flex items-center gap-3"><BookOpen className="h-6 w-6 text-indigo-600"/> Catalogo de Padroes</h3>
                   <button onClick={() => setIsSelectorOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-500"><X className="h-6 w-6"/></button>
                </div>
                <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
@@ -510,7 +510,7 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
                      ))}
                      {(!settings?.tireModels || settings.tireModels.length === 0) ? (
                         <div className="col-span-full text-center py-12 text-slate-400 font-medium">
-                           O catálogo está vazio. Adicione modelos nas Configurações.
+                           O catalogo esta vazio. Adicione modelos nas Configuracoes.
                         </div>
                      ) : filteredCatalog.length === 0 ? (
                         <div className="col-span-full text-center py-12 text-slate-400 font-medium">Nenhum modelo encontrado para sua busca.</div>

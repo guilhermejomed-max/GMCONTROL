@@ -38,7 +38,7 @@ export const YardAnalysis: FC<YardAnalysisProps> = ({
   }, [allVehicles]);
 
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,11 +100,11 @@ export const YardAnalysis: FC<YardAnalysisProps> = ({
   return (
     <div className="flex flex-col lg:flex-row w-full min-h-[600px] bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
       
-      {/* SIDEBAR DE VEÍCULOS */}
+      {/* SIDEBAR DE VEICULOS */}
       <div className={`w-full lg:w-80 flex flex-col border-r border-slate-100 dark:border-slate-800 ${selectedVehicleId ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
           <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <Layout className="h-5 w-5 text-blue-600"/> Pátio Virtual
+            <Layout className="h-5 w-5 text-blue-600"/> Patio Virtual
           </h3>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -139,12 +139,12 @@ export const YardAnalysis: FC<YardAnalysisProps> = ({
               <ChevronRight className="h-4 w-4" />
             </button>
           )) : (
-            <div className="p-8 text-center text-slate-400 text-xs font-bold uppercase italic">Nenhum veículo</div>
+            <div className="p-8 text-center text-slate-400 text-xs font-bold uppercase italic">Nenhum veiculo</div>
           )}
         </div>
       </div>
 
-      {/* ÁREA DE AUDITORIA */}
+      {/* AREA DE AUDITORIA */}
       <div className={`flex-1 flex flex-col bg-slate-50 dark:bg-slate-950 min-h-[500px] ${!selectedVehicleId ? 'hidden lg:flex' : 'flex'}`}>
         
         {!selectedVehicle ? (
@@ -152,8 +152,8 @@ export const YardAnalysis: FC<YardAnalysisProps> = ({
             <div className="w-20 h-20 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center mb-6 shadow-md border border-slate-100 dark:border-slate-800">
               <Eye className="h-8 w-8 text-slate-300" />
             </div>
-            <h3 className="text-lg font-black text-slate-400">Selecione um veículo</h3>
-            <p className="text-xs text-slate-400 mt-2">Inicie a vistoria visual clicando em um caminhão.</p>
+            <h3 className="text-lg font-black text-slate-400">Selecione um veiculo</h3>
+            <p className="text-xs text-slate-400 mt-2">Inicie a vistoria visual clicando em um caminhao.</p>
           </div>
         ) : (
           <>
@@ -251,8 +251,8 @@ export const YardAnalysis: FC<YardAnalysisProps> = ({
               </div>
               <div className="flex justify-center gap-4 mt-4 text-[10px] font-black text-slate-400 uppercase">
                   <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> OK</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-500"></div> Atenção</div>
-                  <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Crítico</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-500"></div> Atencao</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Critico</div>
                   <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-slate-900"></div> Faltante</div>
               </div>
             </div>

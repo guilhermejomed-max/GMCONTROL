@@ -7,40 +7,40 @@ export const AVAILABLE_PERMISSIONS = [
   { id: 'send_retread', label: 'Enviar para Recapagem', category: 'Pneus' },
   { id: 'manage_scrap', label: 'Gerenciar Sucata/Descarte', category: 'Pneus' },
   { id: 'view_esg', label: 'Ver Painel ESG', category: 'Pneus' },
-  { id: 'view_forecast_tires', label: 'Previsão de Compra', category: 'Pneus' },
+  { id: 'view_forecast_tires', label: 'Previsao de Compra', category: 'Pneus' },
   { id: 'view_ranking_retreaders', label: 'Ranking de Fornecedores', category: 'Pneus' },
 
-  // VEÍCULOS
-  { id: 'edit_vehicles', label: 'Cadastrar/Editar Veículos', category: 'Veículos' },
-  { id: 'view_tracking', label: 'Ver Rastreamento', category: 'Veículos' },
-  { id: 'manage_drivers', label: 'Gerenciar Motoristas', category: 'Veículos' },
-  { id: 'manage_brands', label: 'Gerenciar Marcas/Modelos', category: 'Veículos' },
-  { id: 'manage_vehicle_types', label: 'Gerenciar Tipos de Veículos', category: 'Veículos' },
-  { id: 'occurrences_view', label: 'Ver Ocorrências', category: 'Veículos' },
-  { id: 'occurrences_manage', label: 'Gerenciar Ocorrências', category: 'Veículos' },
-  { id: 'manage_partners', label: 'Gerenciar Parceiros', category: 'Veículos' },
+  // VEICULOS
+  { id: 'edit_vehicles', label: 'Cadastrar/Editar Veiculos', category: 'Veiculos' },
+  { id: 'view_tracking', label: 'Ver Rastreamento', category: 'Veiculos' },
+  { id: 'manage_drivers', label: 'Gerenciar Motoristas', category: 'Veiculos' },
+  { id: 'manage_brands', label: 'Gerenciar Marcas/Modelos', category: 'Veiculos' },
+  { id: 'manage_vehicle_types', label: 'Gerenciar Tipos de Veiculos', category: 'Veiculos' },
+  { id: 'occurrences_view', label: 'Ver Ocorrencias', category: 'Veiculos' },
+  { id: 'occurrences_manage', label: 'Gerenciar Ocorrencias', category: 'Veiculos' },
+  { id: 'manage_partners', label: 'Gerenciar Parceiros', category: 'Veiculos' },
 
-  // OFICINA & MANUTENÇÃO
-  { id: 'create_service_order', label: 'Abrir Ordem de Serviço', category: 'Oficina' },
-  { id: 'close_service_order', label: 'Concluir Ordem de Serviço', category: 'Oficina' },
-  { id: 'manage_maintenance_plans', label: 'Planos de Manutenção', category: 'Oficina' },
+  // OFICINA & MANUTENCAO
+  { id: 'create_service_order', label: 'Abrir Ordem de Servico', category: 'Oficina' },
+  { id: 'close_service_order', label: 'Concluir Ordem de Servico', category: 'Oficina' },
+  { id: 'manage_maintenance_plans', label: 'Planos de Manutencao', category: 'Oficina' },
   { id: 'manage_stock', label: 'Gerenciar Almoxarifado', category: 'Oficina' },
-  { id: 'manage_waste', label: 'Gestão de Resíduos', category: 'Oficina' },
+  { id: 'manage_waste', label: 'Gestao de Residuos', category: 'Oficina' },
 
-  // COMBUSTÍVEL
-  { id: 'add_fuel', label: 'Lançar Abastecimento', category: 'Combustível' },
-  { id: 'edit_fuel_station', label: 'Gerenciar Postos', category: 'Combustível' },
-  { id: 'manage_fuel_types', label: 'Tipos de Combustíveis', category: 'Combustível' },
+  // COMBUSTIVEL
+  { id: 'add_fuel', label: 'Lancar Abastecimento', category: 'Combustivel' },
+  { id: 'edit_fuel_station', label: 'Gerenciar Postos', category: 'Combustivel' },
+  { id: 'manage_fuel_types', label: 'Tipos de Combustiveis', category: 'Combustivel' },
 
-  // ADMINISTRAÇÃO
-  { id: 'view_financial', label: 'Ver Financeiro & Custos', category: 'Administração' },
-  { id: 'view_reports', label: 'Ver Relatórios/Dashboard', category: 'Administração' },
-  { id: 'view_strategic_analysis', label: 'Análise Estratégica', category: 'Administração' },
-  { id: 'manage_team', label: 'Gerenciar Equipe', category: 'Administração' },
-  { id: 'manage_settings', label: 'Configurações', category: 'Administração' },
-  { id: 'manage_branches', label: 'Gerenciar Filiais', category: 'Administração' },
-  { id: 'delete_records', label: 'Excluir Registros (Geral)', category: 'Administração' },
-  { id: 'view_logs', label: 'Ver Auditoria de Logs', category: 'Administração' },
+  // ADMINISTRACAO
+  { id: 'view_financial', label: 'Ver Financeiro & Custos', category: 'Administracao' },
+  { id: 'view_reports', label: 'Ver Relatorios/Dashboard', category: 'Administracao' },
+  { id: 'view_strategic_analysis', label: 'Analise Estrategica', category: 'Administracao' },
+  { id: 'manage_team', label: 'Gerenciar Equipe', category: 'Administracao' },
+  { id: 'manage_settings', label: 'Configuracoes', category: 'Administracao' },
+  { id: 'manage_branches', label: 'Gerenciar Filiais', category: 'Administracao' },
+  { id: 'delete_records', label: 'Excluir Registros (Geral)', category: 'Administracao' },
+  { id: 'view_logs', label: 'Ver Auditoria de Logs', category: 'Administracao' },
   
   // RH
   { id: 'manage_employees', label: 'Gerenciar Colaboradores (RH)', category: 'RH' },
@@ -80,7 +80,7 @@ export interface SystemLog {
   id: string;
   userId: string;
   userName: string;
-  action: string; // ex: "Criou Pneu", "Editou Veículo"
+  action: string; // ex: "Criou Pneu", "Editou Veiculo"
   details: string;
   module: ModuleType;
   timestamp: string;
@@ -118,7 +118,7 @@ export interface Tire {
   vehicleId?: string | null;
   position?: string | null;
   installOdometer?: number;
-  installDate?: string; // Data da montagem no veículo atual
+  installDate?: string; // Data da montagem no veiculo atual
   
   totalKms: number;
   firstLifeKms: number;
@@ -224,11 +224,11 @@ export interface Vehicle {
   avgMonthlyKm?: number; // For forecast
   lastLocation?: VehicleLocation;
   currentDriverId?: string; // Added currentDriverId property
-  lastAutoUpdateDate?: string; // Data da última atualização automática de KM (para carretas)
-  sascarCode?: string; // Cód. Sascar para integração
-  averageKmPerLiter?: number; // Média calculada
-  telemetryHistory?: TelemetryFuelPoint[]; // Histórico para média móvel de 100km
-  telemetryRollingAvgKml?: number; // Média de consumo 100km
+  lastAutoUpdateDate?: string; // Data da ultima atualizacao automatica de KM (para carretas)
+  sascarCode?: string; // Cod. Sascar para integracao
+  averageKmPerLiter?: number; // Media calculada
+  telemetryHistory?: TelemetryFuelPoint[]; // Historico para media movel de 100km
+  telemetryRollingAvgKml?: number; // Media de consumo 100km
   brandModelId?: string; // Reference to VehicleBrandModel
   branchId?: string; // Filial vinculada
   
@@ -249,10 +249,10 @@ export interface Vehicle {
   tiresSize?: string;
 
   // --- Maintenance Fields ---
-  revisionIntervalKm?: number; // KM de Revisão
-  oilLiters?: number; // Qtd Litros Óleo
-  lastPreventiveKm?: number; // KM da última preventiva
-  lastPreventiveDate?: string; // Data da última preventiva
+  revisionIntervalKm?: number; // KM de Revisao
+  oilLiters?: number; // Qtd Litros Oleo
+  lastPreventiveKm?: number; // KM da ultima preventiva
+  lastPreventiveDate?: string; // Data da ultima preventiva
 
   // --- Ownership ---
   ownership?: 'OWNED' | 'LEASED';
@@ -291,24 +291,24 @@ export interface TireModelDefinition {
   rim: number;
   standardPressure: number;
   originalDepth: number;
-  // Novos campos para previsão específica
+  // Novos campos para previsao especifica
   estimatedLifespanKm?: number; // Ex: 80000 km
   limitDepth?: number; // Ex: 3.0 mm (substitui o global se definido)
 }
 
 export interface ServiceTypeDefinition {
   id: string;
-  name: string; // Ex: Troca de Óleo, Rodízio, Freios
+  name: string; // Ex: Troca de Oleo, Rodizio, Freios
   description?: string;
 }
 
 export interface TreadPattern {
   id: string;
   name: string;
-  retreaderId: string; // Vínculo com a recapadora responsável
+  retreaderId: string; // Vinculo com a recapadora responsavel
   brand?: string;
   type: 'LISO' | 'BORRACHUDO';
-  standardDepth: number; // Sulco padrão da banda (ex: 18.0)
+  standardDepth: number; // Sulco padrao da banda (ex: 18.0)
   fixedCost: number; // Valor fixo da reforma para esta banda
 }
 
@@ -330,12 +330,12 @@ export interface SystemSettings {
   lastGlobalAuditDate?: string;
   logoUrl?: string;
   tireModels?: TireModelDefinition[];
-  serviceTypes?: ServiceTypeDefinition[]; // Novo campo para modelos de serviço
-  standardProcedures?: StandardProcedure[]; // Novos procedimentos padrões
+  serviceTypes?: ServiceTypeDefinition[]; // Novo campo para modelos de servico
+  standardProcedures?: StandardProcedure[]; // Novos procedimentos padroes
   defaultMonthlyKm: number; // For forecast
-  trailerDailyAverageKm?: number; // Média diária fixa para rodagem de carretas
-  rotationIntervalKm?: number; // Novo: Intervalo para rodízio
-  calibrationIntervalDays?: number; // Novo: Dias máx sem inspeção/calibragem
+  trailerDailyAverageKm?: number; // Media diaria fixa para rodagem de carretas
+  rotationIntervalKm?: number; // Novo: Intervalo para rodizio
+  calibrationIntervalDays?: number; // Novo: Dias max sem inspecao/calibragem
   savedPoints?: LocationPoint[]; // Novos pontos salvos para agendamento
 }
 
@@ -349,12 +349,12 @@ export interface TeamMember {
   phone?: string; // Novo: Telefone
   cpf?: string; // Novo: CPF
   birthDate?: string; // Novo: Data de Nascimento
-  notes?: string; // Novo: Observações/Bio
+  notes?: string; // Novo: Observacoes/Bio
   allowedModules?: ModuleType[];
   permissions?: string[];
   createdAt: string;
   lastLogin?: string; // Novo campo
-  password?: string; // Para persistência local mock
+  password?: string; // Para persistencia local mock
   branchId?: string | null; // Filial vinculada
   sectorId?: string; // Novo: Setor vinculado
   sectorName?: string; // Novo: Nome do setor vinculado
@@ -421,7 +421,7 @@ export interface ServiceOrder {
   orderNumber: number;
   vehicleId: string;
   vehiclePlate: string;
-  occurrenceId?: string; // Vínculo com a Ocorrência que gerou a OS
+  occurrenceId?: string; // Vinculo com a Ocorrencia que gerou a OS
   maintenancePlanId?: string; // Added maintenancePlanId, removed tireId/tireFireNumber
   tireId?: string; // Re-added for linking O.S. to specific tire
   tireFireNumber?: string; // Re-added for linking O.S. to specific tire
@@ -513,9 +513,9 @@ export interface ServiceOrder {
 export interface RetreadOrderItem {
   tireId: string;
   fireNumber: string;
-  pattern: string; // Banda específica para este pneu
-  cost?: number; // Custo específico acordado
-  serviceDetails?: string; // Serviços adicionais (manchão, conserto, etc)
+  pattern: string; // Banda especifica para este pneu
+  cost?: number; // Custo especifico acordado
+  serviceDetails?: string; // Servicos adicionais (manchao, conserto, etc)
 }
 
 export interface RetreadOrder {
@@ -528,7 +528,7 @@ export interface RetreadOrder {
     tireIds: string[];
     tireDetails: { id: string; fireNumber: string; }[];
     items?: RetreadOrderItem[]; // Novo campo para detalhar banda por pneu
-    requestedTreadPattern?: string; // Mantido para compatibilidade, agora será "MISTO" se houver várias
+    requestedTreadPattern?: string; // Mantido para compatibilidade, agora sera "MISTO" se houver varias
     status: 'ENVIADO' | 'EM_PRODUCAO' | 'CONCLUIDO';
     totalCost?: number;
     notes?: string;
@@ -638,8 +638,8 @@ export interface Occurrence {
   responsibleSectorId?: string;
   assignedUserId?: string;
   assignedUserName?: string;
-  status: 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'RESOLVED' | 'PENDING_DELETION'; // NOVO: Estado de exclusão pendente
-  deletionRequestedBy?: string; // NOVO: Quem pediu exclusão
+  status: 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'RESOLVED' | 'PENDING_DELETION'; // NOVO: Estado de exclusao pendente
+  deletionRequestedBy?: string; // NOVO: Quem pediu exclusao
   rejectionReason?: string;
   treatments: Treatment[];
   chat?: ChatMessage[];
@@ -862,7 +862,7 @@ export interface HealthRecord {
   doctorCrm?: string;
   asoExpirationDate?: string;
   attachments?: string[];
-  // Novos campos para atendimento clínico
+  // Novos campos para atendimento clinico
   vitalSigns?: {
     bloodPressure?: string;
     temperature?: string;

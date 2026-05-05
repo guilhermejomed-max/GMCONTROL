@@ -17,7 +17,7 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [locationStatus, setLocationStatus] = useState<'LOADING' | 'FOUND' | 'DENIED'>('LOADING');
 
-  // Obter localização do usuário ao montar
+  // Obter localizacao do usuario ao montar
   useEffect(() => {
       if ("geolocation" in navigator) {
           navigator.geolocation.getCurrentPosition(
@@ -51,15 +51,15 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
                 Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-      return R * c; // Distância em metros
+      return R * c; // Distancia em metros
   };
 
   const { vehicleGroups, warningTires } = useMemo(() => {
-      // 1. Filtrar apenas pneus ATIVOS e MONTADOS EM VEÍCULOS (com vehicleId)
+      // 1. Filtrar apenas pneus ATIVOS e MONTADOS EM VEICULOS (com vehicleId)
       const activeTires = tires.filter(t => 
           t.status !== TireStatus.RETREADING && 
           t.status !== TireStatus.DAMAGED && 
-          t.vehicleId // Garante que tem placa/veículo
+          t.vehicleId // Garante que tem placa/veiculo
       );
 
       const criticalItems: { tire: Tire, reason: 'DEPTH' | 'KM' }[] = [];
@@ -113,7 +113,7 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
       let finalGroups = Object.values(groups);
 
       // FILTRO DE PROXIMIDADE (1KM)
-      // Se tivermos a localização do usuário, filtramos apenas os que estão a < 1000m
+      // Se tivermos a localizacao do usuario, filtramos apenas os que estao a < 1000m
       if (userLocation) {
           finalGroups = finalGroups.filter(g => {
               if (!g.vehicle?.lastLocation?.lat || !g.vehicle?.lastLocation?.lng) return false;
@@ -124,8 +124,8 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
               return dist <= 1000; // 1km
           });
       } else if (locationStatus === 'DENIED') {
-          // Se não tiver GPS permitido, mostrar vazio ou mostrar mensagem (optei por não mostrar nada crítico de longe para respeitar a regra)
-          // Para ser útil, vamos mostrar vazio e um aviso na UI
+          // Se nao tiver GPS permitido, mostrar vazio ou mostrar mensagem (optei por nao mostrar nada critico de longe para respeitar a regra)
+          // Para ser util, vamos mostrar vazio e um aviso na UI
           finalGroups = []; 
       }
 
@@ -136,11 +136,11 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
   }, [tires, vehicles, settings, userLocation, locationStatus]);
 
   const handleShareCritical = (channel: 'whatsapp' | 'email') => {
-      const subject = "Agenda de Manutenção Urgente (Próximos) - GM Control";
-      let text = `⚠️ *AGENDA DE MANUTENÇÃO URGENTE (RAIO 1KM)*\n\n`;
+      const subject = "Agenda de Manutencao Urgente (Proximos) - GM Control";
+      let text = `⚠️ *AGENDA DE MANUTENCAO URGENTE (RAIO 1KM)*\n\n`;
       
       vehicleGroups.forEach(group => {
-          text += `🚛 *Veículo: ${group.plate}* (${group.items.length} trocas)\n`;
+          text += `🚛 *Veiculo: ${group.plate}* (${group.items.length} trocas)\n`;
           group.items.forEach(({ tire, reason }) => {
              const reasonText = reason === 'KM' ? 'KM EXCEDIDO' : `SULCO BAIXO (${tire.currentTreadDepth}mm)`;
              text += `   - Pneu ${tire.fireNumber} (Pos ${tire.position}): ${reasonText}\n`;
@@ -158,7 +158,7 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
   return (
     <div>
       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-        <span>Agenda de Ações</span>
+        <span>Agenda de Acoes</span>
         {locationStatus === 'LOADING' && <span className="text-[10px] text-blue-500 animate-pulse">Buscando GPS...</span>}
         {locationStatus === 'DENIED' && <span className="text-[10px] text-orange-500">GPS Inativo (Ative para ver agenda local)</span>}
         {locationStatus === 'FOUND' && <span className="text-[10px] text-green-600 flex items-center gap-1"><Navigation className="h-3 w-3"/> Raio 1km</span>}
@@ -171,7 +171,7 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 relative z-10">
               <h4 className="font-bold text-red-800 dark:text-red-400 flex items-center gap-2 text-sm">
                 <AlertOctagon className="h-5 w-5" />
-                Ação Imediata ({vehicleGroups.length} Veículos)
+                Acao Imediata ({vehicleGroups.length} Veiculos)
               </h4>
               <div className="flex gap-2">
                  <button 
@@ -244,14 +244,14 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
                 {locationStatus === 'FOUND' ? (
                     <>
                         <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2 opacity-50"/>
-                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400">Nenhum veículo crítico próximo.</p>
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400">Nenhum veiculo critico proximo.</p>
                         <p className="text-[10px] text-slate-400">Raio de busca: 1km</p>
                     </>
                 ) : (
                     <>
                         <MapPin className="h-8 w-8 text-slate-300 mx-auto mb-2"/>
-                        <p className="text-sm font-bold text-slate-500">Localização necessária.</p>
-                        <p className="text-[10px] text-slate-400">Ative o GPS para ver veículos críticos próximos.</p>
+                        <p className="text-sm font-bold text-slate-500">Localizacao necessaria.</p>
+                        <p className="text-[10px] text-slate-400">Ative o GPS para ver veiculos criticos proximos.</p>
                     </>
                 )}
             </div>
@@ -264,7 +264,7 @@ export const MaintenanceAgenda: FC<MaintenanceAgendaProps> = ({ tires, vehicles,
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-bold text-amber-800 dark:text-amber-400 flex items-center gap-2 text-sm">
                 <AlertTriangle className="h-5 w-5" />
-                Atenção Próxima ({warningTires.length})
+                Atencao Proxima ({warningTires.length})
               </h4>
             </div>
              <div className="space-y-2">

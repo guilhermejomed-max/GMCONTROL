@@ -11,11 +11,11 @@ interface AmbulatoryProps {
 
 const RECORD_TYPES: Record<HealthRecordType, string> = {
   ADMISSION: 'Admissional',
-  PERIODIC: 'Periódico',
+  PERIODIC: 'Periodico',
   RETURN_TO_WORK: 'Retorno ao Trabalho',
-  FUNCTION_CHANGE: 'Mudança de Função',
+  FUNCTION_CHANGE: 'Mudanca de Funcao',
   DISMISSAL: 'Demissional',
-  CLINICAL_VISIT: 'Atendimento Clínico'
+  CLINICAL_VISIT: 'Atendimento Clinico'
 };
 
 export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
@@ -96,7 +96,7 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
         await storageService.addHealthRecord(orgId, record);
       }
 
-      const shouldEmail = confirm('Atendimento salvo com sucesso! Deseja encaminhar uma cópia por e-mail agora?');
+      const shouldEmail = confirm('Atendimento salvo com sucesso! Deseja encaminhar uma copia por e-mail agora?');
       if (shouldEmail) {
         handleEmailRecord(record);
       }
@@ -163,7 +163,7 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este prontuário?")) return;
+    if (!confirm("Tem certeza que deseja excluir este prontuario?")) return;
     try {
       await storageService.deleteHealthRecord(orgId, id);
     } catch (error) {
@@ -176,14 +176,14 @@ export const Ambulatory: FC<AmbulatoryProps> = ({ orgId, collaborators }) => {
     const dateStr = new Date(record.date).toLocaleDateString('pt-BR');
     const timeStr = new Date(record.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     
-    const subject = `Prontuário Ambulatorial: ${collab?.name || 'Colaborador'} - ${dateStr}`;
+    const subject = `Prontuario Ambulatorial: ${collab?.name || 'Colaborador'} - ${dateStr}`;
     const body = `
 Detalhamento de Atendimento Ambulatorial:
 ------------------------------------------
-Colaborador: ${collab?.name || 'Não identificado'}
-Data/Hora: ${dateStr} às ${timeStr}
+Colaborador: ${collab?.name || 'Nao identificado'}
+Data/Hora: ${dateStr} as ${timeStr}
 Tipo: ${RECORD_TYPES[record.type]}
-Status: ${record.status === 'FIT' ? 'Retornou ao Trabalho' : record.status === 'UNFIT' ? 'Afastado' : 'Observação'}
+Status: ${record.status === 'FIT' ? 'Retornou ao Trabalho' : record.status === 'UNFIT' ? 'Afastado' : 'Observacao'}
 
 SINAIS VITAIS:
 P.A: ${record.vitalSigns?.bloodPressure || '-'}
@@ -192,12 +192,12 @@ Sat: ${record.vitalSigns?.saturation || '-'}%
 Glic: ${record.vitalSigns?.glucose || '-'}mg/dL
 F.C: ${record.vitalSigns?.heartRate || '-'}bpm
 
-RELATÓRIO:
+RELATORIO:
 Sintomas: ${record.symptoms || '-'}
-Medicação/Conduta: ${record.medicationGiven || '-'}
+Medicacao/Conduta: ${record.medicationGiven || '-'}
 Encaminhamento: ${record.referral || '-'}
 
-Observações: ${record.observations || '-'}
+Observacoes: ${record.observations || '-'}
 ------------------------------------------
 Gerado pelo Sistema GM Control
     `.trim();
@@ -212,9 +212,9 @@ Gerado pelo Sistema GM Control
         <div>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <HeartPulse className="h-8 w-8 text-blue-600" />
-            Ambulatório
+            Ambulatorio
           </h2>
-          <p className="text-slate-500 font-medium">Atendimentos de saúde e mal-estar em serviço</p>
+          <p className="text-slate-500 font-medium">Atendimentos de saude e mal-estar em servico</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -232,7 +232,7 @@ Gerado pelo Sistema GM Control
           { label: 'Atendimentos Hoje', value: stats.todayVisits, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
           { label: 'Total Fichas', value: stats.total, icon: ClipboardList, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
           { label: 'Afastamentos', value: stats.unfit, icon: HeartPulse, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20' },
-          { label: 'Atend. Clínicos', value: records.filter(r => r.type === 'CLINICAL_VISIT').length, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          { label: 'Atend. Clinicos', value: records.filter(r => r.type === 'CLINICAL_VISIT').length, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
         ].map((stat, i) => (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -264,7 +264,7 @@ Gerado pelo Sistema GM Control
           </div>
           <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <Activity className="h-5 w-5 text-blue-600" />
-            Histórico de Atendimentos
+            Historico de Atendimentos
           </h3>
         </div>
 
@@ -276,8 +276,8 @@ Gerado pelo Sistema GM Control
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Colaborador</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Sintomas/Relato</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Conduta</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Situação</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Ações</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Situacao</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Acoes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -298,7 +298,7 @@ Gerado pelo Sistema GM Control
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="font-bold text-slate-800 dark:text-white">{record.collaboratorName || 'Não identificado'}</p>
+                    <p className="font-bold text-slate-800 dark:text-white">{record.collaboratorName || 'Nao identificado'}</p>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">ID: {record.id}</p>
                   </td>
                   <td className="px-6 py-4">
@@ -314,7 +314,7 @@ Gerado pelo Sistema GM Control
                   </td>
                   <td className="px-6 py-4">
                      <p className="text-xs text-slate-600 dark:text-slate-400 font-bold">
-                        {record.diagnosis || 'Em avaliação'}
+                        {record.diagnosis || 'Em avaliacao'}
                      </p>
                   </td>
                   <td className="px-6 py-4">
@@ -328,7 +328,7 @@ Gerado pelo Sistema GM Control
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-amber-600 font-black text-[10px] uppercase bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded w-fit">
-                        RESTRIÇÃO TEMPORÁRIA
+                        RESTRICAO TEMPORARIA
                       </span>
                     )}
                   </td>
@@ -362,7 +362,7 @@ Gerado pelo Sistema GM Control
         </div>
       </div>
 
-      {/* MODAL: NOVO PRONTUÁRIO / ATENDIMENTO */}
+      {/* MODAL: NOVO PRONTUARIO / ATENDIMENTO */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -391,9 +391,9 @@ Gerado pelo Sistema GM Control
 
               <form onSubmit={handleSubmit} className="overflow-y-auto p-0 flex-1">
                 <div className="p-6 space-y-8">
-                  {/* Seção 1: Identificação */}
+                  {/* Secao 1: Identificacao */}
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 dark:border-blue-900 pb-1">Identificação e Tempo</h4>
+                    <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 dark:border-blue-900 pb-1">Identificacao e Tempo</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Colaborador</label>
@@ -422,7 +422,7 @@ Gerado pelo Sistema GM Control
                     </div>
                   </div>
 
-                  {/* Seção 2: Sinais Vitais */}
+                  {/* Secao 2: Sinais Vitais */}
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100 dark:border-emerald-900 pb-1">Sinais Vitais</h4>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -479,11 +479,11 @@ Gerado pelo Sistema GM Control
                     </div>
                   </div>
 
-                  {/* Seção 3: Atendimento */}
+                  {/* Secao 3: Atendimento */}
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-widest border-b border-purple-100 dark:border-purple-900 pb-1">Detalhes do Atendimento</h4>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Sintomas / Ocorrência</label>
+                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Sintomas / Ocorrencia</label>
                       <textarea
                         required
                         placeholder="Descreva o mal-estar relatado..."
@@ -494,9 +494,9 @@ Gerado pelo Sistema GM Control
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Conduta / Medicação</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-wider">Conduta / Medicacao</label>
                         <textarea
-                          placeholder="Procedimento adotado ou remédios ministrados..."
+                          placeholder="Procedimento adotado ou remedios ministrados..."
                           className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 font-medium dark:text-white min-h-[60px]"
                           value={formData.medicationGiven}
                           onChange={e => setFormData({...formData, medicationGiven: e.target.value})}
@@ -514,7 +514,7 @@ Gerado pelo Sistema GM Control
                     </div>
                   </div>
 
-                  {/* Seção 4: Decisão Final */}
+                  {/* Secao 4: Decisao Final */}
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1">Anexos / Imagens</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -538,14 +538,14 @@ Gerado pelo Sistema GM Control
                     </div>
                   </div>
 
-                  {/* Seção 5: Decisão Final */}
+                  {/* Secao 5: Decisao Final */}
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-widest border-b border-rose-100 dark:border-rose-900 pb-1">Status Final do Colaborador</h4>
                     <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                       <div className="flex p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                         {[
                           { id: 'FIT', label: 'Retornou ao Trabalho', color: 'bg-emerald-500' },
-                          { id: 'RESTRICTED', label: 'Em Observação', color: 'bg-amber-500' },
+                          { id: 'RESTRICTED', label: 'Em Observacao', color: 'bg-amber-500' },
                           { id: 'UNFIT', label: 'Afastado / Liberado', color: 'bg-rose-500' }
                         ].map(s => (
                           <button

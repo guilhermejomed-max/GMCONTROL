@@ -16,7 +16,7 @@ export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({
   defaultBranchId 
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
 
@@ -94,7 +94,7 @@ export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({
       return (
           <div className="flex flex-col items-center justify-center h-64 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
               <Trophy className="h-12 w-12 text-slate-300 dark:text-slate-700 mb-4" />
-              <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">Nenhum dado de recapadora disponível</h3>
+              <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">Nenhum dado de recapadora disponivel</h3>
               <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Conclua ordens de recapagem para gerar o ranking.</p>
           </div>
       );
@@ -107,7 +107,7 @@ export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({
            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
               <Trophy className="h-7 w-7 text-amber-500" /> Auditoria e SLA de Recapadoras
            </h2>
-           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Ranking de fornecedores baseado em performance, custo por KM e índice de falhas.</p>
+           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Ranking de fornecedores baseado em performance, custo por KM e indice de falhas.</p>
         </div>
       </div>
 
@@ -121,14 +121,14 @@ export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({
                       </div>
                       <div className="flex-1 text-center md:text-left">
                           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold uppercase tracking-widest mb-3">
-                              1º Lugar Geral
+                              1o Lugar Geral
                           </div>
                           <h3 className="text-3xl font-black text-slate-800 dark:text-white mb-2">{rankingData[0].name}</h3>
                           <p className="text-slate-500 dark:text-slate-400">Melhor fornecedor atual com base no menor Custo por KM (CPK) entregue.</p>
                       </div>
                       <div className="flex gap-6 w-full md:w-auto justify-center md:justify-end">
                           <div className="text-center">
-                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CPK Médio</p>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CPK Medio</p>
                               <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">R$ {rankingData[0].averageCpk.toFixed(4)}</p>
                           </div>
                           <div className="w-px bg-slate-200 dark:bg-slate-800"></div>
@@ -165,7 +165,7 @@ export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({
                           {/* CPK */}
                           <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
                               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                                  <DollarSign className="h-3.5 w-3.5" /> CPK Médio
+                                  <DollarSign className="h-3.5 w-3.5" /> CPK Medio
                               </div>
                               <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">
                                   {retreader.averageCpk > 0 ? `R$ ${retreader.averageCpk.toFixed(4)}` : 'N/A'}
@@ -180,7 +180,7 @@ export const RetreaderRanking: React.FC<RetreaderRankingProps> = ({
                               <div className={`text-lg font-black ${retreader.rejectionRate > 15 ? 'text-red-500' : 'text-slate-800 dark:text-white'}`}>
                                   {retreader.rejectionRate.toFixed(1)}%
                               </div>
-                              <div className="text-[10px] text-slate-400 mt-0.5">{retreader.rejected} carcaças perdidas</div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">{retreader.rejected} carcacas perdidas</div>
                           </div>
 
                           {/* Failure Rate */}

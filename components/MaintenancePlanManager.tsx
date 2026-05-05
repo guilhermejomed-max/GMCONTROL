@@ -176,7 +176,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
         {plans.length === 0 && (
           <div className="col-span-full p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
             <ClipboardList className="h-8 w-8 text-slate-400 mx-auto mb-3" />
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum plano de manutenção cadastrado.</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum plano de manutencao cadastrado.</p>
           </div>
         )}
       </div>
@@ -186,11 +186,11 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
               <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <Trash2 className="h-5 w-5 text-red-600" /> Confirmar Exclusão
+                <Trash2 className="h-5 w-5 text-red-600" /> Confirmar Exclusao
               </h3>
             </div>
             <div className="p-4">
-              <p className="text-sm text-slate-600 dark:text-slate-300">Tem certeza que deseja excluir este plano de manutenção? Esta ação não pode ser desfeita.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Tem certeza que deseja excluir este plano de manutencao? Esta acao nao pode ser desfeita.</p>
             </div>
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
               <button type="button" onClick={() => setIsDeleteConfirmOpen(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sm font-bold transition-colors">
@@ -208,7 +208,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
               <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-600" /> Programar Manutenção
+                <Calendar className="h-5 w-5 text-blue-600" /> Programar Manutencao
               </h3>
               <button onClick={() => setIsScheduleModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="h-5 w-5" />
@@ -231,14 +231,14 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
                   value={vehicleSearch}
                   onChange={e => setVehicleSearch(e.target.value)}
                 />
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Veículo</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Veiculo</label>
                 <select 
                   required
                   value={scheduleVehicleId}
                   onChange={e => setScheduleVehicleId(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
                 >
-                  <option value="">Selecione um veículo...</option>
+                  <option value="">Selecione um veiculo...</option>
                   {vehicles
                     .filter(v => v.plate.toLowerCase().includes(vehicleSearch.toLowerCase()))
                     .sort((a, b) => a.plate.localeCompare(b.plate))
@@ -262,7 +262,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
                   />
                   {scheduleVehicleId && (
                     <p className="text-[10px] text-slate-500 mt-1">
-                      KM Atual do Veículo: {vehicles.find(v => v.id === scheduleVehicleId)?.odometer?.toLocaleString() || 0} km
+                      KM Atual do Veiculo: {vehicles.find(v => v.id === scheduleVehicleId)?.odometer?.toLocaleString() || 0} km
                     </p>
                   )}
                 </div>
@@ -297,7 +297,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
               <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-blue-600" /> {editingPlan ? 'Editar Plano' : 'Novo Plano de Manutenção'}
+                <ClipboardList className="h-5 w-5 text-blue-600" /> {editingPlan ? 'Editar Plano' : 'Novo Plano de Manutencao'}
               </h3>
               <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="h-5 w-5" />
@@ -305,24 +305,24 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
             </div>
             <form onSubmit={handleSavePlan} className="p-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Serviço</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Servico</label>
                 <input 
                   type="text" 
                   required
                   value={newPlanName}
                   onChange={e => setNewPlanName(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
-                  placeholder="Ex: Troca de Óleo"
+                  placeholder="Ex: Troca de Oleo"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição (Opcional)</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descricao (Opcional)</label>
                 <input 
                   type="text" 
                   value={newPlanDescription}
                   onChange={e => setNewPlanDescription(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
-                  placeholder="Detalhes do serviço..."
+                  placeholder="Detalhes do servico..."
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -403,7 +403,7 @@ export const MaintenancePlanManager: React.FC<Props> = ({ orgId, plans, schedule
                   Cancelar
                 </button>
                 <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-sm flex items-center gap-2 transition-colors">
-                  <Save className="h-4 w-4" /> {editingPlan ? 'Salvar Alterações' : 'Salvar Plano'}
+                  <Save className="h-4 w-4" /> {editingPlan ? 'Salvar Alteracoes' : 'Salvar Plano'}
                 </button>
               </div>
             </form>

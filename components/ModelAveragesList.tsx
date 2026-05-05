@@ -33,13 +33,13 @@ export const ModelAveragesList: React.FC<ModelAveragesListProps> = React.memo(({
               </div>
               <div>
                 <h4 className="font-black text-slate-800 dark:text-white leading-none mb-1">{m.modelName}</h4>
-                <p className="text-[10px] text-slate-500 font-bold uppercase">{m.vehicleCount} Veículos • {m.entriesCount} Abastecimentos</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase">{m.vehicleCount} Veiculos • {m.entriesCount} Abastecimentos</p>
               </div>
             </div>
             <div className={`px-3 py-1 rounded-full text-[10px] font-black ${
               m.avg > 0 ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-slate-50 text-slate-400 border border-slate-100'
             }`}>
-              {m.avg > 0 ? `${m.avg.toFixed(2)} ${unitKm}` : 'S/ MÉDIA'}
+              {m.avg > 0 ? `${m.avg.toFixed(2)} ${unitKm}` : 'S/ MEDIA'}
             </div>
           </div>
 

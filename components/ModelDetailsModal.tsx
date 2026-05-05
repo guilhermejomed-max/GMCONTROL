@@ -27,7 +27,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
               <BarChart3 className="h-6 w-6 text-blue-600" /> Detalhes: {data.modelName}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-1">
-              Análise de desempenho por frota de modelo
+              Analise de desempenho por frota de modelo
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
@@ -39,7 +39,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
           {/* Model Stats Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-              <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Média do Modelo</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Media do Modelo</p>
               <p className="text-2xl font-black text-orange-600">
                 {data.avg > 0 ? `${data.avg.toFixed(2)} ${unitKm}` : 'N/A'}
               </p>
@@ -51,7 +51,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
               </p>
             </div>
             <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-              <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Veículos Ativos</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Veiculos Ativos</p>
               <p className="text-2xl font-black text-blue-600">{data.vehicleCount}</p>
             </div>
           </div>
@@ -59,7 +59,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
           {/* Vehicles in this model */}
           <div className="space-y-4">
             <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-              <Truck className="h-4 w-4 text-slate-400" /> Veículos do Modelo
+              <Truck className="h-4 w-4 text-slate-400" /> Veiculos do Modelo
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {data.vehicles.map((v: Vehicle) => {
@@ -79,12 +79,12 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                       <p className="text-sm font-black text-slate-800 dark:text-white">{v.plate}</p>
                       <div className="flex flex-col items-end gap-1">
                         {vAvg > 0 ? (
-                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200" title="Média do Período">
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200" title="Media do Periodo">
                             {vAvg.toFixed(2)} {unitKm}
                           </span>
                         ) : (
                           <span className="text-[10px] font-black px-2 py-0.5 bg-slate-50 text-slate-400 rounded-full border border-slate-100">
-                            S/ média
+                            S/ media
                           </span>
                         )}
                       </div>
@@ -102,7 +102,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
           {/* Recent Entries for this model */}
           <div className="space-y-4">
             <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-              <History className="h-4 w-4 text-slate-400" /> Últimos Abastecimentos do Modelo
+              <History className="h-4 w-4 text-slate-400" /> Ultimos Abastecimentos do Modelo
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">

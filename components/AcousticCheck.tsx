@@ -24,17 +24,17 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const simulationTimeoutRef = useRef<any>(null);
   
-  // Ref para controle de estado dentro do loop de animação (evita closures antigas)
+  // Ref para controle de estado dentro do loop de animacao (evita closures antigas)
   const statusRef = useRef<ScanStatus>('IDLE');
 
-  // --- CONFIGURAÇÃO FÍSICA ---
-  // Heurística: Pneus de caminhão (110 PSI) ressoam tipicamente entre 400Hz e 500Hz quando batidos com barra.
-  // Fator de conversão linear simplificado para demonstração: 1 Hz ~= 0.24 PSI
+  // --- CONFIGURACAO FISICA ---
+  // Heuristica: Pneus de caminhao (110 PSI) ressoam tipicamente entre 400Hz e 500Hz quando batidos com barra.
+  // Fator de conversao linear simplificado para demonstracao: 1 Hz ~= 0.24 PSI
   // Ex: 460Hz * 0.24 = 110.4 PSI
   const PSI_CONVERSION_FACTOR = 0.24; 
   
-  // Threshold para Time Domain (Amplitude). 128 é o zero.
-  // Diferença > 30 significa um som audível razoável.
+  // Threshold para Time Domain (Amplitude). 128 e o zero.
+  // Diferenca > 30 significa um som audivel razoavel.
   const HIT_AMPLITUDE_THRESHOLD = 30; 
 
   const updateStatus = (newStatus: ScanStatus) => {
@@ -69,7 +69,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
   }, []);
 
   const startSimulation = () => {
-      console.log("Iniciando Modo Simulação (Fallback)");
+      console.log("Iniciando Modo Simulacao (Fallback)");
       setIsSimulation(true);
       updateStatus('LISTENING');
 
@@ -82,7 +82,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
           analyser.fftSize = 2048;
           analyserRef.current = analyser;
 
-          // 1. Ruído de Fundo
+          // 1. Ruido de Fundo
           const bgOsc = audioCtx.createOscillator();
           bgOsc.type = 'sawtooth';
           bgOsc.frequency.value = 50; 
@@ -95,7 +95,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
           
           sourceRef.current = bgOsc; 
 
-          // 2. Agendar "Batida" Aleatória para simular variedade
+          // 2. Agendar "Batida" Aleatoria para simular variedade
           const randomDelay = 1500 + Math.random() * 2000;
           simulationTimeoutRef.current = setTimeout(() => {
               if (audioContextRef.current?.state === 'closed') return;
@@ -103,7 +103,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
               const hitOsc = audioCtx.createOscillator();
               const hitGain = audioCtx.createGain();
               
-              // Simula frequências reais de pneus: 
+              // Simula frequencias reais de pneus: 
               // 450Hz+ (Bom), 300-400Hz (Baixo), <200Hz (Muito Baixo/Estrutural)
               const rand = Math.random();
               let freq = 460; // 110 PSI
@@ -139,7 +139,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
     setIsSimulation(false);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-         throw new Error("API getUserMedia não suportada");
+         throw new Error("API getUserMedia nao suportada");
       }
 
       updateStatus('LISTENING');
@@ -156,8 +156,8 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
       audioContextRef.current = audioCtx;
       
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 4096; // Maior resolução de frequência
-      analyser.smoothingTimeConstant = 0.5; // Resposta mais rápida
+      analyser.fftSize = 4096; // Maior resolucao de frequencia
+      analyser.smoothingTimeConstant = 0.5; // Resposta mais rapida
       analyserRef.current = analyser;
       
       const source = audioCtx.createMediaStreamSource(stream);
@@ -175,16 +175,16 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
       // 1. Detectar Pico de Amplitude (Impacto) usando Time Domain
       let maxAmp = 0;
       for (let i = 0; i < timeBuffer.length; i++) {
-          const val = Math.abs(timeBuffer[i] - 128); // 128 é o silêncio (zero crossing)
+          const val = Math.abs(timeBuffer[i] - 128); // 128 e o silencio (zero crossing)
           if (val > maxAmp) maxAmp = val;
       }
 
       if (maxAmp > HIT_AMPLITUDE_THRESHOLD) {
           // HIT DETECTED!
-          // Mudamos status imediatamente para parar novas detecções
+          // Mudamos status imediatamente para parar novas deteccoes
           updateStatus('ANALYZING');
           
-          // Aguarda um curto período para capturar a ressonância (decay) do som
+          // Aguarda um curto periodo para capturar a ressonancia (decay) do som
           setTimeout(() => {
              processFrequency();
           }, 100); 
@@ -205,8 +205,8 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
       stopListening();
       updateStatus('ANALYZING'); // Garante estado UI
       
-      // 2. Determinar Frequência Dominante
-      // Ignoramos frequências muito baixas (<100Hz) que costumam ser ruído de manuseio ou ambiente
+      // 2. Determinar Frequencia Dominante
+      // Ignoramos frequencias muito baixas (<100Hz) que costumam ser ruido de manuseio ou ambiente
       let maxFreqIndex = 0;
       let maxFreqVal = 0;
       
@@ -214,8 +214,8 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
       const fftSize = analyserRef.current?.fftSize || 4096;
       const binSize = sampleRate / fftSize;
       
-      const startBin = Math.floor(100 / binSize); // Começa em ~100Hz
-      const endBin = Math.floor(1200 / binSize);  // Vai até ~1200Hz
+      const startBin = Math.floor(100 / binSize); // Comeca em ~100Hz
+      const endBin = Math.floor(1200 / binSize);  // Vai ate ~1200Hz
 
       for (let i = startBin; i < endBin; i++) {
           if (buffer[i] > maxFreqVal) {
@@ -226,14 +226,14 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
 
       const dominantHz = maxFreqIndex * binSize;
       
-      // Validação: Se o pico for muito fraco, pode ser ruído
+      // Validacao: Se o pico for muito fraco, pode ser ruido
       if (maxFreqVal < 30) { // Volume muito baixo no espectro
           setResult('INCONCLUSIVE');
           updateStatus('RESULT');
           return;
       }
 
-      // 3. Converter Hz para PSI (Modelo Matemático Simplificado)
+      // 3. Converter Hz para PSI (Modelo Matematico Simplificado)
       const calculatedPsi = Math.round(dominantHz * PSI_CONVERSION_FACTOR);
       
       setPeakFrequency(Math.round(dominantHz));
@@ -284,13 +284,13 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
       let barHeight;
       let x = 0;
 
-      // Desenhar apenas frequências relevantes (até 2000Hz) para visualização mais limpa
+      // Desenhar apenas frequencias relevantes (ate 2000Hz) para visualizacao mais limpa
       const relevantBins = Math.floor(2000 / (audioContextRef.current.sampleRate / analyserRef.current.fftSize));
 
       for (let i = 0; i < relevantBins; i++) {
         barHeight = dataArray[i] * 1.5; 
 
-        // Cores dinâmicas baseadas na intensidade e frequência
+        // Cores dinamicas baseadas na intensidade e frequencia
         const r = barHeight + (25 * (i / relevantBins));
         const g = 250 * (i / relevantBins);
         const b = 150;
@@ -323,22 +323,22 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
               return { 
                   color: 'bg-green-600', 
                   icon: <CheckCircle2 className="h-16 w-16 text-white"/>,
-                  text: 'Pressão Normal',
-                  sub: 'Padrão rodoviário detectado.'
+                  text: 'Pressao Normal',
+                  sub: 'Padrao rodoviario detectado.'
               };
           case 'LOW_PRESSURE':
               return { 
                   color: 'bg-yellow-500', 
                   icon: <AlertTriangle className="h-16 w-16 text-white"/>,
-                  text: 'Pressão Baixa',
-                  sub: 'Som grave. Calibragem necessária.'
+                  text: 'Pressao Baixa',
+                  sub: 'Som grave. Calibragem necessaria.'
               };
           case 'STRUCTURAL_ISSUE':
               return { 
                   color: 'bg-red-600', 
                   icon: <Activity className="h-16 w-16 text-white"/>,
-                  text: 'Crítico / Oco',
-                  sub: 'Som abafado. Possível separação ou furo.'
+                  text: 'Critico / Oco',
+                  sub: 'Som abafado. Possivel separacao ou furo.'
               };
           default:
               return { color: 'bg-slate-500', icon: null, text: 'Inconclusivo', sub: 'Tente novamente.' };
@@ -356,7 +356,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
                 <Radio className="h-8 w-8 text-blue-500 animate-pulse" />
             </div>
             <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Smart Sonic™</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Análise Espectral de Frequência</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Analise Espectral de Frequencia</p>
         </div>
 
         {/* MAIN VISUALIZER AREA */}
@@ -381,7 +381,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
             {status === 'ANALYZING' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-slate-900/90 backdrop-blur-md">
                     <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-blue-400 font-bold animate-pulse text-lg">Calculando Ressonância...</p>
+                    <p className="text-blue-400 font-bold animate-pulse text-lg">Calculando Ressonancia...</p>
                 </div>
             )}
 
@@ -424,7 +424,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
                     <p className="text-white font-black text-xl animate-pulse uppercase tracking-widest drop-shadow-lg">Aguardando Batida...</p>
                     {isSimulation && (
                         <span className="text-[10px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded border border-yellow-400/30 flex items-center gap-1">
-                            <Terminal className="h-3 w-3"/> MODO SIMULAÇÃO
+                            <Terminal className="h-3 w-3"/> MODO SIMULACAO
                         </span>
                     )}
                 </div>
@@ -432,7 +432,7 @@ export const AcousticCheck: React.FC<AcousticCheckProps> = () => {
         </div>
 
         <p className="mt-8 text-xs text-slate-400 text-center max-w-md">
-            <strong>Aviso Legal:</strong> A estimativa de PSI via análise acústica é baseada em heurísticas de frequência. Fatores como tipo de solo, ferramenta de batida e modelo do pneu podem alterar o som. Utilize sempre um manômetro calibrado para decisões finais.
+            <strong>Aviso Legal:</strong> A estimativa de PSI via analise acustica e baseada em heuristicas de frequencia. Fatores como tipo de solo, ferramenta de batida e modelo do pneu podem alterar o som. Utilize sempre um manometro calibrado para decisoes finais.
         </p>
     </div>
   );

@@ -21,7 +21,7 @@ export const Scanner: React.FC<ScannerProps> = ({
   onScan, 
   onClose, 
   title = "Scanner", 
-  placeholder = "Digite o código...",
+  placeholder = "Digite o codigo...",
   mode = 'QR'
 }) => {
   const [scanMode, setScanMode] = useState<'QR' | 'OCR'>(mode);
@@ -40,7 +40,7 @@ export const Scanner: React.FC<ScannerProps> = ({
 
   useEffect(() => {
     if (scanMode === 'OCR' && !window.Tesseract) {
-      setError("Módulo de OCR (Tesseract) não carregado. Verifique sua conexão.");
+      setError("Modulo de OCR (Tesseract) nao carregado. Verifique sua conexao.");
     }
   }, [scanMode]);
 
@@ -213,10 +213,10 @@ export const Scanner: React.FC<ScannerProps> = ({
                         );
                         if(isMounted) isScanningRef.current = true;
                      } catch(e) {
-                         setError("Erro ao iniciar câmera.");
+                         setError("Erro ao iniciar camera.");
                      }
                 } else {
-                    setError("Erro de acesso à câmera. Verifique permissões.");
+                    setError("Erro de acesso a camera. Verifique permissoes.");
                 }
             }
         }
@@ -269,7 +269,7 @@ export const Scanner: React.FC<ScannerProps> = ({
         }
       } catch (err) {
         console.error(err);
-        setError("Erro ao iniciar câmera para OCR.");
+        setError("Erro ao iniciar camera para OCR.");
       }
     };
 
@@ -302,7 +302,7 @@ export const Scanner: React.FC<ScannerProps> = ({
                {scanMode === 'QR' ? <ScanLine className="h-5 w-5 text-blue-600" /> : <Camera className="h-5 w-5 text-purple-600" />}
                {title}
              </h3>
-             <p className="text-xs text-slate-500">Aponte a câmera para ler o código</p>
+             <p className="text-xs text-slate-500">Aponte a camera para ler o codigo</p>
           </div>
           <button onClick={onClose} className="bg-slate-200 hover:bg-slate-300 text-slate-600 p-2 rounded-full transition-colors">
             <X className="h-5 w-5" />
@@ -369,7 +369,7 @@ export const Scanner: React.FC<ScannerProps> = ({
                             if (cleaned.length >= 3) {
                                 if(confirm(`Texto detectado: ${cleaned}. Confirmar?`)) handleSuccess(cleaned);
                             } else {
-                                setError("Texto ilegível. Melhore a luz ou aproxime.");
+                                setError("Texto ilegivel. Melhore a luz ou aproxime.");
                             }
                         } catch (err) {
                             setError("Erro no reconhecimento OCR.");

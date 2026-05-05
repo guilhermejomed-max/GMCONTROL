@@ -157,7 +157,7 @@ const MovementSchematic: FC<{
                 </>
               ) : isSupport ? (
                 <>
-                  {/* Eixo de apoio (ex: 4º eixo do bi-truck) tem 4 pneus ou 2? Vamos assumir 4 por padrão ou 2 dependendo da regra. A regra em getAxlePositions diz que se não for steer, são 4. */}
+                  {/* Eixo de apoio (ex: 4o eixo do bi-truck) tem 4 pneus ou 2? Vamos assumir 4 por padrao ou 2 dependendo da regra. A regra em getAxlePositions diz que se nao for steer, sao 4. */}
                   {renderTire(`${i + 1}EE`, cx - 130, y)}
                   {renderTire(`${i + 1}EI`, cx - 82, y)}
                   {renderTire(`${i + 1}DI`, cx + 82, y)}
@@ -219,7 +219,7 @@ export const TireMovement: FC<TireMovementProps> = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const tires = useMemo(() => {
-    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    // Pneus agora sao universais, mostramos todos independentemente da filial selecionada
     return allTires;
   }, [allTires]);
 
@@ -311,7 +311,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               installOdometer: mountKm,
               installDate: finalDate, // Save Install Date
               location: selectedVehicle.plate,
-              branchId: defaultBranchId || tireToMount.branchId, // Atualiza para a filial onde a ação ocorre
+              branchId: defaultBranchId || tireToMount.branchId, // Atualiza para a filial onde a acao ocorre
               history: [...(tireToMount.history || []), {
                   date: finalDate,
                   action: 'MONTADO',
@@ -357,7 +357,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               installOdometer: 0, 
               installDate: undefined, // Clear install date
               location: 'Estoque',
-              branchId: defaultBranchId || freshTire.branchId, // Atualiza para a filial onde a ação ocorre
+              branchId: defaultBranchId || freshTire.branchId, // Atualiza para a filial onde a acao ocorre
               totalKms: currentTotalKms + kmsRun,
               history: [...(freshTire.history || []), {
                   date: new Date().toISOString(),
@@ -599,7 +599,7 @@ export const TireMovement: FC<TireMovementProps> = ({
 
       const finalDepth = parseFloat(swapOutDepth);
       if (isNaN(finalDepth) || finalDepth < 0 || finalDepth > 30) {
-          alert("Por favor, informe um sulco válido.");
+          alert("Por favor, informe um sulco valido.");
           return;
       }
 
@@ -608,7 +608,7 @@ export const TireMovement: FC<TireMovementProps> = ({
           const now = new Date().toISOString();
           const currentOdometer = typeof selectedVehicle.odometer === 'number' ? selectedVehicle.odometer : 0;
           
-          // 1. Processar Saída (Dismount)
+          // 1. Processar Saida (Dismount)
           const installOdometer = typeof tireOut.installOdometer === 'number' ? tireOut.installOdometer : 0;
           const kmsRun = Math.max(0, currentOdometer - installOdometer);
           const currentTotalKms = typeof tireOut.totalKms === 'number' ? tireOut.totalKms : 0;
@@ -622,12 +622,12 @@ export const TireMovement: FC<TireMovementProps> = ({
               installDate: undefined,
               currentTreadDepth: finalDepth, // Atualiza com o valor informado
               location: 'Estoque',
-              branchId: defaultBranchId || tireOut.branchId, // Atualiza para a filial onde a ação ocorre
+              branchId: defaultBranchId || tireOut.branchId, // Atualiza para a filial onde a acao ocorre
               totalKms: currentTotalKms + kmsRun,
               history: [...(tireOut.history || []), {
                   date: now,
                   action: 'DESMONTADO',
-                  details: `Troca Rápida (SAÍDA): ${selectedVehicle.plate} pos ${selectedPos}. Rodou ${kmsRun}km. Sulco Final: ${finalDepth}mm.`
+                  details: `Troca Rapida (SAIDA): ${selectedVehicle.plate} pos ${selectedPos}. Rodou ${kmsRun}km. Sulco Final: ${finalDepth}mm.`
               }]
           };
 
@@ -639,15 +639,15 @@ export const TireMovement: FC<TireMovementProps> = ({
               installOdometer: currentOdometer,
               installDate: now,
               location: selectedVehicle.plate,
-              branchId: defaultBranchId || swapInTire.branchId, // Atualiza para a filial onde a ação ocorre
+              branchId: defaultBranchId || swapInTire.branchId, // Atualiza para a filial onde a acao ocorre
               history: [...(swapInTire.history || []), {
                   date: now,
                   action: 'MONTADO',
-                  details: `Troca Rápida (ENTRADA): ${selectedVehicle.plate} pos ${selectedPos} com KM ${currentOdometer}`
+                  details: `Troca Rapida (ENTRADA): ${selectedVehicle.plate} pos ${selectedPos} com KM ${currentOdometer}`
               }]
           };
 
-          // Executar atualizações
+          // Executar atualizacoes
           await onUpdateTire(updatedTireOut);
           await onUpdateTire(updatedTireIn);
           await appendMovementToServiceOrder({
@@ -661,7 +661,7 @@ export const TireMovement: FC<TireMovementProps> = ({
           setSelectedPos(null);
       } catch (err) {
           console.error(err);
-          alert("Erro na troca rápida. Verifique a conexão.");
+          alert("Erro na troca rapida. Verifique a conexao.");
       } finally {
           setIsProcessing(false);
       }
@@ -688,8 +688,8 @@ export const TireMovement: FC<TireMovementProps> = ({
           await onUpdateTire({
               ...tireA,
               position: target,
-              branchId: defaultBranchId || tireA.branchId, // Atualiza para a filial onde a ação ocorre
-              history: [...(tireA.history || []), { date: now, action: 'EDITADO', details: `Rodízio: ${source} -> ${target}` }]
+              branchId: defaultBranchId || tireA.branchId, // Atualiza para a filial onde a acao ocorre
+              history: [...(tireA.history || []), { date: now, action: 'EDITADO', details: `Rodizio: ${source} -> ${target}` }]
           });
 
           // Update Tire B (if exists)
@@ -697,14 +697,14 @@ export const TireMovement: FC<TireMovementProps> = ({
               await onUpdateTire({
                   ...tireB,
                   position: source,
-                  branchId: defaultBranchId || tireB.branchId, // Atualiza para a filial onde a ação ocorre
-                  history: [...(tireB.history || []), { date: now, action: 'EDITADO', details: `Rodízio: ${target} -> ${source}` }]
+                  branchId: defaultBranchId || tireB.branchId, // Atualiza para a filial onde a acao ocorre
+                  history: [...(tireB.history || []), { date: now, action: 'EDITADO', details: `Rodizio: ${target} -> ${source}` }]
               });
           }
 
           setRotationSource(null);
       } catch (err) {
-          alert("Erro ao realizar rodízio.");
+          alert("Erro ao realizar rodizio.");
       } finally {
           setIsProcessing(false);
       }
@@ -744,11 +744,11 @@ export const TireMovement: FC<TireMovementProps> = ({
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col lg:flex-row bg-white dark:bg-slate-900 overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95">
       
-      {/* SIDEBAR: SELEÇÃO DE VEÍCULO */}
+      {/* SIDEBAR: SELECAO DE VEICULO */}
       <div className={`w-full lg:w-80 flex flex-col border-r border-slate-100 dark:border-slate-800 ${selectedVehicle ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
           <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-purple-600"/> Movimentação
+            <ArrowRightLeft className="h-5 w-5 text-purple-600"/> Movimentacao
           </h3>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -783,15 +783,15 @@ export const TireMovement: FC<TireMovementProps> = ({
               <ChevronRight className="h-4 w-4" />
             </button>
           )) : (
-            <div className="p-8 text-center text-slate-400 text-xs font-bold uppercase italic">Nenhum veículo</div>
+            <div className="p-8 text-center text-slate-400 text-xs font-bold uppercase italic">Nenhum veiculo</div>
           )}
         </div>
       </div>
 
-      {/* ÁREA PRINCIPAL: ESQUEMA E AÇÕES */}
+      {/* AREA PRINCIPAL: ESQUEMA E ACOES */}
       <div className={`flex-1 flex flex-col bg-slate-50 dark:bg-slate-950/20 overflow-hidden relative ${!selectedVehicle ? 'hidden lg:flex' : 'flex'}`}>
         
-        {/* HEADER DA ÁREA PRINCIPAL */}
+        {/* HEADER DA AREA PRINCIPAL */}
         {selectedVehicle && (
             <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 p-4 flex items-center justify-between shrink-0 z-30 shadow-sm">
                 <div className="flex items-center gap-4">
@@ -800,7 +800,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                     </button>
                     <div>
                         <h2 className="text-xl font-black text-slate-800 dark:text-white leading-none">{selectedVehicle.plate}</h2>
-                        <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Modo Movimentação</span>
+                        <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Modo Movimentacao</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -811,7 +811,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                 )}
                 {rotationSource && (
                     <div className="animate-pulse bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 border border-purple-200 dark:border-purple-800 shadow-sm">
-                        <Target className="h-4 w-4"/> Destino do Rodízio
+                        <Target className="h-4 w-4"/> Destino do Rodizio
                         <button onClick={() => setRotationSource(null)} className="ml-2 hover:bg-purple-200 rounded-full p-1"><X className="h-3 w-3"/></button>
                     </div>
                 )}
@@ -837,8 +837,8 @@ export const TireMovement: FC<TireMovementProps> = ({
                                 <MousePointerClick className="h-5 w-5" />
                             </div>
                             <div>
-                                <p className="font-black text-slate-800 dark:text-white text-sm">Selecione uma posição</p>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase">Para montar, desmontar ou rodízio</p>
+                                <p className="font-black text-slate-800 dark:text-white text-sm">Selecione uma posicao</p>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase">Para montar, desmontar ou rodizio</p>
                             </div>
                         </div>
                     )}
@@ -848,8 +848,8 @@ export const TireMovement: FC<TireMovementProps> = ({
                     <div className="w-20 h-20 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center mb-6 shadow-md border border-slate-100 dark:border-slate-800">
                         <ArrowRightLeft className="h-8 w-8 text-purple-300" />
                     </div>
-                    <h3 className="text-lg font-black text-slate-400">Selecione um veículo</h3>
-                    <p className="text-xs text-slate-400 mt-2">Inicie a gestão de pneus clicando em um caminhão.</p>
+                    <h3 className="text-lg font-black text-slate-400">Selecione um veiculo</h3>
+                    <p className="text-xs text-slate-400 mt-2">Inicie a gestao de pneus clicando em um caminhao.</p>
                 </div>
             )}
         </div>
@@ -862,7 +862,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                     {/* Modal Header */}
                     <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
                         <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Posição</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Posicao</span>
                             <h2 className="text-2xl font-black text-slate-800 dark:text-white bg-blue-100 text-blue-700 px-2 py-0.5 rounded inline-block">{selectedPos}</h2>
                         </div>
                         <button onClick={() => setSelectedPos(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6 text-slate-500"/></button>
@@ -906,7 +906,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                         // --- CONFIRM SWAP (DEPTH INPUT) ---
                         <div className="p-6 bg-orange-50 dark:bg-orange-900/10 h-full flex flex-col justify-center">
                             <div className="text-center mb-6">
-                                <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1">Registro de Saída</h3>
+                                <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1">Registro de Saida</h3>
                                 <p className="text-xs text-slate-500">Pneu <strong>{selectedTire.fireNumber}</strong> sendo removido.</p>
                             </div>
                             
@@ -920,7 +920,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                                     value={swapOutDepth}
                                     onChange={e => setSwapOutDepth(e.target.value)}
                                 />
-                                <p className="text-[10px] text-center text-slate-400 mt-2">Necessário para cálculo de CPK e Valor Residual.</p>
+                                <p className="text-[10px] text-center text-slate-400 mt-2">Necessario para calculo de CPK e Valor Residual.</p>
                             </div>
 
                             <div className="flex gap-3">
@@ -971,10 +971,10 @@ export const TireMovement: FC<TireMovementProps> = ({
                             {!showDismountConfirm ? (
                                 <div className="space-y-3">
                                     <button onClick={handleRotateStart} disabled={isProcessing} className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all text-sm uppercase tracking-wide">
-                                        <Repeat className="h-5 w-5"/> Iniciar Rodízio
+                                        <Repeat className="h-5 w-5"/> Iniciar Rodizio
                                     </button>
                                     <button onClick={() => setIsQuickSwapMode(true)} disabled={isProcessing} className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all text-sm uppercase tracking-wide">
-                                        <RefreshCcw className="h-5 w-5"/> Troca Rápida
+                                        <RefreshCcw className="h-5 w-5"/> Troca Rapida
                                     </button>
                                     <button onClick={() => setShowDismountConfirm(true)} disabled={isProcessing} className="w-full py-3.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all text-sm uppercase tracking-wide">
                                         <ArrowUpCircle className="h-5 w-5"/> Desmontar Pneu
@@ -985,7 +985,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                                     <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-900 text-center">
                                         <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2"/>
                                         <h4 className="font-bold text-red-700 dark:text-red-400">Confirmar Desmontagem?</h4>
-                                        <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">O pneu será removido do veículo e voltará para o <strong>Estoque</strong> com status <strong>USADO</strong>.</p>
+                                        <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">O pneu sera removido do veiculo e voltara para o <strong>Estoque</strong> com status <strong>USADO</strong>.</p>
                                     </div>
                                     <div className="flex gap-3">
                                         <button onClick={() => setShowDismountConfirm(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl text-sm">Cancelar</button>
@@ -1142,9 +1142,9 @@ export const TireMovement: FC<TireMovementProps> = ({
                             const tire = tires.find(t => t.fireNumber.toUpperCase() === data.trim().toUpperCase());
                             if (tire) {
                                 if (tire.status === TireStatus.DAMAGED) {
-                                    onNotification?.('Atenção', `Pneu ${tire.fireNumber} não está disponível para montagem (Status: ${tire.status}).`, 'info');
+                                    onNotification?.('Atencao', `Pneu ${tire.fireNumber} nao esta disponivel para montagem (Status: ${tire.status}).`, 'info');
                                 } else if (tire.vehicleId) {
-                                    onNotification?.('Atenção', `Pneu ${tire.fireNumber} já está montado em outro veículo.`, 'info');
+                                    onNotification?.('Atencao', `Pneu ${tire.fireNumber} ja esta montado em outro veiculo.`, 'info');
                                 } else {
                                     onNotification?.('Sucesso', `Pneu ${tire.fireNumber} identificado!`, 'success');
                                     if (isQuickSwapMode) {
@@ -1155,11 +1155,11 @@ export const TireMovement: FC<TireMovementProps> = ({
                                     setIsScannerOpen(false);
                                 }
                             } else {
-                                onNotification?.('Erro', `Pneu com código "${data}" não encontrado no sistema.`, 'error');
+                                onNotification?.('Erro', `Pneu com codigo "${data}" nao encontrado no sistema.`, 'error');
                             }
                         }}
                         title="Escanear Pneu para Montagem"
-                        placeholder="Número de fogo..."
+                        placeholder="Numero de fogo..."
                         mode="QR"
                     />
                 )}

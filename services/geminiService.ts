@@ -1,5 +1,5 @@
 
-// Serviço de IA desativado
+// Servico de IA desativado
 export const parseTirePhoto = async () => null;
 export const analyzeInventory = async () => "";
 export const chatWithAssistant = async () => "";

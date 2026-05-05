@@ -79,10 +79,10 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
           plate,
           type: 'SASCAR',
           severity: 'WARNING',
-          title: 'Sem código de rastreador',
-          detail: 'Veículo não possui CÓD. RASTREADOR/Sascar cadastrado.',
+          title: 'Sem codigo de rastreador',
+          detail: 'Veiculo nao possui COD. RASTREADOR/Sascar cadastrado.',
           recommendation: 'Cadastre o codigo do rastreador no cadastro do veiculo para permitir posicao, KM e litrometro automaticos.',
-          actionLabel: 'Abrir cadastro do veículo',
+          actionLabel: 'Abrir cadastro do veiculo',
           actionType: 'OPEN_VEHICLE',
           canAutoFix: false
         });
@@ -95,10 +95,10 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
           plate,
           type: 'POSICAO',
           severity: 'WARNING',
-          title: 'Sem posição registrada',
-          detail: 'Nenhuma posição foi gravada para este veículo.',
-          recommendation: 'Buscar a última posição desse veículo na Sascar e gravar localização, KM, ignição e litrometro retornados.',
-          actionLabel: 'Sincronizar este veículo',
+          title: 'Sem posicao registrada',
+          detail: 'Nenhuma posicao foi gravada para este veiculo.',
+          recommendation: 'Buscar a ultima posicao desse veiculo na Sascar e gravar localizacao, KM, ignicao e litrometro retornados.',
+          actionLabel: 'Sincronizar este veiculo',
           actionType: 'SYNC_SASCAR',
           canAutoFix: true
         });
@@ -115,10 +115,10 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
             plate,
             type: 'POSICAO',
             severity: hoursWithoutPosition > 96 ? 'CRITICAL' : 'WARNING',
-            title: 'Posição sem atualização recente',
-            detail: `Última posição há ${Math.round(hoursWithoutPosition)} horas.`,
-            recommendation: 'Atualizar somente este veículo na Sascar para substituir a posição antiga pela posição mais recente.',
-            actionLabel: 'Atualizar posição agora',
+            title: 'Posicao sem atualizacao recente',
+            detail: `Ultima posicao ha ${Math.round(hoursWithoutPosition)} horas.`,
+            recommendation: 'Atualizar somente este veiculo na Sascar para substituir a posicao antiga pela posicao mais recente.',
+            actionLabel: 'Atualizar posicao agora',
             actionType: 'SYNC_SASCAR',
             canAutoFix: true
           });
@@ -132,9 +132,9 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
           plate,
           type: 'KM',
           severity: 'WARNING',
-          title: 'Hodômetro zerado',
-          detail: 'KM atual não está preenchido.',
-          recommendation: 'Consultar a Sascar para preencher o hodômetro do veículo automaticamente, se o rastreador retornar KM válido.',
+          title: 'Hodometro zerado',
+          detail: 'KM atual nao esta preenchido.',
+          recommendation: 'Consultar a Sascar para preencher o hodometro do veiculo automaticamente, se o rastreador retornar KM valido.',
           actionLabel: 'Buscar KM na Sascar',
           actionType: 'SYNC_SASCAR',
           canAutoFix: true
@@ -146,9 +146,9 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
           plate,
           type: 'KM',
           severity: 'CRITICAL',
-          title: 'Hodômetro suspeito',
-          detail: `${vehicle.odometer.toLocaleString('pt-BR')} km parece documento/código no lugar do KM.`,
-          recommendation: 'Consultar a Sascar e substituir esse valor somente se o rastreador retornar um hodômetro plausível.',
+          title: 'Hodometro suspeito',
+          detail: `${vehicle.odometer.toLocaleString('pt-BR')} km parece documento/codigo no lugar do KM.`,
+          recommendation: 'Consultar a Sascar e substituir esse valor somente se o rastreador retornar um hodometro plausivel.',
           actionLabel: 'Corrigir KM pela Sascar',
           actionType: 'SYNC_SASCAR',
           canAutoFix: true
@@ -170,10 +170,10 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
             plate,
             type: 'ABASTECIMENTO',
             severity: rollingFuel.regressiveSegments > 0 ? 'CRITICAL' : 'WARNING',
-            title: 'Abastecimento com inconsistências',
+            title: 'Abastecimento com inconsistencias',
             detail: `${rollingFuel.alerts.length} alerta(s): parcial, KM regressivo ou trecho descartado.`,
-            recommendation: 'Revise os abastecimentos do veículo. Voce pode marcar parcial, descartar trecho, ignorar com justificativa ou pedir conferencia manual sem apagar o historico.',
-            actionLabel: 'Abrir ações do abastecimento',
+            recommendation: 'Revise os abastecimentos do veiculo. Voce pode marcar parcial, descartar trecho, ignorar com justificativa ou pedir conferencia manual sem apagar o historico.',
+            actionLabel: 'Abrir acoes do abastecimento',
             actionType: 'REVIEW_FUEL',
             canAutoFix: false,
             relatedFuelEntryId: relatedFuelEntry.id
@@ -190,9 +190,9 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
             plate,
             type: 'ABASTECIMENTO',
             severity: diffPercent >= 30 ? 'CRITICAL' : 'WARNING',
-            title: 'Médias divergentes',
+            title: 'Medias divergentes',
             detail: `Abastecimento ${rollingFuel.average.toFixed(2)} KM/L x telemetria ${telemetryAverage.toFixed(2)} KM/L (${diffPercent.toFixed(1)}%).`,
-            recommendation: 'Atualize a telemetria do veículo e revise abastecimentos parciais ou com KM fora de sequência.',
+            recommendation: 'Atualize a telemetria do veiculo e revise abastecimentos parciais ou com KM fora de sequencia.',
             actionLabel: 'Atualizar telemetria',
             actionType: 'SYNC_SASCAR',
             canAutoFix: true
@@ -218,9 +218,9 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
           plate,
           type: 'MANUTENCAO',
           severity: 'CRITICAL',
-          title: 'Manutenção preventiva vencida',
-          detail: `Vencida há ${overdueKm.toLocaleString('pt-BR')} km.`,
-          recommendation: 'Gerar uma O.S. preventiva pendente para o veículo com o KM atual, deixando a oficina programar a execução.',
+          title: 'Manutencao preventiva vencida',
+          detail: `Vencida ha ${overdueKm.toLocaleString('pt-BR')} km.`,
+          recommendation: 'Gerar uma O.S. preventiva pendente para o veiculo com o KM atual, deixando a oficina programar a execucao.',
           actionLabel: 'Criar O.S. preventiva',
           actionType: 'CREATE_PREVENTIVE_OS',
           canAutoFix: true
@@ -254,7 +254,7 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
     const issueToResolve = overrideAction ? { ...selectedIssue, actionType: overrideAction } : selectedIssue;
 
     if (['IGNORE_ALERT', 'DISCARD_FUEL_SEGMENT', 'REQUEST_MANUAL_REVIEW'].includes(issueToResolve.actionType) && !justification.trim()) {
-      alert('Informe uma justificativa antes de aplicar esta ação.');
+      alert('Informe uma justificativa antes de aplicar esta acao.');
       return;
     }
 
@@ -267,10 +267,10 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
     setIsResolving(true);
     try {
       const message = await onResolveIssue?.(issueToResolve, justification.trim());
-      alert(message || 'Correção aplicada com sucesso.');
+      alert(message || 'Correcao aplicada com sucesso.');
       closeModal();
     } catch (error: any) {
-      alert(error?.message || 'Não foi possível aplicar a correção automática.');
+      alert(error?.message || 'Nao foi possivel aplicar a correcao automatica.');
     } finally {
       setIsResolving(false);
     }
@@ -280,11 +280,11 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 p-4 rounded-lg">
-          <p className="text-[10px] font-black text-red-700 dark:text-red-300 uppercase">Críticas</p>
+          <p className="text-[10px] font-black text-red-700 dark:text-red-300 uppercase">Criticas</p>
           <p className="text-3xl font-black text-red-700 dark:text-red-300">{criticalCount}</p>
         </div>
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 p-4 rounded-lg">
-          <p className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase">Atenção</p>
+          <p className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase">Atencao</p>
           <p className="text-3xl font-black text-amber-700 dark:text-amber-300">{warningCount}</p>
         </div>
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 p-4 rounded-lg">
@@ -296,8 +296,8 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-white">Painel de Inconsistências</h2>
-            <p className="text-sm font-bold text-slate-500">Sascar, KM, abastecimento, litrometro, posição e manutenção.</p>
+            <h2 className="text-xl font-black text-slate-800 dark:text-white">Painel de Inconsistencias</h2>
+            <p className="text-sm font-bold text-slate-500">Sascar, KM, abastecimento, litrometro, posicao e manutencao.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative">
@@ -315,8 +315,8 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
               className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold dark:text-white"
             >
               <option value="ALL">Todos</option>
-              <option value="CRITICAL">Críticos</option>
-              <option value="WARNING">Atenção</option>
+              <option value="CRITICAL">Criticos</option>
+              <option value="WARNING">Atencao</option>
               <option value="INFO">Informativos</option>
             </select>
           </div>
@@ -347,8 +347,8 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
         ) : (
           <div className="py-12 text-center bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
             <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
-            <p className="font-black text-slate-700 dark:text-slate-200">Nenhuma inconsistência encontrada.</p>
-            <p className="text-sm font-bold text-slate-500">A frota está sem alertas para os critérios atuais.</p>
+            <p className="font-black text-slate-700 dark:text-slate-200">Nenhuma inconsistencia encontrada.</p>
+            <p className="text-sm font-bold text-slate-500">A frota esta sem alertas para os criterios atuais.</p>
           </div>
         )}
       </div>
@@ -375,7 +375,7 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
               </div>
 
               <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <p className="text-xs font-black uppercase text-slate-500 mb-1">O que será feito</p>
+                <p className="text-xs font-black uppercase text-slate-500 mb-1">O que sera feito</p>
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{selectedIssue.recommendation}</p>
               </div>
 
@@ -407,7 +407,7 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
               {!selectedIssue.canAutoFix && selectedIssue.type !== 'ABASTECIMENTO' && (
                 <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800">
                   <p className="text-xs font-bold text-amber-800 dark:text-amber-200">
-                    Esta inconsistência precisa de conferência humana antes de alterar dados. O botão abaixo abrirá o veículo para revisão.
+                    Esta inconsistencia precisa de conferencia humana antes de alterar dados. O botao abaixo abrira o veiculo para revisao.
                   </p>
                 </div>
               )}
@@ -426,7 +426,7 @@ export const FleetIssuesPanel: React.FC<FleetIssuesPanelProps> = ({
                 className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-black flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {selectedIssue.canAutoFix ? selectedIssue.actionLabel : 'Abrir para revisão'}
+                {selectedIssue.canAutoFix ? selectedIssue.actionLabel : 'Abrir para revisao'}
               </button>
             </div>
           </div>

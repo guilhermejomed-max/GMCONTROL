@@ -26,7 +26,7 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalCost)}
         </h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
-          <Calendar className="h-3 w-3" /> Acumulado do período
+          <Calendar className="h-3 w-3" /> Acumulado do periodo
         </div>
       </div>
       
@@ -50,13 +50,13 @@ export const FuelStatsCards: React.FC<FuelStatsCardsProps> = React.memo(({ stats
           <div className="p-1 bg-orange-100 dark:bg-orange-900/30 rounded-md">
             <TrendingUp className="h-3 w-3 text-orange-600"/>
           </div>
-          Média Global
+          Media Global
         </div>
         <h3 className="text-2xl font-black text-orange-600 tracking-tight truncate">
           {stats.globalAvg.toFixed(2)} <span className="text-sm font-bold text-slate-400 lowercase">{unitKm}</span>
         </h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-slate-400">
-          <Truck className="h-3 w-3" /> Eficiência média
+          <Truck className="h-3 w-3" /> Eficiencia media
         </div>
       </div>
       

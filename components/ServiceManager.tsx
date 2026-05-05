@@ -107,7 +107,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
           totalValue: quantity * unitCost,
           date: new Date().toISOString(),
           user: userLevel,
-          notes: `Entrada via XML NF-e nº ${nfeNumber}`
+          notes: `Entrada via XML NF-e no ${nfeNumber}`
         };
         
         await storageService.registerStockMovement(orgId, movementData);
@@ -118,7 +118,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
       setIsNfeModalOpen(false);
     } catch (err) {
       console.error(err);
-      alert("Erro ao ler o arquivo XML. O arquivo é válido?");
+      alert("Erro ao ler o arquivo XML. O arquivo e valido?");
     } finally {
       setProcessingNfe(false);
     }
@@ -206,12 +206,12 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
        // Need to fetch from an API that provides SEFAZ NF-e data by key
        // Example integration with Focus NFe (requires API Key from .env)
        try {
-           alert("Chave NF-e detectada: " + cleanedCode + "\n\nO sistema tentará contatar a SEFAZ (Requer Token configurado).");
+           alert("Chave NF-e detectada: " + cleanedCode + "\n\nO sistema tentara contatar a SEFAZ (Requer Token configurado).");
            // You would normally do: const response = await fetch(`/api/nfe/${cleanedCode}`);
            // E como o backend precisa de um Certificado A1 ou Token pago, 
-           // a recomendação é ter a chave exportada.
-           // throw new Error("A chave " + code + " foi lida com sucesso! Para puxar os itens do governo automaticamente usando APENAS O CÓDIGO DE BARRAS da DANFE, é obrigatório possuir uma API configurada (Ex: Focus NFe, NFe.io, Sieg) no servidor devido à proteção da SEFAZ.");
-           alert("Funcionalidade configurada para o Servidor Backend. Quando o Token for inserido nas chaves do ambiente (ENV), a leitura automática de DANFE via SEFAZ funcionará.");
+           // a recomendacao e ter a chave exportada.
+           // throw new Error("A chave " + code + " foi lida com sucesso! Para puxar os itens do governo automaticamente usando APENAS O CODIGO DE BARRAS da DANFE, e obrigatorio possuir uma API configurada (Ex: Focus NFe, NFe.io, Sieg) no servidor devido a protecao da SEFAZ.");
+           alert("Funcionalidade configurada para o Servidor Backend. Quando o Token for inserido nas chaves do ambiente (ENV), a leitura automatica de DANFE via SEFAZ funcionara.");
        } catch (err) {
            console.error(err);
        }
@@ -242,7 +242,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 500 * 1024) {
-      alert("A foto deve ter no máximo 500KB.");
+      alert("A foto deve ter no maximo 500KB.");
       return;
     }
     const reader = new FileReader();
@@ -269,11 +269,11 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
 
   const handleDeleteItem = async (id: string) => {
     if (!['SENIOR', 'CREATOR', 'ADMIN', 'MANAGER'].includes(userLevel)) {
-      alert("Você não tem permissão para excluir itens.");
+      alert("Voce nao tem permissao para excluir itens.");
       return;
     }
 
-    if (confirm("Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.")) {
+    if (confirm("Tem certeza que deseja excluir este item? Esta acao nao pode ser desfeita.")) {
       try {
         await storageService.deleteStockItem(orgId, id);
       } catch (err) {
@@ -285,7 +285,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
   const handleOpenMovement = (item: StockItem, type: 'ENTRY' | 'EXIT') => {
     setSelectedItemForMovement(item);
     setMovementType(type);
-    setMovementFormData({ quantity: 1, unitCost: item.averageCost || 0, notes: '', user: 'Usuário' });
+    setMovementFormData({ quantity: 1, unitCost: item.averageCost || 0, notes: '', user: 'Usuario' });
     setIsMovementModalOpen(true);
   };
 
@@ -308,14 +308,14 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
       await storageService.registerStockMovement(orgId, movement);
       setIsMovementModalOpen(false);
     } catch (err) {
-      alert("Erro ao registrar movimentação.");
+      alert("Erro ao registrar movimentacao.");
     }
   };
 
   const handlePrintStockReport = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert("Habilite popups para gerar o relatório.");
+      alert("Habilite popups para gerar o relatorio.");
       return;
     }
 
@@ -348,7 +348,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Inventário Oficial - GM Control</title>
+        <title>Inventario Oficial - GM Control</title>
         <style>
           @page { size: A4; margin: 15mm; }
           body { 
@@ -423,13 +423,13 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
         <div class="header">
           <div class="logo-box">
             <div class="logo-text">GM<span>CONTROL</span></div>
-            <div style="font-size: 9px; font-weight: 600; color: #64748b; letter-spacing: 2px;">GESTÃO INTELIGENTE</div>
+            <div style="font-size: 9px; font-weight: 600; color: #64748b; letter-spacing: 2px;">GESTAO INTELIGENTE</div>
           </div>
           <div class="report-info">
-            <div class="report-title">Relatório de Estoque Físico</div>
+            <div class="report-title">Relatorio de Estoque Fisico</div>
             <div class="report-meta">
                Data: ${new Date().toLocaleDateString()} &bull; Hora: ${new Date().toLocaleTimeString()}<br>
-               Responsável: ${userLevel === 'SENIOR' ? 'Administrador' : 'Almoxarife'}
+               Responsavel: ${userLevel === 'SENIOR' ? 'Administrador' : 'Almoxarife'}
             </div>
           </div>
         </div>
@@ -445,7 +445,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               <div class="card-value">${totalItems}</div>
            </div>
            <div class="card critical">
-              <div class="card-title">Abaixo do Mínimo</div>
+              <div class="card-title">Abaixo do Minimo</div>
               <div class="card-value">${criticalCount}</div>
            </div>
            <div class="card">
@@ -464,10 +464,10 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               <thead>
                  <tr>
                     <th style="width: 30px;">#</th>
-                    <th>Código</th>
-                    <th>Descrição / Item</th>
+                    <th>Codigo</th>
+                    <th>Descricao / Item</th>
                     <th class="col-center">Unid.</th>
-                    <th class="col-center">Mín.</th>
+                    <th class="col-center">Min.</th>
                     <th class="col-center">Qtd. Sist.</th>
                     <th class="col-right">Custo Unit.</th>
                     <th class="col-right">Valor Total</th>
@@ -503,17 +503,17 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
         ${criticalItems.length > 0 ? `
             <div class="alert-box">
                 <div class="alert-header">
-                    ⚠ Relatório de Reposição Urgente (Estoque Baixo ou Zerado)
+                    ⚠ Relatorio de Reposicao Urgente (Estoque Baixo ou Zerado)
                 </div>
                 <table style="border: none; margin: 0;">
                     <thead>
                         <tr>
-                            <th style="color: #dc2626;">Código</th>
+                            <th style="color: #dc2626;">Codigo</th>
                             <th style="color: #dc2626;">Item</th>
                             <th style="color: #dc2626;">Categoria</th>
                             <th class="col-center" style="color: #dc2626;">Estoque Atual</th>
-                            <th class="col-center" style="color: #dc2626;">Mínimo</th>
-                            <th class="col-center" style="background: #fee2e2; color: #dc2626;">Déficit (Compra)</th>
+                            <th class="col-center" style="color: #dc2626;">Minimo</th>
+                            <th class="col-center" style="background: #fee2e2; color: #dc2626;">Deficit (Compra)</th>
                             <th class="col-right" style="color: #dc2626;">Custo Estimado</th>
                         </tr>
                     </thead>
@@ -549,7 +549,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
 
         <!-- FOOTER -->
         <div class="footer">
-           <div>GM Control Pro v4.5 &bull; Sistema de Gestão Integrada</div>
+           <div>GM Control Pro v4.5 &bull; Sistema de Gestao Integrada</div>
            <div>Documento de uso interno e confidencial.</div>
         </div>
 
@@ -599,8 +599,8 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                       unitCost: item.averageCost,
                       totalValue: absDiff * item.averageCost,
                       date: new Date().toISOString(),
-                      user: 'Inventário',
-                      notes: `Ajuste de Inventário. Físico: ${physicalQty} / Sist: ${systemQty}`
+                      user: 'Inventario',
+                      notes: `Ajuste de Inventario. Fisico: ${physicalQty} / Sist: ${systemQty}`
                   };
 
                   updates.push(storageService.registerStockMovement(orgId, movement));
@@ -610,14 +610,14 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
       }
 
       if (adjustmentCount > 0) {
-          if (confirm(`Confirma o ajuste de estoque para ${adjustmentCount} itens com divergência?`)) {
+          if (confirm(`Confirma o ajuste de estoque para ${adjustmentCount} itens com divergencia?`)) {
               await Promise.all(updates);
               setAuditCounts({});
-              alert("Inventário processado com sucesso!");
+              alert("Inventario processado com sucesso!");
               setActiveTab('STOCK');
           }
       } else {
-          alert("Nenhuma divergência encontrada nos itens auditados.");
+          alert("Nenhuma divergencia encontrada nos itens auditados.");
       }
   };
 
@@ -630,13 +630,13 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
           <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2">
              <Package className="h-7 w-7 text-orange-600" /> Almoxarifado
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Gestão inteligente de peças e insumos.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Gestao inteligente de pecas e insumos.</p>
         </div>
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg overflow-x-auto w-full md:w-auto">
-            <button onClick={() => setActiveTab('DASHBOARD')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'DASHBOARD' ? 'bg-white dark:bg-slate-700 shadow text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><LayoutDashboard className="h-4 w-4"/> Visão Geral</button>
+            <button onClick={() => setActiveTab('DASHBOARD')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'DASHBOARD' ? 'bg-white dark:bg-slate-700 shadow text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><LayoutDashboard className="h-4 w-4"/> Visao Geral</button>
             <button onClick={() => setActiveTab('STOCK')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'STOCK' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><Package className="h-4 w-4"/> Estoque</button>
-            <button onClick={() => setActiveTab('MOVEMENTS')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'MOVEMENTS' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><History className="h-4 w-4"/> Movimentações</button>
-            <button onClick={() => setActiveTab('AUDIT')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'AUDIT' ? 'bg-white dark:bg-slate-700 shadow text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><ClipboardList className="h-4 w-4"/> Inventário</button>
+            <button onClick={() => setActiveTab('MOVEMENTS')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'MOVEMENTS' ? 'bg-white dark:bg-slate-700 shadow text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><History className="h-4 w-4"/> Movimentacoes</button>
+            <button onClick={() => setActiveTab('AUDIT')} className={`flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-colors ${activeTab === 'AUDIT' ? 'bg-white dark:bg-slate-700 shadow text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><ClipboardList className="h-4 w-4"/> Inventario</button>
           </div>
         </div>
 
@@ -653,7 +653,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                </div>
                <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
                   <div>
-                     <p className="text-xs font-bold text-slate-400 uppercase">Alertas de Reposição</p>
+                     <p className="text-xs font-bold text-slate-400 uppercase">Alertas de Reposicao</p>
                      <h3 className={`text-2xl font-black ${stats.lowStockCount > 0 ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{stats.lowStockCount} <span className="text-sm font-medium text-slate-400">itens</span></h3>
                   </div>
                   <div className={`p-3 rounded-xl ${stats.lowStockCount > 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-slate-100 text-slate-400'}`}><AlertTriangle className="h-6 w-6"/></div>
@@ -670,7 +670,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
             {/* CHARTS ROW */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                  <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><PieIcon className="h-5 w-5 text-purple-500"/> Composição do Estoque</h3>
+                  <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><PieIcon className="h-5 w-5 text-purple-500"/> Composicao do Estoque</h3>
                   <div className="h-64 w-full">
                      <ResponsiveContainer width="100%" height={256}>
                         <PieChart>
@@ -702,7 +702,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
 
             {/* MOVEMENT HISTORY CHART */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-               <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-500"/> Fluxo Financeiro (Últimos 6 Meses)</h3>
+               <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-500"/> Fluxo Financeiro (Ultimos 6 Meses)</h3>
                <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height={256}>
                      <AreaChart data={stats.trendData}>
@@ -736,7 +736,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
             <Search className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Buscar por nome ou bipe o Código de Barras (Leitor)..." 
+              placeholder="Buscar por nome ou bipe o Codigo de Barras (Leitor)..." 
               className="w-full px-10 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white placeholder-slate-400 font-semibold shadow-sm" 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
@@ -746,7 +746,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                   if (!scannedCode) return;
                   
                   if (scannedCode.length === 44) {
-                    alert("Chave NF-e detectada: " + scannedCode + "\n\nA consulta aos itens a partir do código de barras da DANFE exige integração paga/certificado digital na SEFAZ. O módulo backend está preparado aguardando a chave (Token) no arquivo .env");
+                    alert("Chave NF-e detectada: " + scannedCode + "\n\nA consulta aos itens a partir do codigo de barras da DANFE exige integracao paga/certificado digital na SEFAZ. O modulo backend esta preparado aguardando a chave (Token) no arquivo .env");
                     setSearchTerm('');
                     return;
                   }
@@ -768,7 +768,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
             <button 
               onClick={() => setIsScannerOpen(true)}
               className="absolute right-2 top-2 p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors border border-blue-200"
-              title="Abrir Câmera do Celular"
+              title="Abrir Camera do Celular"
             >
               <ScanLine className="h-5 w-5" />
             </button>
@@ -782,8 +782,8 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                      <span className="hidden md:inline">{processingNfe ? 'Lendo NF...' : 'Importar NF-e'}</span>
                    </label>
                 </div>
-                <button onClick={() => setIsScannerOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-xl shadow-sm transition-colors flex items-center gap-2 font-bold" title="Entrada via Scanner"><ScanLine className="h-5 w-5" /> <span className="hidden md:inline">Entrada de Peça</span></button>
-                <button onClick={handlePrintStockReport} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-4 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 font-bold" title="Imprimir Relatório"><Printer className="h-5 w-5" /> <span className="hidden md:inline">Relatório</span></button>
+                <button onClick={() => setIsScannerOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-xl shadow-sm transition-colors flex items-center gap-2 font-bold" title="Entrada via Scanner"><ScanLine className="h-5 w-5" /> <span className="hidden md:inline">Entrada de Peca</span></button>
+                <button onClick={handlePrintStockReport} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 px-4 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 font-bold" title="Imprimir Relatorio"><Printer className="h-5 w-5" /> <span className="hidden md:inline">Relatorio</span></button>
                 <button onClick={() => handleOpenItemModal()} className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-xl shadow-lg transition-colors"><Plus className="h-6 w-6" /></button>
              </>
           )}
@@ -797,12 +797,12 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
                 <tr>
                   <th className="p-4 w-12">Foto</th>
-                  <th className="p-4">Item / Código</th>
+                  <th className="p-4">Item / Codigo</th>
                   <th className="p-4">Categoria</th>
                   <th className="p-4 text-center">Quantidade</th>
-                  <th className="p-4 text-right">Custo Médio</th>
+                  <th className="p-4 text-right">Custo Medio</th>
                   <th className="p-4 text-right">Valor Total</th>
-                  <th className="p-4 text-center">Ações</th>
+                  <th className="p-4 text-center">Acoes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -852,7 +852,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                         <button 
                           onClick={() => handleOpenMovement(item, 'EXIT')} 
                           className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors"
-                          title="Saída"
+                          title="Saida"
                         >
                           <ArrowDownCircle className="h-4 w-4" />
                         </button>
@@ -893,7 +893,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                         <th className="p-4">Item</th>
                         <th className="p-4 text-center">Qtd</th>
                         <th className="p-4 text-right">Valor Total</th>
-                        <th className="p-4">Usuário</th>
+                        <th className="p-4">Usuario</th>
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -902,7 +902,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                            <td className="p-4 text-slate-500 dark:text-slate-400">{new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString()} {new Date(m.date + (m.date.includes('T') ? '' : 'T12:00:00')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                            <td className="p-4">
                               <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${m.type === 'ENTRY' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                                 {m.type === 'ENTRY' ? 'Entrada' : 'Saída'}
+                                 {m.type === 'ENTRY' ? 'Entrada' : 'Saida'}
                               </span>
                            </td>
                            <td className="p-4 font-bold text-slate-800 dark:text-white">{m.itemName}</td>
@@ -949,10 +949,10 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                 <table className="w-full text-sm text-left">
                    <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-bold sticky top-0 z-10 shadow-sm">
                       <tr>
-                         <th className="p-4">Item / Código</th>
+                         <th className="p-4">Item / Codigo</th>
                          <th className="p-4">Categoria</th>
                          <th className="p-4 text-center">Sistema (Qtd)</th>
-                         <th className="p-4 text-center w-40">Contagem Física</th>
+                         <th className="p-4 text-center w-40">Contagem Fisica</th>
                          <th className="p-4 text-center">Status</th>
                       </tr>
                    </thead>
@@ -1010,7 +1010,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
           <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-                <ScanLine className="h-6 w-6 text-blue-600" /> Escanear Código de Barras
+                <ScanLine className="h-6 w-6 text-blue-600" /> Escanear Codigo de Barras
               </h3>
               <button onClick={() => setIsScannerOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                 <X className="h-6 w-6 text-slate-500" />
@@ -1018,7 +1018,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 text-center">
-                Aponte a câmera para o código de barras do item para realizar a entrada.
+                Aponte a camera para o codigo de barras do item para realizar a entrada.
               </p>
               <div className="aspect-video bg-slate-100 dark:bg-slate-950 rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 dark:border-slate-800 relative">
                 <Scanner onScan={handleScanSuccess} onClose={() => setIsScannerOpen(false)} />
@@ -1070,15 +1070,15 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               </div>
               <div className="grid grid-cols-2 gap-4">
                  <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Código</label>
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Codigo</label>
                     <input required className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white" value={itemFormData.code} onChange={e => setItemFormData({ ...itemFormData, code: e.target.value })} />
                  </div>
                  <div>
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Categoria</label>
                     <select className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white font-bold" value={itemFormData.category} onChange={e => setItemFormData({...itemFormData, category: e.target.value as any})}>
-                       <option value="PECA">Peça</option>
+                       <option value="PECA">Peca</option>
                        <option value="FILTRO">Filtro</option>
-                       <option value="OLEO">Óleo/Fluido</option>
+                       <option value="OLEO">Oleo/Fluido</option>
                        <option value="FERRAMENTA">Ferramenta</option>
                        <option value="EPI">EPI</option>
                        <option value="OUTROS">Outros</option>
@@ -1087,7 +1087,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Estoque Mínimo</label>
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Estoque Minimo</label>
                    <input type="number" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white" value={itemFormData.minQuantity} onChange={e => setItemFormData({ ...itemFormData, minQuantity: Number(e.target.value) })} />
                 </div>
                 <div>
@@ -1108,7 +1108,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
             <div className="text-center mb-6">
-               <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1">{movementType === 'ENTRY' ? 'Entrada de Estoque' : 'Saída de Estoque'}</h3>
+               <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1">{movementType === 'ENTRY' ? 'Entrada de Estoque' : 'Saida de Estoque'}</h3>
                <p className="text-sm font-bold text-orange-600">{selectedItemForMovement.name}</p>
             </div>
             <form onSubmit={handleSaveMovement} className="space-y-4">
@@ -1123,7 +1123,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
 
               {movementType === 'ENTRY' && (
                 <div>
-                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Valor Unitário (R$)</label>
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Valor Unitario (R$)</label>
                    <input 
                     type="number" 
                     step="0.01" 
@@ -1136,7 +1136,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
               )}
               
               <div>
-                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Observações</label>
+                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Observacoes</label>
                  <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-slate-800 dark:text-white" placeholder="Motivo, OS, Fornecedor..." value={movementFormData.notes} onChange={e => setMovementFormData({ ...movementFormData, notes: e.target.value })} />
               </div>
 
@@ -1167,7 +1167,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                     </div>
                     <div className="space-y-6">
                        <div>
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Código / Identificação</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Codigo / Identificacao</label>
                           <div className="text-lg font-mono font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/10 px-3 py-1 rounded inline-block">
                              {selectedDetailItem.code}
                           </div>
@@ -1180,7 +1180,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                              <div className="text-xl font-black text-slate-800 dark:text-white">{selectedDetailItem.quantity} {selectedDetailItem.unit}</div>
                           </div>
                           <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Custo Médio</label>
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Custo Medio</label>
                              <div className="text-xl font-black text-slate-800 dark:text-white">{money(selectedDetailItem.averageCost)}</div>
                           </div>
                        </div>
@@ -1191,7 +1191,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                              <span className="font-black text-slate-800 dark:text-slate-200">{selectedDetailItem.category}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
-                             <span className="text-slate-500 font-bold uppercase text-[10px]">Estoque Mínimo</span>
+                             <span className="text-slate-500 font-bold uppercase text-[10px]">Estoque Minimo</span>
                              <span className="font-black text-slate-800 dark:text-slate-200">{selectedDetailItem.minQuantity} {selectedDetailItem.unit}</span>
                           </div>
                           <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
@@ -1201,7 +1201,7 @@ export const ServiceManager: FC<ServiceManagerProps & { items: StockItem[] }> = 
                           <div className="flex justify-between items-center text-sm">
                              <span className="text-slate-500 font-bold uppercase text-[10px]">Status</span>
                              <span className={`font-black ${selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'text-red-500' : 'text-emerald-500'}`}>
-                                {selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'BAIXO ESTOQUE' : 'NÍVEL ADEQUADO'}
+                                {selectedDetailItem.quantity <= selectedDetailItem.minQuantity ? 'BAIXO ESTOQUE' : 'NIVEL ADEQUADO'}
                              </span>
                           </div>
                        </div>

@@ -109,12 +109,12 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
               <Leaf className="h-7 w-7 text-emerald-500" /> Painel ESG & Sustentabilidade
            </h2>
-           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Transforme a eficiência da sua gestão de pneus em métricas ambientais reais.</p>
+           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Transforme a eficiencia da sua gestao de pneus em metricas ambientais reais.</p>
         </div>
         <div className="flex items-center gap-3">
            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner">
                <button onClick={() => setViewType('TIRES')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewType === 'TIRES' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Pneus</button>
-               <button onClick={() => setViewType('WASTE')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewType === 'WASTE' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Resíduos</button>
+               <button onClick={() => setViewType('WASTE')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewType === 'WASTE' ? 'bg-white dark:bg-slate-700 shadow-md text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Residuos</button>
            </div>
            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner ml-2">
                <button onClick={() => setPeriod('YTD')} className={`px-3 py-2 rounded-lg text-[10px] uppercase font-black transition-all ${period === 'YTD' ? 'bg-white dark:bg-slate-700 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Este Ano</button>
@@ -142,12 +142,12 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                   <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4">Certificado de Sustentabilidade</h1>
                   <p className="text-emerald-100 text-lg md:text-xl max-w-2xl mx-auto font-medium">
                       {viewType === 'TIRES' 
-                        ? 'Reconhecimento pelo compromisso com a redução do impacto ambiental através da gestão eficiente e economia circular de pneus.'
-                        : 'Reconhecimento pela excelência na gestão ambiental e descarte responsável de resíduos sólidos e materiais contaminados.'}
+                        ? 'Reconhecimento pelo compromisso com a reducao do impacto ambiental atraves da gestao eficiente e economia circular de pneus.'
+                        : 'Reconhecimento pela excelencia na gestao ambiental e descarte responsavel de residuos solidos e materiais contaminados.'}
                   </p>
                   <div className="mt-8 inline-flex items-center gap-2 bg-black/20 backdrop-blur-md px-6 py-2 rounded-full text-emerald-50 font-bold border border-white/10">
                       <Calendar className="h-4 w-4" />
-                      Período: {period === 'YTD' ? `Ano de ${new Date().getFullYear()}` : 'Histórico Completo'}
+                      Periodo: {period === 'YTD' ? `Ano de ${new Date().getFullYear()}` : 'Historico Completo'}
                   </div>
               </div>
           </div>
@@ -156,12 +156,12 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
           <div className="p-8 md:p-12">
               <div className="text-center mb-12">
                   <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">
-                    {viewType === 'TIRES' ? 'Impacto Ambiental Evitado' : 'Impacto da Destinação Correta'}
+                    {viewType === 'TIRES' ? 'Impacto Ambiental Evitado' : 'Impacto da Destinacao Correta'}
                   </h3>
                   <p className="text-slate-500 dark:text-slate-400">
                     {viewType === 'TIRES' 
-                      ? 'Resultados gerados pela política de recapagem e extensão da vida útil dos pneus.'
-                      : 'Resultados da gestão de resíduos da oficina e materiais de proteção individual.'}
+                      ? 'Resultados gerados pela politica de recapagem e extensao da vida util dos pneus.'
+                      : 'Resultados da gestao de residuos da oficina e materiais de protecao individual.'}
                   </p>
               </div>
 
@@ -178,8 +178,8 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                         <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
                             {stats.oilSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">L</span>
                         </h4>
-                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Petróleo Economizado</p>
-                        <p className="text-xs text-slate-400 mt-4 relative z-10">Litros de petróleo que deixaram de ser extraídos para a fabricação de pneus novos.</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Petroleo Economizado</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Litros de petroleo que deixaram de ser extraidos para a fabricacao de pneus novos.</p>
                     </div>
 
                     {/* CO2 */}
@@ -194,7 +194,7 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                             {(stats.co2Reduced / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} <span className="text-lg text-slate-400 font-bold">Ton</span>
                         </h4>
                         <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">CO₂ Reduzido</p>
-                        <p className="text-xs text-slate-400 mt-4 relative z-10">Toneladas de Dióxido de Carbono que deixaram de ser emitidas na atmosfera.</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Toneladas de Dioxido de Carbono que deixaram de ser emitidas na atmosfera.</p>
                     </div>
 
                     {/* Carcasses */}
@@ -208,8 +208,8 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                         <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
                             {stats.carcassesSaved.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">un</span>
                         </h4>
-                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Carcaças Salvas</p>
-                        <p className="text-xs text-slate-400 mt-4 relative z-10">Pneus que foram reaproveitados e não foram descartados em aterros sanitários.</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Carcacas Salvas</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Pneus que foram reaproveitados e nao foram descartados em aterros sanitarios.</p>
                     </div>
                 </div>
               ) : (
@@ -225,8 +225,8 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                         <h4 className="text-3xl font-black text-slate-800 dark:text-white mb-2 relative z-10 truncate">
                             {wasteStats.totalWasteKg.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">KG</span>
                         </h4>
-                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Resíduos de Oficina</p>
-                        <p className="text-xs text-slate-400 mt-4 relative z-10">Volume de resíduos químicos e industriais destinados a parceiros certificados.</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Residuos de Oficina</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Volume de residuos quimicos e industriais destinados a parceiros certificados.</p>
                     </div>
 
                     {/* PPE */}
@@ -241,7 +241,7 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                             {wasteStats.totalPpeKg.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">KG</span>
                         </h4>
                         <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">EPIs Descartados</p>
-                        <p className="text-xs text-slate-400 mt-4 relative z-10">Equipamentos de proteção individual que foram descartados seguindo normas ambientais.</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Equipamentos de protecao individual que foram descartados seguindo normas ambientais.</p>
                     </div>
 
                     {/* Tires */}
@@ -256,7 +256,7 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                             {wasteStats.totalTiresDisposed.toLocaleString('pt-BR')} <span className="text-lg text-slate-400 font-bold">un</span>
                         </h4>
                         <p className="text-sm font-bold text-slate-500 uppercase tracking-widest relative z-10">Sucatas de Pneus</p>
-                        <p className="text-xs text-slate-400 mt-4 relative z-10">Pneus inservíveis retirados de circulação e encaminhados para moagem e reaproveitamento.</p>
+                        <p className="text-xs text-slate-400 mt-4 relative z-10">Pneus inserviveis retirados de circulacao e encaminhados para moagem e reaproveitamento.</p>
                     </div>
                 </div>
               )}
@@ -268,22 +268,22 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
                   </div>
                   <div>
                       <h4 className="text-lg font-black text-emerald-800 dark:text-emerald-400 mb-2">
-                        {viewType === 'TIRES' ? 'O Poder da Economia Circular' : 'Gestão Responsável de Resíduos'}
+                        {viewType === 'TIRES' ? 'O Poder da Economia Circular' : 'Gestao Responsavel de Residuos'}
                       </h4>
                       <p className="text-emerald-700 dark:text-emerald-500/80 leading-relaxed">
                           {viewType === 'TIRES' ? (
                             <>
-                              Ao optar pela recapagem de <strong>{stats.totalRetreads} pneus</strong>, esta operação demonstrou um compromisso real com as práticas <strong>ESG (Environmental, Social, and Governance)</strong>. 
-                              A fabricação de um pneu novo consome em média 83 litros de petróleo, enquanto a recapagem consome apenas 26 litros. 
-                              Esta diferença de 57 litros por pneu, multiplicada pela eficiência da frota, resulta em um impacto ambiental massivamente positivo, 
-                              alinhando a empresa às exigências globais de sustentabilidade e redução da pegada de carbono.
+                              Ao optar pela recapagem de <strong>{stats.totalRetreads} pneus</strong>, esta operacao demonstrou um compromisso real com as praticas <strong>ESG (Environmental, Social, and Governance)</strong>. 
+                              A fabricacao de um pneu novo consome em media 83 litros de petroleo, enquanto a recapagem consome apenas 26 litros. 
+                              Esta diferenca de 57 litros por pneu, multiplicada pela eficiencia da frota, resulta em um impacto ambiental massivamente positivo, 
+                              alinhando a empresa as exigencias globais de sustentabilidade e reducao da pegada de carbono.
                             </>
                           ) : (
                             <>
-                              Através do monitoramento e destinação de <strong>{wasteStats.finalizedCount} remessas</strong> de resíduos industriais, garantimos que nenhum material contaminado afetasse o ecossistema local.
-                              O registro sistemático e o uso de MTR (Manifesto de Transporte de Resíduos) comprovam a rastreabilidade total do descarte, 
-                              protegendo a organização contra passivos ambientais e reforçando o pilar <strong>Environmental</strong> da governança corporativa.
-                              A gestão eficiente evitou o descarte irregular de <strong>{(wasteStats.totalWasteKg + wasteStats.totalPpeKg).toLocaleString('pt-BR')} kg</strong> de materiais.
+                              Atraves do monitoramento e destinacao de <strong>{wasteStats.finalizedCount} remessas</strong> de residuos industriais, garantimos que nenhum material contaminado afetasse o ecossistema local.
+                              O registro sistematico e o uso de MTR (Manifesto de Transporte de Residuos) comprovam a rastreabilidade total do descarte, 
+                              protegendo a organizacao contra passivos ambientais e reforcando o pilar <strong>Environmental</strong> da governanca corporativa.
+                              A gestao eficiente evitou o descarte irregular de <strong>{(wasteStats.totalWasteKg + wasteStats.totalPpeKg).toLocaleString('pt-BR')} kg</strong> de materiais.
                             </>
                           )}
                       </p>
@@ -294,18 +294,18 @@ export const EsgPanel: React.FC<EsgPanelProps> = ({
               <div className="mt-20 pt-8 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8">
                   <div className="text-center">
                       <div className="w-48 h-px bg-slate-300 dark:bg-slate-700 mb-2 mx-auto"></div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-white">Diretoria de Operações</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-white">Diretoria de Operacoes</p>
                   </div>
                   <div className="text-center">
                       <div className="flex items-center justify-center gap-2 mb-2">
                           <Leaf className="h-5 w-5 text-emerald-500" />
                           <span className="font-black text-slate-800 dark:text-white">GM Control Pro</span>
                       </div>
-                      <p className="text-xs text-slate-400">Sistema de Gestão Sustentável de Frotas</p>
+                      <p className="text-xs text-slate-400">Sistema de Gestao Sustentavel de Frotas</p>
                   </div>
                   <div className="text-center">
                       <div className="w-48 h-px bg-slate-300 dark:bg-slate-700 mb-2 mx-auto"></div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-white">Gestão Ambiental / ESG</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-white">Gestao Ambiental / ESG</p>
                   </div>
               </div>
 

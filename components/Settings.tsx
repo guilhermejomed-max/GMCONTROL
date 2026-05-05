@@ -22,15 +22,15 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   // Categorias do Menu
   const MENU_GROUPS = [
     {
-      title: 'Configurações',
+      title: 'Configuracoes',
       items: [
-        { id: 'GENERAL', label: 'Parâmetros', icon: SettingsIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
-        { id: 'CATALOG', label: 'Catálogo de Pneus', icon: BookOpen, color: 'text-orange-600', bg: 'bg-orange-50' },
+        { id: 'GENERAL', label: 'Parametros', icon: SettingsIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { id: 'CATALOG', label: 'Catalogo de Pneus', icon: BookOpen, color: 'text-orange-600', bg: 'bg-orange-50' },
         { id: 'OFICINA', label: 'Oficina', icon: Wrench, color: 'text-indigo-600', bg: 'bg-indigo-50' },
       ]
     },
     {
-      title: 'Organização',
+      title: 'Organizacao',
       items: [
         { id: 'BRANCHES', label: 'Filiais', icon: Building2, color: 'text-cyan-600', bg: 'bg-cyan-50' },
         { id: 'SECTOR', label: 'Setor', icon: Grid, color: 'text-purple-600', bg: 'bg-purple-50' },
@@ -190,7 +190,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       console.error("Failed to save settings", error);
-      alert("Erro ao salvar configurações.");
+      alert("Erro ao salvar configuracoes.");
     } finally {
       setIsSaving(false);
     }
@@ -199,7 +199,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   // --- CATALOG HANDLERS ---
   const handleAddCatalogItem = () => {
      if (!newModel.brand || !newModel.model) {
-        alert("Marca e Modelo são obrigatórios.");
+        alert("Marca e Modelo sao obrigatorios.");
         return;
      }
      const item: TireModelDefinition = {
@@ -267,7 +267,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   // --- POINTS HANDLERS ---
   const handleAddPoint = () => {
     if (!newPoint.name || !newPoint.lat || !newPoint.lng) {
-      alert("Nome, Latitude e Longitude são obrigatórios.");
+      alert("Nome, Latitude e Longitude sao obrigatorios.");
       return;
     }
     const item: LocationPoint = {
@@ -332,7 +332,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     if (!regFirstName || !regLastName) return;
     
     if (!editingMemberId && !regPassword) {
-       alert("Senha é obrigatória para novos usuários.");
+       alert("Senha e obrigatoria para novos usuarios.");
        return;
     }
 
@@ -356,7 +356,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
 
       if (editingMemberId) {
          await storageService.updateTeamMember(orgId, editingMemberId, memberData);
-         alert("Usuário atualizado com sucesso!");
+         alert("Usuario atualizado com sucesso!");
       } else {
          const createdUsername = await storageService.registerTeamMember(
             orgId,
@@ -371,19 +371,19 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             selectedSector?.name || undefined,
             memberData
          );
-         alert(`Usuário criado!\nLogin: ${createdUsername}`);
+         alert(`Usuario criado!\nLogin: ${createdUsername}`);
       }
       resetMemberForm();
     } catch (error: any) {
       console.error("Failed to save member", error);
-      alert(`Erro: ${error.message || "Falha na operação"}`);
+      alert(`Erro: ${error.message || "Falha na operacao"}`);
     } finally {
       setIsSubmittingMember(false);
     }
   };
 
   const handleDeleteMember = async (id: string) => {
-    if (confirm("Tem certeza que deseja remover este usuário? O acesso será revogado imediatamente.")) {
+    if (confirm("Tem certeza que deseja remover este usuario? O acesso sera revogado imediatamente.")) {
       await storageService.deleteTeamMember(orgId, id);
     }
   };
@@ -400,7 +400,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 500 * 1024) {
-      alert("A foto deve ter no máximo 500KB.");
+      alert("A foto deve ter no maximo 500KB.");
       return;
     }
     const reader = new FileReader();
@@ -414,7 +414,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 500 * 1024) {
-      alert("A imagem deve ter no máximo 500KB.");
+      alert("A imagem deve ter no maximo 500KB.");
       return;
     }
     const reader = new FileReader();
@@ -459,52 +459,52 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     let y = 50;
     
     const content: Record<string, string[]> = {
-      'Gestão de Pneus': [
-        '1. Acesse o módulo de Pneus no menu lateral.',
+      'Gestao de Pneus': [
+        '1. Acesse o modulo de Pneus no menu lateral.',
         '2. Para cadastrar um novo pneu, clique em "Novo Pneu".',
-        '3. Preencha os dados técnicos (Marca, Modelo, Dimensão, DOT).',
+        '3. Preencha os dados tecnicos (Marca, Modelo, Dimensao, DOT).',
         '4. Salve o cadastro.',
-        '5. Para movimentar, vá na aba "Movimentação" e selecione o pneu e o veículo.',
-        '6. Registre inspeções periodicamente na aba "Inspeções".'
+        '5. Para movimentar, va na aba "Movimentacao" e selecione o pneu e o veiculo.',
+        '6. Registre inspecoes periodicamente na aba "Inspecoes".'
       ],
-      'Gestão de Frota': [
-        '1. Acesse o módulo de Veículos.',
-        '2. Clique em "Novo Veículo" para adicionar um caminhão ou carreta.',
-        '3. Informe a placa, modelo, ano e odômetro inicial.',
-        '4. Você pode visualizar a localização no "Mapa de Frota".',
-        '5. Mantenha o odômetro atualizado para previsões precisas.'
+      'Gestao de Frota': [
+        '1. Acesse o modulo de Veiculos.',
+        '2. Clique em "Novo Veiculo" para adicionar um caminhao ou carreta.',
+        '3. Informe a placa, modelo, ano e odometro inicial.',
+        '4. Voce pode visualizar a localizacao no "Mapa de Frota".',
+        '5. Mantenha o odometro atualizado para previsoes precisas.'
       ],
-      'Manutenção e Serviços': [
-        '1. Acesse o módulo de Ordens de Serviço.',
-        '2. Clique em "Nova O.S." para registrar uma manutenção.',
-        '3. Selecione o veículo, tipo de serviço e peças utilizadas.',
-        '4. Acompanhe o status (Aberta, Em Andamento, Concluída).',
-        '5. Configure planos preventivos na aba "Planos de Manutenção".'
+      'Manutencao e Servicos': [
+        '1. Acesse o modulo de Ordens de Servico.',
+        '2. Clique em "Nova O.S." para registrar uma manutencao.',
+        '3. Selecione o veiculo, tipo de servico e pecas utilizadas.',
+        '4. Acompanhe o status (Aberta, Em Andamento, Concluida).',
+        '5. Configure planos preventivos na aba "Planos de Manutencao".'
       ],
-      'Gestão de Motoristas': [
-        '1. Acesse o módulo de Motoristas.',
+      'Gestao de Motoristas': [
+        '1. Acesse o modulo de Motoristas.',
         '2. Clique em "Novo Motorista".',
-        '3. Preencha os dados pessoais e informações da CNH.',
-        '4. Vincule o motorista a um veículo padrão, se necessário.',
+        '3. Preencha os dados pessoais e informacoes da CNH.',
+        '4. Vincule o motorista a um veiculo padrao, se necessario.',
         '5. Acompanhe o vencimento da CNH e exames.'
       ],
-      'Relatórios e Análises': [
-        '1. Acesse o módulo de Relatórios ou Dashboard.',
+      'Relatorios e Analises': [
+        '1. Acesse o modulo de Relatorios ou Dashboard.',
         '2. No Dashboard, visualize os KPIs principais (CPK, Custos).',
-        '3. Em Relatórios, escolha o tipo de relatório desejado.',
-        '4. Aplique os filtros de data, veículo ou filial.',
-        '5. Exporte os dados para Excel ou PDF conforme necessário.'
+        '3. Em Relatorios, escolha o tipo de relatorio desejado.',
+        '4. Aplique os filtros de data, veiculo ou filial.',
+        '5. Exporte os dados para Excel ou PDF conforme necessario.'
       ],
-      'Configurações e Equipe': [
-        '1. Acesse o módulo de Configurações (ícone de engrenagem).',
-        '2. Na aba "Parâmetros", defina limites de sulco e alertas.',
-        '3. Na aba "Equipe", cadastre novos usuários e defina permissões.',
-        '4. Na aba "Catálogo", padronize as marcas e modelos de pneus.',
-        '5. Salve as alterações para aplicar em todo o sistema.'
+      'Configuracoes e Equipe': [
+        '1. Acesse o modulo de Configuracoes (icone de engrenagem).',
+        '2. Na aba "Parametros", defina limites de sulco e alertas.',
+        '3. Na aba "Equipe", cadastre novos usuarios e defina permissoes.',
+        '4. Na aba "Catalogo", padronize as marcas e modelos de pneus.',
+        '5. Salve as alteracoes para aplicar em todo o sistema.'
       ]
     };
 
-    const steps = content[moduleName] || ['Conteúdo em desenvolvimento...'];
+    const steps = content[moduleName] || ['Conteudo em desenvolvimento...'];
     
     steps.forEach(step => {
       doc.text(step, 20, y);
@@ -530,7 +530,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
   };
 
   const handleDeleteWasteType = async (id: string) => {
-    if (!confirm("Deseja remover este item de resíduo?")) return;
+    if (!confirm("Deseja remover este item de residuo?")) return;
     try {
       await storageService.deleteWasteType(orgId, id);
     } catch (error) {
@@ -557,7 +557,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
       <div className="w-full lg:w-72 flex-shrink-0">
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden sticky top-6">
           <div className="p-5 border-b border-slate-100 dark:border-slate-800">
-             <h3 className="font-bold text-slate-800 dark:text-white uppercase text-[10px] tracking-widest">Configuração do Sistema</h3>
+             <h3 className="font-bold text-slate-800 dark:text-white uppercase text-[10px] tracking-widest">Configuracao do Sistema</h3>
           </div>
           <div className="p-3 space-y-6">
              {MENU_GROUPS.map((group) => (
@@ -593,7 +593,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
       {/* CONTENT AREA */}
       <div className="flex-1">
         
-       {/* LOGS MODAL (Mantive a lógica do modal original por compatibilidade) */}
+       {/* LOGS MODAL (Mantive a logica do modal original por compatibilidade) */}
        {logsModalOpen && (
          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95">
@@ -602,15 +602,15 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                      <div>
                         <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                            {viewingGlobalLogs ? <ClipboardList className="h-5 w-5 text-purple-600"/> : <List className="h-5 w-5 text-blue-600"/>} 
-                           {viewingGlobalLogs ? 'Auditoria Global' : 'Histórico Individual'}
+                           {viewingGlobalLogs ? 'Auditoria Global' : 'Historico Individual'}
                         </h3>
-                        <p className="text-xs text-slate-500">{viewingGlobalLogs ? 'Todos os eventos recentes do sistema' : `Usuário: ${logUserName}`}</p>
+                        <p className="text-xs text-slate-500">{viewingGlobalLogs ? 'Todos os eventos recentes do sistema' : `Usuario: ${logUserName}`}</p>
                      </div>
                      <div className="flex items-center gap-2">
                         {viewingGlobalLogs && (
                            <button 
                               onClick={async () => {
-                                 if (confirm("Deseja realmente limpar os últimos registros de auditoria? Esta ação é irreversível.")) {
+                                 if (confirm("Deseja realmente limpar os ultimos registros de auditoria? Esta acao e irreversivel.")) {
                                     setLoadingLogs(true);
                                     await storageService.clearGlobalLogs(orgId);
                                     const logs = await storageService.getGlobalLogs(orgId, 200);
@@ -632,7 +632,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                      <input 
                         type="text" 
-                        placeholder="Filtrar por horário (ex: 10:52), usuário ou ação..." 
+                        placeholder="Filtrar por horario (ex: 10:52), usuario ou acao..." 
                         className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         value={logFilter}
                         onChange={e => setLogFilter(e.target.value)}
@@ -685,8 +685,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-           <h2 className="text-2xl font-bold text-slate-800">Configurações do Sistema</h2>
-           <p className="text-slate-500 text-sm">Gerencie parâmetros globais e controle de acesso.</p>
+           <h2 className="text-2xl font-bold text-slate-800">Configuracoes do Sistema</h2>
+           <p className="text-slate-500 text-sm">Gerencie parametros globais e controle de acesso.</p>
         </div>
       </div>
 
@@ -697,16 +697,16 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                   <FileText className="h-5 w-5 text-sky-600" /> Manuais do Sistema
                </h3>
-               <p className="text-slate-500 text-sm mt-1">Baixe o manual passo a passo para cada módulo do sistema.</p>
+               <p className="text-slate-500 text-sm mt-1">Baixe o manual passo a passo para cada modulo do sistema.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               <ManualCard title="Gestão de Pneus" description="Aprenda a cadastrar, movimentar e inspecionar pneus." />
-               <ManualCard title="Gestão de Frota" description="Como gerenciar veículos, marcas e modelos." />
-               <ManualCard title="Manutenção e Serviços" description="Guia sobre ordens de serviço e planos de manutenção." />
-               <ManualCard title="Gestão de Motoristas" description="Passo a passo para cadastrar e gerenciar motoristas." />
-               <ManualCard title="Relatórios e Análises" description="Como extrair e interpretar os dados do sistema." />
-               <ManualCard title="Configurações e Equipe" description="Aprenda a configurar o sistema e gerenciar acessos." />
+               <ManualCard title="Gestao de Pneus" description="Aprenda a cadastrar, movimentar e inspecionar pneus." />
+               <ManualCard title="Gestao de Frota" description="Como gerenciar veiculos, marcas e modelos." />
+               <ManualCard title="Manutencao e Servicos" description="Guia sobre ordens de servico e planos de manutencao." />
+               <ManualCard title="Gestao de Motoristas" description="Passo a passo para cadastrar e gerenciar motoristas." />
+               <ManualCard title="Relatorios e Analises" description="Como extrair e interpretar os dados do sistema." />
+               <ManualCard title="Configuracoes e Equipe" description="Aprenda a configurar o sistema e gerenciar acessos." />
             </div>
          </div>
       )}
@@ -723,7 +723,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
            <form onSubmit={handleSaveSettings} className="space-y-6">
               <div className="mb-8">
-                 <label className="block text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><ImageIcon className="h-4 w-4 text-slate-400" /> Personalização Visual (Logo)</label>
+                 <label className="block text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><ImageIcon className="h-4 w-4 text-slate-400" /> Personalizacao Visual (Logo)</label>
                  <div className="flex items-center gap-6">
                     <div className="h-20 w-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden relative group">
                        {formData.logoUrl ? (
@@ -741,17 +741,17 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Limite Crítico de Sulco Global (mm)</label><input type="number" step="0.1" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.minTreadDepth ?? 3} onChange={e => setFormData({...formData, minTreadDepth: Number(e.target.value)})} /></div>
+                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Limite Critico de Sulco Global (mm)</label><input type="number" step="0.1" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.minTreadDepth ?? 3} onChange={e => setFormData({...formData, minTreadDepth: Number(e.target.value)})} /></div>
                  <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Alerta de Troca Global (mm)</label><input type="number" step="0.1" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.warningTreadDepth ?? 5} onChange={e => setFormData({...formData, warningTreadDepth: Number(e.target.value)})} /></div>
-                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Pressão Padrão (PSI)</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.standardPressure ?? 110} onChange={e => setFormData({...formData, standardPressure: Number(e.target.value)})} /></div>
+                 <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Pressao Padrao (PSI)</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.standardPressure ?? 110} onChange={e => setFormData({...formData, standardPressure: Number(e.target.value)})} /></div>
                  <div className="space-y-2"><label className="text-sm font-bold text-slate-700">Raio de Alerta Proximidade (m)</label><input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-black" value={formData.alertRadius ?? 500} onChange={e => setFormData({...formData, alertRadius: Number(e.target.value)})} /></div>
               </div>
 
               <div className="mt-6 pt-6 border-t border-slate-100">
-                 <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><Truck className="h-4 w-4 text-orange-600"/> Automação de Frota</h4>
+                 <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><Truck className="h-4 w-4 text-orange-600"/> Automacao de Frota</h4>
                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex flex-col md:flex-row gap-4 items-center">
                     <div className="flex-1">
-                        <label className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4"/> Média Diária p/ Carretas (KM)</label>
+                        <label className="text-xs font-bold text-slate-600 uppercase mb-1 flex items-center gap-2"><CalendarClock className="h-4 w-4"/> Media Diaria p/ Carretas (KM)</label>
                         <input 
                             type="number" 
                             className="w-full bg-white border border-slate-200 rounded-lg p-3 text-slate-900 font-bold focus:ring-2 focus:ring-orange-500 outline-none" 
@@ -759,14 +759,14 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                             value={formData.trailerDailyAverageKm ?? 0} 
                             onChange={e => setFormData({...formData, trailerDailyAverageKm: Number(e.target.value)})} 
                         />
-                        <p className="text-[10px] text-slate-500 mt-1">Se definido (&gt;0), o sistema somará este valor ao hodômetro das carretas automaticamente todos os dias ao abrir o app.</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Se definido (&gt;0), o sistema somara este valor ao hodometro das carretas automaticamente todos os dias ao abrir o app.</p>
                     </div>
                  </div>
               </div>
 
               <div className="pt-6 border-t border-slate-100 flex justify-end items-center">
                  <button type="submit" disabled={isSaving} className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
-                    {saveSuccess ? <Check className="h-5 w-5" /> : <Save className="h-5 w-5" />} {saveSuccess ? 'Salvo!' : 'Salvar Alterações'}
+                    {saveSuccess ? <Check className="h-5 w-5" /> : <Save className="h-5 w-5" />} {saveSuccess ? 'Salvo!' : 'Salvar Alteracoes'}
                  </button>
               </div>
            </form>
@@ -783,7 +783,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                </div>
                <div>
                  <h3 className="text-lg font-bold text-slate-800">Formas de Pagamento</h3>
-                 <p className="text-sm text-slate-500">Cadastre as opções para pagamentos de ocorrências externas.</p>
+                 <p className="text-sm text-slate-500">Cadastre as opcoes para pagamentos de ocorrencias externas.</p>
                </div>
              </div>
 
@@ -792,7 +792,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  type="text"
                  value={newPaymentMethod}
                  onChange={(e) => setNewPaymentMethod(e.target.value)}
-                 placeholder="PIX, Cartão Bradesco, Dinheiro..."
+                 placeholder="PIX, Cartao Bradesco, Dinheiro..."
                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                />
                <button
@@ -835,7 +835,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                </div>
                <div>
                  <h3 className="text-lg font-bold text-slate-800">Setor / Departamentos</h3>
-                 <p className="text-sm text-slate-500">Departamentos responsáveis pelas ocorrências.</p>
+                 <p className="text-sm text-slate-500">Departamentos responsaveis pelas ocorrencias.</p>
                </div>
              </div>
 
@@ -844,7 +844,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  type="text"
                  value={newSector}
                  onChange={(e) => setNewSector(e.target.value)}
-                 placeholder="Mecânica, Financeiro, Logística..."
+                 placeholder="Mecanica, Financeiro, Logistica..."
                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                />
                <button
@@ -884,9 +884,9 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             <div className="flex justify-between items-start mb-6">
                <div>
                   <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                     <BookOpen className="h-5 w-5 text-orange-600" /> Catálogo de Padrões
+                     <BookOpen className="h-5 w-5 text-orange-600" /> Catalogo de Padroes
                   </h3>
-                  <p className="text-slate-500 text-sm mt-1">Defina marcas, modelos e a <strong>vida útil esperada</strong> para previsão de troca.</p>
+                  <p className="text-slate-500 text-sm mt-1">Defina marcas, modelos e a <strong>vida util esperada</strong> para previsao de troca.</p>
                </div>
                <button onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
                   {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Lista
@@ -912,14 +912,14 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                      </div>
                      <div className="grid grid-cols-2 gap-2">
                         <div><label className="block text-[10px] font-bold text-slate-500 mb-1">Sulco Orig.</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.originalDepth ?? 0} onChange={e => setNewModel({...newModel, originalDepth: Number(e.target.value)})} /></div>
-                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">PSI Padrão</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.standardPressure ?? 0} onChange={e => setNewModel({...newModel, standardPressure: Number(e.target.value)})} /></div>
+                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1">PSI Padrao</label><input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" value={newModel.standardPressure ?? 0} onChange={e => setNewModel({...newModel, standardPressure: Number(e.target.value)})} /></div>
                      </div>
                      
                      <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mt-2">
-                        <h5 className="text-[10px] font-bold text-orange-700 uppercase mb-2">Parâmetros de Troca</h5>
+                        <h5 className="text-[10px] font-bold text-orange-700 uppercase mb-2">Parametros de Troca</h5>
                         <div className="grid grid-cols-2 gap-2">
                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Vida Útil (KM)</label>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Vida Util (KM)</label>
                               <input type="number" className="w-full p-2 border border-orange-200 rounded text-black bg-white focus:ring-1 focus:ring-orange-500" placeholder="80000" value={newModel.estimatedLifespanKm ?? 0} onChange={e => setNewModel({...newModel, estimatedLifespanKm: Number(e.target.value)})} />
                            </div>
                            <div>
@@ -929,7 +929,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         </div>
                      </div>
 
-                     <button onClick={handleAddCatalogItem} className="w-full py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar à Lista</button>
+                     <button onClick={handleAddCatalogItem} className="w-full py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar a Lista</button>
                   </div>
                </div>
 
@@ -976,8 +976,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                     <Wrench className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Configurações da Oficina</h3>
-                    <p className="text-sm text-slate-500 font-medium">Gestão de resíduos, operações e procedimentos técnicos.</p>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Configuracoes da Oficina</h3>
+                    <p className="text-sm text-slate-500 font-medium">Gestao de residuos, operacoes e procedimentos tecnicos.</p>
                   </div>
                </div>
                <button 
@@ -986,7 +986,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   className={`w-full md:w-auto px-6 py-2.5 rounded-xl font-bold text-white shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}
                >
                   {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} 
-                  {saveSuccess ? 'Alterações Salvas' : 'Salvar Preferências'}
+                  {saveSuccess ? 'Alteracoes Salvas' : 'Salvar Preferencias'}
                </button>
             </div>
 
@@ -999,7 +999,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                              <Trash2 className="w-4 h-4" />
                            </div>
                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                               Catálogo de Resíduos
+                               Catalogo de Residuos
                            </h4>
                         </div>
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 uppercase tracking-widest leading-none">
@@ -1009,17 +1009,17 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
 
                     <div className="p-6">
                         <div className="flex flex-col xl:flex-row gap-8">
-                            {/* Formulário lateral */}
+                            {/* Formulario lateral */}
                             <div className="w-full xl:w-80 shrink-0">
                                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60 sticky top-6">
                                     <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-4">Adicionar Novo Item</h5>
                                     <div className="space-y-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-slate-500 ml-1">DESCRIÇÃO DO RESÍDUO</label>
+                                            <label className="text-[10px] font-bold text-slate-500 ml-1">DESCRICAO DO RESIDUO</label>
                                             <input 
                                                 type="text" 
                                                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder:text-slate-300 shadow-sm" 
-                                                placeholder="Ex: Óleo Usado" 
+                                                placeholder="Ex: Oleo Usado" 
                                                 value={newWasteTypeName}
                                                 onChange={(e) => setNewWasteTypeName(e.target.value)}
                                             />
@@ -1045,7 +1045,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                                     value={newWasteTypeCategory}
                                                     onChange={(e) => setNewWasteTypeCategory(e.target.value as any)}
                                                 >
-                                                    <option value="WASTE">Resíduo</option>
+                                                    <option value="WASTE">Residuo</option>
                                                     <option value="PPE">EPI</option>
                                                     <option value="TIRE">Pneu</option>
                                                 </select>
@@ -1084,7 +1084,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                                     type.category === 'PPE' ? 'bg-purple-50 text-purple-600' :
                                                     'bg-blue-50 text-blue-600'
                                                 }`}>
-                                                    {type.category === 'WASTE' ? 'Resíduo' : type.category === 'PPE' ? 'EPI' : 'Pneu'}
+                                                    {type.category === 'WASTE' ? 'Residuo' : type.category === 'PPE' ? 'EPI' : 'Pneu'}
                                                 </span>
                                             </div>
                                         </div>
@@ -1094,7 +1094,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                             <div className="p-4 bg-white rounded-2xl shadow-sm mb-3">
                                                 <Trash2 className="h-8 w-8 opacity-20 text-slate-400" />
                                             </div>
-                                            <p className="text-xs font-bold uppercase tracking-widest">Nenhum item cadastrado no catálogo</p>
+                                            <p className="text-xs font-bold uppercase tracking-widest">Nenhum item cadastrado no catalogo</p>
                                         </div>
                                     )}
                                 </div>
@@ -1103,13 +1103,13 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                     </div>
                 </section>
 
-                {/* 2. TIPOS DE SERVIÇO */}
+                {/* 2. TIPOS DE SERVICO */}
                 <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                            <div className="w-2 h-2 rounded-full bg-slate-600" />
                            <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">
-                               Operações e Tipos de Serviço (Itens da O.S.)
+                               Operacoes e Tipos de Servico (Itens da O.S.)
                            </h4>
                         </div>
                         <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-100">
@@ -1121,12 +1121,12 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                             <div className="lg:col-span-4">
                                 <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">Nova Operação</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">Nova Operacao</label>
                                     <div className="space-y-4">
                                         <input 
                                             type="text" 
                                             className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-slate-500/10 focus:border-slate-800 transition-all placeholder:text-slate-300 shadow-sm" 
-                                            placeholder="Ex: Troca de Óleo, Alinhamento..." 
+                                            placeholder="Ex: Troca de Oleo, Alinhamento..." 
                                             value={newServiceType || ''} 
                                             onChange={e => setNewServiceType(e.target.value)} 
                                         />
@@ -1134,7 +1134,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                             onClick={handleAddServiceType} 
                                             className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
                                         >
-                                            <Plus className="h-4 w-4"/> Adicionar ao Catálogo
+                                            <Plus className="h-4 w-4"/> Adicionar ao Catalogo
                                         </button>
                                     </div>
                                 </div>
@@ -1145,7 +1145,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                         <div className="p-3 bg-white rounded-2xl shadow-sm mb-3">
                                             <List className="h-6 w-6 opacity-30 text-slate-500" />
                                         </div>
-                                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum tipo de serviço cadastrado</p>
+                                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum tipo de servico cadastrado</p>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -1167,13 +1167,13 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                     </div>
                 </section>
 
-                {/* 3. PROCEDIMENTOS PADRÕES */}
+                {/* 3. PROCEDIMENTOS PADROES */}
                 <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
                            <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">
-                               Checklists e Procedimentos Padrões (SOP)
+                               Checklists e Procedimentos Padroes (SOP)
                            </h4>
                         </div>
                         <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-100">
@@ -1187,20 +1187,20 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                 <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60 space-y-4">
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Nome Comercial</label>
-                                        <input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder:text-slate-300 shadow-sm" placeholder="Ex: Revisão 10.000km" value={newProcedure.name || ''} onChange={e => setNewProcedure({...newProcedure, name: e.target.value})} />
+                                        <input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all placeholder:text-slate-300 shadow-sm" placeholder="Ex: Revisao 10.000km" value={newProcedure.name || ''} onChange={e => setNewProcedure({...newProcedure, name: e.target.value})} />
                                     </div>
                                     <div className="grid grid-cols-1 gap-1">
                                         <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Categoria</label>
                                         <select className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 transition-all cursor-pointer appearance-none shadow-sm" value={newProcedure.category || 'OIL'} onChange={e => setNewProcedure({...newProcedure, category: e.target.value})}>
-                                            <option value="OIL">Troca de Óleo</option>
-                                            <option value="ELECTRICAL">Elétrica</option>
-                                            <option value="MECHANICAL">Mecânica</option>
+                                            <option value="OIL">Troca de Oleo</option>
+                                            <option value="ELECTRICAL">Eletrica</option>
+                                            <option value="MECHANICAL">Mecanica</option>
                                             <option value="OTHER">Outros</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Passo a Passo</label>
-                                        <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all h-36 resize-none shadow-sm" placeholder="1. Verificar nível do fluido&#10;2. Trocar juntas..." value={newProcedure.description || ''} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
+                                        <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all h-36 resize-none shadow-sm" placeholder="1. Verificar nivel do fluido&#10;2. Trocar juntas..." value={newProcedure.description || ''} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
                                     </div>
                                     <button onClick={handleAddProcedure} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100">
                                         <Plus className="h-4 w-4" /> Criar Procedimento
@@ -1235,7 +1235,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                                         p.category === 'MECHANICAL' ? 'bg-indigo-50 text-indigo-600' :
                                                         'bg-slate-50 text-slate-600'
                                                     }`}>
-                                                        {p.category === 'OIL' ? 'Óleo' : p.category === 'ELECTRICAL' ? 'Elétrica' : p.category === 'MECHANICAL' ? 'Mecânica' : 'Geral'}
+                                                        {p.category === 'OIL' ? 'Oleo' : p.category === 'ELECTRICAL' ? 'Eletrica' : p.category === 'MECHANICAL' ? 'Mecanica' : 'Geral'}
                                                     </span>
                                                 </div>
                                                 <h5 className="font-bold text-slate-800 mb-2 pr-8">{p.name}</h5>
@@ -1261,7 +1261,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                      <MapPin className="h-5 w-5 text-emerald-600" /> Pontos de Destino Salvos
                   </h3>
-                  <p className="text-slate-500 text-sm mt-1">Cadastre locais frequentes para agilizar o agendamento de chegada dos veículos.</p>
+                  <p className="text-slate-500 text-sm mt-1">Cadastre locais frequentes para agilizar o agendamento de chegada dos veiculos.</p>
                </div>
                <button onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
                   {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Lista
@@ -1274,7 +1274,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   <div className="space-y-3">
                      <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Nome do Local</label>
-                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: CD Jundiaí" value={newPoint.name || ''} onChange={e => setNewPoint({...newPoint, name: e.target.value})} />
+                        <input type="text" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="Ex: CD Jundiai" value={newPoint.name || ''} onChange={e => setNewPoint({...newPoint, name: e.target.value})} />
                      </div>
                      <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -1325,7 +1325,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
       {activeTab === 'TEAM' && (
          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 animate-in fade-in slide-in-from-bottom-4">
             <div className="mb-6 flex justify-between items-center">
-              <div><h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Users className="h-5 w-5 text-purple-600" /> Gestão da Equipe</h3><p className="text-slate-500 text-sm mt-1">Controle de acesso e permissões.</p></div>
+              <div><h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Users className="h-5 w-5 text-purple-600" /> Gestao da Equipe</h3><p className="text-slate-500 text-sm mt-1">Controle de acesso e permissoes.</p></div>
               <div className="flex gap-2">
                  {!isMemberFormOpen && (
                     <button onClick={() => setIsMemberFormOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2 transition-all"><Plus className="h-4 w-4" /> Novo Membro</button>
@@ -1335,7 +1335,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
             
             {isMemberFormOpen && (
                <div className="bg-slate-50 p-6 rounded-xl border border-purple-100 mb-8 animate-in zoom-in-95">
-                  <div className="flex justify-between items-center mb-4"><h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">{editingMemberId ? <PenLine className="h-4 w-4"/> : <Plus className="h-4 w-4" />} {editingMemberId ? 'Editar Usuário' : 'Novo Usuário'}</h4><button onClick={resetMemberForm} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5"/></button></div>
+                  <div className="flex justify-between items-center mb-4"><h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">{editingMemberId ? <PenLine className="h-4 w-4"/> : <Plus className="h-4 w-4" />} {editingMemberId ? 'Editar Usuario' : 'Novo Usuario'}</h4><button onClick={resetMemberForm} className="text-slate-400 hover:text-slate-600"><X className="h-5 w-5"/></button></div>
                   <form onSubmit={handleMemberSubmit} className="space-y-6">
                      <div className="flex flex-col md:flex-row gap-6">
                         <div className="flex flex-col items-center gap-3">
@@ -1375,13 +1375,13 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                      </div>
 
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 pt-6">
-                        <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">NívelHierárquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl shadow-sm outline-none focus:border-purple-500 font-bold" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option><option value="INSPECTOR">Inspetor (Restrito)</option></select></div>
+                        <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">NivelHierarquico</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl shadow-sm outline-none focus:border-purple-500 font-bold" value={regRole || 'JUNIOR'} onChange={e => setRegRole(e.target.value as UserLevel)}><option value="JUNIOR">Operacional (Junior)</option><option value="PLENO">Gerencial (Pleno)</option><option value="SENIOR">Administrador (Senior)</option><option value="INSPECTOR">Inspetor (Restrito)</option></select></div>
                         <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Setor</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl shadow-sm outline-none focus:border-purple-500 font-bold" value={regSectorId || ''} onChange={e => setRegSectorId(e.target.value)}><option value="">Nenhum Setor</option>{sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
                         <div><label className="block text-xs font-bold text-slate-500 mb-1 tracking-wider uppercase">Filial</label><select className="w-full p-2.5 bg-white text-black border border-slate-300 rounded-xl shadow-sm outline-none focus:border-purple-500 font-bold" value={regBranchId || ''} onChange={e => setRegBranchId(e.target.value)}><option value="">Todas as Filiais</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
                      </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200">
-                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulos Permitidos</label><div className="space-y-2">
-                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('VEHICLES')} onChange={() => toggleModule('VEHICLES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Veículo</span></label>
+                        <div><label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1"><Shield className="h-3 w-3"/> Modulos Permitidos</label><div className="space-y-2">
+                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('VEHICLES')} onChange={() => toggleModule('VEHICLES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Veiculo</span></label>
                            <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('FUEL')} onChange={() => toggleModule('FUEL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Abastecimento</span></label>
                            <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('TIRES')} onChange={() => toggleModule('TIRES')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Pneus</span></label>
                            <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded"><input type="checkbox" checked={regModules.includes('MECHANICAL')} onChange={() => toggleModule('MECHANICAL')} className="w-4 h-4 text-purple-600 rounded" /><span className="text-sm font-medium text-slate-700">Oficina</span></label>
@@ -1389,7 +1389,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         </div></div>
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1">
-                              <Lock className="h-3 w-3"/> Permissões Detalhadas
+                              <Lock className="h-3 w-3"/> Permissoes Detalhadas
                            </label>
                            <div className="space-y-4 max-h-60 overflow-y-auto custom-scrollbar bg-slate-50/50 p-3 rounded-xl border border-slate-200 shadow-inner">
                               {Object.entries(
@@ -1422,7 +1422,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                            </div>
                         </div>
                      </div>
-                     <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={resetMemberForm} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button><button type="submit" disabled={isSubmittingMember} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-colors">{isSubmittingMember ? 'Salvando...' : editingMemberId ? 'Atualizar Usuário' : 'Criar Acesso'}</button></div>
+                     <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={resetMemberForm} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button><button type="submit" disabled={isSubmittingMember} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-colors">{isSubmittingMember ? 'Salvando...' : editingMemberId ? 'Atualizar Usuario' : 'Criar Acesso'}</button></div>
                   </form>
                </div>
             )}
@@ -1431,13 +1431,13 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                <table className="w-full text-left text-sm">
                   <thead className="bg-slate-100 text-slate-600 font-bold">
                      <tr>
-                        <th className="p-3 rounded-tl-lg">Nome / Usuário</th>
-                        <th className="p-3">Nível</th>
+                        <th className="p-3 rounded-tl-lg">Nome / Usuario</th>
+                        <th className="p-3">Nivel</th>
                         <th className="p-3">Setor</th>
                         <th className="p-3">Filial</th>
-                        <th className="p-3">Módulos</th>
-                        <th className="p-3 text-center">Último Acesso</th>
-                        <th className="p-3 rounded-tr-lg text-right">Ações</th>
+                        <th className="p-3">Modulos</th>
+                        <th className="p-3 text-center">Ultimo Acesso</th>
+                        <th className="p-3 rounded-tr-lg text-right">Acoes</th>
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1487,7 +1487,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                )}
                            </td>
                            <td className="p-3"><span className="text-xs text-slate-600 font-medium bg-slate-100 px-2 py-1 rounded">{member.branchId ? branches.find(b => b.id === member.branchId)?.name || 'Desconhecida' : 'Todas'}</span></td>
-                           <td className="p-3"><div className="flex gap-1">{member.allowedModules?.includes('TIRES') && <span className="w-2 h-2 rounded-full bg-blue-500" title="Pneus"></span>}{member.allowedModules?.includes('MECHANICAL') && <span className="w-2 h-2 rounded-full bg-green-500" title="Almoxarifado"></span>}{member.allowedModules?.includes('VEHICLES') && <span className="w-2 h-2 rounded-full bg-emerald-500" title="Veículos"></span>}</div></td>
+                           <td className="p-3"><div className="flex gap-1">{member.allowedModules?.includes('TIRES') && <span className="w-2 h-2 rounded-full bg-blue-500" title="Pneus"></span>}{member.allowedModules?.includes('MECHANICAL') && <span className="w-2 h-2 rounded-full bg-green-500" title="Almoxarifado"></span>}{member.allowedModules?.includes('VEHICLES') && <span className="w-2 h-2 rounded-full bg-emerald-500" title="Veiculos"></span>}</div></td>
                            <td className="p-3 text-center">
                               {member.lastLogin ? (
                                  <span className="text-xs text-slate-500 flex items-center justify-center gap-1 font-mono">

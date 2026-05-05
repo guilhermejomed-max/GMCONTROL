@@ -37,7 +37,7 @@ export const BranchManagement = () => {
       const L = (window as any).L;
       if (!L) return;
 
-      // Pequeno delay para garantir que o container esteja renderizado com as dimensões corretas
+      // Pequeno delay para garantir que o container esteja renderizado com as dimensoes corretas
       setTimeout(() => {
         if (!mapContainerRef.current) return;
 
@@ -127,7 +127,7 @@ export const BranchManagement = () => {
     <div className="p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Gestão de Filiais</h1>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Gestao de Filiais</h1>
           <p className="text-slate-500 font-medium">Cadastre e gerencie as unidades da sua empresa</p>
         </div>
           <button
@@ -147,7 +147,7 @@ export const BranchManagement = () => {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <input
           type="text"
-          placeholder="Buscar por nome, CNPJ ou código..."
+          placeholder="Buscar por nome, CNPJ ou codigo..."
           className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -185,7 +185,7 @@ export const BranchManagement = () => {
               
               <h3 className="text-xl font-black text-slate-800 mb-1">{branch.name}</h3>
               <div className="inline-flex items-center px-2 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600 uppercase tracking-wider mb-4">
-                Cód: {branch.code}
+                Cod: {branch.code}
               </div>
 
               <div className="space-y-3">
@@ -237,7 +237,7 @@ export const BranchManagement = () => {
                     type="text"
                     required
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
-                    placeholder="Ex: Matriz São Paulo"
+                    placeholder="Ex: Matriz Sao Paulo"
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
                   />
@@ -254,7 +254,7 @@ export const BranchManagement = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-500 uppercase mb-1 ml-1">Código</label>
+                  <label className="block text-xs font-black text-slate-500 uppercase mb-1 ml-1">Codigo</label>
                   <input
                     type="text"
                     required
@@ -265,19 +265,19 @@ export const BranchManagement = () => {
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-black text-slate-500 uppercase mb-1 ml-1">Localização / Endereço</label>
+                  <label className="block text-xs font-black text-slate-500 uppercase mb-1 ml-1">Localizacao / Endereco</label>
                   <input
                     type="text"
                     required
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
-                    placeholder="Cidade, Estado ou Endereço Completo"
+                    placeholder="Cidade, Estado ou Endereco Completo"
                     value={formData.location}
                     onChange={e => setFormData({...formData, location: e.target.value})}
                   />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-xs font-black text-slate-500 uppercase mb-2 ml-1">Localização no Mapa</label>
+                  <label className="block text-xs font-black text-slate-500 uppercase mb-2 ml-1">Localizacao no Mapa</label>
                   <div className="relative h-64 w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
                     <div ref={mapContainerRef} className="h-full w-full z-0" />
                     <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-lg border border-slate-100 pointer-events-none">
@@ -322,7 +322,7 @@ export const BranchManagement = () => {
                   type="submit"
                   className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95"
                 >
-                  {editingBranch ? 'Salvar Alterações' : 'Cadastrar Filial'}
+                  {editingBranch ? 'Salvar Alteracoes' : 'Cadastrar Filial'}
                 </button>
               </div>
             </form>

@@ -122,7 +122,7 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
           className="flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-200 transition-all active:scale-95"
         >
           <Plus className="h-5 w-5" />
-          Cadastrar Funcionário
+          Cadastrar Funcionario
         </button>
       </div>
 
@@ -156,9 +156,9 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
             <div className="bg-slate-50 p-6 rounded-full mb-4">
               <User className="h-12 w-12 text-slate-300" />
             </div>
-            <h3 className="text-lg font-bold text-slate-700">Nenhum funcionário encontrado</h3>
+            <h3 className="text-lg font-bold text-slate-700">Nenhum funcionario encontrado</h3>
             <p className="text-slate-500 max-w-sm">
-              {searchTerm ? 'Tente ajustar sua pesquisa.' : 'Comece cadastrando seu primeiro colaborador no botão acima.'}
+              {searchTerm ? 'Tente ajustar sua pesquisa.' : 'Comece cadastrando seu primeiro colaborador no botao acima.'}
             </p>
           </div>
         ) : (
@@ -167,9 +167,9 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Colaborador</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Cargo/Função</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Cargo/Funcao</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Documentos</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Acoes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -188,7 +188,7 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                         </div>
                         <div>
                           <p className="font-bold text-slate-800 leading-tight">{employee.name}</p>
-                          <p className="text-xs text-slate-500">Início: {employee.startDate ? new Date(employee.startDate).toLocaleDateString('pt-BR') : '-'}</p>
+                          <p className="text-xs text-slate-500">Inicio: {employee.startDate ? new Date(employee.startDate).toLocaleDateString('pt-BR') : '-'}</p>
                         </div>
                       </div>
                     </td>
@@ -209,7 +209,7 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-slate-600">
                           <FileText className="h-4 w-4 text-slate-400" />
-                          <span className="font-medium">CNH:</span> {employee.cnh || 'Não informado'}
+                          <span className="font-medium">CNH:</span> {employee.cnh || 'Nao informado'}
                         </div>
                       </div>
                     </td>
@@ -264,9 +264,9 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-slate-800">
-                      {editingId ? 'Editar Funcionário' : 'Cadastro de Funcionário'}
+                      {editingId ? 'Editar Funcionario' : 'Cadastro de Funcionario'}
                     </h3>
-                    <p className="text-sm text-slate-500 font-medium">Preencha as informações do colaborador</p>
+                    <p className="text-sm text-slate-500 font-medium">Preencha as informacoes do colaborador</p>
                   </div>
                 </div>
                 <button
@@ -317,14 +317,14 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Ex: João da Silva"
+                        placeholder="Ex: Joao da Silva"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all outline-none"
                       />
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Função / Cargo</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Funcao / Cargo</label>
                         <select
                           value={formData.role}
                           onChange={(e) => setFormData({ ...formData, role: e.target.value })}
@@ -332,7 +332,7 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                         >
                           <option value="">Selecione...</option>
                           <option value="MOTORISTA">MOTORISTA</option>
-                          <option value="MECÂNICO">MECÂNICO</option>
+                          <option value="MECANICO">MECANICO</option>
                           <option value="AJUDANTE">AJUDANTE</option>
                           <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
                           <option value="GERENTE">GERENTE</option>
@@ -341,7 +341,7 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Data de Início</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Data de Inicio</label>
                         <input
                           type="date"
                           value={formData.startDate}
@@ -381,7 +381,7 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                         type="text"
                         value={formData.cnh}
                         onChange={(e) => setFormData({ ...formData, cnh: e.target.value })}
-                        placeholder="Nº da Carteira de Habilitação"
+                        placeholder="No da Carteira de Habilitacao"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all outline-none"
                       />
                     </div>
@@ -402,7 +402,7 @@ export const RHModule: React.FC<RHModuleProps> = ({ orgId }) => {
                     className="flex-[2] px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
-                    {editingId ? 'Salvar Alterações' : 'Concluir Cadastro'}
+                    {editingId ? 'Salvar Alteracoes' : 'Concluir Cadastro'}
                   </button>
                 </div>
               </form>

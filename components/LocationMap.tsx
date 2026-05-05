@@ -33,7 +33,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   const vehicles = allVehicles;
 
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -57,7 +57,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   const [closestVehicle, setClosestVehicle] = useState<Vehicle | null>(null);
   const [searchText, setSearchText] = useState('');
   
-  // Controle do Menu de Serviços
+  // Controle do Menu de Servicos
   const [showServiceMenu, setShowServiceMenu] = useState(false);
 
   // Auto-detect dark mode
@@ -67,7 +67,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
     }
   }, []);
 
-  // Resetar menu de serviços ao trocar de veículo
+  // Resetar menu de servicos ao trocar de veiculo
   useEffect(() => {
       setShowServiceMenu(false);
   }, [selectedVehicleId]);
@@ -123,7 +123,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
 
   const selectedVehicleData = useMemo(() => filteredVehicles.find(v => v.id === selectedVehicleId), [filteredVehicles, selectedVehicleId]);
 
-  // Calcular veículo mais próximo
+  // Calcular veiculo mais proximo
   useEffect(() => {
     if (selectedVehicleData && selectedVehicleData.lastLocation) {
         const { lat, lng } = selectedVehicleData.lastLocation;
@@ -216,7 +216,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
       filteredVehicles.forEach(v => {
           if (!v.lastLocation || v.lastLocation.lat === undefined || v.lastLocation.lng === undefined) return;
           
-          // Garantir que lat/lng sejam números
+          // Garantir que lat/lng sejam numeros
           const lat = Number(v.lastLocation.lat);
           const lng = Number(v.lastLocation.lng);
           
@@ -253,7 +253,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
             ">
                 <div style="width: ${size * 0.6}px; height: ${size * 0.6}px;">${truckIconSvg}</div>
                 ${isSelected ? `<div style="position: absolute; bottom: -6px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid ${bgColor};"></div>` : ''}
-                ${isClosest ? `<div style="position: absolute; top: -20px; background: white; color: black; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">Mais Próximo</div>` : ''}
+                ${isClosest ? `<div style="position: absolute; top: -20px; background: white; color: black; padding: 2px 5px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">Mais Proximo</div>` : ''}
             </div>
           `;
 
@@ -310,10 +310,10 @@ export const LocationMap: React.FC<LocationMapProps> = ({
           });
       }
 
-      // Lógica de Zoom Automático (Fit Bounds)
-      // Ajusta o mapa para mostrar todos os veículos se houver veículos e nenhum estiver selecionado.
+      // Logica de Zoom Automatico (Fit Bounds)
+      // Ajusta o mapa para mostrar todos os veiculos se houver veiculos e nenhum estiver selecionado.
       if (hasValidLocation && !selectedVehicleId) {
-          // Invalidate size antes do fit para garantir que o mapa tenha as dimensões corretas
+          // Invalidate size antes do fit para garantir que o mapa tenha as dimensoes corretas
           map.invalidateSize();
           
           // Pequeno timeout para garantir que o DOM esteja pronto
@@ -342,11 +342,11 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   const handleServiceSearch = (query: string) => {
       if (selectedVehicleData?.lastLocation) {
           const { lat, lng } = selectedVehicleData.lastLocation;
-          // FIX: Utilizar uma estrutura de URL mais específica com o parâmetro 'data' para forçar a centralização.
+          // FIX: Utilizar uma estrutura de URL mais especifica com o parametro 'data' para forcar a centralizacao.
           const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}/@${lat},${lng},15z/data=!3m1!4b1`;
           window.open(url, '_blank');
       } else {
-          alert("Localização do veículo não disponível.");
+          alert("Localizacao do veiculo nao disponivel.");
       }
   };
 
@@ -374,7 +374,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
 
   const handleSaveCurrentLocation = () => {
       if (!navigator.geolocation) {
-          alert("Geolocalização não suportada pelo seu navegador.");
+          alert("Geolocalizacao nao suportada pelo seu navegador.");
           return;
       }
 
@@ -385,8 +385,8 @@ export const LocationMap: React.FC<LocationMapProps> = ({
           });
           setIsSavingPoint(true);
       }, (error) => {
-          console.error("Erro ao obter localização:", error);
-          alert("Não foi possível obter sua localização atual.");
+          console.error("Erro ao obter localizacao:", error);
+          alert("Nao foi possivel obter sua localizacao atual.");
       });
   };
 
@@ -395,22 +395,22 @@ export const LocationMap: React.FC<LocationMapProps> = ({
       const diff = Date.now() - new Date(dateStr).getTime();
       const mins = Math.floor(diff / 60000);
       if (mins < 1) return 'Agora mesmo';
-      if (mins < 60) return `Há ${mins} min`;
+      if (mins < 60) return `Ha ${mins} min`;
       const hours = Math.floor(mins / 60);
-      if (hours < 24) return `Há ${hours} h`;
+      if (hours < 24) return `Ha ${hours} h`;
       return new Date(dateStr).toLocaleDateString();
   };
 
   const formatCity = (loc: any) => {
       if (loc?.city && loc.city !== 'Desconhecida') return loc.city;
       if (loc?.lat && loc?.lng) return `${loc.lat.toFixed(3)}, ${loc.lng.toFixed(3)}`;
-      return 'Posição n/d';
+      return 'Posicao n/d';
   };
 
   const formatFullAddress = (loc: any) => {
       if (loc?.address && loc.address !== 'Coordenadas GPS' && loc.city !== 'Desconhecida') return loc.address;
       if (loc?.lat && loc?.lng) return `Lat: ${loc.lat.toFixed(5)}, Lng: ${loc.lng.toFixed(5)}`;
-      return 'Endereço não identificado';
+      return 'Endereco nao identificado';
   };
 
   return (
@@ -429,7 +429,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder="Buscar veículo..." 
+                  placeholder="Buscar veiculo..." 
                   value={searchText}
                   onChange={e => setSearchText(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
@@ -478,12 +478,12 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                  <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
                  <div className="text-center px-2">
                      <div className="text-xl font-black text-red-600 leading-none">{stats.critical}</div>
-                     <div className="text-[9px] font-bold text-red-500 uppercase">Críticos</div>
+                     <div className="text-[9px] font-bold text-red-500 uppercase">Criticos</div>
                  </div>
                  <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
                  <div className="text-center px-2">
                      <div className="text-xl font-black text-green-600 leading-none">{stats.ok}</div>
-                     <div className="text-[9px] font-bold text-green-500 uppercase">Saudáveis</div>
+                     <div className="text-[9px] font-bold text-green-500 uppercase">Saudaveis</div>
                  </div>
              </div>
           </div>
@@ -491,10 +491,10 @@ export const LocationMap: React.FC<LocationMapProps> = ({
           <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none">
              <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-lg flex flex-col gap-1 pointer-events-auto">
                  <button onClick={handleSync} disabled={isSyncing} className={`p-2 rounded-lg transition-all ${isSyncing ? 'animate-spin' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Sincronizar Agora"><Zap className="h-5 w-5"/></button>
-                 <button onClick={handleSaveCurrentLocation} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-all" title="Salvar Minha Localização"><MapPin className="h-5 w-5"/></button>
-                 <button onClick={() => setActiveLayer('light')} className={`p-2 rounded-lg transition-all ${activeLayer === 'light' ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Mapa Padrão"><Sun className="h-5 w-5"/></button>
+                 <button onClick={handleSaveCurrentLocation} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-all" title="Salvar Minha Localizacao"><MapPin className="h-5 w-5"/></button>
+                 <button onClick={() => setActiveLayer('light')} className={`p-2 rounded-lg transition-all ${activeLayer === 'light' ? 'bg-blue-100 text-blue-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Mapa Padrao"><Sun className="h-5 w-5"/></button>
                  <button onClick={() => setActiveLayer('dark')} className={`p-2 rounded-lg transition-all ${activeLayer === 'dark' ? 'bg-slate-700 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Mapa Escuro"><Moon className="h-5 w-5"/></button>
-                 <button onClick={() => setActiveLayer('satellite')} className={`p-2 rounded-lg transition-all ${activeLayer === 'satellite' ? 'bg-green-100 text-green-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Satélite"><Satellite className="h-5 w-5"/></button>
+                 <button onClick={() => setActiveLayer('satellite')} className={`p-2 rounded-lg transition-all ${activeLayer === 'satellite' ? 'bg-green-100 text-green-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`} title="Satelite"><Satellite className="h-5 w-5"/></button>
              </div>
           </div>
 
@@ -517,7 +517,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                    <div className="flex items-start gap-3 text-xs text-slate-600 dark:text-slate-300">
                        <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg"><MapPin className="h-4 w-4"/></div>
                        <div className="flex-1">
-                           <p className="font-bold mb-0.5">Localização Atual</p>
+                           <p className="font-bold mb-0.5">Localizacao Atual</p>
                            <p className="leading-snug opacity-80">{formatFullAddress(selectedVehicleData.lastLocation)}</p>
                            <p className="text-[9px] text-slate-400 mt-1 font-mono">{getTimeAgo(selectedVehicleData.lastLocation?.updatedAt)}</p>
                        </div>
@@ -526,7 +526,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                    <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
                        <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg"><Gauge className="h-4 w-4"/></div>
                        <div className="flex-1">
-                           <p className="font-bold mb-0.5">Hodômetro</p>
+                           <p className="font-bold mb-0.5">Hodometro</p>
                            <p className="font-mono text-sm">{selectedVehicleData.odometer?.toLocaleString()} km</p>
                        </div>
                    </div>
@@ -540,11 +540,11 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                            </div>
                            <div className={`bg-white dark:bg-slate-900 p-2 rounded-lg border ${selectedVehicleData.warning > 0 ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/10' : 'border-slate-100 dark:border-slate-700'}`}>
                                <div className={`text-lg font-black ${selectedVehicleData.warning > 0 ? 'text-yellow-600' : 'text-slate-800 dark:text-white'}`}>{selectedVehicleData.warning}</div>
-                               <div className="text-[9px] text-slate-400">Atenção</div>
+                               <div className="text-[9px] text-slate-400">Atencao</div>
                            </div>
                            <div className={`bg-white dark:bg-slate-900 p-2 rounded-lg border ${selectedVehicleData.critical > 0 ? 'border-red-200 bg-red-50 dark:bg-red-900/10' : 'border-slate-100 dark:border-slate-700'}`}>
                                <div className={`text-lg font-black ${selectedVehicleData.critical > 0 ? 'text-red-600' : 'text-slate-800 dark:text-white'}`}>{selectedVehicleData.critical}</div>
-                               <div className="text-[9px] text-slate-400">Críticos</div>
+                               <div className="text-[9px] text-slate-400">Criticos</div>
                            </div>
                        </div>
                    </div>
@@ -557,10 +557,10 @@ export const LocationMap: React.FC<LocationMapProps> = ({
 
                    {showServiceMenu ? (
                        <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-bottom-2 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
-                           <p className="text-[10px] font-bold text-slate-400 uppercase text-center mb-1">Selecione o Serviço</p>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase text-center mb-1">Selecione o Servico</p>
                            <div className="grid grid-cols-2 gap-2">
-                               <button onClick={() => handleServiceSearch('Oficina Mecânica')} className="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-600 transition-all text-[10px] font-bold gap-1 text-slate-600 dark:text-slate-300">
-                                   <Wrench className="h-4 w-4"/> MANUTENÇÃO
+                               <button onClick={() => handleServiceSearch('Oficina Mecanica')} className="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-600 transition-all text-[10px] font-bold gap-1 text-slate-600 dark:text-slate-300">
+                                   <Wrench className="h-4 w-4"/> MANUTENCAO
                                </button>
                                <button onClick={() => handleServiceSearch('Posto de Molas')} className="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-orange-500 hover:text-orange-600 transition-all text-[10px] font-bold gap-1 text-slate-600 dark:text-slate-300">
                                    <Layers className="h-4 w-4"/> POSTO DE MOLA
@@ -579,7 +579,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                            onClick={() => setShowServiceMenu(true)}
                            className="w-full mt-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-500/20 text-xs"
                        >
-                           <Search className="h-4 w-4" /> Localizar Serviços
+                           <Search className="h-4 w-4" /> Localizar Servicos
                        </button>
                    )}
                 </div>
@@ -619,7 +619,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
                           </div>
                           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/30">
                               <p className="text-[10px] text-blue-700 dark:text-blue-300 font-medium leading-relaxed">
-                                  Este ponto será salvo nas configurações globais e poderá ser usado para agendamentos e alertas de chegada.
+                                  Este ponto sera salvo nas configuracoes globais e podera ser usado para agendamentos e alertas de chegada.
                               </p>
                           </div>
                       </div>

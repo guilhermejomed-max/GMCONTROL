@@ -50,27 +50,27 @@ interface OccurrencesProps {
 
 const TREATMENT_SUGGESTIONS = [
   'Acionando Guincho especializado',
-  'Mecânico em deslocamento para o local',
-  'Em atendimento mecânico no local',
-  'Veículo se deslocando para oficina própria',
-  'Veículo se deslocando para oficina credenciada',
-  'Aguardando orçamento de peças',
-  'Aguardando aprovação de serviço',
+  'Mecanico em deslocamento para o local',
+  'Em atendimento mecanico no local',
+  'Veiculo se deslocando para oficina propria',
+  'Veiculo se deslocando para oficina credenciada',
+  'Aguardando orcamento de pecas',
+  'Aguardando aprovacao de servico',
   'Pneu trocado no local',
-  'Problema elétrico resolvido',
+  'Problema eletrico resolvido',
   'Motorista orientado sobre procedimento',
-  'Célula de carga verificada',
+  'Celula de carga verificada',
   'Sistema de ar revisado'
 ];
 
 const REJECTION_REASONS = [
-  'Setor Responsável Incorreto',
+  'Setor Responsavel Incorreto',
   'Falta de Ferramental no Local',
-  'Peça Indisponível no Estoque',
-  'Necessário envio para Oficina Externa',
-  'Atendimento já realizado por outro setor',
-  'Dados da Ocorrência Insuficientes',
-  'Motorista não localizado'
+  'Peca Indisponivel no Estoque',
+  'Necessario envio para Oficina Externa',
+  'Atendimento ja realizado por outro setor',
+  'Dados da Ocorrencia Insuficientes',
+  'Motorista nao localizado'
 ];
 
 export const Occurrences: React.FC<OccurrencesProps> = ({ 
@@ -217,7 +217,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
             paymentMethod: occurrenceForm.paymentMethod
           });
         await processMentions(occurrenceForm.description, selectedVehicle.plate);
-        onNotification?.('success', 'Ocorrência Atualizada', 'Dados salvos com sucesso.');
+        onNotification?.('success', 'Ocorrencia Atualizada', 'Dados salvos com sucesso.');
       } catch (err) {
         onNotification?.('error', 'Erro ao Salvar', 'Tente novamente em instantes.');
       }
@@ -247,7 +247,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         };
         await storageService.addOccurrence(orgId, newOccurrence);
         await processMentions(occurrenceForm.description, selectedVehicle.plate);
-        onNotification?.('success', 'Ocorrência Registrada', 'Ocorrência aberta com sucesso.');
+        onNotification?.('success', 'Ocorrencia Registrada', 'Ocorrencia aberta com sucesso.');
       } catch (err) {
         onNotification?.('error', 'Erro ao Registrar', 'Falha ao salvar no banco de dados.');
       }
@@ -288,10 +288,10 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         ...prev,
         photoUrls: [...prev.photoUrls, ...urls]
       }));
-      onNotification?.('success', 'Upload Concluído', `${files.length} imagem(ns) anexada(s).`);
+      onNotification?.('success', 'Upload Concluido', `${files.length} imagem(ns) anexada(s).`);
     } catch (error) {
       console.error("Upload failed", error);
-      onNotification?.('error', 'Erro no Upload', 'Não foi possível enviar as fotos.');
+      onNotification?.('error', 'Erro no Upload', 'Nao foi possivel enviar as fotos.');
     } finally {
       setIsUploading(false);
       if (e.target) e.target.value = '';
@@ -334,9 +334,9 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         rejectionReason,
         resolvedAt: newStatus === 'RESOLVED' ? new Date().toISOString() : occ.resolvedAt
       });
-      onNotification?.('success', 'Status Atualizado', `A ocorrência agora está como ${newStatus}.`);
+      onNotification?.('success', 'Status Atualizado', `A ocorrencia agora esta como ${newStatus}.`);
     } catch (err) {
-      onNotification?.('error', 'Erro', 'Não foi possível atualizar o status.');
+      onNotification?.('error', 'Erro', 'Nao foi possivel atualizar o status.');
     }
   };
 
@@ -356,14 +356,14 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
 
       if (regex.test(text) && !notifiedIds.has(member.id)) {
         console.log(`[Mentions] Notifying ${member.name} (ID: ${member.id}) for plate ${plate}`);
-        const currentUserName = user.displayName || user.name || user.email || 'Usuário';
+        const currentUserName = user.displayName || user.name || user.email || 'Usuario';
 
         await storageService.addNotification(orgId, {
           id: 'not-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
           recipientId: member.id,
           senderId: currentUserId,
           senderName: currentUserName,
-          text: `Você foi marcado na discussão da placa: ${plate || 'Indisponível'}.`,
+          text: `Voce foi marcado na discussao da placa: ${plate || 'Indisponivel'}.`,
           read: false,
           createdAt: new Date().toISOString()
         });
@@ -380,7 +380,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         id: Date.now().toString(),
         description: treatmentDescription,
         userId: user.uid || user.id,
-        userName: user.displayName || user.name || user.email || 'Usuário',
+        userName: user.displayName || user.name || user.email || 'Usuario',
         createdAt: new Date().toISOString()
       };
 
@@ -392,37 +392,37 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       onNotification?.('success', 'Tratativa Adicionada', 'A tratativa foi registrada com sucesso.');
       setCustomTreatment('');
     } catch (err) {
-      onNotification?.('error', 'Erro', 'Não foi possível salvar a tratativa.');
+      onNotification?.('error', 'Erro', 'Nao foi possivel salvar a tratativa.');
     }
   };
 
   const handleImportOSData = (occ: Occurrence) => {
     if (!occ.linkedServiceOrderId) {
-      onNotification?.('info', 'Sem O.S. Vinculada', 'Esta ocorrência não possui uma Ordem de Serviço vinculada.');
+      onNotification?.('info', 'Sem O.S. Vinculada', 'Esta ocorrencia nao possui uma Ordem de Servico vinculada.');
       return;
     }
     
     const linkedOS = serviceOrders.find(os => os.id === occ.linkedServiceOrderId);
     if (!linkedOS) {
-      onNotification?.('error', 'O.S. não encontrada', 'Não foi possível localizar os dados da O.S. vinculada.');
+      onNotification?.('error', 'O.S. nao encontrada', 'Nao foi possivel localizar os dados da O.S. vinculada.');
       return;
     }
 
-    const servicesStr = linkedOS.services?.map(s => s.name).join(', ') || 'Nenhum serviço registrado';
-    const partsStr = linkedOS.parts?.map(p => `${p.name} (${p.quantity}x)`).join(', ') || 'Nenhuma peça registrada';
-    const costStr = (linkedOS.totalCost !== undefined) ? `R$ ${linkedOS.totalCost.toLocaleString('pt-BR')}` : 'Não informado';
+    const servicesStr = linkedOS.services?.map(s => s.name).join(', ') || 'Nenhum servico registrado';
+    const partsStr = linkedOS.parts?.map(p => `${p.name} (${p.quantity}x)`).join(', ') || 'Nenhuma peca registrada';
+    const costStr = (linkedOS.totalCost !== undefined) ? `R$ ${linkedOS.totalCost.toLocaleString('pt-BR')}` : 'Nao informado';
     
     const summary = `📄 RESUMO DA O.S. #${linkedOS.orderNumber}:\n` +
       `--------------------------------\n` +
       `📌 Status: ${linkedOS.status}\n` +
-      `🛠️ Serviços: ${servicesStr}\n` +
-      `📦 Peças: ${partsStr}\n` +
+      `🛠️ Servicos: ${servicesStr}\n` +
+      `📦 Pecas: ${partsStr}\n` +
       `💰 Custo Total: ${costStr}\n` +
-      `👤 Responsável: ${linkedOS.collaboratorName || 'Não informado'}\n` +
-      `📝 Detalhes: ${linkedOS.details || 'Sem observações'}`;
+      `👤 Responsavel: ${linkedOS.collaboratorName || 'Nao informado'}\n` +
+      `📝 Detalhes: ${linkedOS.details || 'Sem observacoes'}`;
 
     setCustomTreatment(prev => prev ? prev + '\n\n' + summary : summary);
-    onNotification?.('success', 'Dados Importados', 'Informações da O.S. foram adicionadas à tratativa.');
+    onNotification?.('success', 'Dados Importados', 'Informacoes da O.S. foram adicionadas a tratativa.');
   };
 
   const handleLinkExistingOS = async (occ: Occurrence, osId: string) => {
@@ -438,7 +438,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       await storageService.updateServiceOrder(orgId, os.id, {
         occurrenceId: occ.id
       });
-      onNotification?.('success', 'Sucesso', `Ocorrência vinculada à O.S. #${os.orderNumber}`);
+      onNotification?.('success', 'Sucesso', `Ocorrencia vinculada a O.S. #${os.orderNumber}`);
       
       // Update local state if needed (optional since App.tsx is sync)
       setIsLinkingExistingOS(false);
@@ -455,7 +455,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         setSelectedOccurrenceForTreatment(null);
       }
     } catch (err) {
-      onNotification?.('error', 'Erro', 'Não foi possível vincular a O.S.');
+      onNotification?.('error', 'Erro', 'Nao foi possivel vincular a O.S.');
     }
   };
 
@@ -466,7 +466,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
     try {
       const rejectionTreatment = {
         id: 'sys-' + Date.now().toString(),
-        description: `⚠️ REJEITADA: Ocorrência recusada por ${user.displayName || user.name} motivo: "${rejectionReason}"`,
+        description: `⚠️ REJEITADA: Ocorrencia recusada por ${user.displayName || user.name} motivo: "${rejectionReason}"`,
         userId: 'SYSTEM',
         userName: 'Sistema de Fluxo',
         createdAt: new Date().toISOString()
@@ -475,7 +475,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       if (redirectSectorId) {
         const targetSector = sectors.find(s => s.id === redirectSectorId);
         if (targetSector) {
-          rejectionTreatment.description = `⚠️ RE-DIRECIONADO: Ocorrência recusada por ${user.displayName || user.name} motivo: "${rejectionReason}". Enviado para o setor: ${targetSector.name}`;
+          rejectionTreatment.description = `⚠️ RE-DIRECIONADO: Ocorrencia recusada por ${user.displayName || user.name} motivo: "${rejectionReason}". Enviado para o setor: ${targetSector.name}`;
           
           await storageService.addOccurrenceRejection(
             orgId,
@@ -495,7 +495,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         );
       }
 
-      const successMsg = redirectSectorId ? 'Ocorrência Redirecionada' : 'Ocorrência Recusada';
+      const successMsg = redirectSectorId ? 'Ocorrencia Redirecionada' : 'Ocorrencia Recusada';
       onNotification?.('success', successMsg, 'O status foi atualizado com sucesso.');
       
       setSelectedOccurrenceForRejection(null);
@@ -578,7 +578,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         id: Date.now().toString(),
         text: chatMessage,
         userId: user.uid || user.id,
-        userName: user.displayName || user.name || user.email || 'Usuário',
+        userName: user.displayName || user.name || user.email || 'Usuario',
         createdAt: new Date().toISOString(),
         attachments: chatAttachments
       };
@@ -591,7 +591,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       setChatMessage('');
       setChatAttachments([]);
     } catch (err) {
-      onNotification?.('error', 'Erro', 'Não foi possível enviar a mensagem.');
+      onNotification?.('error', 'Erro', 'Nao foi possivel enviar a mensagem.');
     } finally {
       setIsSendingMessage(false);
     }
@@ -606,7 +606,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
       const remaining = Math.max(0, 5 - chatAttachments.length);
       const selected = files.slice(0, remaining).filter(file => file.size <= 8 * 1024 * 1024);
       if (selected.length < files.length) {
-        onNotification?.('warning', 'Limite de anexos', 'Use até 5 arquivos, com até 8 MB cada.');
+        onNotification?.('warning', 'Limite de anexos', 'Use ate 5 arquivos, com ate 8 MB cada.');
       }
 
       const uploaded = await Promise.all(selected.map(async file => {
@@ -617,7 +617,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
 
       setChatAttachments(prev => [...prev, ...uploaded]);
     } catch (error) {
-      onNotification?.('error', 'Erro no anexo', 'Não foi possível anexar o arquivo.');
+      onNotification?.('error', 'Erro no anexo', 'Nao foi possivel anexar o arquivo.');
     } finally {
       setIsSendingMessage(false);
       if (e.target) e.target.value = '';
@@ -642,44 +642,44 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
   const handleDeleteOccurrence = async (occurrence: Occurrence) => {
     if (userLevel !== 'SENIOR' && userLevel !== 'ADMIN' && userLevel !== 'CREATOR') {
       if (occurrence.status === 'PENDING_DELETION') {
-        onNotification?.('error', 'Ops!', 'Esta exclusão já está aguardando aprovação de um sênior.');
+        onNotification?.('error', 'Ops!', 'Esta exclusao ja esta aguardando aprovacao de um senior.');
         return;
       }
-      if (window.confirm('Você não tem permissão para excluir. Deseja enviar para aprovação de um Sênior?')) {
+      if (window.confirm('Voce nao tem permissao para excluir. Deseja enviar para aprovacao de um Senior?')) {
         try {
           await storageService.updateOccurrence(orgId, occurrence.id, { 
             status: 'PENDING_DELETION',
-            deletionRequestedBy: user.displayName || user.name || user.email || 'Usuário'
+            deletionRequestedBy: user.displayName || user.name || user.email || 'Usuario'
           });
-          onNotification?.('success', 'Sucesso', 'Solicitação de exclusão enviada para aprovação.');
+          onNotification?.('success', 'Sucesso', 'Solicitacao de exclusao enviada para aprovacao.');
         } catch (err) {
-          onNotification?.('error', 'Erro', 'Falha ao solicitar exclusão.');
+          onNotification?.('error', 'Erro', 'Falha ao solicitar exclusao.');
         }
       }
       return;
     }
 
-    if (window.confirm('Você é um usuário Sênior. Tem certeza que deseja excluir esta ocorrência definitivamente?')) {
+    if (window.confirm('Voce e um usuario Senior. Tem certeza que deseja excluir esta ocorrencia definitivamente?')) {
       try {
         await storageService.deleteOccurrence(orgId, occurrence.id, occurrence.vehiclePlate);
         if (selectedOccurrenceForDetails?.id === occurrence.id) setSelectedOccurrenceForDetails(null);
-        onNotification?.('success', 'Sucesso', 'Ocorrência excluída.');
+        onNotification?.('success', 'Sucesso', 'Ocorrencia excluida.');
       } catch (err) {
-        onNotification?.('error', 'Erro ao Excluir', 'Verifique suas permissões ou tente novamente.');
+        onNotification?.('error', 'Erro ao Excluir', 'Verifique suas permissoes ou tente novamente.');
       }
     }
   };
 
   const handleRestoreOccurrence = async (occurrence: Occurrence) => {
-    if (window.confirm('Deseja cancelar a solicitação de exclusão e restaurar?')) {
+    if (window.confirm('Deseja cancelar a solicitacao de exclusao e restaurar?')) {
       try {
         await storageService.updateOccurrence(orgId, occurrence.id, { 
           status: 'OPEN',
           deletionRequestedBy: ''
         });
-        onNotification?.('success', 'Restaurada', 'A ocorrência voltou ao estado Aberta.');
+        onNotification?.('success', 'Restaurada', 'A ocorrencia voltou ao estado Aberta.');
       } catch (err) {
-        onNotification?.('error', 'Erro', 'Falha ao restaurar ocorrência.');
+        onNotification?.('error', 'Erro', 'Falha ao restaurar ocorrencia.');
       }
     }
   };
@@ -705,9 +705,9 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
             <AlertTriangle className="w-7 h-7 text-amber-500" />
-            Gestão de Ocorrências
+            Gestao de Ocorrencias
           </h1>
-          <p className="text-sm text-gray-500 mt-1 font-medium">Controle de quebras, reparos e fluxos do time de manutenção</p>
+          <p className="text-sm text-gray-500 mt-1 font-medium">Controle de quebras, reparos e fluxos do time de manutencao</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -745,7 +745,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
             className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all hover:shadow-md flex items-center gap-2 font-bold text-sm"
           >
             <Plus className="w-4 h-4" />
-            Abrir Ocorrência
+            Abrir Ocorrencia
           </button>
         </div>
       </div>
@@ -758,7 +758,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
             activeTab === 'list' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
-          Lista de Ocorrências
+          Lista de Ocorrencias
         </button>
         <button
           onClick={() => setActiveTab('reasons')}
@@ -766,7 +766,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
             activeTab === 'reasons' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
-          Catálogo de Motivos
+          Catalogo de Motivos
         </button>
       </div>
 
@@ -778,7 +778,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Buscar por placa, motivo, código..."
+                placeholder="Buscar por placa, motivo, codigo..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm font-medium placeholder:text-gray-400"
@@ -808,13 +808,13 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               <table className="w-full text-left border-collapse">
                 <thead className="bg-[#FAFAFA] border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Veículo</th>
-                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Motivo / Descrição</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Veiculo</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Motivo / Descricao</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Equipe</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Valores</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Fluxo</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">Status</th>
-                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap text-right">Ações</th>
+                    <th className="px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap text-right">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -846,8 +846,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-bold text-gray-800 text-[13px]">{occ.reasonName}</div>
-                        <div className="text-[11px] text-gray-500 truncate max-w-[200px] mt-0.5" title={occ.description || 'Sem descrição'}>
-                          {occ.description || 'Sem descrição...'}
+                        <div className="text-[11px] text-gray-500 truncate max-w-[200px] mt-0.5" title={occ.description || 'Sem descricao'}>
+                          {occ.description || 'Sem descricao...'}
                         </div>
                         {occ.photoUrls && occ.photoUrls.length > 0 && (
                           <div className="flex gap-1 mt-2">
@@ -856,7 +856,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                                 key={i} 
                                 className="w-5 h-5 rounded overflow-hidden shadow-sm border border-gray-200/50"
                               >
-                                <img src={url} alt="Evidência" className="w-full h-full object-cover" />
+                                <img src={url} alt="Evidencia" className="w-full h-full object-cover" />
                               </div>
                             ))}
                             {occ.photoUrls.length > 3 && (
@@ -906,7 +906,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                           'bg-green-50 text-green-700 border-green-200/50'
                         }`}>
                           {occ.status === 'OPEN' && 'PENDENTE'}
-                          {occ.status === 'PENDING_DELETION' && 'EXCLUSÃO SOLICITADA'}
+                          {occ.status === 'PENDING_DELETION' && 'EXCLUSAO SOLICITADA'}
                           {occ.status === 'ACCEPTED' && 'EM ANDAMENTO'}
                           {occ.status === 'REJECTED' && 'RECUSADO'}
                           {occ.status === 'RESOLVED' && 'RESOLVIDO'}
@@ -934,20 +934,20 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                               <button
                                 onClick={() => handleRestoreOccurrence(occ)}
                                 className="px-2 py-1.5 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-lg hover:bg-gray-200 transition-colors"
-                                title="Cancelar Exclusão"
+                                title="Cancelar Exclusao"
                               >
                                 RESTAURAR
                               </button>
                               <button
                                 onClick={() => handleDeleteOccurrence(occ)}
                                 className="px-2 py-1.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-lg hover:bg-red-200 transition-colors"
-                                title="Aprovar Exclusão"
+                                title="Aprovar Exclusao"
                               >
-                                CONFIRMAR EXCLUSÃO
+                                CONFIRMAR EXCLUSAO
                               </button>
                             </>
                           ) : occ.status === 'PENDING_DELETION' ? (
-                             <span className="text-[10px] items-center text-gray-400 italic pr-2">Aguardando Avaliação</span>
+                             <span className="text-[10px] items-center text-gray-400 italic pr-2">Aguardando Avaliacao</span>
                           ) : (
                             <>
                               {occ.status === 'OPEN' && (occ.assignedUserId === user.uid || (occ.responsibleSectorId && user.sectorId === occ.responsibleSectorId) || userLevel === 'CREATOR' || userLevel === 'ADMIN') && (
@@ -992,7 +992,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                             <button
                               onClick={() => onGenerateOS(occ.id, occ.vehicleId)}
                               className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors border ${occ.linkedServiceOrderId ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'}`}
-                              title={occ.linkedServiceOrderId ? "OS já gerada. Clique para gerar outra." : "Gerar OS a partir deste chamado"}
+                              title={occ.linkedServiceOrderId ? "OS ja gerada. Clique para gerar outra." : "Gerar OS a partir deste chamado"}
                             >
                               <Plus className="w-4 h-4" />
                             </button>
@@ -1039,7 +1039,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                       <td colSpan={7} className="px-6 py-16 text-center text-gray-500">
                         <div className="flex flex-col items-center justify-center space-y-2">
                           <AlertTriangle className="w-8 h-8 text-gray-300" />
-                          <p className="text-sm font-medium">Nenhuma ocorrência encontrada.</p>
+                          <p className="text-sm font-medium">Nenhuma ocorrencia encontrada.</p>
                         </div>
                       </td>
                     </tr>
@@ -1053,7 +1053,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   onClick={() => setShowAllOccurrences(!showAllOccurrences)}
                   className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2"
                 >
-                  {showAllOccurrences ? 'Ver Menos' : `Ver Todas as Ocorrências (${filteredOccurrences.length})`}
+                  {showAllOccurrences ? 'Ver Menos' : `Ver Todas as Ocorrencias (${filteredOccurrences.length})`}
                 </button>
               </div>
             )}
@@ -1095,7 +1095,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                 </div>
                 <h3 className="text-sm font-bold text-gray-900 tracking-tight mb-2">{reason.name}</h3>
                 <p className="text-gray-500 text-xs font-medium leading-relaxed line-clamp-3">
-                  {reason.description || 'Sem descrição detalhada.'}
+                  {reason.description || 'Sem descricao detalhada.'}
                 </p>
               </div>
             ))}
@@ -1133,7 +1133,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
             >
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
                 <h2 className="text-xl font-bold text-gray-900">
-                  {editingOccurrence ? 'Editar Ocorrência' : 'Registrar Ocorrência'}
+                  {editingOccurrence ? 'Editar Ocorrencia' : 'Registrar Ocorrencia'}
                 </h2>
                 <button onClick={() => setIsOccurrenceModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                   <X className="w-5 h-5 text-gray-500" />
@@ -1142,9 +1142,9 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               
               <form onSubmit={handleAddOccurrence} className="p-6 space-y-4 overflow-y-auto">
                 <SearchableSelect
-                  label="Veículo"
+                  label="Veiculo"
                   required
-                  placeholder="Selecione um veículo..."
+                  placeholder="Selecione um veiculo..."
                   options={vehicles.map(v => ({ id: v.id, label: v.plate, subLabel: v.model }))}
                   value={occurrenceForm.vehicleId}
                   onChange={(val) => {
@@ -1174,7 +1174,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Setor Responsável *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Setor Responsavel *</label>
                     <select
                       required
                       value={occurrenceForm.responsibleSectorId}
@@ -1201,7 +1201,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                        <User className="w-4 h-4 text-gray-400" />
-                       Responsável pelo Serviço
+                       Responsavel pelo Servico
                     </label>
                     <select
                       value={occurrenceForm.assignedUserId}
@@ -1216,7 +1216,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                       }}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     >
-                      <option value="">Selecione um responsável...</option>
+                      <option value="">Selecione um responsavel...</option>
                       {responsibleOptions.map(opt => (
                         <option key={opt.id} value={opt.id}>{opt.name} ({opt.type})</option>
                       ))}
@@ -1265,12 +1265,12 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                 </div>
 
                 <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição / Detalhes</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descricao / Detalhes</label>
                   <textarea
                     value={occurrenceForm.description}
                     onChange={handleDescriptionChange}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
-                    placeholder="Descreva o que aconteceu... use @ para marcar alguém"
+                    placeholder="Descreva o que aconteceu... use @ para marcar alguem"
                   />
 
                   {/* Mentions for Description */}
@@ -1309,13 +1309,13 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                     <Camera className="w-4 h-4 text-gray-400" />
-                    Anexar Imagens / Evidências
+                    Anexar Imagens / Evidencias
                   </label>
                   
                   <div className="flex flex-wrap gap-2 mb-2">
                     {occurrenceForm.photoUrls.map((url, i) => (
                       <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 group">
-                        <img src={url} alt="Evidência" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={url} alt="Evidencia" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         <button 
                           type="button"
                           onClick={() => removePhoto(i)}
@@ -1359,7 +1359,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                     type="submit"
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
                   >
-                    {editingOccurrence ? 'Salvar Alterações' : 'Registrar'}
+                    {editingOccurrence ? 'Salvar Alteracoes' : 'Registrar'}
                   </button>
                 </div>
               </form>
@@ -1388,7 +1388,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                     <Truck className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Painel da Ocorrência</h2>
+                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Painel da Ocorrencia</h2>
                     <p className="text-xs text-gray-500 font-medium tracking-wide text-[10px] uppercase">
                       ID: {currentOccurrenceDetail.id.slice(0, 8)} • PLACA: {currentOccurrenceDetail.vehiclePlate}
                     </p>
@@ -1428,14 +1428,14 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                       </div>
                       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm shadow-black/5 hover:border-gray-300 transition-colors">
                         <div className="text-[10px] text-gray-400 font-bold uppercase mb-1.5 tracking-wider">Setor</div>
-                        <div className="text-sm font-bold text-gray-800 leading-tight">{currentOccurrenceDetail.responsibleSector || 'Não definido'}</div>
+                        <div className="text-sm font-bold text-gray-800 leading-tight">{currentOccurrenceDetail.responsibleSector || 'Nao definido'}</div>
                       </div>
                     </div>
 
                     <div>
-                      <div className="text-[10px] text-gray-400 font-bold uppercase mb-2 tracking-wider ml-1">Descrição</div>
+                      <div className="text-[10px] text-gray-400 font-bold uppercase mb-2 tracking-wider ml-1">Descricao</div>
                       <div className="text-sm text-gray-700 bg-gray-50/80 p-5 rounded-2xl border border-gray-100 whitespace-pre-wrap leading-relaxed shadow-inner">
-                        {currentOccurrenceDetail.description || <span className="italic text-gray-400">Sem descrição detalhada.</span>}
+                        {currentOccurrenceDetail.description || <span className="italic text-gray-400">Sem descricao detalhada.</span>}
                       </div>
                     </div>
 
@@ -1456,7 +1456,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                             <img 
                               key={i} 
                               src={url} 
-                              alt="Evidência" 
+                              alt="Evidencia" 
                               className="w-full h-28 object-cover rounded-xl border border-gray-200 cursor-pointer hover:opacity-90 hover:shadow-md transition-all"
                               onClick={() => window.open(url, '_blank')}
                               referrerPolicy="no-referrer"
@@ -1468,7 +1468,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
 
                     <div>
                       <div className="text-[10px] text-gray-400 font-bold uppercase mb-3 flex justify-between items-center tracking-wider ml-1 border-b border-gray-100 pb-2">
-                        Histórico de Tratativas
+                        Historico de Tratativas
                         <History className="w-3.5 h-3.5 text-blue-500" />
                       </div>
                       <div className="space-y-4">
@@ -1512,7 +1512,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                               onChange={(e) => setIsLinkingExistingOS(e.target.checked)}
                               className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <label htmlFor="link_existing_details" className="text-xs font-bold text-blue-800 uppercase cursor-pointer">VINCULAR A UMA O.S. JÁ ABERTA?</label>
+                            <label htmlFor="link_existing_details" className="text-xs font-bold text-blue-800 uppercase cursor-pointer">VINCULAR A UMA O.S. JA ABERTA?</label>
                          </div>
 
                          {isLinkingExistingOS ? (
@@ -1536,7 +1536,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                                 onClick={() => handleLinkExistingOS(currentOccurrenceDetail, selectedOSIdToLink)}
                                 className="w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                               >
-                                <CheckCircle2 className="w-4 h-4" /> VINCULAR OCORRÊNCIA À O.S.
+                                <CheckCircle2 className="w-4 h-4" /> VINCULAR OCORRENCIA A O.S.
                               </button>
                            </div>
                          ) : (
@@ -1568,8 +1568,8 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                       <MessageSquare className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900 tracking-tight">Discussão Interna</h3>
-                      <p className="text-[10px] text-gray-500 font-medium">Equipe de Manutenção e Frota</p>
+                      <h3 className="text-sm font-bold text-gray-900 tracking-tight">Discussao Interna</h3>
+                      <p className="text-[10px] text-gray-500 font-medium">Equipe de Manutencao e Frota</p>
                     </div>
                   </div>
 
@@ -1631,7 +1631,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                           <MessageSquare className="w-6 h-6 text-gray-300" />
                         </div>
                         <p className="text-sm font-medium text-gray-500">Nenhuma mensagem ainda.</p>
-                        <p className="text-xs">Este é o canal direto para resolver dúvidas desta ocorrência.</p>
+                        <p className="text-xs">Este e o canal direto para resolver duvidas desta ocorrencia.</p>
                       </div>
                     )}
                     <div ref={chatEndRef} />
@@ -1763,7 +1763,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               </div>
 
               <div className="p-6 space-y-4">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Opções Sugeridas:</div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Opcoes Sugeridas:</div>
                 <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {TREATMENT_SUGGESTIONS.map((suggestion, idx) => (
                     <button
@@ -1797,7 +1797,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                     value={customTreatment}
                     onChange={handleTreatmentChange}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
-                    placeholder="Descreva outra ação... use @ para marcar alguém"
+                    placeholder="Descreva outra acao... use @ para marcar alguem"
                    />
 
                    {/* Mentions Suggestions for Treatment */}
@@ -1854,7 +1854,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                           onChange={(e) => setIsLinkingExistingOS(e.target.checked)}
                           className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         />
-                        <label htmlFor="link_existing_treatment" className="text-xs font-bold text-indigo-800 uppercase cursor-pointer">VINCULAR A UMA O.S. JÁ ABERTA?</label>
+                        <label htmlFor="link_existing_treatment" className="text-xs font-bold text-indigo-800 uppercase cursor-pointer">VINCULAR A UMA O.S. JA ABERTA?</label>
                      </div>
 
                      {isLinkingExistingOS ? (
@@ -1878,7 +1878,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                             onClick={() => handleLinkExistingOS(selectedOccurrenceForTreatment, selectedOSIdToLink)}
                             className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                           >
-                            <CheckCircle2 className="w-4 h-4" /> VINCULAR OCORRÊNCIA À O.S.
+                            <CheckCircle2 className="w-4 h-4" /> VINCULAR OCORRENCIA A O.S.
                           </button>
                        </div>
                      ) : (
@@ -1933,7 +1933,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-red-50">
                 <h2 className="text-lg font-bold text-red-900 flex items-center gap-2">
                   <X className="w-5 h-5" />
-                  Recusar Ocorrência
+                  Recusar Ocorrencia
                 </h2>
                 <button onClick={() => setSelectedOccurrenceForRejection(null)} className="p-2 hover:bg-red-100 rounded-full transition-colors">
                   <X className="w-5 h-5 text-red-500" />
@@ -1974,13 +1974,13 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                     onChange={(e) => setRedirectSectorId(e.target.value)}
                     className="w-full p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-indigo-900"
                   >
-                    <option value="">Não redirecionar</option>
+                    <option value="">Nao redirecionar</option>
                     {sectors.filter(s => s.id !== selectedOccurrenceForRejection.responsibleSectorId).map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                   <p className="mt-1 text-[10px] text-indigo-400 italic">
-                    Ao redirecionar, a ocorrência voltará para o status "ABERTA" no novo setor.
+                    Ao redirecionar, a ocorrencia voltara para o status "ABERTA" no novo setor.
                   </p>
                 </div>
               </div>
@@ -2038,12 +2038,12 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição (Opcional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descricao (Opcional)</label>
                   <textarea
                     value={reasonForm.description}
                     onChange={(e) => setReasonForm({ ...reasonForm, description: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none"
-                    placeholder="Breve descrição sobre este motivo..."
+                    placeholder="Breve descricao sobre este motivo..."
                   />
                 </div>
 
@@ -2059,7 +2059,7 @@ export const Occurrences: React.FC<OccurrencesProps> = ({
                     type="submit"
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
                   >
-                    {editingReason ? 'Salvar Alterações' : 'Cadastrar'}
+                    {editingReason ? 'Salvar Alteracoes' : 'Cadastrar'}
                   </button>
                 </div>
               </form>

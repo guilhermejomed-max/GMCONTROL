@@ -43,7 +43,7 @@ export const Dashboard: FC<DashboardProps> = ({
   vehicleTypes = []
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora são universais, mostramos todos independentemente da filial selecionada
+    // Pneus agora sao universais, mostramos todos independentemente da filial selecionada
     return allTires;
   }, [allTires]);
 
@@ -92,7 +92,7 @@ export const Dashboard: FC<DashboardProps> = ({
     if (totalMounted === 0) {
         healthScore = 0; 
     } else {
-        // Redução baseada na porcentagem de pneus críticos
+        // Reducao baseada na porcentagem de pneus criticos
         healthScore -= (criticalPercentage * 0.8); 
 
         const uninspectedCount = mountedTires.filter(t => !t.lastInspectionDate || new Date(t.lastInspectionDate) < thirtyDaysAgo).length;
@@ -106,18 +106,18 @@ export const Dashboard: FC<DashboardProps> = ({
     }
 
     // 3. AI INSIGHT
-    let aiInsight = totalMounted === 0 ? "Nenhum pneu monitorado." : "Operação estável. Continue o monitoramento.";
+    let aiInsight = totalMounted === 0 ? "Nenhum pneu monitorado." : "Operacao estavel. Continue o monitoramento.";
     let aiMood: 'GOOD' | 'WARN' | 'BAD' = 'GOOD';
 
     if (totalMounted > 0) {
         if (criticalCount > 5) {
-            aiInsight = `Crítico: ${criticalCount} pneus atingiram o limite. Ação imediata requerida.`;
+            aiInsight = `Critico: ${criticalCount} pneus atingiram o limite. Acao imediata requerida.`;
             aiMood = 'BAD';
         } else if (inspectionCompliance < 60) {
-            aiInsight = `Atenção: ${Math.round(100 - inspectionCompliance)}% da frota sem inspeção recente.`;
+            aiInsight = `Atencao: ${Math.round(100 - inspectionCompliance)}% da frota sem inspecao recente.`;
             aiMood = 'WARN';
         } else if (healthScore > 90) {
-            aiInsight = "Excelente gestão! Eficiência e segurança em níveis ótimos.";
+            aiInsight = "Excelente gestao! Eficiencia e seguranca em niveis otimos.";
             aiMood = 'GOOD';
         }
     }
@@ -165,11 +165,11 @@ export const Dashboard: FC<DashboardProps> = ({
         ? newTires.reduce((acc, t) => acc + Number(t.price || 0), 0) / newTires.length 
         : 2800;
 
-    // 8. PREVISÃO DE COMPRA (Forecast simplificado: pneus < 5mm)
+    // 8. PREVISAO DE COMPRA (Forecast simplificado: pneus < 5mm)
     const warningTiresCount = mountedTires.filter(t => t.currentTreadDepth > minDepth && t.currentTreadDepth <= (minDepth + 2)).length;
     const projectedCost = warningTiresCount * calculatedAvgNewPrice; 
 
-    // 9. TAXA DE OCUPAÇÃO (Pneus Rodando / Total Ativos)
+    // 9. TAXA DE OCUPACAO (Pneus Rodando / Total Ativos)
     const totalActiveTires = (tires || []).filter(t => t.status !== TireStatus.DAMAGED).length;
     const utilizationRate = totalActiveTires > 0 ? (mountedTires.length / totalActiveTires) * 100 : 0;
     const totalFuelFleet = 0; // Removed totalFuelConsumed usage
@@ -183,7 +183,7 @@ export const Dashboard: FC<DashboardProps> = ({
         if (serviceCost > 0) totalServices += serviceCost;
     });
     const costDistribution = [
-        { name: 'Aquisição', value: totalAcquisition, color: '#0f172a' },
+        { name: 'Aquisicao', value: totalAcquisition, color: '#0f172a' },
         { name: 'Recapagem', value: totalServices, color: '#3b82f6' }
     ];
 
@@ -321,7 +321,7 @@ export const Dashboard: FC<DashboardProps> = ({
             const newTirePrice = Number(t.price || calculatedAvgNewPrice);
             let retreadCosts = getTireInvestment(t) - newTirePrice;
             if (retreadCosts <= 0) {
-                // Se não temos o custo real registrado, estimamos o custo da recapagem em 30% do valor de um pneu novo
+                // Se nao temos o custo real registrado, estimamos o custo da recapagem em 30% do valor de um pneu novo
                 retreadCosts = t.retreadCount * (newTirePrice * 0.3);
             }
             const hypotheticalCost = t.retreadCount * newTirePrice;
@@ -379,7 +379,7 @@ export const Dashboard: FC<DashboardProps> = ({
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium mt-2 flex items-center gap-2 text-sm">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Sistema Online • <strong className="text-slate-700 dark:text-slate-200">{stats.activeVehicles} Veículos</strong> monitorados
+            Sistema Online • <strong className="text-slate-700 dark:text-slate-200">{stats.activeVehicles} Veiculos</strong> monitorados
           </p>
         </div>
         
@@ -392,7 +392,7 @@ export const Dashboard: FC<DashboardProps> = ({
                 onChange={(e) => setOpFilter(e.target.value)}
                 className="pl-10 pr-8 py-2.5 rounded-xl text-sm font-bold transition-all bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm outline-none border-none cursor-pointer appearance-none min-w-[200px]"
             >
-                <option value="ALL">Global (Todos os Veículos)</option>
+                <option value="ALL">Global (Todos os Veiculos)</option>
                 {vehicleTypes.map((type) => (
                     <option key={type.id} value={type.name}>
                         {type.name}
@@ -413,7 +413,7 @@ export const Dashboard: FC<DashboardProps> = ({
          <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-indigo-300 transition-colors">
             <div className="flex justify-between items-start z-10">
                 <div>
-                    <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde da Frota</p>
+                    <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Activity className="h-3 w-3"/> Saude da Frota</p>
                     <h3 className="text-2xl font-black text-slate-800 dark:text-white">{stats.totalTires > 0 ? stats.healthScore : '---'} <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">{stats.totalTires > 0 ? '/100' : ''}</span></h3>
                 </div>
             </div>
@@ -434,7 +434,7 @@ export const Dashboard: FC<DashboardProps> = ({
          {/* CPK METRIC */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between group">
             <div>
-                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Médio Global</p>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Gauge className="h-3 w-3"/> CPK Medio Global</p>
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white font-mono truncate">{stats.totalTires > 0 ? `R$ ${stats.avgCpk.toFixed(4)}` : '---'}</h3>
             </div>
             
@@ -448,7 +448,7 @@ export const Dashboard: FC<DashboardProps> = ({
                     </div>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-700/50">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Borrachudo (Tração)</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Borrachudo (Tracao)</p>
                     <p className="text-sm font-black text-slate-700 dark:text-slate-300 font-mono">{stats.totalTires > 0 ? `R$ ${stats.cpkBorrachudo.toFixed(4)}` : '---'}</p>
                     <div className="mt-1 flex justify-between text-[8px] text-slate-500 font-medium">
                         <span>{stats.countBorrachudo} pneus</span>
@@ -470,7 +470,7 @@ export const Dashboard: FC<DashboardProps> = ({
           <div className="bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5"><Percent className="h-16 w-16"/></div>
             <div>
-                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Truck className="h-3 w-3 text-blue-500"/> Ocupação (Rodando)</p>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Truck className="h-3 w-3 text-blue-500"/> Ocupacao (Rodando)</p>
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white">{stats.utilizationRate.toFixed(0)}%</h3>
             </div>
             <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl w-fit">
@@ -502,7 +502,7 @@ export const Dashboard: FC<DashboardProps> = ({
                     <h3 className="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
                         <LayoutDashboard className="h-5 w-5 text-indigo-500"/> Fluxo de Investimento
                     </h3>
-                    <p className="text-xs text-slate-500">Custo operacional acumulado (Aquisição + Serviços).</p>
+                    <p className="text-xs text-slate-500">Custo operacional acumulado (Aquisicao + Servicos).</p>
                 </div>
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                     {['30D', 'YTD', '12M'].map((p) => (
@@ -528,7 +528,7 @@ export const Dashboard: FC<DashboardProps> = ({
                             itemStyle={{ color: '#fff' }}
                             formatter={(val: number) => money(val)}
                         />
-                        <Area type="monotone" dataKey="aquisicao" name="Aquisição" stackId="1" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.8} />
+                        <Area type="monotone" dataKey="aquisicao" name="Aquisicao" stackId="1" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.8} />
                         <Area type="monotone" dataKey="recapagem" name="Recapagem" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.8} />
                     </AreaChart>
                 </ResponsiveContainer>
@@ -541,7 +541,7 @@ export const Dashboard: FC<DashboardProps> = ({
              {/* COST DISTRIBUTION (DONUT) */}
              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col min-h-[220px]">
                 <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide mb-2 flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-emerald-500"/> Distribuição de Custos
+                    <Wallet className="h-4 w-4 text-emerald-500"/> Distribuicao de Custos
                 </h3>
                 <div className="h-[250px] flex items-center relative">
                     <ResponsiveContainer width="100%" height={250}>
@@ -567,14 +567,14 @@ export const Dashboard: FC<DashboardProps> = ({
              {/* VEHICLE WATCHLIST */}
              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex flex-col">
                 <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide mb-4 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-500"/> Watchlist (Críticos)
+                    <AlertCircle className="h-4 w-4 text-red-500"/> Watchlist (Criticos)
                 </h3>
                 
                 <div className="space-y-3 flex-1 overflow-y-auto max-h-[150px] custom-scrollbar">
                     {stats.watchList.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400">
                             <CheckCircle2 className="h-10 w-10 mb-2 opacity-30 text-green-500"/>
-                            <p className="text-xs font-bold">Nenhum veículo crítico.</p>
+                            <p className="text-xs font-bold">Nenhum veiculo critico.</p>
                         </div>
                     ) : (
                         stats.watchList.map((v, i) => (
@@ -605,17 +605,17 @@ export const Dashboard: FC<DashboardProps> = ({
               
               <div className="relative z-10">
                   <h3 className="font-bold text-slate-800 dark:text-white text-sm uppercase tracking-wide mb-1 flex items-center gap-2">
-                      <Target className="h-4 w-4 text-indigo-500"/> Projeção de Compra
+                      <Target className="h-4 w-4 text-indigo-500"/> Projecao de Compra
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Estimativa de reposição (Pneus &lt; 5mm)</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Estimativa de reposicao (Pneus &lt; 5mm)</p>
                   
                   <div className="flex items-end gap-2 mb-2">
                       <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{stats.warningTiresCount}</span>
-                      <span className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">pneus vencerão em breve</span>
+                      <span className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">pneus vencerao em breve</span>
                   </div>
                   
                   <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Custo Estimado de Reposição</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Custo Estimado de Reposicao</p>
                       <p className="text-xl font-black text-slate-800 dark:text-white truncate">{money(stats.projectedCost)}</p>
                   </div>
               </div>
@@ -630,7 +630,7 @@ export const Dashboard: FC<DashboardProps> = ({
                     {stats.stockVelocity.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 italic">
                             <History className="h-8 w-8 mb-2 opacity-20"/>
-                            <p className="text-xs">Sem movimentação recente.</p>
+                            <p className="text-xs">Sem movimentacao recente.</p>
                         </div>
                     ) : (
                         stats.stockVelocity.map((item, i) => (
@@ -651,7 +651,7 @@ export const Dashboard: FC<DashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-0 hidden">
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
               <h3 className="text-sm font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest flex items-center gap-2">
-                  <ScrollText className="h-4 w-4 text-blue-500"/> Feed de Operações (Ao Vivo)
+                  <ScrollText className="h-4 w-4 text-blue-500"/> Feed de Operacoes (Ao Vivo)
               </h3>
               <div className="space-y-3">
                   {stats.recentActivity.length === 0 ? (
@@ -694,11 +694,11 @@ export const Dashboard: FC<DashboardProps> = ({
 
       {/* 7. QUICK ACTIONS DOCK */}
       <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-          <h3 className="text-sm font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-500"/> Acesso Rápido</h3>
+          <h3 className="text-sm font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-500"/> Acesso Rapido</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <button onClick={() => onNavigate('inspection')} className="group flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-600 hover:text-white rounded-2xl transition-all duration-300 border border-transparent hover:border-blue-400 hover:shadow-lg hover:-translate-y-1">
                   <MousePointerClick className="h-6 w-6 text-blue-600 dark:text-blue-400 group-hover:text-white mb-2"/>
-                  <span className="text-xs font-bold text-blue-900 dark:text-blue-100 group-hover:text-white">Nova Inspeção</span>
+                  <span className="text-xs font-bold text-blue-900 dark:text-blue-100 group-hover:text-white">Nova Inspecao</span>
               </button>
               <button onClick={() => onNavigate('movement')} className="group flex flex-col items-center justify-center p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-600 hover:text-white rounded-2xl transition-all duration-300 border border-transparent hover:border-purple-400 hover:shadow-lg hover:-translate-y-1">
                   <ArrowRightLeft className="h-6 w-6 text-purple-600 dark:text-purple-400 group-hover:text-white mb-2"/>
@@ -710,7 +710,7 @@ export const Dashboard: FC<DashboardProps> = ({
               </button>
               <button onClick={() => onNavigate('service-orders')} className="group flex flex-col items-center justify-center p-4 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-600 hover:text-white rounded-2xl transition-all duration-300 border border-transparent hover:border-orange-400 hover:shadow-lg hover:-translate-y-1">
                   <Wrench className="h-6 w-6 text-orange-600 dark:text-orange-400 group-hover:text-white mb-2"/>
-                  <span className="text-xs font-bold text-orange-900 dark:text-orange-100 group-hover:text-white">Manutenção</span>
+                  <span className="text-xs font-bold text-orange-900 dark:text-orange-100 group-hover:text-white">Manutencao</span>
               </button>
           </div>
       </div>

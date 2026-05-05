@@ -62,10 +62,10 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
             <div className="flex justify-between items-end pt-2 border-t border-slate-50 dark:border-slate-800/50">
               <div className="space-y-1">
                 <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-slate-400" /> {entry.stationName || 'Posto não inf.'}
+                  <MapPin className="h-3 w-3 text-slate-400" /> {entry.stationName || 'Posto nao inf.'}
                 </p>
                 <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                  <User className="h-3 w-3 text-slate-400" /> {entry.driverName || 'Motorista não inf.'}
+                  <User className="h-3 w-3 text-slate-400" /> {entry.driverName || 'Motorista nao inf.'}
                 </p>
               </div>
               <div className="text-right">

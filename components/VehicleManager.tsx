@@ -639,7 +639,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       await navigator.clipboard.writeText(url);
       alert('Link do portal copiado.');
     } catch {
-      window.prompt('Copie o link do portal do veículo:', url);
+      window.prompt('Copie o link do portal do veiculo:', url);
     }
   };
 
@@ -713,7 +713,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     const html = `
       <html>
         <head>
-          <title>Relatório de Manutenção - ${selectedVehicleRG.plate}</title>
+          <title>Relatorio de Manutencao - ${selectedVehicleRG.plate}</title>
           <style>
             body { font-family: sans-serif; padding: 20px; color: #333; }
             .header { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
@@ -737,13 +737,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         </head>
         <body>
           <div class="header">
-            <h1>Relatório Geral de Manutenção</h1>
+            <h1>Relatorio Geral de Manutencao</h1>
             <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
           </div>
 
           <div class="vehicle-info">
             <div class="info-box">
-              <div class="info-label">Veículo / Placa</div>
+              <div class="info-label">Veiculo / Placa</div>
               <div class="info-value">${selectedVehicleRG.brand || ''} ${selectedVehicleRG.model} - ${selectedVehicleRG.plate}</div>
             </div>
             <div class="info-box">
@@ -754,11 +754,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
           <div className="summary" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
             <div>
-              <div class="summary-label">MANUTENÇÃO</div>
+              <div class="summary-label">MANUTENCAO</div>
               <div class="summary-value" style="font-size: 18px;">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMaintenanceSpent)}</div>
             </div>
             <div>
-              <div class="summary-label">COMBUSTÍVEL</div>
+              <div class="summary-label">COMBUSTIVEL</div>
               <div class="summary-value" style="font-size: 18px;">${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalFuelSpent)}</div>
             </div>
             <div style="border-left: 2px solid #c7d2fe; padding-left: 15px;">
@@ -772,8 +772,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
               <tr>
                 <th style="width: 15%">Data</th>
                 <th style="width: 10%">KM</th>
-                <th style="width: 30%">Serviço / Descrição</th>
-                <th style="width: 30%">Peças / Itens</th>
+                <th style="width: 30%">Servico / Descricao</th>
+                <th style="width: 30%">Pecas / Itens</th>
                 <th style="width: 15%">Valor</th>
               </tr>
             </thead>
@@ -802,14 +802,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           </table>
 
           <div style="margin-top: 30px;">
-            <h2 style="font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Histórico de Abastecimento</h2>
+            <h2 style="font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Historico de Abastecimento</h2>
             <table>
               <thead>
                 <tr>
                   <th>Data</th>
                   <th>KM</th>
                   <th>Litros</th>
-                  <th>Preço Unit.</th>
+                  <th>Preco Unit.</th>
                   <th>Total</th>
                 </tr>
               </thead>
@@ -828,7 +828,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           </div>
 
           <div class="footer">
-            GM Control Pro - Sistema de Gestão de Frotas
+            GM Control Pro - Sistema de Gestao de Frotas
           </div>
 
           <script>
@@ -864,7 +864,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         services: schedulingData.services,
         status: 'PENDING',
         createdAt: new Date().toISOString(),
-        createdBy: 'Usuário', // Ideally from auth
+        createdBy: 'Usuario', // Ideally from auth
         branchId: defaultBranchId
       };
       await storageService.addArrivalAlert(orgId, newAlert);
@@ -1020,7 +1020,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     ownership: 'OWNED'
   });
 
-  // Função para analisar o estado do veículo
+  // Funcao para analisar o estado do veiculo
   const getVehicleStatus = (vehicle: Vehicle) => {
       const mountedTires = tires.filter(t => t.vehicleId === vehicle.id);
       
@@ -1030,12 +1030,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       const missingTiresCount = Math.max(0, expectedTires - mountedTires.length);
       const isMissingTires = missingTiresCount > 0;
 
-      // 2. Pneus Baixos (Críticos)
+      // 2. Pneus Baixos (Criticos)
       const minDepth = settings?.minTreadDepth || 3.0;
       const criticalTires = mountedTires.filter(t => t.currentTreadDepth <= minDepth);
       const hasLowTread = criticalTires.length > 0;
 
-      // 3. Manutenção Preventiva
+      // 3. Manutencao Preventiva
       const brandModel = vehicleBrandModels.find(bm => bm.id === vehicle.brandModelId);
       const maintenanceInterval = vehicle.revisionIntervalKm || brandModel?.oilChangeInterval || settings?.maintenanceIntervalKm || 10000;
       
@@ -1072,11 +1072,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         isMaintenanceOverdue = true;
       }
       
-      // Verifica se algum pneu passou da vida útil estimada (padrão 80k se não houver catálogo)
+      // Verifica se algum pneu passou da vida util estimada (padrao 80k se nao houver catalogo)
       const hasExpiredTires = mountedTires.some(t => {
           const totalRun = getTireLiveKm(t, vehicle);
           
-          // Tenta pegar do catálogo nas configurações, senão usa 80k
+          // Tenta pegar do catalogo nas configuracoes, senao usa 80k
           const modelDef = settings?.tireModels?.find(m => m.brand === t.brand && m.model === t.model);
           const limit = modelDef?.estimatedLifespanKm || 80000;
           
@@ -1234,7 +1234,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         ownership: 'OWNED'
       });
     } catch (error) {
-      alert("Erro ao salvar veículo.");
+      alert("Erro ao salvar veiculo.");
     } finally {
       setIsSaving(false);
     }
@@ -1264,7 +1264,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
   const handleBulkDelete = async () => {
       if (selectedIds.size === 0) return;
-      if (!confirm(`Tem certeza que deseja excluir ${selectedIds.size} veículos? Esta ação não pode ser desfeita.`)) return;
+      if (!confirm(`Tem certeza que deseja excluir ${selectedIds.size} veiculos? Esta acao nao pode ser desfeita.`)) return;
 
       setIsBulkDeleting(true);
       try {
@@ -1273,10 +1273,10 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           
           setIsSelectionMode(false);
           setSelectedIds(new Set());
-          alert(`${selectedIds.size} veículos removidos com sucesso.`);
+          alert(`${selectedIds.size} veiculos removidos com sucesso.`);
       } catch (err) {
           console.error(err);
-          alert("Erro ao excluir alguns veículos. Tente novamente.");
+          alert("Erro ao excluir alguns veiculos. Tente novamente.");
       } finally {
           setIsBulkDeleting(false);
       }
@@ -1284,31 +1284,31 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
   const handleUndoImport = async () => {
       if (lastImportedIds.length === 0) return;
-      if (!confirm(`Deseja desfazer a última importação? Isso removerá ${lastImportedIds.length} veículos criados.`)) return;
+      if (!confirm(`Deseja desfazer a ultima importacao? Isso removera ${lastImportedIds.length} veiculos criados.`)) return;
 
       setIsBulkDeleting(true);
       try {
           const deletePromises = lastImportedIds.map(id => onDeleteVehicle(id));
           await Promise.all(deletePromises);
           setLastImportedIds([]);
-          alert("Importação desfeita com sucesso.");
+          alert("Importacao desfeita com sucesso.");
       } catch (err) {
           console.error(err);
-          alert("Erro ao desfazer importação.");
+          alert("Erro ao desfazer importacao.");
       } finally {
           setIsBulkDeleting(false);
       }
   };
 
   const handleUpdateLocation = async (vehicle: Vehicle) => {
-    // Se o veículo tem código Sascar ou placa, tenta sincronizar via Sascar primeiro
+    // Se o veiculo tem codigo Sascar ou placa, tenta sincronizar via Sascar primeiro
     if (vehicle.sascarCode || vehicle.plate) {
       setUpdatingLocationId(vehicle.id);
       try {
         if (onSyncSascar) {
           const updatedCount = await onSyncSascar(false, [vehicle.id]);
           if (updatedCount > 0) {
-            // O useEffect cuidará de atualizar o selectedVehicleRG no estado local
+            // O useEffect cuidara de atualizar o selectedVehicleRG no estado local
             return;
           } else {
             console.log("Sascar sync returned 0 updates for this vehicle, falling back to manual GPS.");
@@ -1321,12 +1321,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       }
     }
 
-    if (!confirm(`VOCÊ ESTÁ AO LADO DO VEÍCULO?\n\nEsta função usa o GPS do SEU CELULAR/PC para definir onde o veículo está.\n\nClique em OK apenas se você estiver fisicamente junto ao veículo.`)) {
+    if (!confirm(`VOCE ESTA AO LADO DO VEICULO?\n\nEsta funcao usa o GPS do SEU CELULAR/PC para definir onde o veiculo esta.\n\nClique em OK apenas se voce estiver fisicamente junto ao veiculo.`)) {
       return;
     }
 
     if (!("geolocation" in navigator)) {
-      alert("Geolocalização não suportada neste navegador.");
+      alert("Geolocalizacao nao suportada neste navegador.");
       return;
     }
 
@@ -1338,7 +1338,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         try {
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await response.json();
-          const address = data.display_name?.split(',')[0] || 'Localização Manual (Dispositivo)';
+          const address = data.display_name?.split(',')[0] || 'Localizacao Manual (Dispositivo)';
           const city = data.address?.city || data.address?.town || data.address?.village || 'Desconhecida';
           const state = data.address?.state || '';
 
@@ -1348,14 +1348,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
           await onUpdateVehicle({ ...vehicle, lastLocation: locationUpdate });
         } catch (error) {
-          console.error("Erro ao obter endereço", error);
+          console.error("Erro ao obter endereco", error);
           await onUpdateVehicle({ ...vehicle, lastLocation: { lat: latitude, lng: longitude, address: 'Coordenadas GPS (Manual)', city: 'Desconhecida', state: '', updatedAt: new Date().toISOString() } });
         } finally {
           setUpdatingLocationId(null);
         }
       },
       (error) => {
-        alert("Erro ao obter localização: " + error.message);
+        alert("Erro ao obter localizacao: " + error.message);
         setUpdatingLocationId(null);
       },
       { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
@@ -1585,8 +1585,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     if (!finalAddress || String(finalAddress).length <= 3) {
                         if (city && state) finalAddress = `${city} - ${state}`;
                         else if (city) finalAddress = city;
-                        else if (state) finalAddress = `Em trânsito (${state})`;
-                        else finalAddress = 'Localização Atualizada';
+                        else if (state) finalAddress = `Em transito (${state})`;
+                        else finalAddress = 'Localizacao Atualizada';
                     } else {
                         if (city && !String(finalAddress).includes(city)) finalAddress = `${finalAddress} - ${city}`;
                     }
@@ -1639,7 +1639,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 hasChanges = true;
                             }
 
-                            // Se o veículo não tem intervalo de revisão, tenta pegar do modelo
+                            // Se o veiculo nao tem intervalo de revisao, tenta pegar do modelo
                             if (importedLastRevisionDate && vehicle.lastPreventiveDate !== importedLastRevisionDate) {
                                 updates.lastPreventiveDate = importedLastRevisionDate;
                                 hasChanges = true;
@@ -1737,7 +1737,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     setLastImportedIds(createsBatch.map(v => v.id)); // Armazena IDs para desfazer
                 }
 
-                alert(`Importação Concluída:\n\nAtualizados: ${updatedCount}\nNovos: ${createdCount}\nKM atualizados: ${kmUpdatedCount}\nRevisões importadas: ${revisionUpdatedCount}\nIgnorados: ${notFoundCount}`);
+                alert(`Importacao Concluida:\n\nAtualizados: ${updatedCount}\nNovos: ${createdCount}\nKM atualizados: ${kmUpdatedCount}\nRevisoes importadas: ${revisionUpdatedCount}\nIgnorados: ${notFoundCount}`);
             } catch (err: any) {
                 console.error(err);
                 alert(`Erro ao processar arquivo: ${err.message}`);
@@ -1766,25 +1766,25 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     
     setIsSyncingSascar(true);
     try {
-      // Passar os IDs (sascarCode) e placas para buscar os veículos cadastrados
+      // Passar os IDs (sascarCode) e placas para buscar os veiculos cadastrados
       const plates = vehicles.flatMap(v => [String(v.sascarCode || ""), String(v.plate || "")]).filter(p => p && p.length > 0);
       
-      console.log(`[Sascar Sync Debug] Veículos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
-      console.log(`[Sascar Sync] Iniciando sincronização para ${plates.length} identificadores...`);
+      console.log(`[Sascar Sync Debug] Veiculos cadastrados:`, vehicles.map(v => ({ id: v.id, plate: v.plate, sascarCode: v.sascarCode })));
+      console.log(`[Sascar Sync] Iniciando sincronizacao para ${plates.length} identificadores...`);
       
       const CHUNK_SIZE = 50;
       let updatedCount = 0;
       const bestUpdates = new Map(); // Usaremos isso para filtrar o melhor ponto de cada carro
 
-      console.log(`[Sascar Sync] Sincronizando ${plates.length} veículos...`);
+      console.log(`[Sascar Sync] Sincronizando ${plates.length} veiculos...`);
       
       const results = [];
       try {
-          console.log(`[Sascar Sync] Solicitando posições...`);
+          console.log(`[Sascar Sync] Solicitando posicoes...`);
           const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
           results.push(result.data || []);
       } catch (err) {
-          console.error(`[Sascar Sync] Erro na sincronização:`, err);
+          console.error(`[Sascar Sync] Erro na sincronizacao:`, err);
       }
 
       const parseTelemetryNumber = (value: any): number | undefined => {
@@ -1797,11 +1797,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       results.flat().forEach((item: any) => {
                   let sv = item;
 
-                  // CORREÇÃO 2: Decodifica o texto da Sascar para virar um objeto real
+                  // CORRECAO 2: Decodifica o texto da Sascar para virar um objeto real
                   if (typeof item === 'string') {
                       try {
                           sv = JSON.parse(item);
-                          if (typeof sv === 'string') sv = JSON.parse(sv); // Segundo parse se necessário
+                          if (typeof sv === 'string') sv = JSON.parse(sv); // Segundo parse se necessario
                       } catch (e) { return; }
                   }
 
@@ -1811,7 +1811,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   
                   if (isNaN(idSascar) && !sascarPlate) return;
 
-                  // CORREÇÃO 3: Match Blindado (converte ID do App e ID da Sascar para Inteiro)
+                  // CORRECAO 3: Match Blindado (converte ID do App e ID da Sascar para Inteiro)
                   const localVehicle = vehicles.find(v => {
                       // Match por ID
                       const idApp = parseInt(String(v.sascarCode || "").replace(/\D/g, ""), 10);
@@ -1830,7 +1830,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       
                       const matchKey = !isNaN(idSascar) ? idSascar : fullPlate;
 
-                      // Só adiciona se não houver dados desse carro ainda OU se esse ponto for mais novo
+                      // So adiciona se nao houver dados desse carro ainda OU se esse ponto for mais novo
                       if (!bestUpdates.has(matchKey) || dataPosicaoNova > bestUpdates.get(matchKey).timestamp) {
                           const trackerOdo = Math.round(parseOdometerKm(sv));
                           const finalOdo = chooseAuthoritativeOdometer(localVehicle.odometer || 0, trackerOdo);
@@ -1873,17 +1873,17 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       const updatesBatch = Array.from(bestUpdates.values()).map(item => item.updateData);
 
       if (updatesBatch.length > 0) {
-          console.log(`[Sascar Sync] Aplicando ${updatesBatch.length} atualizações no banco...`);
+          console.log(`[Sascar Sync] Aplicando ${updatesBatch.length} atualizacoes no banco...`);
           await storageService.updateVehicleBatch(orgId, updatesBatch);
-          console.log(`[Sascar Sync] ${updatesBatch.length} veículos atualizados com sucesso.`);
-          alert(`Sucesso! ${updatesBatch.length} veículos do GM CONTROL foram atualizados.`);
+          console.log(`[Sascar Sync] ${updatesBatch.length} veiculos atualizados com sucesso.`);
+          alert(`Sucesso! ${updatesBatch.length} veiculos do GM CONTROL foram atualizados.`);
       } else {
-          console.log("[Sascar Sync] Nenhum veículo local correspondente encontrado nos dados da Sascar.");
-          alert("Nenhum veículo correspondente foi encontrado para atualizar.");
+          console.log("[Sascar Sync] Nenhum veiculo local correspondente encontrado nos dados da Sascar.");
+          alert("Nenhum veiculo correspondente foi encontrado para atualizar.");
       }
     } catch (error) {
         console.error(`[Sascar Sync] Erro ao sincronizar:`, error);
-        alert("Falha técnica ao sincronizar. Verifique o console.");
+        alert("Falha tecnica ao sincronizar. Verifique o console.");
     } finally {
         setIsSyncingSascar(false);
     }
@@ -1911,7 +1911,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
             <Truck className="h-7 w-7 text-blue-600" /> Minha Frota
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie veículos e atualize localizações em tempo real.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie veiculos e atualize localizacoes em tempo real.</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
             <button 
@@ -1941,12 +1941,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
               onClick={handleOpenAdd} 
               className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all"
             >
-              <Plus className="h-4 w-4" /> <span className="hidden md:inline">Novo Veículo</span><span className="md:hidden">Novo</span>
+              <Plus className="h-4 w-4" /> <span className="hidden md:inline">Novo Veiculo</span><span className="md:hidden">Novo</span>
             </button>
         </div>
       </div>
 
-      {/* BANNER DE DESFAZER IMPORTAÇÃO */}
+      {/* BANNER DE DESFAZER IMPORTACAO */}
       {lastImportedIds.length > 0 && (
           <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 mb-2 animate-in slide-in-from-top-2">
               <div className="flex items-center gap-3">
@@ -1954,8 +1954,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       <AlertTriangle className="h-5 w-5" />
                   </div>
                   <div>
-                      <h4 className="font-bold text-slate-800 dark:text-white text-sm">Importação Recente</h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Você adicionou {lastImportedIds.length} veículos agora. Algo errado?</p>
+                      <h4 className="font-bold text-slate-800 dark:text-white text-sm">Importacao Recente</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Voce adicionou {lastImportedIds.length} veiculos agora. Algo errado?</p>
                   </div>
               </div>
               <button 
@@ -1964,7 +1964,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   className="w-full sm:w-auto px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center gap-2 transition-colors"
               >
                   {isBulkDeleting ? <Loader2 className="h-3 w-3 animate-spin"/> : <RotateCcw className="h-3 w-3" />}
-                  Desfazer Importação
+                  Desfazer Importacao
               </button>
           </div>
       )}
@@ -1975,7 +1975,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Buscar veículo por placa ou modelo..." 
+              placeholder="Buscar veiculo por placa ou modelo..." 
               className="w-full pl-10 p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" 
               value={searchTerm} 
               onChange={e => setSearchTerm(e.target.value)} 
@@ -1989,7 +1989,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 text-xs font-bold whitespace-nowrap ${isSelectionMode ? 'bg-slate-800 text-white border-slate-800' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
               >
                   {isSelectionMode ? <X className="h-4 w-4"/> : <CheckSquare className="h-4 w-4"/>}
-                  {isSelectionMode ? 'Cancelar Seleção' : 'Selecionar / Excluir em Massa'}
+                  {isSelectionMode ? 'Cancelar Selecao' : 'Selecionar / Excluir em Massa'}
               </button>
           )}
 
@@ -1997,8 +1997,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
                 <button onClick={() => setFilterType('ALL')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${filterType === 'ALL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>Todos</button>
                 <button onClick={() => setFilterType('EMPTY')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'EMPTY' ? 'bg-orange-600 text-white border-orange-600' : 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900'}`}><Ban className="h-3 w-3"/> Sem Pneus</button>
-                <button onClick={() => setFilterType('CRITICAL')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'CRITICAL' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900'}`}><AlertOctagon className="h-3 w-3"/> Críticos</button>
-                <button onClick={() => setFilterType('MAINTENANCE')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'MAINTENANCE' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900'}`}><Wrench className="h-3 w-3"/> Manutenção</button>
+                <button onClick={() => setFilterType('CRITICAL')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'CRITICAL' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900'}`}><AlertOctagon className="h-3 w-3"/> Criticos</button>
+                <button onClick={() => setFilterType('MAINTENANCE')} className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 border ${filterType === 'MAINTENANCE' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900'}`}><Wrench className="h-3 w-3"/> Manutencao</button>
             </div>
           )}
       </div>
@@ -2079,7 +2079,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       {vehicle.branchId ? (
                         <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase flex items-center gap-1">
                           <Building2 className="h-3 w-3" />
-                          {branches.find(b => b.id === vehicle.branchId)?.name || 'Filial não encontrada'}
+                          {branches.find(b => b.id === vehicle.branchId)?.name || 'Filial nao encontrada'}
                         </p>
                       ) : (
                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
@@ -2103,14 +2103,14 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             onClick={(e) => { e.stopPropagation(); handleUpdateLocation(vehicle); }}
                             disabled={updatingLocationId === vehicle.id}
                             className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
-                            title="Marcar Veículo na Minha Posição"
+                            title="Marcar Veiculo na Minha Posicao"
                         >
                             {updatingLocationId === vehicle.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <LocateFixed className="h-4 w-4"/>}
                         </button>
                         <button 
                             onClick={(e) => { e.stopPropagation(); handleOpenEdit(vehicle); }}
                             className="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Editar Veículo"
+                            title="Editar Veiculo"
                         >
                             <PenLine className="h-4 w-4" />
                         </button>
@@ -2122,7 +2122,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <QrCode className="h-4 w-4" />
                         </button>
                         {userLevel === 'SENIOR' && (
-                            <button onClick={(e) => { e.stopPropagation(); onDeleteVehicle(vehicle.id); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Excluir Veículo">
+                            <button onClick={(e) => { e.stopPropagation(); onDeleteVehicle(vehicle.id); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Excluir Veiculo">
                                 <Trash2 className="h-4 w-4" />
                             </button>
                         )}
@@ -2144,12 +2144,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   )}
                   {status.isMaintenanceOverdue && (
                       <span className="text-[10px] font-bold bg-red-600 text-white px-2 py-1 rounded flex items-center gap-1 border border-red-700">
-                          <AlertTriangle className="h-3 w-3"/> Manutenção Vencida
+                          <AlertTriangle className="h-3 w-3"/> Manutencao Vencida
                       </span>
                   )}
                   {status.isMaintenanceNear && (
                       <span className="text-[10px] font-bold bg-yellow-400 text-yellow-900 px-2 py-1 rounded flex items-center gap-1 border border-yellow-500">
-                          <AlertTriangle className="h-3 w-3"/> Manutenção Próxima
+                          <AlertTriangle className="h-3 w-3"/> Manutencao Proxima
                       </span>
                   )}
                   {status.hasExpiredTires && (
@@ -2176,7 +2176,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   ) : null}
                   {vehicle.sascarCode && (
                     <div className="text-[10px] text-slate-400 font-medium">
-                      Cód. Sascar: {vehicle.sascarCode}
+                      Cod. Sascar: {vehicle.sascarCode}
                     </div>
                   )}
                 </div>
@@ -2188,7 +2188,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     <MapPin className={`h-4 w-4 mt-0.5 ${vehicle.lastLocation ? 'text-green-500' : 'text-slate-300'}`} />
                     <div className="flex-1 min-w-0">
                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
-                          {vehicle.lastLocation?.address || 'Localização não definida'}
+                          {vehicle.lastLocation?.address || 'Localizacao nao definida'}
                        </p>
                        <p className="text-[10px] text-slate-400 mt-0.5">
                           {vehicle.lastLocation?.updatedAt 
@@ -2248,7 +2248,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             disabled={currentPage === totalPages}
             className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium"
           >
-            Próxima
+            Proxima
           </button>
         </div>
       )}
@@ -2259,7 +2259,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
               <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
                 <Truck className="h-6 w-6 text-blue-600" /> 
-                Portal do Veículo: {selectedVehicleRG.plate}
+                Portal do Veiculo: {selectedVehicleRG.plate}
               </h3>
               <div className="flex items-center gap-2">
                 <button 
@@ -2279,7 +2279,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 onClick={() => setActiveRGTab('geral')}
                 className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'geral' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
               >
-                Informações Gerais
+                Informacoes Gerais
               </button>
               <button 
                 onClick={() => setActiveRGTab('medias')}
@@ -2291,7 +2291,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 onClick={() => setActiveRGTab('manutencao')}
                 className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'manutencao' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
               >
-                Manutenção & Histórico
+                Manutencao & Historico
               </button>
               <button 
                 onClick={() => setActiveRGTab('pneus')}
@@ -2303,7 +2303,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 onClick={() => setActiveRGTab('combustivel')}
                 className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${activeRGTab === 'combustivel' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
               >
-                Combustível
+                Combustivel
               </button>
             </div>
 
@@ -2385,9 +2385,9 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Serviços a realizar</label>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Servicos a realizar</label>
                             <textarea 
-                              placeholder="Descreva o que será feito no veículo (ex: Troca de óleo, Revisão de freios...)" 
+                              placeholder="Descreva o que sera feito no veiculo (ex: Troca de oleo, Revisao de freios...)" 
                               className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm min-h-[80px]"
                               value={schedulingData.services}
                               onChange={e => setSchedulingData({...schedulingData, services: e.target.value})}
@@ -2426,7 +2426,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
                                         <MapPin className="h-8 w-8 mb-2 opacity-20" />
-                                        <p className="text-xs font-bold">Sem localização registrada</p>
+                                        <p className="text-xs font-bold">Sem localizacao registrada</p>
                                     </div>
                                 )}
                                 <div className="absolute bottom-2 right-2">
@@ -2455,15 +2455,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase mb-0.5 flex justify-between">
-                                        Localização Atual
+                                        Localizacao Atual
                                         <span className="text-slate-400 font-normal normal-case">Clique para atualizar</span>
                                     </p>
                                     <p className="text-sm font-bold text-slate-800 dark:text-white truncate">
-                                        {selectedVehicleRG.lastLocation?.address || 'Endereço não identificado'}
+                                        {selectedVehicleRG.lastLocation?.address || 'Endereco nao identificado'}
                                     </p>
                                     <p className="text-[10px] text-slate-500 mt-0.5">
                                         {selectedVehicleRG.lastLocation?.updatedAt 
-                                            ? `Última atualização: ${new Date(selectedVehicleRG.lastLocation.updatedAt).toLocaleString()}` 
+                                            ? `Ultima atualizacao: ${new Date(selectedVehicleRG.lastLocation.updatedAt).toLocaleString()}` 
                                             : 'Sem registro de data/hora'}
                                     </p>
                                 </div>
@@ -2490,11 +2490,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.axles}</p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">Hodômetro</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Hodometro</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.odometer.toLocaleString()} km</p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">Média Telemetria (1000km)</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Media Telemetria (1000km)</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.telemetryRollingAvgKml ? `${selectedVehicleRG.telemetryRollingAvgKml.toFixed(2)} KM/L` : 'Calculando...'}</p>
                         </div>
                         <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800 flex flex-col justify-between">
@@ -2518,7 +2518,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.color || 'N/A'}</p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">Combustível</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Combustivel</p>
                             <p className="text-lg font-black text-slate-800 dark:text-white">{selectedVehicleRG.fuelType || 'DIESEL S10'}</p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -2528,7 +2528,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                             <p className="text-[10px] font-bold text-slate-500 uppercase">Propriedade</p>
                             <p className={`text-lg font-black ${selectedVehicleRG.ownership === 'LEASED' ? 'text-purple-600' : 'text-slate-800 dark:text-white'}`}>
-                              {selectedVehicleRG.ownership === 'LEASED' ? 'Locado' : 'Próprio'}
+                              {selectedVehicleRG.ownership === 'LEASED' ? 'Locado' : 'Proprio'}
                             </p>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -2553,7 +2553,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-800">
                             <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 mb-1">
                                 <Wrench className="h-4 w-4" />
-                                <span className="text-[10px] font-black uppercase tracking-wider">Manutenção</span>
+                                <span className="text-[10px] font-black uppercase tracking-wider">Manutencao</span>
                             </div>
                             <p className="text-xl font-black text-slate-800 dark:text-white truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.maintenanceCost)}</p>
                             <p className="text-[10px] font-bold text-slate-500 mt-1">Total acumulado</p>
@@ -2564,7 +2564,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 <span className="text-[10px] font-black uppercase tracking-wider">Resumo Geral</span>
                             </div>
                             <p className="text-xl font-black text-slate-800 dark:text-white truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rgStats.totalCost)}</p>
-                            <p className="text-[10px] font-bold text-slate-500 mt-1">Diesel + Manutenção</p>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1">Diesel + Manutencao</p>
                         </div>
                     </div>
 
@@ -2588,7 +2588,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             {alert.minOdometer && (
                               <p className="text-xs text-orange-500 font-bold mt-0.5">
                                 <Gauge className="h-3 w-3 inline mr-1" />
-                                Avisar após: {alert.minOdometer.toLocaleString()} km
+                                Avisar apos: {alert.minOdometer.toLocaleString()} km
                               </p>
                             )}
                             <p className="text-[10px] text-slate-500">Raio: {alert.radius}m | Status: <span className={alert.status === 'ARRIVED' ? 'text-green-600 font-black' : 'text-orange-600'}>{alert.status}</span></p>
@@ -2765,7 +2765,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   <div className="animate-in fade-in slide-in-from-bottom-4">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-blue-600" /> Histórico de Abastecimento
+                        <Activity className="h-5 w-5 text-blue-600" /> Historico de Abastecimento
                       </h3>
                       <div className="flex gap-4">
                         <div className="text-right">
@@ -2793,7 +2793,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                               </div>
                               <div>
                                 <p className="text-sm font-black text-slate-800 dark:text-white">{new Date(entry.date + (entry.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</p>
-                                <p className="text-[10px] font-bold text-slate-500 uppercase">{entry.stationName || 'Posto não informado'}</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase">{entry.stationName || 'Posto nao informado'}</p>
                               </div>
                             </div>
                             <div className="text-right">
@@ -2811,7 +2811,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       ) : (
                         <div className="py-12 text-center bg-slate-50 dark:bg-slate-900/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                           <Fuel className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                          <p className="text-slate-500 font-bold">Nenhum abastecimento registrado para este veículo.</p>
+                          <p className="text-slate-500 font-bold">Nenhum abastecimento registrado para este veiculo.</p>
                         </div>
                       )}
                     </div>
@@ -2822,7 +2822,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30">
-                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Total Gasto em Manutenção</p>
+                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Total Gasto em Manutencao</p>
                         <p className="text-2xl font-black text-slate-800 dark:text-white">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                             serviceOrders
@@ -2832,7 +2832,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         </p>
                       </div>
                       <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
-                        <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Ordens Concluídas</p>
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Ordens Concluidas</p>
                         <p className="text-2xl font-black text-slate-800 dark:text-white">
                           {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO').length}
                         </p>
@@ -2852,12 +2852,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         
                         return (
                           <div className={`p-4 rounded-2xl border ${boxColor}`}>
-                            <p className={`text-[10px] font-bold uppercase mb-1 ${textColor}`}>Próxima Preventiva</p>
+                            <p className={`text-[10px] font-bold uppercase mb-1 ${textColor}`}>Proxima Preventiva</p>
                             <p className="text-2xl font-black text-slate-800 dark:text-white">
                               {status.kmToNextMaintenance.toLocaleString()} km
                             </p>
                             <p className="text-[10px] text-slate-500 mt-1 italic">
-                              {status.isMaintenanceOverdue ? 'Manutenção Vencida!' : 'Restantes para a troca'}
+                              {status.isMaintenanceOverdue ? 'Manutencao Vencida!' : 'Restantes para a troca'}
                             </p>
                           </div>
                         );
@@ -2867,11 +2867,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMJ)
+                          <Calendar className="h-4 w-4 text-orange-600" /> Proximos Servicos (PMJ)
                         </h4>
                         {maintenanceSchedules.filter(s => s.vehicleId === selectedVehicleRG.id && s.status === 'PENDING').length === 0 ? (
                           <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                            Nenhuma manutenção programada para este veículo.
+                            Nenhuma manutencao programada para este veiculo.
                           </p>
                         ) : (
                           <div className="space-y-2">
@@ -2909,20 +2909,20 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                            <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
+                            <History className="h-4 w-4 text-blue-600" /> Servicos Realizados
                           </h4>
                           {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id && so.status === 'CONCLUIDO').length > 0 && (
                             <button 
                               onClick={handlePrintMaintenanceReport}
                               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all border border-blue-100 dark:border-blue-800"
                             >
-                              <Printer className="h-3.5 w-3.5" /> Imprimir Relatório
+                              <Printer className="h-3.5 w-3.5" /> Imprimir Relatorio
                             </button>
                           )}
                         </div>
                         {serviceOrders.filter(so => so.vehicleId === selectedVehicleRG.id).length === 0 ? (
                           <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                            Nenhuma ordem de serviço registrada para este veículo.
+                            Nenhuma ordem de servico registrada para este veiculo.
                           </p>
                         ) : (
                           <div className="space-y-2">
@@ -2941,13 +2941,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                       so.status === 'EM_ANDAMENTO' ? 'bg-blue-100 text-blue-700' :
                                       'bg-orange-100 text-orange-700'
                                     }`}>
-                                      {so.status === 'CONCLUIDO' ? 'Concluída' : so.status === 'EM_ANDAMENTO' ? 'Em Execução' : 'Pendente'}
+                                      {so.status === 'CONCLUIDO' ? 'Concluida' : so.status === 'EM_ANDAMENTO' ? 'Em Execucao' : 'Pendente'}
                                     </span>
                                   </div>
                                   <div className="space-y-3 pt-2 border-t border-slate-50 dark:border-slate-700">
                                     {so.parts && so.parts.length > 0 && (
                                       <div className="space-y-1">
-                                        <p className="text-[9px] font-bold text-slate-500 uppercase">Peças e Insumos:</p>
+                                        <p className="text-[9px] font-bold text-slate-500 uppercase">Pecas e Insumos:</p>
                                         {so.parts.map((part, idx) => (
                                           <div key={idx} className="flex justify-between text-[10px]">
                                             <span className="text-slate-600 dark:text-slate-400">{part.quantity}x {part.name}</span>
@@ -2988,7 +2988,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                         </p>
                       </div>
                       <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-100 dark:border-orange-900/30">
-                        <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Custo por KM Médio</p>
+                        <p className="text-[10px] font-bold text-orange-600 uppercase mb-1">Custo por KM Medio</p>
                         <p className="text-2xl font-black text-slate-800 dark:text-white">
                           {(() => {
                             const vehicleTires = tires.filter(t => t.vehicleId === selectedVehicleRG.id);
@@ -3044,7 +3044,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                           if (filteredTires.length === 0) {
                             return (
                               <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                                {selectedAxle === 'ALL' ? 'Nenhum pneu montado neste veículo.' : `Nenhum pneu montado no Eixo ${selectedAxle}.`}
+                                {selectedAxle === 'ALL' ? 'Nenhum pneu montado neste veiculo.' : `Nenhum pneu montado no Eixo ${selectedAxle}.`}
                               </p>
                             );
                           }
@@ -3067,7 +3067,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 </div>
                                 <div className="mt-2 grid grid-cols-4 gap-2 border-t border-slate-50 dark:border-slate-700 pt-2">
                                   <div>
-                                    <p className="text-[8px] text-slate-400 uppercase font-bold">Posição</p>
+                                    <p className="text-[8px] text-slate-400 uppercase font-bold">Posicao</p>
                                     <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{tire.position}</p>
                                   </div>
                                   <div>
@@ -3088,7 +3088,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                 
                                 {tire.history && tire.history.length > 0 && (
                                   <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-700">
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Histórico Recente:</p>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Historico Recente:</p>
                                     <div className="space-y-1.5">
                                       {tire.history.slice(-3).reverse().map((log, idx) => (
                                         <div key={idx} className="flex gap-2 items-start text-[9px]">
@@ -3121,7 +3121,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-between items-center">
               <h3 className="font-bold text-xl text-slate-800 dark:text-white flex items-center gap-2">
                 <Truck className="h-6 w-6 text-blue-600" /> 
-                {editingId ? 'Editar Veículo' : 'Novo Veículo'}
+                {editingId ? 'Editar Veiculo' : 'Novo Veiculo'}
               </h3>
               <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500" /></button>
             </div>
@@ -3135,12 +3135,12 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     value={formData.ownership || 'OWNED'}
                     onChange={e => setFormData({ ...formData, ownership: e.target.value as any })}
                   >
-                    <option value="OWNED">Próprio</option>
+                    <option value="OWNED">Proprio</option>
                     <option value="LEASED">Locado</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Filial de Serviço (Opcional)</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Filial de Servico (Opcional)</label>
                   <select
                     className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
                     value={formData.branchId || ''}
@@ -3215,7 +3215,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.axles ?? 3} onChange={e => setFormData({...formData, axles: Number(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HODÔMETRO</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">HODOMETRO</label>
                   <input type="number" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.odometer ?? 0} onChange={e => setFormData({...formData, odometer: Number(e.target.value)})} />
                 </div>
               </div>
@@ -3242,7 +3242,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CHASSI (VIN)</label>
-                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin || ''} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Número do Chassi" />
+                  <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.vin || ''} onChange={e => setFormData({...formData, vin: e.target.value})} placeholder="Numero do Chassi" />
                 </div>
               </div>
               {!isCarreta && (
@@ -3252,7 +3252,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.engine || ''} onChange={e => setFormData({...formData, engine: e.target.value})} placeholder="Ex: D13" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÂMBIO</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CAMBIO</label>
                     <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.transmission || ''} onChange={e => setFormData({...formData, transmission: e.target.value})} placeholder="Ex: I-Shift" />
                   </div>
                 </div>
@@ -3260,13 +3260,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 {!isCarreta && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COMBUSTÍVEL</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COMBUSTIVEL</label>
                     <select 
                       className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
                       value={formData.fuelType || ''} 
                       onChange={e => setFormData({...formData, fuelType: e.target.value})}
                     >
-                      <option value="">Selecione o combustível</option>
+                      <option value="">Selecione o combustivel</option>
                       {fuelTypes.map(ft => (
                         <option key={ft.id} value={ft.name}>{ft.name}</option>
                       ))}
@@ -3274,44 +3274,44 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   </div>
                 )}
                 <div className={isCarreta ? "col-span-2" : ""}>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÓD. SASCAR (Opcional)</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">COD. SASCAR (Opcional)</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.sascarCode || ''} onChange={e => setFormData({...formData, sascarCode: e.target.value})} placeholder="ID Sascar" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA PNEU PADRÃO</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MARCA PNEU PADRAO</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresBrand || ''} onChange={e => setFormData({...formData, tiresBrand: e.target.value})} placeholder="Ex: Michelin" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MEDIDA PNEU PADRÃO</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MEDIDA PNEU PADRAO</label>
                   <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.tiresSize || ''} onChange={e => setFormData({...formData, tiresSize: e.target.value})} placeholder="Ex: 295/80 R22.5" />
                 </div>
               </div>
 
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 space-y-4">
                 <h4 className="text-xs font-black text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center gap-2">
-                  <Wrench className="h-4 w-4" /> Parâmetros de Manutenção
+                  <Wrench className="h-4 w-4" /> Parametros de Manutencao
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className={isCarreta ? "col-span-2" : ""}>
-                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM DE REVISÃO (INTERVALO)</label>
+                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM DE REVISAO (INTERVALO)</label>
                     <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.revisionIntervalKm ?? 10000} onChange={e => setFormData({...formData, revisionIntervalKm: Number(e.target.value)})} />
                   </div>
                   {!isCarreta && (
                     <div>
-                      <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">QTD LITROS ÓLEO</label>
+                      <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">QTD LITROS OLEO</label>
                       <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" value={formData.oilLiters ?? 0} onChange={e => setFormData({...formData, oilLiters: Number(e.target.value)})} />
                     </div>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM ÚLTIMA PREVENTIVA</label>
+                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">KM ULTIMA PREVENTIVA</label>
                     <input type="number" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveKm ?? 0} onChange={e => setFormData({...formData, lastPreventiveKm: Number(e.target.value)})} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">DATA ÚLTIMA PREVENTIVA</label>
+                    <label className="block text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">DATA ULTIMA PREVENTIVA</label>
                     <input type="date" className="w-full p-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" value={formData.lastPreventiveDate || ''} onChange={e => setFormData({...formData, lastPreventiveDate: e.target.value})} />
                   </div>
                 </div>
@@ -3508,7 +3508,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENÇÃO (PMJ)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-wider">PLANO DE MANUTENCAO (PMJ)</label>
                 <select 
                   className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold" 
                   value={brandModelFormData.maintenancePlanId || ''} 

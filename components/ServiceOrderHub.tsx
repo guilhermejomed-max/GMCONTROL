@@ -90,7 +90,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const vehicles = allVehicles;
 
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
 
@@ -401,7 +401,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const vehicle = vehicles.find(v => v.id === order.vehicleId);
           const fuel = vehicle?.fuelType?.toUpperCase() || '';
           if (fuelFilter === 'DIESEL' && !fuel.includes('DIESEL')) return false;
-          if (fuelFilter === 'GAS' && !fuel.includes('GAS') && !fuel.includes('GÁS')) return false;
+          if (fuelFilter === 'GAS' && !fuel.includes('GAS') && !fuel.includes('GAS')) return false;
         }
 
         if (searchTerm && 
@@ -426,7 +426,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       if (newStatus === 'CONCLUIDO') {
           updates.completedAt = new Date().toISOString();
           // In a real app, you'd get the current user's name
-          updates.completedBy = "Usuário"; 
+          updates.completedBy = "Usuario"; 
 
           // Update Maintenance Schedule if applicable
           const vehicle = vehicles.find(v => v.plate === order.vehiclePlate);
@@ -488,7 +488,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               targetLat: base.lat,
                               targetLng: base.lng,
                               radius: base.radius || settings.alertRadius || 500,
-                              services: `Próxima PMJ: ${plan.name}`,
+                              services: `Proxima PMJ: ${plan.name}`,
                               status: 'PENDING',
                               createdAt: new Date().toISOString(),
                               createdBy: 'Sistema (PMJ)',
@@ -501,7 +501,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               }
           }
            if (order.occurrenceId) {
-               alert(`Veículo ${vehicle.plate} finalizado!\nA ocorrência vinculada foi encerrada com sucesso.`);
+               alert(`Veiculo ${vehicle.plate} finalizado!\nA ocorrencia vinculada foi encerrada com sucesso.`);
            }
       }
       }
@@ -606,7 +606,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           setEditingOrder(null);
       } catch (err) {
           console.error(err);
-          alert("Erro ao atualizar Ordem de Serviço.");
+          alert("Erro ao atualizar Ordem de Servico.");
       } finally {
           setIsUpdating(false);
       }
@@ -628,7 +628,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const getStatusPill = (status: ServiceOrder['status']) => {
     switch (status) {
       case 'PENDENTE': return <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> ABERTA</span>;
-      case 'EM_ANDAMENTO': return <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 animate-pulse"><Loader className="h-3 w-3"/> EM EXECUÇÃO</span>;
+      case 'EM_ANDAMENTO': return <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 animate-pulse"><Loader className="h-3 w-3"/> EM EXECUCAO</span>;
       case 'CONCLUIDO': return <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle2 className="h-3 w-3"/> FINALIZADA</span>;
       default: return <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold px-2 py-1 rounded-full">{status}</span>;
     }
@@ -641,20 +641,20 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
               <Wrench className="h-7 w-7 text-orange-600" /> Oficina
            </h2>
-           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gerencie as tarefas e planos de manutenção.</p>
+           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gerencie as tarefas e planos de manutencao.</p>
         </div>
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
           <button 
             onClick={() => setActiveTab('ORDERS')}
             className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'ORDERS' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
           >
-            <Wrench className="h-4 w-4" /> Ordens de Serviço
+            <Wrench className="h-4 w-4" /> Ordens de Servico
           </button>
           <button 
             onClick={() => setActiveTab('PMJ')}
             className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'PMJ' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
           >
-            <ClipboardList className="h-4 w-4" /> Plano de Manutenção (PMJ)
+            <ClipboardList className="h-4 w-4" /> Plano de Manutencao (PMJ)
           </button>
           <button 
             onClick={() => setActiveTab('COLLABORATORS')}
@@ -668,14 +668,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       {maintenanceAlerts.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800">
             <h4 className="text-sm font-bold text-red-800 dark:text-red-300 mb-2 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4"/> Manutenção Vencida
+                <AlertTriangle className="h-4 w-4"/> Manutencao Vencida
             </h4>
             <ul className="space-y-1">
                 {maintenanceAlerts.map(s => {
                     const vehicle = vehicles.find(v => v.id === s.vehicleId);
                     return (
                         <li key={s.id} className="text-xs text-red-700 dark:text-red-400">
-                            Veículo <span className="font-bold">{vehicle?.plate}</span> atingiu o limite de KM (Vencido em: {s.nextDueKm} km).
+                            Veiculo <span className="font-bold">{vehicle?.plate}</span> atingiu o limite de KM (Vencido em: {s.nextDueKm} km).
                         </li>
                     );
                 })}
@@ -700,7 +700,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                 </div>
                 <span className="text-2xl font-black text-slate-800 dark:text-white">{serviceOrders.filter(o => o.status === 'EM_ANDAMENTO').length}</span>
             </div>
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Em Execução</p>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Em Execucao</p>
         </div>
         <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
             <div className="flex items-center justify-between mb-2">
@@ -740,7 +740,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                 <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder="Buscar por placa, título ou nº da O.S..." 
+                  placeholder="Buscar por placa, titulo ou no da O.S..." 
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
@@ -754,7 +754,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                             onClick={() => setFilter(f)}
                             className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all ${filter === f ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                         >
-                            {f === 'ALL' ? 'Todos' : f === 'PENDENTE' ? 'Abertas' : f === 'EM_ANDAMENTO' ? 'Em Execução' : 'Finalizadas'}
+                            {f === 'ALL' ? 'Todos' : f === 'PENDENTE' ? 'Abertas' : f === 'EM_ANDAMENTO' ? 'Em Execucao' : 'Finalizadas'}
                         </button>
                     ))}
                 </div>
@@ -778,7 +778,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                         onClick={() => setFuelFilter('GAS')} 
                         className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all ${fuelFilter === 'GAS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-emerald-600'}`}
                     >
-                        GÁS
+                        GAS
                     </button>
                 </div>
                 {onAddOrder && (
@@ -808,7 +808,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                         {order.occurrenceId && (
                            <div className="flex items-center gap-1 text-[9px] font-bold text-red-500 bg-red-50 dark:bg-red-500/10 dark:text-red-400 px-1.5 py-0.5 rounded mt-1.5 border border-red-100 dark:border-red-500/20 w-max">
                               <AlertTriangle className="w-2.5 h-2.5" />
-                              GERADA POR OCORRÊNCIA
+                              GERADA POR OCORRENCIA
                            </div>
                         )}
                     </div>
@@ -912,13 +912,13 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3">
                             {order.laborCost && order.laborCost > 0 && (
                                 <div className="flex flex-col">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Mão de Obra</span>
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Mao de Obra</span>
                                     <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">R$ {order.laborCost.toFixed(2)}</span>
                                 </div>
                             )}
                             {order.externalServiceCost && order.externalServiceCost > 0 && (
                                 <div className="flex flex-col">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Ext. / Peças</span>
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Ext. / Pecas</span>
                                     <span className="text-[11px] font-black text-amber-600 dark:text-amber-400">R$ {order.externalServiceCost.toFixed(2)}</span>
                                 </div>
                             )}
@@ -987,7 +987,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                   <Wrench className="h-12 w-12 opacity-20"/>
                </div>
                <div className="space-y-1">
-                  <p className="font-black text-slate-800 dark:text-white">Nenhuma Ordem de Serviço encontrada</p>
+                  <p className="font-black text-slate-800 dark:text-white">Nenhuma Ordem de Servico encontrada</p>
                   <p className="text-xs">Tente ajustar seus filtros ou buscar por outro termo.</p>
                </div>
             </div>
@@ -1025,7 +1025,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                   targetLat: base.lat,
                   targetLng: base.lng,
                   radius: base.radius || settings.alertRadius || 500,
-                  services: `O.S.: ${orderData.title || 'Manutenção'}`,
+                  services: `O.S.: ${orderData.title || 'Manutencao'}`,
                   status: 'PENDING',
                   createdAt: new Date().toISOString(),
                   createdBy: 'Sistema (O.S.)',
@@ -1070,12 +1070,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                               <Truck className="h-4 w-4 text-blue-500"/>
-                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Informações do Veículo</h4>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Informacoes do Veiculo</h4>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-4">
                               <div className="col-span-2">
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Veículo</label>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Veiculo</label>
                                   <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white font-black text-sm">
                                       {editingOrder.vehiclePlate}
                                   </div>
@@ -1119,12 +1119,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                               <Wrench className="h-4 w-4 text-blue-500"/>
-                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Detalhes do Serviço</h4>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Detalhes do Servico</h4>
                           </div>
 
                           <div className="grid grid-cols-2 gap-4">
                               <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de Serviço</label>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de Servico</label>
                                   <select 
                                       className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                       value={editOrderServiceType}
@@ -1176,7 +1176,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           {(editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderPartnerId && (
                               <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
                                   <div>
-                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Serviço Externo</label>
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Servico Externo</label>
                                       <select 
                                           required 
                                           className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
@@ -1285,7 +1285,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
                           <div className="grid grid-cols-2 gap-4">
                               <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de serviço</label>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de servico</label>
                                   <select 
                                       className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                       value={editOrderSectorId}
@@ -1298,7 +1298,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                   </select>
                               </div>
                               <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Classificação</label>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Classificacao</label>
                                   <select 
                                       className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                       value={editOrderClassificationId}
@@ -1314,7 +1314,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
                           <div className="grid grid-cols-2 gap-4">
                               <div className="col-span-2">
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descrição do Serviço</label>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descricao do Servico</label>
                                   <textarea 
                                       required 
                                       className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white min-h-[100px] resize-none text-sm transition-all"
@@ -1340,7 +1340,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                               <div className="flex items-center gap-2">
                                   <Package className="h-4 w-4 text-blue-500"/>
-                                  <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Peças e Materiais</h4>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Pecas e Materiais</h4>
                               </div>
                           </div>
                           
@@ -1351,7 +1351,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                     value={editSelectedStockItemId}
                                     onChange={e => setEditSelectedStockItemId(e.target.value)}
                                   >
-                                      <option value="">Selecionar Peça...</option>
+                                      <option value="">Selecionar Peca...</option>
                                       {stockItems.map(item => (
                                           <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
                                       ))}
@@ -1393,7 +1393,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                           </div>
                                       ))}
                                       <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center px-1">
-                                          <span className="text-[10px] font-black text-slate-500 uppercase">Total Peças</span>
+                                          <span className="text-[10px] font-black text-slate-500 uppercase">Total Pecas</span>
                                           <span className="text-xs font-black text-slate-800 dark:text-white">R$ {editOrderParts.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0).toFixed(2)}</span>
                                       </div>
                                   </div>
@@ -1404,7 +1404,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       <div className="pt-4 flex gap-3">
                           <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">Cancelar</button>
                           <button type="submit" disabled={isUpdating} className="flex-2 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 active:scale-95">
-                              {isUpdating ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Salvar Alterações
+                              {isUpdating ? <Loader className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>} Salvar Alteracoes
                           </button>
                       </div>
                   </form>
@@ -1423,7 +1423,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <CheckCircle2 className="h-6 w-6 text-emerald-600"/>
                           </div>
                           <div>
-                              <h3 className="font-black text-xl text-slate-800 dark:text-white">Ordem de Serviço Finalizada</h3>
+                              <h3 className="font-black text-xl text-slate-800 dark:text-white">Ordem de Servico Finalizada</h3>
                               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">#{String(viewingOrderDetails.orderNumber).padStart(4, '0')}</p>
                           </div>
                       </div>
@@ -1455,28 +1455,28 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       {/* Vehicle & Date Grid */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                           <div className="space-y-1">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Veículo</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Veiculo</span>
                               <div className="flex flex-col items-center w-fit bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-700 rounded-md px-3 py-1 shadow-sm">
                                   <div className="w-full h-1 bg-blue-600 rounded-t-sm mb-0.5"></div>
                                   <span className="text-sm font-black text-slate-800 dark:text-white tracking-widest uppercase">{viewingOrderDetails.vehiclePlate}</span>
                               </div>
                           </div>
                           <div className="space-y-1">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Data de Conclusão</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Data de Conclusao</span>
                               <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                   <Calendar className="h-4 w-4 text-orange-500"/>
                                   {viewingOrderDetails.completedAt ? new Date(viewingOrderDetails.completedAt).toLocaleDateString() : 'N/A'}
                               </p>
                           </div>
                           <div className="space-y-1">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Hodômetro</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Hodometro</span>
                               <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                   <Timer className="h-4 w-4 text-blue-500"/>
                                   {viewingOrderDetails.odometer?.toLocaleString()} KM
                               </p>
                           </div>
                           <div className="space-y-1">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Responsável</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Responsavel</span>
                               <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                   <UserCircle className="h-4 w-4 text-purple-500"/>
                                   {viewingOrderDetails.collaboratorName || viewingOrderDetails.providerName || 'N/A'}
@@ -1525,7 +1525,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           )}
                           {viewingOrderDetails.sectorName && (
                             <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Tipo de serviço</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Tipo de servico</span>
                                 <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                     <Building2 className="h-4 w-4 text-indigo-500"/>
                                     {viewingOrderDetails.sectorName}
@@ -1534,7 +1534,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           )}
                           {viewingOrderDetails.classificationName && (
                             <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Classificação</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Classificacao</span>
                                 <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                     <Tag className="h-4 w-4 text-pink-500"/>
                                     {viewingOrderDetails.classificationName}
@@ -1642,11 +1642,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           </h5>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
-                                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Mão de Obra</span>
+                                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Mao de Obra</span>
                                   <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">R$ {viewingOrderDetails.laborCost?.toFixed(2) || '0.00'}</p>
                               </div>
                               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-800/50">
-                                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase">Peças / Externo</span>
+                                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase">Pecas / Externo</span>
                                   <p className="text-xl font-black text-amber-700 dark:text-amber-300">
                                       R$ {((viewingOrderDetails.externalServiceCost || 0) + (viewingOrderDetails.parts?.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) || 0)).toFixed(2)}
                                   </p>
@@ -1664,7 +1664,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       {viewingOrderDetails.parts && viewingOrderDetails.parts.length > 0 && (
                           <div className="space-y-4">
                               <h5 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                                  <Package className="h-4 w-4 text-blue-500"/> Peças Utilizadas
+                                  <Package className="h-4 w-4 text-blue-500"/> Pecas Utilizadas
                               </h5>
                               <div className="grid grid-cols-1 gap-2">
                                   {viewingOrderDetails.parts.map((part, idx) => (
@@ -1675,7 +1675,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                               </div>
                                               <div>
                                                   <p className="text-sm font-bold text-slate-800 dark:text-white">{part.name}</p>
-                                                  <p className="text-[10px] text-slate-500">Valor Unitário: R$ {part.unitCost.toFixed(2)}</p>
+                                                  <p className="text-[10px] text-slate-500">Valor Unitario: R$ {part.unitCost.toFixed(2)}</p>
                                               </div>
                                           </div>
                                           <div className="text-right">
@@ -1813,7 +1813,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Gestão de Colaboradores</h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Gestao de Colaboradores</h3>
         <button 
           onClick={() => { resetForm(); setIsModalOpen(true); }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all text-sm"
@@ -1836,7 +1836,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
             </div>
             <div className="space-y-1 mb-4">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Salário:</span>
+                <span className="text-slate-500">Salario:</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">R$ {c.salary.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs">
@@ -1844,7 +1844,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                 <span className="font-bold text-slate-700 dark:text-slate-300">R$ {c.hourlyRate?.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Admissão:</span>
+                <span className="text-slate-500">Admissao:</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">{new Date(c.hiredDate + 'T12:00:00').toLocaleDateString()}</span>
               </div>
             </div>
@@ -1879,7 +1879,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo / Função</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo / Funcao</label>
                 <input 
                   type="text" required 
                   className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
@@ -1888,7 +1888,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Salário Mensal (R$)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Salario Mensal (R$)</label>
                   <input 
                     type="number" required 
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
@@ -1896,7 +1896,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Admissão</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Admissao</label>
                   <input 
                     type="date" required 
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
@@ -1906,7 +1906,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filial Responsável</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filial Responsavel</label>
                   <select 
                     required
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold"
@@ -1930,7 +1930,7 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Shield className="h-3 w-3"/> Módulos Permitidos</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Shield className="h-3 w-3"/> Modulos Permitidos</label>
                   <div className="space-y-1">
                     {(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL'] as ModuleType[]).map(mod => (
                       <label key={mod} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors">
@@ -1941,14 +1941,14 @@ const CollaboratorManager: React.FC<CollaboratorManagerProps> = ({ collaborators
                           className="w-3 h-3 text-blue-600 rounded" 
                         />
                         <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
-                          {mod === 'TIRES' ? 'Pneus' : mod === 'MECHANICAL' ? 'Manutenção' : mod === 'VEHICLES' ? 'Veículos' : 'Combustível'}
+                          {mod === 'TIRES' ? 'Pneus' : mod === 'MECHANICAL' ? 'Manutencao' : mod === 'VEHICLES' ? 'Veiculos' : 'Combustivel'}
                         </span>
                       </label>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Lock className="h-3 w-3"/> Permissões</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1"><Lock className="h-3 w-3"/> Permissoes</label>
                   <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-1">
                     {AVAILABLE_PERMISSIONS.map(perm => (
                       <label key={perm.id} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors">

@@ -65,12 +65,12 @@ const TransferModal: React.FC<{
             </div>
             <div>
                 <h3 className="font-black text-xl text-slate-800 dark:text-white tracking-tight">Transferir Filial</h3>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimentação de Estoque</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimentacao de Estoque</p>
             </div>
         </div>
 
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
-          Você está transferindo <span className="font-black text-slate-800 dark:text-white">{selectedTires.length}</span> pneu(s) para uma nova filial. Esta ação será registrada no histórico de cada pneu.
+          Voce esta transferindo <span className="font-black text-slate-800 dark:text-white">{selectedTires.length}</span> pneu(s) para uma nova filial. Esta acao sera registrada no historico de cada pneu.
         </p>
 
         <div className="space-y-4">
@@ -102,7 +102,7 @@ const TransferModal: React.FC<{
               ) : (
                   <>
                     <CheckCircle2 className="h-5 w-5" />
-                    Confirmar Transferência
+                    Confirmar Transferencia
                   </>
               )}
             </button>
@@ -358,7 +358,7 @@ const LinkOSModal: React.FC<{
           <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <input 
             type="text" 
-            placeholder="Buscar por título, placa ou ID..."
+            placeholder="Buscar por titulo, placa ou ID..."
             className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -367,7 +367,7 @@ const LinkOSModal: React.FC<{
 
         <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
           {filteredOrders.length === 0 ? (
-            <p className="text-center py-8 text-slate-400 text-sm italic">Nenhuma ordem de serviço encontrada.</p>
+            <p className="text-center py-8 text-slate-400 text-sm italic">Nenhuma ordem de servico encontrada.</p>
           ) : (
             filteredOrders.map(so => (
               <button 
@@ -379,7 +379,7 @@ const LinkOSModal: React.FC<{
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-bold text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors">{so.title}</p>
-                    <p className="text-xs text-slate-500">Veículo: {so.vehiclePlate} • {new Date(so.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-slate-500">Veiculo: {so.vehiclePlate} • {new Date(so.createdAt).toLocaleDateString()}</p>
                   </div>
                   <Plus className="h-4 w-4 text-slate-400 group-hover:text-blue-600" />
                 </div>
@@ -417,18 +417,18 @@ const TireDetailModal: React.FC<{
     const vehicle = vehicles.find(v => v.id === tire.vehicleId);
     const [showLinkOS, setShowLinkOS] = useState(false);
     
-    // Cálculo de CPK Individual
-    // Se o pneu estiver rodando agora, somamos a km atual ao histórico
+    // Calculo de CPK Individual
+    // Se o pneu estiver rodando agora, somamos a km atual ao historico
     const totalKm = getTireLiveKm(tire, vehicle);
     const totalCost = getTireInvestment(tire);
     const cpk = getTireCpk(tire, vehicle);
 
-    // Processamento do Histórico para Linha do Tempo de Vidas
+    // Processamento do Historico para Linha do Tempo de Vidas
     const timelineEvents = useMemo(() => {
         return getTireTimeline(tire, serviceOrders);
     }, [tire, serviceOrders]);
 
-    const lifeStageLabel = tire.retreadCount === 0 ? '1ª Vida (Original)' : `${tire.retreadCount + 1}ª Vida (${tire.retreadCount}ª Reforma)`;
+    const lifeStageLabel = tire.retreadCount === 0 ? '1a Vida (Original)' : `${tire.retreadCount + 1}a Vida (${tire.retreadCount}a Reforma)`;
 
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -485,7 +485,7 @@ const TireDetailModal: React.FC<{
                             {/* VIDA DO PNEU (NOVO) */}
                             <div className="bg-indigo-600 text-white p-5 rounded-2xl shadow-lg shadow-indigo-600/20 relative overflow-hidden">
                                 <div className="absolute right-0 top-0 p-3 opacity-20"><Star className="h-16 w-16"/></div>
-                                <p className="text-xs font-black uppercase tracking-widest mb-1 opacity-80">Estágio Atual</p>
+                                <p className="text-xs font-black uppercase tracking-widest mb-1 opacity-80">Estagio Atual</p>
                                 <h3 className="text-xl font-black">{lifeStageLabel}</h3>
                                 {tire.retreadCount > 0 && <p className="text-xs mt-2 font-medium bg-white/20 inline-block px-2 py-0.5 rounded">Reformas: {tire.retreadCount}</p>}
                             </div>
@@ -508,7 +508,7 @@ const TireDetailModal: React.FC<{
                             </div>
 
                             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Activity className="h-3 w-3"/> Saúde Atual</p>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Activity className="h-3 w-3"/> Saude Atual</p>
                                 <div className="flex items-end gap-2 mb-2">
                                     <span className={`text-4xl font-black ${getHealthColor(tire.currentTreadDepth).replace('bg-', 'text-')}`}>
                                         {tire.currentTreadDepth}
@@ -524,14 +524,14 @@ const TireDetailModal: React.FC<{
                             </div>
 
                             <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30">
-                                <p className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1"><MapPin className="h-3 w-3"/> Localização</p>
+                                <p className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1"><MapPin className="h-3 w-3"/> Localizacao</p>
                                 {vehicle ? (
                                     <>
                                         <div className="flex items-center gap-2 mb-1">
                                             <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400"/>
                                             <span className="text-lg font-black text-slate-800 dark:text-white">{vehicle.plate}</span>
                                         </div>
-                                        <p className="text-xs font-bold text-slate-500">Posição: {tire.position}</p>
+                                        <p className="text-xs font-bold text-slate-500">Posicao: {tire.position}</p>
                                         <p className="text-xs text-slate-400 mt-1">Montado em: {new Date(tire.installDate || '').toLocaleDateString()}</p>
                                     </>
                                 ) : (
@@ -607,18 +607,18 @@ const TireDetailModal: React.FC<{
                             {vehicle && (
                                 <div className="pt-8 border-t border-slate-100 dark:border-slate-800">
                                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                                        <Truck className="h-4 w-4 text-blue-600"/> Manutenção do Veículo ({vehicle.plate})
+                                        <Truck className="h-4 w-4 text-blue-600"/> Manutencao do Veiculo ({vehicle.plate})
                                     </h3>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Próximos Serviços (PMJ) */}
+                                        {/* Proximos Servicos (PMJ) */}
                                         <div className="space-y-3">
                                             <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                                                <Calendar className="h-4 w-4 text-orange-600" /> Próximos Serviços (PMJ)
+                                                <Calendar className="h-4 w-4 text-orange-600" /> Proximos Servicos (PMJ)
                                             </h4>
                                             {maintenanceSchedules.filter(s => s.vehicleId === vehicle.id && s.status === 'PENDING').length === 0 ? (
                                                 <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                                                    Nenhuma manutenção programada para este veículo.
+                                                    Nenhuma manutencao programada para este veiculo.
                                                 </p>
                                             ) : (
                                                 <div className="space-y-2">
@@ -653,11 +653,11 @@ const TireDetailModal: React.FC<{
                                             )}
                                         </div>
 
-                                        {/* Serviços Realizados */}
+                                        {/* Servicos Realizados */}
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <h4 className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
-                                                    <History className="h-4 w-4 text-blue-600" /> Serviços Realizados
+                                                    <History className="h-4 w-4 text-blue-600" /> Servicos Realizados
                                                 </h4>
                                                 {onUpdateServiceOrder && (
                                                     <button 
@@ -685,7 +685,7 @@ const TireDetailModal: React.FC<{
 
                                             {serviceOrders.filter(so => so.tireId === tire.id || (vehicle && so.vehicleId === vehicle.id && !so.tireId)).length === 0 ? (
                                                 <p className="text-xs text-slate-400 text-center py-8 italic bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                                                    Nenhuma ordem de serviço vinculada a este pneu.
+                                                    Nenhuma ordem de servico vinculada a este pneu.
                                                 </p>
                                             ) : (
                                                 <div className="space-y-2">
@@ -709,13 +709,13 @@ const TireDetailModal: React.FC<{
                                                                         so.status === 'EM_ANDAMENTO' ? 'bg-blue-100 text-blue-700' :
                                                                         'bg-orange-100 text-orange-700'
                                                                     }`}>
-                                                                        {so.status === 'CONCLUIDO' ? 'Concluída' : so.status === 'EM_ANDAMENTO' ? 'Em Execução' : 'Pendente'}
+                                                                        {so.status === 'CONCLUIDO' ? 'Concluida' : so.status === 'EM_ANDAMENTO' ? 'Em Execucao' : 'Pendente'}
                                                                     </span>
                                                                 </div>
                                                                 <div className="space-y-3 pt-2 border-t border-slate-50 dark:border-slate-700">
                                                                     {so.parts && so.parts.length > 0 && (
                                                                         <div className="space-y-1">
-                                                                            <p className="text-xs font-bold text-slate-500 uppercase">Peças e Insumos:</p>
+                                                                            <p className="text-xs font-bold text-slate-500 uppercase">Pecas e Insumos:</p>
                                                                             {so.parts.map((part, idx) => (
                                                                                 <div key={idx} className="flex justify-between text-xs">
                                                                                     <span className="text-slate-600 dark:text-slate-400">{part.quantity}x {part.name}</span>
@@ -817,7 +817,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
                         {vehicle ? <Truck className="h-4 w-4"/> : <Package className="h-4 w-4"/>}
                     </div>
                     <div>
-                        <p className="text-xs text-slate-400 font-bold uppercase">Localização</p>
+                        <p className="text-xs text-slate-400 font-bold uppercase">Localizacao</p>
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate max-w-[120px]">
                             {vehicle ? vehicle.plate : (tire.location || 'Estoque')}
                             {vehicle && <span className="text-xs font-normal text-slate-400 ml-1">({tire.position})</span>}
@@ -832,7 +832,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
                         <div>
                             <p className="text-xs text-slate-400 font-bold uppercase">Filial</p>
                             <p className="text-sm font-bold text-blue-600 dark:text-blue-400 truncate max-w-[120px]">
-                                {branches.find(b => b.id === tire.branchId)?.name || 'Filial não encontrada'}
+                                {branches.find(b => b.id === tire.branchId)?.name || 'Filial nao encontrada'}
                             </p>
                         </div>
                     </div>
@@ -842,7 +842,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
             {detailed && (
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto text-xs text-slate-500">
                     <div>
-                        <p className="font-bold uppercase text-xs">KM 1ª Vida</p>
+                        <p className="font-bold uppercase text-xs">KM 1a Vida</p>
                         <p>{(tire.firstLifeKms || 0).toLocaleString()} km</p>
                     </div>
                     <div>
@@ -887,7 +887,7 @@ const TireCard: React.FC<TireCardProps> = ({ tire, vehicles, branches = [], user
     );
 };
 
-// --- MODAL DE RELATÓRIOS ---
+// --- MODAL DE RELATORIOS ---
 const ReportsModal: React.FC<{
   onClose: () => void;
   onShowMissingTires: () => void;
@@ -897,7 +897,7 @@ const ReportsModal: React.FC<{
     <div className="fixed inset-0 z-[180] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95">
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
-          <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Relatórios de Pneus</h2>
+          <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Relatorios de Pneus</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
             <X className="h-6 w-6 text-slate-400" />
           </button>
@@ -912,7 +912,7 @@ const ReportsModal: React.FC<{
               <FileSpreadsheet className="h-6 w-6" />
             </div>
             <div className="text-left">
-              <p className="font-black text-slate-800 dark:text-white uppercase text-sm">Inventário Geral</p>
+              <p className="font-black text-slate-800 dark:text-white uppercase text-sm">Inventario Geral</p>
               <p className="text-xs text-slate-500">Exportar todos os pneus em estoque e em uso para Excel.</p>
             </div>
           </button>
@@ -926,7 +926,7 @@ const ReportsModal: React.FC<{
             </div>
             <div className="text-left">
               <p className="font-black text-slate-800 dark:text-white uppercase text-sm">Pneus Faltantes</p>
-              <p className="text-xs text-slate-500">Verificar posições vazias nos veículos da frota.</p>
+              <p className="text-xs text-slate-500">Verificar posicoes vazias nos veiculos da frota.</p>
             </div>
           </button>
         </div>
@@ -939,7 +939,7 @@ const ReportsModal: React.FC<{
   );
 };
 
-// --- MODAL DE RELATÓRIO DE PNEUS FALTANTES ---
+// --- MODAL DE RELATORIO DE PNEUS FALTANTES ---
 const MissingTiresReportModal: React.FC<{
   missingTires: any[];
   onClose: () => void;
@@ -953,7 +953,7 @@ const MissingTiresReportModal: React.FC<{
             <div className="p-2 bg-red-100 text-red-600 rounded-xl">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Relatório de Pneus Faltantes</h2>
+            <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Relatorio de Pneus Faltantes</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
             <X className="h-6 w-6 text-slate-400" />
@@ -972,9 +972,9 @@ const MissingTiresReportModal: React.FC<{
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
-                      <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Veículo</th>
+                      <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Veiculo</th>
                       <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Eixo</th>
-                      <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Posição</th>
+                      <th className="p-4 text-xs font-black text-slate-400 uppercase tracking-wider">Posicao</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -984,7 +984,7 @@ const MissingTiresReportModal: React.FC<{
                           <p className="text-sm font-black text-slate-700 dark:text-slate-200">{m.plate}</p>
                           <p className="text-[10px] text-slate-400 font-bold uppercase">{m.fleetNumber}</p>
                         </td>
-                        <td className="p-4 text-sm font-bold text-slate-600 dark:text-slate-400">{m.axle}º Eixo</td>
+                        <td className="p-4 text-sm font-bold text-slate-600 dark:text-slate-400">{m.axle}o Eixo</td>
                         <td className="p-4">
                           <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-xs font-black text-slate-500">{m.position}</span>
                         </td>
@@ -1043,7 +1043,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [selectedTire, setSelectedTire] = useState<Tire | null>(null);
   const [expandedBrand, setExpandedBrand] = useState<string | null>(null);
 
-  // Novos estados para QR Code e Inventário
+  // Novos estados para QR Code e Inventario
   const [qrTireToPrint, setQrTireToPrint] = useState<Tire | null>(null);
   const [selectedTireIds, setSelectedTireIds] = useState<Set<string>>(new Set());
   const [isBatchPrintModalOpen, setIsBatchPrintModalOpen] = useState(false);
@@ -1116,10 +1116,10 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       'Modelo': t.model,
       'Medida': `${t.width}/${t.profile} R${t.rim}`,
       'Sulco Atual (mm)': t.currentTreadDepth,
-      'Última Inspeção': t.lastInspectionDate ? new Date(t.lastInspectionDate).toLocaleDateString('pt-BR') : '-',
+      'Ultima Inspecao': t.lastInspectionDate ? new Date(t.lastInspectionDate).toLocaleDateString('pt-BR') : '-',
       'Status': t.status,
-      'Localização': t.location,
-      'Preço': t.price
+      'Localizacao': t.location,
+      'Preco': t.price
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
@@ -1157,7 +1157,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     const missingTires = getMissingTires();
 
     if (missingTires.length === 0) {
-      if (onNotification) onNotification('Relatório', 'Nenhum pneu faltante encontrado.', 'info');
+      if (onNotification) onNotification('Relatorio', 'Nenhum pneu faltante encontrado.', 'info');
       return;
     }
 
@@ -1166,7 +1166,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       'Prefixo': m.fleetNumber,
       'Modelo': m.model,
       'Eixo': m.axle,
-      'Posição Faltante': m.position
+      'Posicao Faltante': m.position
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -1266,8 +1266,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
   const handleSinglePrint = (tire: Tire) => {
     setQrTireToPrint(tire);
-    onNotification?.('Impressão', 'Preparando QR Code...', 'info');
-    // Pequeno delay para garantir que o modal renderizou antes de chamar a impressão
+    onNotification?.('Impressao', 'Preparando QR Code...', 'info');
+    // Pequeno delay para garantir que o modal renderizou antes de chamar a impressao
     setTimeout(() => {
       window.focus();
       window.print();
@@ -1276,12 +1276,12 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
   const handleBatchPrint = () => {
     if (selectedTireIds.size === 0) {
-      onNotification?.('Atenção', 'Selecione pelo menos um pneu para imprimir.', 'info');
+      onNotification?.('Atencao', 'Selecione pelo menos um pneu para imprimir.', 'info');
       return;
     }
     setIsBatchPrintModalOpen(true);
-    onNotification?.('Impressão', 'Preparando lote para impressão...', 'info');
-    // Pequeno delay para garantir que o modal renderizou antes de chamar a impressão
+    onNotification?.('Impressao', 'Preparando lote para impressao...', 'info');
+    // Pequeno delay para garantir que o modal renderizou antes de chamar a impressao
     setTimeout(() => {
       window.focus();
       window.print();
@@ -1304,8 +1304,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         const updatedTire: Tire = {
           ...tire,
           branchId,
-          // Se o pneu estava em um veículo, ele continua no veículo (mas a filial do pneu muda)
-          // Se estava em estoque, garantimos que a localização reflita o estoque da nova filial
+          // Se o pneu estava em um veiculo, ele continua no veiculo (mas a filial do pneu muda)
+          // Se estava em estoque, garantimos que a localizacao reflita o estoque da nova filial
           location: tire.vehicleId ? tire.location : 'Estoque',
           history: [
             ...(tire.history || []),
@@ -1355,7 +1355,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2">
-              <Activity className="h-3 w-3" /> Gestão de Ativos
+              <Activity className="h-3 w-3" /> Gestao de Ativos
             </div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tighter uppercase leading-none mb-3">
               Estoque de <span className="text-blue-500">Pneus</span>
@@ -1376,7 +1376,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   <Truck className="h-5 w-5 text-indigo-400" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Em Operação</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Em Operacao</p>
                   <p className="text-xl font-black font-mono">{stats.totalRunning}</p>
                 </div>
               </div>
@@ -1504,8 +1504,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                 </div>
                 
                 <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl shrink-0">
-                    <button onClick={() => setLayoutMode('GRID')} className={`p-2.5 rounded-xl transition-all ${layoutMode === 'GRID' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualização em Grade"><LayoutGrid className="h-5 w-5"/></button>
-                    <button onClick={() => setLayoutMode('LIST')} className={`p-2.5 rounded-xl transition-all ${layoutMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualização em Lista"><List className="h-5 w-5"/></button>
+                    <button onClick={() => setLayoutMode('GRID')} className={`p-2.5 rounded-xl transition-all ${layoutMode === 'GRID' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualizacao em Grade"><LayoutGrid className="h-5 w-5"/></button>
+                    <button onClick={() => setLayoutMode('LIST')} className={`p-2.5 rounded-xl transition-all ${layoutMode === 'LIST' ? 'bg-white dark:bg-slate-800 shadow-md text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Visualizacao em Lista"><List className="h-5 w-5"/></button>
                 </div>
             </div>
         </div>
@@ -1549,13 +1549,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                     onClick={() => setShowReportsModal(true)}
                     className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-emerald-300 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all"
                 >
-                    <FileSpreadsheet className="h-4 w-4 text-emerald-600"/> Relatórios
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600"/> Relatorios
                 </button>
                 <button 
                     onClick={() => setIsInventoryMode(!isInventoryMode)} 
                     className={`px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all border ${isInventoryMode ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg shadow-indigo-600/20' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300'}`}
                 >
-                    <CheckSquare className="h-4 w-4"/> {isInventoryMode ? 'Sair' : 'Inventário'}
+                    <CheckSquare className="h-4 w-4"/> {isInventoryMode ? 'Sair' : 'Inventario'}
                 </button>
               </>
             )}
@@ -1563,7 +1563,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         </div>
 
 
-      {/* PAINEL DE INVENTÁRIO (QUANDO ATIVO) */}
+      {/* PAINEL DE INVENTARIO (QUANDO ATIVO) */}
       {isInventoryMode && (
           <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
               <div className="flex items-center gap-3">
@@ -1571,7 +1571,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                       <ScanLine className="h-6 w-6" />
                   </div>
                   <div>
-                      <h3 className="font-black text-indigo-900 dark:text-indigo-100">Modo Inventário Ativo</h3>
+                      <h3 className="font-black text-indigo-900 dark:text-indigo-100">Modo Inventario Ativo</h3>
                       <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">Escaneie os QR Codes dos pneus para conferir o estoque.</p>
                   </div>
               </div>
@@ -1598,7 +1598,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
                   <Package className="h-10 w-10 text-slate-400"/>
               </div>
-              <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300">Esta categoria está vazia</h3>
+              <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300">Esta categoria esta vazia</h3>
               <p className="text-slate-400">Nenhum pneu encontrado com os filtros atuais.</p>
           </div>
       ) : (
@@ -1669,7 +1669,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                   </th>
                                   <th className="hidden 2xl:table-cell p-5 text-center cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('lastInspectionDate')}>
                                       <div className="flex items-center gap-1 justify-center">
-                                          Última Insp. 
+                                          Ultima Insp. 
                                           <div className="flex flex-col">
                                               <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'lastInspectionDate' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
                                               <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'lastInspectionDate' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
@@ -1678,7 +1678,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                   </th>
                                   <th className="p-5 cursor-pointer hover:text-blue-600 transition-colors group" onClick={() => handleSort('location')}>
                                       <div className="flex items-center gap-1">
-                                          Localização
+                                          Localizacao
                                           <div className="flex flex-col">
                                               <ChevronDown className={`h-3 w-3 -mb-1 ${sortConfig?.key === 'location' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
                                               <ChevronDown className={`h-3 w-3 -mt-1 rotate-180 ${sortConfig?.key === 'location' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
@@ -1721,7 +1721,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                                           </div>
                                       </div>
                                   </th>
-                                  <th className="p-5 text-right">Ações</th>
+                                  <th className="p-5 text-right">Acoes</th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1947,7 +1947,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           />
       )}
 
-      {/* MODAL DE TRANSFERÊNCIA DE FILIAL */}
+      {/* MODAL DE TRANSFERENCIA DE FILIAL */}
       {tiresBeingTransferred && (
           <TransferModal 
               selectedTires={tiresBeingTransferred}
@@ -1957,13 +1957,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           />
       )}
 
-      {/* MODAL DE IMPRESSÃO EM LOTE */}
+      {/* MODAL DE IMPRESSAO EM LOTE */}
       {isBatchPrintModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:bg-white print:p-0 print-modal-container">
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col print-content print:shadow-none print:w-auto print:max-w-none print:max-h-none print:p-0">
                   <div className="print:hidden flex justify-between items-center mb-6">
                       <div>
-                          <h3 className="font-bold text-lg text-slate-800 dark:text-white">Impressão em Lote</h3>
+                          <h3 className="font-bold text-lg text-slate-800 dark:text-white">Impressao em Lote</h3>
                           <p className="text-xs text-slate-500">{selectedTireIds.size} pneus selecionados</p>
                       </div>
                       <button onClick={() => setIsBatchPrintModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
@@ -2016,7 +2016,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           </div>
       )}
 
-      {/* MODAL DE IMPRESSÃO DE QR CODE */}
+      {/* MODAL DE IMPRESSAO DE QR CODE */}
       {qrTireToPrint && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:bg-white print:p-0 print-modal-container">
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-2xl max-w-sm w-full print-content print:shadow-none print:w-auto print:max-w-none">
@@ -2026,10 +2026,10 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   </div>
                   
                   <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 print:border-none print:p-0 bg-white qr-print-container print:w-full print:max-w-[10cm] print:mx-auto">
-                      {/* Cabeçalho da Etiqueta (só na impressão) */}
+                      {/* Cabecalho da Etiqueta (so na impressao) */}
                       <div className="hidden print:flex flex-col items-center w-full border-b-2 border-black pb-2 mb-4">
                           <h2 className="font-black text-2xl uppercase tracking-widest text-black">GMcontrol</h2>
-                          <p className="text-xs font-bold uppercase text-black">Gestão de Pneus</p>
+                          <p className="text-xs font-bold uppercase text-black">Gestao de Pneus</p>
                       </div>
 
                       <div className="print:w-[6cm] print:h-[6cm] flex justify-center items-center">
@@ -2037,7 +2037,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                       </div>
                       
                       <div className="mt-4 text-center print:mt-4 print:w-full">
-                          <p className="hidden print:block text-xs font-bold uppercase text-black mb-1">Nº de Fogo</p>
+                          <p className="hidden print:block text-xs font-bold uppercase text-black mb-1">No de Fogo</p>
                           <p className="font-black text-2xl text-slate-800 print:text-5xl print:text-black print:mb-4">{qrTireToPrint.fireNumber}</p>
                           
                           <div className="print:flex print:flex-col print:gap-2 print:w-full print:border-t-2 print:border-black print:pt-4">
@@ -2159,7 +2159,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           }
       `}</style>
 
-      {/* MODAL DO SCANNER DE INVENTÁRIO */}
+      {/* MODAL DO SCANNER DE INVENTARIO */}
       {isScannerOpen && (
           <Scanner 
               onClose={() => setIsScannerOpen(false)}
@@ -2167,23 +2167,23 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   const tire = tires.find(t => t.fireNumber.toUpperCase() === data.trim().toUpperCase());
                   if (tire) {
                       if (scannedTireIds.has(tire.id)) {
-                          onNotification?.('Atenção', `Pneu ${tire.fireNumber} já foi escaneado.`, 'info');
+                          onNotification?.('Atencao', `Pneu ${tire.fireNumber} ja foi escaneado.`, 'info');
                       } else {
                           setScannedTireIds(prev => new Set(prev).add(tire.id));
                           onNotification?.('Sucesso', `Pneu ${tire.fireNumber} identificado!`, 'success');
                       }
                   } else {
-                      onNotification?.('Erro', `Pneu com código "${data}" não encontrado no sistema.`, 'error');
+                      onNotification?.('Erro', `Pneu com codigo "${data}" nao encontrado no sistema.`, 'error');
                   }
                   setIsScannerOpen(false);
               }}
               title="Escanear Pneu"
-              placeholder="Digite o número de fogo..."
+              placeholder="Digite o numero de fogo..."
               mode="QR"
           />
       )}
 
-      {/* MODAL DE TRANSFERÊNCIA DE FILIAL */}
+      {/* MODAL DE TRANSFERENCIA DE FILIAL */}
       {tiresBeingTransferred && (
         <TransferModal 
           selectedTires={tiresBeingTransferred}

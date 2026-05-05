@@ -212,17 +212,17 @@ const getCurrentUser = () => {
 };
 
 export const logActivity = async (orgId: string, action: string, details: string, module: ModuleType = 'TIRES', entityId?: string, entityType?: string) => {
-  // Filtro de ruído - Não logar ações excessivamente frequentes ou de baixo valor de auditoria
+  // Filtro de ruido - Nao logar acoes excessivamente frequentes ou de baixo valor de auditoria
   const noiseActions = [
-    'Sincronização Sascar', 
+    'Sincronizacao Sascar', 
     'Chegada', 
-    'Alerta Manutenção', 
-    'Sincronização Automática',
-    'Consulta de Posição'
+    'Alerta Manutencao', 
+    'Sincronizacao Automatica',
+    'Consulta de Posicao'
   ];
 
   if (noiseActions.includes(action)) {
-    // Apenas logamos no console para depuração se necessário, sem salvar no Firebase
+    // Apenas logamos no console para depuracao se necessario, sem salvar no Firebase
     // console.log(`[Noise Filter] Ignorando log de: ${action}`);
     return;
   }
@@ -231,7 +231,7 @@ export const logActivity = async (orgId: string, action: string, details: string
   if (!user) return;
 
   try {
-    let userName = (user as any).displayName || (user as any).email || 'Usuário';
+    let userName = (user as any).displayName || (user as any).email || 'Usuario';
     const logEntry: SystemLog = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       userId: (user as any).uid,
@@ -274,7 +274,7 @@ export const storageService = {
 
     if (isMockBypass) {
         const uid = cleanUser === 'admin' ? 'mock-admin-id' : 'mock-demo-id';
-        const name = cleanUser === 'admin' ? 'Administrador Local' : 'Usuário Demo';
+        const name = cleanUser === 'admin' ? 'Administrador Local' : 'Usuario Demo';
         const email = `${cleanUser}${INTERNAL_DOMAIN}`;
         
         mockUser = {
@@ -319,7 +319,21 @@ export const storageService = {
             
             if (userCred.user && db) {
                try {
-                 await db.collection("users").doc(userCred.user.uid).update({ lastLogin: new Date().toISOString() });
+                 const userRef = db.collection("users").doc(userCred.user.uid);
+                 const userDoc = await userRef.get();
+                 const loginData = userDoc.exists ? {
+                   lastLogin: new Date().toISOString()
+                 } : {
+                   id: userCred.user.uid,
+                   name: userCred.user.displayName || userCred.user.email?.split('@')[0] || 'Usuario',
+                   username: userCred.user.email?.split('@')[0] || userCred.user.uid,
+                   email: userCred.user.email || '',
+                   role: 'SENIOR',
+                   allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR'],
+                   createdAt: new Date().toISOString(),
+                   lastLogin: new Date().toISOString()
+                 };
+                 await userRef.set(sanitize(loginData), { merge: true });
                } catch (error) {
                  // Non-critical error, just log it
                  console.warn("Failed to update lastLogin:", error);
@@ -346,7 +360,7 @@ export const storageService = {
         }
     }
 
-    throw new Error("Credenciais inválidas ou usuário não encontrado. Tente 'admin' / 'admin' se for o primeiro acesso.");
+    throw new Error("Credenciais invalidas ou usuario nao encontrado. Tente 'admin' / 'admin' se for o primeiro acesso.");
   },
 
   register: async (usernameOrEmail: string, pass: string, name: string, branchId?: string) => {
@@ -518,7 +532,7 @@ export const storageService = {
                     console.log(`[Firebase] Email in use, retrying with: ${currentEmail}`);
                 } else {
                     // Critical error (e.g. operation-not-allowed, invalid-email, etc.)
-                    throw new Error(`Falha no Firebase Auth (${e.code}): ${e.message}. Verifique se o provedor Email/Senha está ativado no Console do Firebase.`);
+                    throw new Error(`Falha no Firebase Auth (${e.code}): ${e.message}. Verifique se o provedor Email/Senha esta ativado no Console do Firebase.`);
                 }
             }
         }
@@ -545,12 +559,12 @@ export const storageService = {
                 } catch (e) {
                     handleFirestoreError(e, OperationType.WRITE, `users/${userCred.user.uid}`);
                 }
-                logActivity(orgId, "Criou Usuário", `Cadastrou ${name} (${currentUsername}) no Firebase`, 'TIRES');
+                logActivity(orgId, "Criou Usuario", `Cadastrou ${name} (${currentUsername}) no Firebase`, 'TIRES');
                 console.log("[Firebase] User profile saved successfully");
                 return currentUsername;
             } catch (fsError: any) {
                 console.error("[Firebase] Failed to save profile to Firestore:", fsError);
-                throw new Error(`Usuário criado no Auth, mas falhou ao salvar no Firestore: ${fsError.message}`);
+                throw new Error(`Usuario criado no Auth, mas falhou ao salvar no Firestore: ${fsError.message}`);
             }
         }
     }
@@ -569,7 +583,24 @@ export const storageService = {
   updateTeamMember: async (orgId: string, id: string, data: Partial<TeamMember>) => {
     if (mockUser || id.startsWith('mock-') || id.startsWith('local-') || !db) { LocalDB.update(`users`, id, data); return; }
     try {
-      await db.collection("users").doc(id).update(sanitize(data));
+      const currentUser = auth?.currentUser;
+      const userRef = db.collection("users").doc(id);
+      const userDoc = await userRef.get();
+      const fallbackProfile = !userDoc.exists && currentUser?.uid === id ? {
+        id,
+        name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+        username: currentUser.email?.split('@')[0] || id,
+        email: currentUser.email || '',
+        role: 'SENIOR' as UserLevel,
+        allowedModules: ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR'] as ModuleType[],
+        createdAt: new Date().toISOString()
+      } : { id };
+
+      await userRef.set(sanitize({
+        ...fallbackProfile,
+        ...data,
+        updatedAt: new Date().toISOString()
+      }), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${id}`);
     }
@@ -584,7 +615,7 @@ export const storageService = {
         members.push({
           ...data,
           id: doc.id,
-          name: data.name || data.displayName || data.email?.split('@')[0] || 'Usuário'
+          name: data.name || data.displayName || data.email?.split('@')[0] || 'Usuario'
         } as TeamMember);
       });
       callback(members);
@@ -756,37 +787,37 @@ export const storageService = {
   },
 
   addVehicle: async (orgId: string, vehicle: Vehicle) => {
-    if (mockUser || !db) { LocalDB.add(`vehicles`, vehicle); logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.add(`vehicles`, vehicle); logActivity(orgId, "Novo Veiculo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(vehicle));
       await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(vehicle), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `vehicles/${vehicle.id}`);
     }
-    logActivity(orgId, "Novo Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
+    logActivity(orgId, "Novo Veiculo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
 
   updateVehicle: async (orgId: string, vehicle: Vehicle) => {
     const updates = { ...vehicle, lastAutoUpdateDate: new Date().toISOString() };
-    if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veiculo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
       await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(updates as Vehicle), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${vehicle.id}`);
     }
-    logActivity(orgId, "Editou Veículo", `Placa: ${vehicle.plate}`, 'TIRES');
+    logActivity(orgId, "Editou Veiculo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
 
   deleteVehicle: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete(`vehicles`, id); logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.delete(`vehicles`, id); logActivity(orgId, "Excluiu Veiculo", `ID: ${id}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(id).delete();
       await db.collection("public_vehicle_rgs").doc(id).delete().catch(() => undefined);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `vehicles/${id}`);
     }
-    logActivity(orgId, "Excluiu Veículo", `ID: ${id}`, 'TIRES');
+    logActivity(orgId, "Excluiu Veiculo", `ID: ${id}`, 'TIRES');
   },
 
   publishPublicVehicleRg: async (vehicle: Vehicle) => {
@@ -961,33 +992,33 @@ export const storageService = {
   },
 
   addVehicleType: async (orgId: string, type: VehicleType) => {
-    if (mockUser || !db) { LocalDB.add(`vehicleTypes`, type); logActivity(orgId, "Novo Tipo de Veículo", `${type.name}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.add(`vehicleTypes`, type); logActivity(orgId, "Novo Tipo de Veiculo", `${type.name}`, 'TIRES'); return; }
     try {
       await db.collection("vehicleTypes").doc(type.id).set(sanitize(type));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `vehicleTypes/${type.id}`);
     }
-    logActivity(orgId, "Novo Tipo de Veículo", `${type.name}`, 'TIRES');
+    logActivity(orgId, "Novo Tipo de Veiculo", `${type.name}`, 'TIRES');
   },
 
   updateVehicleType: async (orgId: string, type: VehicleType) => {
-    if (mockUser || !db) { LocalDB.update(`vehicleTypes`, type.id, type); logActivity(orgId, "Editou Tipo de Veículo", `${type.name}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.update(`vehicleTypes`, type.id, type); logActivity(orgId, "Editou Tipo de Veiculo", `${type.name}`, 'TIRES'); return; }
     try {
       await db.collection("vehicleTypes").doc(type.id).set(sanitize(type), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicleTypes/${type.id}`);
     }
-    logActivity(orgId, "Editou Tipo de Veículo", `${type.name}`, 'TIRES');
+    logActivity(orgId, "Editou Tipo de Veiculo", `${type.name}`, 'TIRES');
   },
 
   deleteVehicleType: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete(`vehicleTypes`, id); logActivity(orgId, "Excluiu Tipo de Veículo", `ID: ${id}`, 'TIRES'); return; }
+    if (mockUser || !db) { LocalDB.delete(`vehicleTypes`, id); logActivity(orgId, "Excluiu Tipo de Veiculo", `ID: ${id}`, 'TIRES'); return; }
     try {
       await db.collection("vehicleTypes").doc(id).delete();
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `vehicleTypes/${id}`);
     }
-    logActivity(orgId, "Excluiu Tipo de Veículo", `ID: ${id}`, 'TIRES');
+    logActivity(orgId, "Excluiu Tipo de Veiculo", `ID: ${id}`, 'TIRES');
   },
 
   // --- FUEL TYPES ---
@@ -1009,8 +1040,8 @@ export const storageService = {
           { id: 'diesel-s10', name: 'Diesel S10', description: 'Diesel com baixo teor de enxofre' },
           { id: 'diesel-s500', name: 'Diesel S500', description: 'Diesel comum' },
           { id: 'gasolina', name: 'Gasolina', description: 'Gasolina comum' },
-          { id: 'etanol', name: 'Etanol', description: 'Álcool combustível' },
-          { id: 'arla-32', name: 'ARLA 32', description: 'Agente Redutor Líquido Automotivo' }
+          { id: 'etanol', name: 'Etanol', description: 'Alcool combustivel' },
+          { id: 'arla-32', name: 'ARLA 32', description: 'Agente Redutor Liquido Automotivo' }
         ];
         for (const t of defaults) {
           if (mockUser || !db) {
@@ -1038,33 +1069,33 @@ export const storageService = {
   },
 
   addFuelType: async (orgId: string, type: FuelType) => {
-    if (mockUser || !db) { LocalDB.add(`fuelTypes`, type); logActivity(orgId, "Adicionou Tipo de Combustível", `${type.name}`, 'FUEL'); return; }
+    if (mockUser || !db) { LocalDB.add(`fuelTypes`, type); logActivity(orgId, "Adicionou Tipo de Combustivel", `${type.name}`, 'FUEL'); return; }
     try {
       await db.collection("fuelTypes").doc(type.id).set(sanitize(type));
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `fuelTypes/${type.id}`);
     }
-    logActivity(orgId, "Adicionou Tipo de Combustível", `${type.name}`, 'FUEL');
+    logActivity(orgId, "Adicionou Tipo de Combustivel", `${type.name}`, 'FUEL');
   },
 
   updateFuelType: async (orgId: string, type: FuelType) => {
-    if (mockUser || !db) { LocalDB.update(`fuelTypes`, type.id, type); logActivity(orgId, "Editou Tipo de Combustível", `${type.name}`, 'FUEL'); return; }
+    if (mockUser || !db) { LocalDB.update(`fuelTypes`, type.id, type); logActivity(orgId, "Editou Tipo de Combustivel", `${type.name}`, 'FUEL'); return; }
     try {
       await db.collection("fuelTypes").doc(type.id).update(sanitize(type));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `fuelTypes/${type.id}`);
     }
-    logActivity(orgId, "Editou Tipo de Combustível", `${type.name}`, 'FUEL');
+    logActivity(orgId, "Editou Tipo de Combustivel", `${type.name}`, 'FUEL');
   },
 
   deleteFuelType: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete(`fuelTypes`, id); logActivity(orgId, "Excluiu Tipo de Combustível", `ID: ${id}`, 'FUEL'); return; }
+    if (mockUser || !db) { LocalDB.delete(`fuelTypes`, id); logActivity(orgId, "Excluiu Tipo de Combustivel", `ID: ${id}`, 'FUEL'); return; }
     try {
       await db.collection("fuelTypes").doc(id).delete();
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `fuelTypes/${id}`);
     }
-    logActivity(orgId, "Excluiu Tipo de Combustível", `ID: ${id}`, 'FUEL');
+    logActivity(orgId, "Excluiu Tipo de Combustivel", `ID: ${id}`, 'FUEL');
   },
 
   updateVehicleBatch: async (orgId: string, updates: any[]) => {
@@ -1155,7 +1186,7 @@ export const storageService = {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, "import_batch");
     }
-    logActivity(orgId, "Importação", `Importou ${tires.length} pneus e ${vehicles.length} veículos`, 'TIRES');
+    logActivity(orgId, "Importacao", `Importou ${tires.length} pneus e ${vehicles.length} veiculos`, 'TIRES');
   },
 
   subscribeToRetreaders: (orgId: string, callback: (partners: {id: string, name: string}[]) => void) => {
@@ -1735,13 +1766,13 @@ export const storageService = {
   },
 
   addOccurrence: async (orgId: string, occurrence: Occurrence) => {
-    if (mockUser || !db) { LocalDB.add(`occurrences`, occurrence); logActivity(orgId, "Nova Ocorrência", `Veículo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES'); return; }
+    if (mockUser || !db) { LocalDB.add(`occurrences`, occurrence); logActivity(orgId, "Nova Ocorrencia", `Veiculo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES'); return; }
     try {
       await db.collection("occurrences").doc(occurrence.id).set(sanitize(occurrence));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `occurrences/${occurrence.id}`);
     }
-    logActivity(orgId, "Nova Ocorrência", `Veículo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES');
+    logActivity(orgId, "Nova Ocorrencia", `Veiculo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES');
   },
 
   updateOccurrence: async (orgId: string, id: string, updates: Partial<Occurrence>) => {
@@ -1828,7 +1859,7 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.delete(`occurrences`, id); return; }
     try {
       await db.collection("occurrences").doc(id).delete();
-      logActivity(orgId, "Excluiu Ocorrência", `Veículo: ${vehiclePlate || id}`, 'VEHICLES');
+      logActivity(orgId, "Excluiu Ocorrencia", `Veiculo: ${vehiclePlate || id}`, 'VEHICLES');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `occurrences/${id}`);
     }
@@ -2035,13 +2066,13 @@ export const storageService = {
   },
 
   addFuelEntry: async (orgId: string, entry: FuelEntry) => {
-    if (mockUser || !db) { LocalDB.add(`fuel_entries`, entry); logActivity(orgId, "Novo Abastecimento", `Veículo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES'); return; }
+    if (mockUser || !db) { LocalDB.add(`fuel_entries`, entry); logActivity(orgId, "Novo Abastecimento", `Veiculo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES'); return; }
     try {
       await db.collection("fuel_entries").doc(entry.id).set(sanitize(entry));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `fuel_entries/${entry.id}`);
     }
-    logActivity(orgId, "Novo Abastecimento", `Veículo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES');
+    logActivity(orgId, "Novo Abastecimento", `Veiculo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES');
   },
 
   updateFuelEntry: async (orgId: string, id: string, updates: Partial<FuelEntry>) => {
@@ -2328,7 +2359,7 @@ export const storageService = {
         ];
 
         for (const col of collectionsToClear) {
-            console.log("Limpando coleção:", col);
+            console.log("Limpando colecao:", col);
             const snapshot = await db.collection(col).get();
             const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
@@ -2336,7 +2367,7 @@ export const storageService = {
         }
 
         // Update vehicles in Firebase
-        console.log("Resetando hodômetro dos veículos no Firebase...");
+        console.log("Resetando hodometro dos veiculos no Firebase...");
         const vehicleSnapshot = await db.collection('vehicles').get();
         const batch = db.batch();
         vehicleSnapshot.docs.forEach(doc => {
@@ -2345,7 +2376,7 @@ export const storageService = {
         await batch.commit();
         console.log("Firebase resetado.");
     } else {
-        console.log("Firebase não resetado (db:", !!db, ", mockUser:", !!mockUser, ")");
+        console.log("Firebase nao resetado (db:", !!db, ", mockUser:", !!mockUser, ")");
     }
     console.log("resetData finalizado.");
   },
@@ -2353,25 +2384,25 @@ export const storageService = {
   // Helper para comprimir imagem antes do upload
   subscribeToWasteTypes: (orgId: string, callback: (types: WasteType[]) => void) => {
     const seedIfEmpty = async (types: WasteType[]) => {
-      // Filtrar tipos que pertencem à esta org
+      // Filtrar tipos que pertencem a esta org
       const orgTypes = types.filter(t => t.orgId === orgId);
       
       if (orgTypes.length === 0) {
         console.log(`Seeding default waste types for org ${orgId}...`);
         const defaults: Omit<WasteType, 'id'>[] = [
-          // RESÍDUOS
-          { name: 'Óleo Lubrificante Usado', unit: 'LITERS', category: 'WASTE', orgId },
-          { name: 'Filtros de Óleo Usados', unit: 'UNITS', category: 'WASTE', orgId },
-          { name: 'Baterias Inservíveis', unit: 'UNITS', category: 'WASTE', orgId },
+          // RESIDUOS
+          { name: 'Oleo Lubrificante Usado', unit: 'LITERS', category: 'WASTE', orgId },
+          { name: 'Filtros de Oleo Usados', unit: 'UNITS', category: 'WASTE', orgId },
+          { name: 'Baterias Inserviveis', unit: 'UNITS', category: 'WASTE', orgId },
           { name: 'Estopas/Panos Contaminados', unit: 'KG', category: 'WASTE', orgId },
           { name: 'Sucata de Metal', unit: 'KG', category: 'WASTE', orgId },
           // EPI
-          { name: 'Luvas Nitrílicas (Descarte)', unit: 'UNITS', category: 'PPE', orgId },
-          { name: 'Máscaras e Respiradores', unit: 'UNITS', category: 'PPE', orgId },
-          { name: 'Botinas de Segurança Usadas', unit: 'UNITS', category: 'PPE', orgId },
+          { name: 'Luvas Nitrilicas (Descarte)', unit: 'UNITS', category: 'PPE', orgId },
+          { name: 'Mascaras e Respiradores', unit: 'UNITS', category: 'PPE', orgId },
+          { name: 'Botinas de Seguranca Usadas', unit: 'UNITS', category: 'PPE', orgId },
           // PNEUS
-          { name: 'Carcaça para Reciclagem', unit: 'UNITS', category: 'TIRE', orgId },
-          { name: 'Pneu Sucata (Inservível)', unit: 'UNITS', category: 'TIRE', orgId }
+          { name: 'Carcaca para Reciclagem', unit: 'UNITS', category: 'TIRE', orgId },
+          { name: 'Pneu Sucata (Inservivel)', unit: 'UNITS', category: 'TIRE', orgId }
         ];
 
         for (const d of defaults) {
@@ -2536,7 +2567,7 @@ export const storageService = {
 
         const fileRef = storage.ref().child(path);
         
-        // Timeout reduzido para 12 segundos (com compressão deve ser instantâneo)
+        // Timeout reduzido para 12 segundos (com compressao deve ser instantaneo)
         const TIMEOUT_MS = 12000;
         const timeoutPromise = new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error(`Timeout de ${TIMEOUT_MS/1000}s`)), TIMEOUT_MS)
@@ -2718,11 +2749,11 @@ export const storageService = {
     
     if (mockUser || !db) { 
       LocalDB.add(`employees`, data); 
-      logActivity(orgId, "Novo Funcionário", `Cadastrou ${data.name}`, 'HR');
+      logActivity(orgId, "Novo Funcionario", `Cadastrou ${data.name}`, 'HR');
     } else {
       try {
         await db.collection("employees").doc(id).set(sanitize(data));
-        logActivity(orgId, "Novo Funcionário", `Cadastrou ${data.name}`, 'HR');
+        logActivity(orgId, "Novo Funcionario", `Cadastrou ${data.name}`, 'HR');
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, `employees/${id}`);
       }
@@ -2755,11 +2786,11 @@ export const storageService = {
     const data = { ...updates, updatedAt: new Date().toISOString() };
     if (mockUser || !db) { 
       LocalDB.update(`employees`, id, data); 
-      logActivity(orgId, "Atualizou Funcionário", `ID: ${id}`, 'HR');
+      logActivity(orgId, "Atualizou Funcionario", `ID: ${id}`, 'HR');
     } else {
       try {
         await db.collection("employees").doc(id).update(sanitize(data));
-        logActivity(orgId, "Atualizou Funcionário", `ID: ${id}`, 'HR');
+        logActivity(orgId, "Atualizou Funcionario", `ID: ${id}`, 'HR');
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `employees/${id}`);
       }
@@ -2792,10 +2823,10 @@ export const storageService = {
   },
 
   deleteEmployee: async (orgId: string, id: string) => {
-    if (mockUser || !db) { LocalDB.delete(`employees`, id); logActivity(orgId, "Excluiu Funcionário", `ID: ${id}`, 'HR'); return; }
+    if (mockUser || !db) { LocalDB.delete(`employees`, id); logActivity(orgId, "Excluiu Funcionario", `ID: ${id}`, 'HR'); return; }
     try {
       await db.collection("employees").doc(id).delete();
-      logActivity(orgId, "Excluiu Funcionário", `ID: ${id}`, 'HR');
+      logActivity(orgId, "Excluiu Funcionario", `ID: ${id}`, 'HR');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `employees/${id}`);
     }

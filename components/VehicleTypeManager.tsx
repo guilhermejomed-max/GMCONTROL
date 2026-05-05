@@ -52,7 +52,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
       handleCloseModal();
     } catch (error) {
       console.error("Error saving vehicle type:", error);
-      alert("Erro ao salvar tipo de veículo. Por favor, tente novamente.");
+      alert("Erro ao salvar tipo de veiculo. Por favor, tente novamente.");
     }
   };
 
@@ -81,7 +81,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
         setTypeToDelete(null);
       } catch (error) {
         console.error("Error deleting vehicle type:", error);
-        alert("Erro ao excluir tipo de veículo. Por favor, tente novamente.");
+        alert("Erro ao excluir tipo de veiculo. Por favor, tente novamente.");
       }
     }
   };
@@ -104,9 +104,9 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
         <div>
           <h1 className="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-3">
             <Settings2 className="h-8 w-8 text-blue-600" />
-            Tipos de Veículos
+            Tipos de Veiculos
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Gerencie os modelos de veículos disponíveis no sistema</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Gerencie os modelos de veiculos disponiveis no sistema</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -144,7 +144,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
             </div>
 
             <h3 className="text-xl font-black text-slate-800 dark:text-white mb-1 uppercase">{type.name}</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 line-clamp-2">{type.description || 'Sem descrição'}</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 line-clamp-2">{type.description || 'Sem descricao'}</p>
 
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-50 dark:border-slate-800">
               <div>
@@ -171,9 +171,9 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-slate-800 dark:text-white">
-                    {editingType ? 'Editar Tipo' : 'Novo Tipo de Veículo'}
+                    {editingType ? 'Editar Tipo' : 'Novo Tipo de Veiculo'}
                   </h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Configure as características do veículo</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Configure as caracteristicas do veiculo</p>
                 </div>
                 <button 
                   onClick={handleCloseModal}
@@ -237,11 +237,11 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Descrição (Opcional)</label>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Descricao (Opcional)</label>
                   <textarea
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 dark:text-white transition-all resize-none"
                     rows={3}
-                    placeholder="Breve descrição do tipo de veículo..."
+                    placeholder="Breve descricao do tipo de veiculo..."
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   />
@@ -260,7 +260,7 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
                     className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
                   >
                     <Save className="h-5 w-5" />
-                    Salvar Alterações
+                    Salvar Alteracoes
                   </button>
                 </div>
               </form>
@@ -278,14 +278,14 @@ export const VehicleTypeManager: FC<VehicleTypeManagerProps> = ({ orgId = 'defau
               </div>
               <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2">Excluir Tipo?</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-8">
-                Tem certeza que deseja excluir este tipo de veículo? Esta ação não pode ser desfeita.
+                Tem certeza que deseja excluir este tipo de veiculo? Esta acao nao pode ser desfeita.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setIsDeleteConfirmOpen(false)}
                   className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-xl transition-all"
                 >
-                  Não, manter
+                  Nao, manter
                 </button>
                 <button
                   onClick={confirmDelete}

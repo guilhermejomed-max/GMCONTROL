@@ -109,7 +109,7 @@ export const PartnerManager: React.FC<{ orgId: string }> = ({ orgId }) => {
           </h3>
           {editingPartner && (
             <button type="button" onClick={resetForm} className="text-xs font-bold text-slate-500 hover:text-red-600 flex items-center gap-1">
-              <X className="h-4 w-4" /> Cancelar edição
+              <X className="h-4 w-4" /> Cancelar edicao
             </button>
           )}
         </div>
@@ -177,7 +177,7 @@ export const PartnerManager: React.FC<{ orgId: string }> = ({ orgId }) => {
             </div>
 
             <div className="space-y-3">
-              <h4 className="font-black text-sm text-slate-700 dark:text-slate-200">Serviços Prestados</h4>
+              <h4 className="font-black text-sm text-slate-700 dark:text-slate-200">Servicos Prestados</h4>
               {(partner.services || []).map(s => (
                 <div key={s.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2 rounded-lg">
                   <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{s.name} - R$ {Number(s.cost || 0).toFixed(2)}</span>
@@ -187,7 +187,7 @@ export const PartnerManager: React.FC<{ orgId: string }> = ({ orgId }) => {
                 </div>
               ))}
               <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <input value={newServiceName} onChange={e => setNewServiceName(e.target.value)} placeholder="Nome do serviço" className="flex-1 p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 dark:text-white" />
+                <input value={newServiceName} onChange={e => setNewServiceName(e.target.value)} placeholder="Nome do servico" className="flex-1 p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 dark:text-white" />
                 <input type="number" value={newServiceCost} onChange={e => setNewServiceCost(Number(e.target.value))} placeholder="Custo" className="sm:w-28 p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 dark:text-white" />
                 <button onClick={() => handleAddService(partner)} className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 flex items-center justify-center">
                   <Plus className="h-5 w-5" />

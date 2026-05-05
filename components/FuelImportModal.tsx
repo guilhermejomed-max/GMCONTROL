@@ -161,7 +161,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       const branch = normalizedCnpj ? branches.find(b => b.cnpj.replace(/\D/g, '') === normalizedCnpj) : undefined;
 
       if (!plate) {
-        errors.push(`Linha ${i + 2}: Placa não informada.`);
+        errors.push(`Linha ${i + 2}: Placa nao informada.`);
         return;
       }
 
@@ -171,7 +171,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       }
 
       if (!vehicle) {
-        errors.push(`Linha ${i + 2}: Veículo com placa ${plate} não encontrado.`);
+        errors.push(`Linha ${i + 2}: Veiculo com placa ${plate} nao encontrado.`);
         return;
       }
 
@@ -329,7 +329,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
 
               <div className="space-y-4">
                 <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                  <Check className="h-5 w-5 text-emerald-500" /> Registros Válidos ({results.success.length})
+                  <Check className="h-5 w-5 text-emerald-500" /> Registros Validos ({results.success.length})
                 </h4>
                 <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-3xl">
                   <table className="w-full text-left border-collapse">
@@ -385,7 +385,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
             {isProcessing 
               ? 'PROCESSANDO...' 
               : results 
-                ? `CONFIRMAR IMPORTAÇÃO (${results.success.length})` 
+                ? `CONFIRMAR IMPORTACAO (${results.success.length})` 
                 : 'SELECIONE UM ARQUIVO PARA INICIAR O PROCESSAMENTO'}
           </button>
         </div>

@@ -44,7 +44,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
   settings 
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora sÃƒÆ’Ã‚Â£o universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
 
@@ -177,7 +177,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
     const budgetQuarter = quarter.reduce((a, b) => a + b.estimatedCost, 0);
     const budgetAnnual = annual.reduce((a, b) => a + b.estimatedCost, 0);
 
-    // Dados para o GrÃƒÆ’Ã‚Â¡fico Mensal
+    // Dados para o Grafico Mensal
     const monthlyData: Record<string, { name: string, qty: number, cost: number }> = {};
     for (let i = 0; i < 12; i++) {
         const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
@@ -220,14 +220,14 @@ export const DemandForecast: FC<DemandForecastProps> = ({
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">UrgÃƒÆ’Ã‚Âªncia (30 dias)</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Urgencia (30 dias)</p>
           <h3 className="text-3xl font-black text-red-600">{stats.urgentCount} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
           <div className="mt-2 text-xs font-bold text-slate-500 flex items-center gap-1">
              <Wallet className="h-3 w-3" /> {money(stats.budgetUrgent)}
           </div>
         </div>
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">PrÃƒÆ’Ã‚Â³ximo Trimestre</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Proximo Trimestre</p>
           <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stats.quarterCount} <span className="text-sm font-medium text-slate-400">pneus</span></h3>
           <div className="mt-2 text-xs font-bold text-slate-500 flex items-center gap-1">
              <Wallet className="h-3 w-3" /> {money(stats.budgetQuarter)}
@@ -235,7 +235,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
         </div>
         <div className="md:col-span-2 bg-indigo-600 p-6 rounded-3xl shadow-xl shadow-indigo-600/20 text-white flex justify-between items-center relative overflow-hidden">
            <div className="relative z-10">
-              <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">PrevisÃƒÆ’Ã‚Â£o OrÃƒÆ’Ã‚Â§amentÃƒÆ’Ã‚Â¡ria Anual</p>
+              <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-1">Previsao Orcamentaria Anual</p>
               <h3 className="text-4xl font-black">{money(stats.budgetAnnual)}</h3>
               <p className="text-[10px] text-indigo-100 mt-2 opacity-80">{stats.annualCount} pneus previstos nos proximos 12 meses.</p>
            </div>
@@ -264,7 +264,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex justify-between items-center mb-8">
               <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-indigo-500" /> Fluxo de ReposiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o Mensal
+                <BarChart3 className="h-5 w-5 text-indigo-500" /> Fluxo de Reposicao Mensal
               </h3>
             </div>
             <div className="h-72 w-full">
@@ -293,7 +293,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-orange-500" /> Cronograma Detalhado (PrÃƒÆ’Ã‚Â³ximos)
+                <Calendar className="h-5 w-5 text-orange-500" /> Cronograma Detalhado (Proximos)
               </h3>
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                  <button onClick={() => setViewMode('TIMELINE')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'TIMELINE' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Por Data</button>
@@ -306,10 +306,10 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 dark:bg-slate-950 text-slate-400 font-black text-[10px] uppercase border-b border-slate-100 dark:border-slate-800">
                     <tr>
-                      <th className="p-4">PrevisÃƒÆ’Ã‚Â£o</th>
-                      <th className="p-4">Pneu / VeÃƒÆ’Ã‚Â­culo</th>
+                      <th className="p-4">Previsao</th>
+                      <th className="p-4">Pneu / Veiculo</th>
                       <th className="p-4">KM Restante</th>
-                      <th className="p-4">ConfianÃƒÆ’Ã‚Â§a</th>
+                      <th className="p-4">Confianca</th>
                       <th className="p-4 text-right">Custo Est.</th>
                     </tr>
                   </thead>
@@ -381,7 +381,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                        </div>
                        <div>
                           <p className="text-xs font-black text-slate-800 dark:text-white">{f.tire.fireNumber} ({f.vehiclePlate})</p>
-                          <p className="text-[10px] text-slate-500 leading-tight mt-1">Desgaste real acelerado. PrevisÃƒÆ’Ã‚Â£o para <strong>{f.replacementDate.toLocaleDateString()}</strong>.</p>
+                          <p className="text-[10px] text-slate-500 leading-tight mt-1">Desgaste real acelerado. Previsao para <strong>{f.replacementDate.toLocaleDateString()}</strong>.</p>
                        </div>
                     </div>
                  ))}
@@ -391,11 +391,11 @@ export const DemandForecast: FC<DemandForecastProps> = ({
            {/* BUDGET SUMMARY BY QUARTER */}
            <div className="bg-slate-900 p-6 rounded-3xl shadow-xl text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp className="h-24 w-24" /></div>
-              <h4 className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-6">ProjeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de Verba</h4>
+              <h4 className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-6">Projecao de Verba</h4>
               <div className="space-y-6 relative z-10">
                  <div>
                     <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
-                       <span>Restante do MÃƒÆ’Ã‚Âªs</span>
+                       <span>Restante do Mes</span>
                        <span>{stats.urgentCount} un</span>
                     </div>
                     <div className="flex justify-between items-end">
@@ -407,7 +407,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                  </div>
                  <div>
                     <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
-                       <span>PrÃƒÆ’Ã‚Â³ximo Trimestre</span>
+                       <span>Proximo Trimestre</span>
                        <span>{stats.quarterCount} un</span>
                     </div>
                     <div className="flex justify-between items-end">
@@ -419,16 +419,16 @@ export const DemandForecast: FC<DemandForecastProps> = ({
                  </div>
               </div>
               <button className="w-full mt-8 py-3 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2">
-                 <Package className="h-4 w-4" /> Solicitar CotaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o em Lote
+                 <Package className="h-4 w-4" /> Solicitar Cotacao em Lote
               </button>
            </div>
 
            <div className="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-3xl border border-blue-100 dark:border-blue-800">
               <h4 className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                 <Info className="h-4 w-4" /> Nota TÃƒÆ’Ã‚Â©cnica
+                 <Info className="h-4 w-4" /> Nota Tecnica
               </h4>
               <p className="text-[10px] text-blue-700/70 dark:text-blue-300/60 leading-relaxed">
-                 As projeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes de troca sÃƒÆ’Ã‚Â£o baseadas na taxa de consumo de borracha (mm/km) calculada entre a profundidade original do pneu e a ÃƒÆ’Ã‚Âºltima mediÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o de sulco registrada na inspeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o. Pneus sem inspeÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o recente utilizam a mÃƒÆ’Ã‚Â©dia teÃƒÆ’Ã‚Â³rica do catÃƒÆ’Ã‚Â¡logo.
+                 As projecoes de troca sao baseadas na taxa de consumo de borracha (mm/km) calculada entre a profundidade original do pneu e a ultima medicao de sulco registrada na inspecao. Pneus sem inspecao recente utilizam a media teorica do catalogo.
               </p>
            </div>
 

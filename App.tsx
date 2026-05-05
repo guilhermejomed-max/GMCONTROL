@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { WasteManagement } from './components/WasteManagement';
+import { TireDisposal } from './components/TireDisposal';
 import { PartnerManager } from './components/PartnerManager';
 import { Sidebar } from './components/Sidebar';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
@@ -108,7 +109,7 @@ const LoginScreen = ({
             <LifeBuoy className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-black text-slate-800">GM Control Pro</h1>
-          <p className="text-slate-500 text-sm mt-1">Gestão Inteligente de Frotas e Pneus</p>
+          <p className="text-slate-500 text-sm mt-1">Gestao Inteligente de Frotas e Pneus</p>
         </div>
 
         {error && (
@@ -155,7 +156,7 @@ const LoginScreen = ({
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuário (nome.sobrenome)</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario (nome.sobrenome)</label>
             <div className={inputWrapClass}>
               <UserCircle className={iconClass} />
               <input 
@@ -179,7 +180,7 @@ const LoginScreen = ({
               <input 
                 type="password" 
                 className={inputClass}
-                placeholder="••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢"
                 value={pass}
                 onChange={e => setPass(e.target.value)}
                 required
@@ -198,10 +199,10 @@ const LoginScreen = ({
 
         <div className="mt-6 pt-6 border-t border-slate-100">
            <button onClick={handleDemo} className="w-full py-2 text-sm font-bold text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors mb-2">
-              Modo Demonstração (Offline)
+              Modo Demonstracao (Offline)
            </button>
            <button onClick={() => setIsRegistering(!isRegistering)} className="w-full text-xs text-slate-400 hover:text-slate-600 underline">
-              {isRegistering ? 'Já tenho uma conta' : 'Não tenho conta? Cadastre-se'}
+              {isRegistering ? 'Ja tenho uma conta' : 'Nao tenho conta? Cadastre-se'}
            </button>
         </div>
       </div>
@@ -216,6 +217,64 @@ type ProfileSchedule = {
   notes?: string;
   enabled: boolean;
   lastTriggeredDate?: string;
+};
+
+const cp1252ByteMap: Record<number, number> = {
+  0x20AC: 0x80,
+  0x201A: 0x82,
+  0x0192: 0x83,
+  0x201E: 0x84,
+  0x2026: 0x85,
+  0x2020: 0x86,
+  0x2021: 0x87,
+  0x02C6: 0x88,
+  0x2030: 0x89,
+  0x0160: 0x8A,
+  0x2039: 0x8B,
+  0x0152: 0x8C,
+  0x017D: 0x8E,
+  0x2018: 0x91,
+  0x2019: 0x92,
+  0x201C: 0x93,
+  0x201D: 0x94,
+  0x2022: 0x95,
+  0x2013: 0x96,
+  0x2014: 0x97,
+  0x02DC: 0x98,
+  0x2122: 0x99,
+  0x0161: 0x9A,
+  0x203A: 0x9B,
+  0x0153: 0x9C,
+  0x017E: 0x9E,
+  0x0178: 0x9F
+};
+
+const mojibakePattern = /(?:\u00C3.|\u00C2.|\u00E2.|\u00C6|\u0192|\u20AC|\u2122|\u0153|\u0161|\u017E|\uFFFD)/;
+
+const repairMojibakeText = (value: string) => {
+  if (!mojibakePattern.test(value) || typeof TextDecoder === 'undefined') return value;
+
+  let current = value;
+  const decoder = new TextDecoder('utf-8');
+  const score = (text: string) => (text.match(mojibakePattern) || []).length;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const currentScore = score(current);
+    if (currentScore === 0) break;
+
+    const bytes = new Uint8Array(Array.from(current).map((char) => {
+      const code = char.codePointAt(0) || 0;
+      return cp1252ByteMap[code] ?? (code <= 0xFF ? code : 0x3F);
+    }));
+    const decoded = decoder.decode(bytes);
+    if (score(decoded) < currentScore) {
+      current = decoded;
+    } else {
+      break;
+    }
+  }
+
+  return current;
 };
 
 export const App = () => {
@@ -294,6 +353,41 @@ export const App = () => {
     serviceOrders: false,
     fuelEntries: false
   });
+
+  useEffect(() => {
+    const repairTextNode = (node: Node) => {
+      if (node.nodeType !== Node.TEXT_NODE || !node.nodeValue) return;
+      const fixed = repairMojibakeText(node.nodeValue);
+      if (fixed !== node.nodeValue) node.nodeValue = fixed;
+    };
+
+    const walk = (root: Node) => {
+      if (root.nodeType === Node.TEXT_NODE) {
+        repairTextNode(root);
+        return;
+      }
+      if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return;
+
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+      while (node) {
+        repairTextNode(node);
+        node = walker.nextNode();
+      }
+    };
+
+    walk(document.body);
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach(walk);
+        if (mutation.type === 'characterData') repairTextNode(mutation.target);
+      });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, []);
 
   // Helper to check if there are more items
   useEffect(() => {
@@ -672,14 +766,14 @@ export const App = () => {
         
         // Calculate distance (Haversine formula)
         const R = 6371e3; // metres
-        const φ1 = lat * Math.PI/180;
-        const φ2 = alert.targetLat * Math.PI/180;
-        const Δφ = (alert.targetLat - lat) * Math.PI/180;
-        const Δλ = (alert.targetLng - lng) * Math.PI/180;
+        const Ï†1 = lat * Math.PI/180;
+        const Ï†2 = alert.targetLat * Math.PI/180;
+        const Î”Ï† = (alert.targetLat - lat) * Math.PI/180;
+        const Î”Î» = (alert.targetLng - lng) * Math.PI/180;
 
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const a = Math.sin(Î”Ï†/2) * Math.sin(Î”Ï†/2) +
+                Math.cos(Ï†1) * Math.cos(Ï†2) *
+                Math.sin(Î”Î»/2) * Math.sin(Î”Î»/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         const distance = R * c; // in metres
 
@@ -700,15 +794,15 @@ export const App = () => {
           
           let maintenanceAlert = "";
           if (kmRemaining <= 0 && vehicle.type !== 'CARRETA') {
-            maintenanceAlert = `O veículo ${vehicle.plate} chegou e está com MANUTENÇÃO VENCIDA há ${Math.abs(kmRemaining)} km!`;
+            maintenanceAlert = `O veiculo ${vehicle.plate} chegou e esta com MANUTENCAO VENCIDA ha ${Math.abs(kmRemaining)} km!`;
           } else if (kmRemaining <= 1000 && vehicle.type !== 'CARRETA') {
-            maintenanceAlert = `O veículo ${vehicle.plate} chegou e está PRÓXIMO da manutenção (faltam ${kmRemaining} km).`;
+            maintenanceAlert = `O veiculo ${vehicle.plate} chegou e esta PROXIMO da manutencao (faltam ${kmRemaining} km).`;
           } else {
-            maintenanceAlert = `O veículo ${vehicle.plate} chegou ao destino: ${alert.targetName}`;
+            maintenanceAlert = `O veiculo ${vehicle.plate} chegou ao destino: ${alert.targetName}`;
           }
 
           addToast(kmRemaining <= 0 ? 'error' : (kmRemaining <= 1000 ? 'warning' : 'success'), 
-                   'Chegada de Veículo', maintenanceAlert);
+                   'Chegada de Veiculo', maintenanceAlert);
           
           // Also check if there are other vehicles overdue
           const otherOverdue = vehicles.filter(v => {
@@ -720,7 +814,7 @@ export const App = () => {
 
           if (otherOverdue.length > 0) {
             setTimeout(() => {
-              addToast('info', 'Resumo de Manutenção', `Existem outros ${otherOverdue.length} veículos com manutenção vencida na frota.`);
+              addToast('info', 'Resumo de Manutencao', `Existem outros ${otherOverdue.length} veiculos com manutencao vencida na frota.`);
             }, 2000);
           }
           
@@ -751,14 +845,14 @@ export const App = () => {
       settings.savedPoints?.forEach(point => {
         // Calculate distance (Haversine formula)
         const R = 6371e3; // metres
-        const φ1 = lat * Math.PI/180;
-        const φ2 = point.lat * Math.PI/180;
-        const Δφ = (point.lat - lat) * Math.PI/180;
-        const Δλ = (point.lng - lng) * Math.PI/180;
+        const Ï†1 = lat * Math.PI/180;
+        const Ï†2 = point.lat * Math.PI/180;
+        const Î”Ï† = (point.lat - lat) * Math.PI/180;
+        const Î”Î» = (point.lng - lng) * Math.PI/180;
 
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const a = Math.sin(Î”Ï†/2) * Math.sin(Î”Ï†/2) +
+                Math.cos(Ï†1) * Math.cos(Ï†2) *
+                Math.sin(Î”Î»/2) * Math.sin(Î”Î»/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         const distance = R * c; // in metres
 
@@ -770,11 +864,11 @@ export const App = () => {
           alertedOverdueRef.current[vehicle.id] = point.id;
           
           const kmOverdue = (vehicle.odometer || 0) - ((vehicle.lastPreventiveKm || 0) + (vehicle.revisionIntervalKm || 10000));
-          const alertMsg = `ALERTA CRÍTICO: O veículo ${vehicle.plate} está com MANUTENÇÃO VENCIDA há ${kmOverdue.toLocaleString()} km e acaba de chegar em ${point.name}!`;
+          const alertMsg = `ALERTA CRITICO: O veiculo ${vehicle.plate} esta com MANUTENCAO VENCIDA ha ${kmOverdue.toLocaleString()} km e acaba de chegar em ${point.name}!`;
           
-          addToast('error', 'Manutenção Vencida na Base', alertMsg);
+          addToast('error', 'Manutencao Vencida na Base', alertMsg);
           
-          storageService.logActivity(orgId, "Alerta Manutenção", alertMsg, 'VEHICLES');
+          storageService.logActivity(orgId, "Alerta Manutencao", alertMsg, 'VEHICLES');
         } else {
           // If vehicle is no longer at this base, clear the ref so it can alert again if it returns
           if (alertedOverdueRef.current[vehicle.id] === point.id) {
@@ -789,7 +883,7 @@ export const App = () => {
   const isSyncingRef = useRef(false);
   const syncSascar = async (showModal: boolean = false, vehicleIds?: string[]) => {
     if (isSyncingRef.current) {
-      if (showModal) addToast('info', 'Sincronização em andamento', 'Aguarde a conclusão da sincronização atual.');
+      if (showModal) addToast('info', 'Sincronizacao em andamento', 'Aguarde a conclusao da sincronizacao atual.');
       return 0;
     }
     
@@ -797,12 +891,12 @@ export const App = () => {
       ? vehicles.filter(v => vehicleIds.includes(v.id))
       : vehicles;
     if (currentVehicles.length === 0) {
-      if (showModal) addToast('warning', 'Sem Veículos', 'Não há veículos cadastrados para sincronizar.');
+      if (showModal) addToast('warning', 'Sem Veiculos', 'Nao ha veiculos cadastrados para sincronizar.');
       return 0;
     }
 
     if (!trackerSettings?.active) {
-      if (showModal) addToast('warning', 'Integração Desativada', 'A integração com a Sascar está desativada nas configurações.');
+      if (showModal) addToast('warning', 'Integracao Desativada', 'A integracao com a Sascar esta desativada nas configuracoes.');
       return 0;
     }
 
@@ -820,7 +914,7 @@ export const App = () => {
     if (showModal) addToast('info', 'Sincronizando', 'Buscando dados na Sascar...');
 
     try {
-      // 1. Otimização de Dados: Incluir tanto placas quanto códigos Sascar para busca
+      // 1. Otimizacao de Dados: Incluir tanto placas quanto codigos Sascar para busca
       const searchTerms = new Set<string>();
       currentVehicles.forEach(v => {
         if (vehicleIds && vehicleIds.length > 0) {
@@ -834,20 +928,20 @@ export const App = () => {
       
       const plates = Array.from(searchTerms).filter(p => p.length > 0);
       
-      console.log(`[Sascar Sync] Iniciando sincronização para ${currentVehicles.length} veículos locais usando ${plates.length} termos de busca...`);
-      storageService.logActivity(orgId, "Sincronização Sascar", `Iniciada para ${currentVehicles.length} veículos`, 'VEHICLES');
+      console.log(`[Sascar Sync] Iniciando sincronizacao para ${currentVehicles.length} veiculos locais usando ${plates.length} termos de busca...`);
+      storageService.logActivity(orgId, "Sincronizacao Sascar", `Iniciada para ${currentVehicles.length} veiculos`, 'VEHICLES');
       
       const results = [];
       try {
-          console.log(`[Sascar Sync] Solicitando posições...`);
+          console.log(`[Sascar Sync] Solicitando posicoes...`);
           const result = await sascarService.getVehicles(plates, trackerSettings || undefined);
           console.log(`[Sascar Sync] Sascar retornou ${result.data?.length || 0} posicoes normalizadas.`);
           results.push(result.data || []);
       } catch (error: any) {
-          console.error(`[Sascar Sync] Falha na sincronização:`, error.message);
+          console.error(`[Sascar Sync] Falha na sincronizacao:`, error.message);
       }
 
-      // 4. Consolidação: Processar todos os itens recebidos
+      // 4. Consolidacao: Processar todos os itens recebidos
       const allRawItems = results.flat();
       const updatesBatch: any[] = [];
       const processedLocalIds = new Set<string>();
@@ -871,7 +965,7 @@ export const App = () => {
         
         if (!sascarId && !sascarPlate) return;
         
-        // Encontrar o veículo local que corresponde a este item da Sascar
+        // Encontrar o veiculo local que corresponde a este item da Sascar
         const localVehicle = currentVehicles.find(v => {
           if (processedLocalIds.has(v.id)) return false;
 
@@ -879,7 +973,7 @@ export const App = () => {
           if (sascarId && v.sascarCode) {
             const cleanIdApp = String(v.sascarCode).trim();
             if (cleanIdApp === sascarId) return true;
-            // Tentar match numérico se ambos forem números
+            // Tentar match numerico se ambos forem numeros
             if (normalizeSascarId(cleanIdApp) && sascarNumericId && normalizeSascarId(cleanIdApp) === sascarNumericId) {
               return true;
             }
@@ -991,7 +1085,7 @@ export const App = () => {
           .filter(v => !processedLocalIds.has(v.id))
           .map(v => `${v.plate}${v.sascarCode ? ` (${v.sascarCode})` : ''}`);
         if (notMatched.length > 0 || invalidPositionCount > 0 || missingLitrometerCount > 0 || missingOdometerCount > 0 || stalePositionCount > 0) {
-          console.warn('[Sascar Sync] Diagnóstico', {
+          console.warn('[Sascar Sync] Diagnostico', {
             semMatch: notMatched,
             posicoesInvalidas: invalidPositionCount,
             semLitrometro: missingLitrometerCount,
@@ -1001,16 +1095,16 @@ export const App = () => {
           });
           storageService.logActivity(
             orgId,
-            "Diagnóstico Sascar",
-            `${notMatched.length} sem match, ${invalidPositionCount} posição inválida, ${missingLitrometerCount} sem litrometro, ${missingOdometerCount} sem hodômetro`,
+            "Diagnostico Sascar",
+            `${notMatched.length} sem match, ${invalidPositionCount} posicao invalida, ${missingLitrometerCount} sem litrometro, ${missingOdometerCount} sem hodometro`,
             'VEHICLES'
           );
         }
-        console.log(`[Sascar Sync] Sincronização finalizada: ${totalUpdated} veículos atualizados.`);
-        if (!showModal) addToast('success', 'Sincronização Automática', `${totalUpdated} veículos atualizados.`);
+        console.log(`[Sascar Sync] Sincronizacao finalizada: ${totalUpdated} veiculos atualizados.`);
+        if (!showModal) addToast('success', 'Sincronizacao Automatica', `${totalUpdated} veiculos atualizados.`);
       } else {
         console.log("[Sascar Sync] Nenhum dado novo para atualizar.");
-        if (showModal) addToast('info', 'Sincronização', 'Nenhum dado novo encontrado para os veículos cadastrados.');
+        if (showModal) addToast('info', 'Sincronizacao', 'Nenhum dado novo encontrado para os veiculos cadastrados.');
       }
       
       if (showModal) {
@@ -1019,8 +1113,8 @@ export const App = () => {
       
       return totalUpdated;
     } catch (error: any) {
-      console.error("[Sascar Sync] Erro crítico:", error);
-      addToast('error', 'Erro na Sincronização', error.message || 'Falha ao comunicar com a Sascar.');
+      console.error("[Sascar Sync] Erro critico:", error);
+      addToast('error', 'Erro na Sincronizacao', error.message || 'Falha ao comunicar com a Sascar.');
       return 0;
     } finally {
       isSyncingRef.current = false;
@@ -1042,12 +1136,12 @@ export const App = () => {
         ...vehicle.lastLocation,
         lat: base.lat,
         lng: base.lng,
-        address: `Simulação: ${base.name}`
+        address: `Simulacao: ${base.name}`
       }
     };
 
     await storageService.updateVehicle(orgId, updatedVehicle);
-    addToast('info', 'Simulação', `Localização do veículo ${plate} atualizada para ${base.name}`);
+    addToast('info', 'Simulacao', `Localizacao do veiculo ${plate} atualizada para ${base.name}`);
   };
 
   const addToast = (type: any, title: string, message: string) => {
@@ -1074,8 +1168,8 @@ export const App = () => {
       const nextOdometer = Number(vehicle.odometer || 0);
 
       if (isImplausibleImportedOdometer(nextOdometer)) {
-          addToast('error', 'KM inválido', `O hodômetro de ${vehicle.plate} parece inválido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
-          throw new Error('Hodômetro inválido');
+          addToast('error', 'KM invalido', `O hodometro de ${vehicle.plate} parece invalido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
+          throw new Error('Hodometro invalido');
       }
 
       await storageService.updateVehicle(orgId, vehicle);
@@ -1086,30 +1180,30 @@ export const App = () => {
       if ((existing.odometer || 0) !== nextOdometer) {
           changes.push(`KM ${Number(existing.odometer || 0).toLocaleString('pt-BR')} -> ${nextOdometer.toLocaleString('pt-BR')}`);
       }
-      if ((existing.sascarCode || '') !== (vehicle.sascarCode || '')) changes.push('código rastreador');
+      if ((existing.sascarCode || '') !== (vehicle.sascarCode || '')) changes.push('codigo rastreador');
       if ((existing.renavam || '') !== (vehicle.renavam || '')) changes.push('RENAVAM');
       if ((existing.vin || '') !== (vehicle.vin || '')) changes.push('chassi');
 
       if (changes.length > 0) {
-          storageService.logActivity(orgId, 'Auditoria Veículo', `${vehicle.plate}: ${changes.join(', ')}`, 'VEHICLES');
+          storageService.logActivity(orgId, 'Auditoria Veiculo', `${vehicle.plate}: ${changes.join(', ')}`, 'VEHICLES');
       }
   };
 
   const auditedAddVehicle = async (vehicle: Vehicle) => {
       const nextOdometer = Number(vehicle.odometer || 0);
       if (nextOdometer > 0 && isImplausibleImportedOdometer(nextOdometer)) {
-          addToast('error', 'KM inválido', `O hodômetro de ${vehicle.plate} parece inválido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
-          throw new Error('Hodômetro inválido');
+          addToast('error', 'KM invalido', `O hodometro de ${vehicle.plate} parece invalido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
+          throw new Error('Hodometro invalido');
       }
 
       await storageService.addVehicle(orgId, vehicle);
-      storageService.logActivity(orgId, 'Novo Veículo', `${vehicle.plate} cadastrado com KM ${nextOdometer.toLocaleString('pt-BR')}`, 'VEHICLES');
+      storageService.logActivity(orgId, 'Novo Veiculo', `${vehicle.plate} cadastrado com KM ${nextOdometer.toLocaleString('pt-BR')}`, 'VEHICLES');
   };
 
   const auditedDeleteVehicle = async (id: string) => {
       const existing = vehicles.find(v => v.id === id);
       await storageService.deleteVehicle(orgId, id);
-      storageService.logActivity(orgId, 'Excluiu Veículo', `${existing?.plate || id}`, 'VEHICLES');
+      storageService.logActivity(orgId, 'Excluiu Veiculo', `${existing?.plate || id}`, 'VEHICLES');
   };
 
   // Wrapper function to properly construct Service Order before saving
@@ -1138,7 +1232,7 @@ export const App = () => {
                       unitCost: stockItem?.averageCost || 0,
                       totalValue: (stockItem?.averageCost || 0) * diffQty,
                       date: new Date().toISOString(),
-                      notes: `O.S. #${existingOrder.orderNumber} - Adição de peças`,
+                      notes: `O.S. #${existingOrder.orderNumber} - Adicao de pecas`,
                       user: user?.displayName || user?.email || 'Sistema'
                   });
               } else if (diffQty < 0) {
@@ -1153,7 +1247,7 @@ export const App = () => {
                       unitCost: stockItem?.averageCost || 0,
                       totalValue: (stockItem?.averageCost || 0) * Math.abs(diffQty),
                       date: new Date().toISOString(),
-                      notes: `O.S. #${existingOrder.orderNumber} - Remoção de peças`,
+                      notes: `O.S. #${existingOrder.orderNumber} - Remocao de pecas`,
                       user: user?.displayName || user?.email || 'Sistema'
                   });
               }
@@ -1175,7 +1269,7 @@ export const App = () => {
                       unitCost: stockItem?.averageCost || 0,
                       totalValue: (stockItem?.averageCost || 0) * oldPart.quantity,
                       date: new Date().toISOString(),
-                      notes: `O.S. #${existingOrder.orderNumber} - Remoção de peças`,
+                      notes: `O.S. #${existingOrder.orderNumber} - Remocao de pecas`,
                       user: user?.displayName || user?.email || 'Sistema'
                   });
               }
@@ -1211,7 +1305,7 @@ export const App = () => {
           id: Date.now().toString(),
           orderNumber: maxOrderNum + 1,
           createdAt: new Date().toISOString(),
-          createdBy: user?.displayName || user?.email || 'Usuário do Sistema',
+          createdBy: user?.displayName || user?.email || 'Usuario do Sistema',
           branchId: partialOrder.branchId || selectedBranchId,
           occurrenceId: linkedOccId || undefined
       };
@@ -1242,7 +1336,7 @@ export const App = () => {
                       unitCost: stockItem?.averageCost || 0,
                       totalValue: (stockItem?.averageCost || 0) * part.quantity,
                       date: new Date().toISOString(),
-                      notes: `O.S. #${newOrder.orderNumber} - Veículo: ${newOrder.vehiclePlate}`,
+                      notes: `O.S. #${newOrder.orderNumber} - Veiculo: ${newOrder.vehiclePlate}`,
                       user: user?.displayName || user?.email || 'Sistema'
                   });
               }
@@ -1266,7 +1360,7 @@ export const App = () => {
               updates.lastPreventiveKm = newOrder.odometer || vehicle.odometer || 0;
               updates.lastPreventiveDate = formattedDate;
               
-              addToast('info', 'Manutenção Preventiva', `KM de troca de óleo atualizado para ${updates.lastPreventiveKm} km.`);
+              addToast('info', 'Manutencao Preventiva', `KM de troca de oleo atualizado para ${updates.lastPreventiveKm} km.`);
           }
 
           if (Object.keys(updates).length > 0) {
@@ -1292,15 +1386,15 @@ export const App = () => {
 
   const handleResolveFleetIssue = async (issue: FleetIssue, justification = ''): Promise<string> => {
       const vehicle = vehicles.find(v => v.id === issue.vehicleId);
-      if (!vehicle) throw new Error('Veículo não encontrado.');
+      if (!vehicle) throw new Error('Veiculo nao encontrado.');
 
       if (issue.actionType === 'SYNC_SASCAR') {
           const updatedCount = await syncSascar(false, [issue.vehicleId]);
           if (updatedCount <= 0) {
-              throw new Error('A Sascar não retornou atualização para este veículo. Verifique código do rastreador, placa e retorno da integração.');
+              throw new Error('A Sascar nao retornou atualizacao para este veiculo. Verifique codigo do rastreador, placa e retorno da integracao.');
           }
-          storageService.logActivity(orgId, 'Correção Automática', `${vehicle.plate}: ${issue.title} corrigido via sincronização Sascar`, 'VEHICLES');
-          return `${vehicle.plate}: sincronização aplicada. Confira se o alerta saiu da lista.`;
+          storageService.logActivity(orgId, 'Correcao Automatica', `${vehicle.plate}: ${issue.title} corrigido via sincronizacao Sascar`, 'VEHICLES');
+          return `${vehicle.plate}: sincronizacao aplicada. Confira se o alerta saiu da lista.`;
       }
 
       if (issue.actionType === 'CREATE_PREVENTIVE_OS') {
@@ -1312,14 +1406,14 @@ export const App = () => {
           );
 
           if (alreadyOpen) {
-              return `${vehicle.plate}: já existe uma O.S. preventiva aberta ou pendente.`;
+              return `${vehicle.plate}: ja existe uma O.S. preventiva aberta ou pendente.`;
           }
 
           await handleAddServiceOrder({
               vehicleId: vehicle.id,
               vehiclePlate: vehicle.plate,
               title: 'Preventiva vencida',
-              details: `O.S. aberta automaticamente pelo painel de inconsistências. ${issue.detail}`,
+              details: `O.S. aberta automaticamente pelo painel de inconsistencias. ${issue.detail}`,
               status: 'PENDENTE',
               isPreventiveMaintenance: true,
               serviceType: 'INTERNAL',
@@ -1327,20 +1421,20 @@ export const App = () => {
               odometer: vehicle.odometer || 0,
               branchId: vehicle.branchId || selectedBranchId
           });
-          storageService.logActivity(orgId, 'Correção Automática', `${vehicle.plate}: O.S. preventiva criada pelo painel de inconsistências`, 'VEHICLES');
+          storageService.logActivity(orgId, 'Correcao Automatica', `${vehicle.plate}: O.S. preventiva criada pelo painel de inconsistencias`, 'VEHICLES');
           return `${vehicle.plate}: O.S. preventiva criada com sucesso.`;
       }
 
       if (['MARK_PARTIAL_FILLUP', 'DISCARD_FUEL_SEGMENT'].includes(issue.actionType)) {
           if (!issue.relatedFuelEntryId) throw new Error('Nenhum abastecimento relacionado foi encontrado para ajuste.');
           const entry = fuelEntries.find(item => item.id === issue.relatedFuelEntryId);
-          if (!entry) throw new Error('Abastecimento relacionado não encontrado.');
+          if (!entry) throw new Error('Abastecimento relacionado nao encontrado.');
 
           const tag = issue.actionType === 'MARK_PARTIAL_FILLUP' ? '[parcial]' : '[trecho descartado]';
           const reason = justification ? ` Motivo: ${justification}` : '';
           const notes = `${entry.notes || ''}${entry.notes ? '\n' : ''}${tag} Ajustado pelo painel de inconsistencias em ${new Date().toLocaleString('pt-BR')}.${reason}`.trim();
           await storageService.updateFuelEntry(orgId, entry.id, { notes });
-          storageService.logActivity(orgId, 'Correção Automática', `${vehicle.plate}: abastecimento ${entry.odometer} km marcado como ${tag}`, 'VEHICLES');
+          storageService.logActivity(orgId, 'Correcao Automatica', `${vehicle.plate}: abastecimento ${entry.odometer} km marcado como ${tag}`, 'VEHICLES');
           return `${vehicle.plate}: abastecimento marcado como ${tag}.`;
       }
 
@@ -1354,12 +1448,12 @@ export const App = () => {
                   await storageService.updateFuelEntry(orgId, entry.id, { notes });
               }
           }
-          storageService.logActivity(orgId, 'Tratamento de Inconsistência', `${vehicle.plate}: ${issue.title} ${suffix}. Justificativa: ${justification || 'sem justificativa'}`, 'VEHICLES');
+          storageService.logActivity(orgId, 'Tratamento de Inconsistencia', `${vehicle.plate}: ${issue.title} ${suffix}. Justificativa: ${justification || 'sem justificativa'}`, 'VEHICLES');
           return `${vehicle.plate}: alerta ${suffix}.`;
       }
 
       setCurrentTab('fleet');
-      return `${vehicle.plate}: aberto para revisão manual.`;
+      return `${vehicle.plate}: aberto para revisao manual.`;
   };
 
   const handleConvertPublicServiceRequest = async (request: PublicServiceRequest): Promise<void> => {
@@ -1371,8 +1465,8 @@ export const App = () => {
           request.problemType ? `Tipo informado: ${request.problemType}` : '',
           request.informedOdometer ? `KM informado pelo motorista: ${request.informedOdometer.toLocaleString('pt-BR')}` : '',
           request.driverLocation ? `Local informado: ${request.driverLocation}` : '',
-          `Veículo parado: ${request.vehicleStopped ? 'SIM' : 'NÃO'}`,
-          `Urgência: ${request.urgency || 'NORMAL'}`,
+          `Veiculo parado: ${request.vehicleStopped ? 'SIM' : 'NAO'}`,
+          `Urgencia: ${request.urgency || 'NORMAL'}`,
           request.checklist?.status ? `Checklist pre-viagem: ${request.checklist.status}` : '',
           request.checklist?.criticalItems?.length ? `Itens com alerta: ${request.checklist.criticalItems.join(', ')}` : '',
           request.checklist?.observations ? `Observacoes do checklist: ${request.checklist.observations}` : '',
@@ -1400,7 +1494,7 @@ export const App = () => {
           status: 'CONVERTIDA',
           linkedServiceOrderNumber: String(createdOrderNumber)
       });
-      addToast('success', 'O.S. criada', `${request.vehiclePlate}: solicitação do QR convertida em O.S.`);
+      addToast('success', 'O.S. criada', `${request.vehiclePlate}: solicitacao do QR convertida em O.S.`);
   };
 
   const handleArchivePublicServiceRequest = async (request: PublicServiceRequest, reason?: string): Promise<void> => {
@@ -1410,7 +1504,7 @@ export const App = () => {
           archivedAt: new Date().toISOString(),
           archivedBy: user?.displayName || user?.email || 'Sistema'
       });
-      addToast('info', 'Solicitação arquivada', `${request.vehiclePlate}: solicitação do QR arquivada.`);
+      addToast('info', 'Solicitacao arquivada', `${request.vehiclePlate}: solicitacao do QR arquivada.`);
   };
 
   const handleMarkPublicServiceRequestInAnalysis = async (request: PublicServiceRequest): Promise<void> => {
@@ -1419,46 +1513,46 @@ export const App = () => {
           reviewedAt: new Date().toISOString(),
           reviewedBy: user?.displayName || user?.email || 'Sistema'
       });
-      addToast('info', 'Em análise', `${request.vehiclePlate}: solicitação marcada para conferência.`);
+      addToast('info', 'Em analise', `${request.vehiclePlate}: solicitacao marcada para conferencia.`);
   };
 
   const getPageTitle = (tab: TabView) => {
     switch (tab) {
       case 'dashboard': return 'Painel Executivo';
-      case 'command-center': return 'Painel de Comando Diário';
+      case 'command-center': return 'Painel de Comando Diario';
       case 'inventory': return 'Estoque de Pneus';
       case 'register': return 'Novo Pneu';
-      case 'movement': return 'Movimentação';
-      case 'inspection': return 'Hub de Inspeção';
-      case 'retreading': return 'Gestão de Reformas';
+      case 'movement': return 'Movimentacao';
+      case 'inspection': return 'Hub de Inspecao';
+      case 'retreading': return 'Gestao de Reformas';
       case 'retreader-ranking': return 'Ranking de Fornecedores';
       case 'scrap': return 'Sucata e Descarte';
-      case 'strategic-analysis': return 'Análise Estratégica';
-      case 'demand-forecast': return 'Previsão de Demanda';
+      case 'strategic-analysis': return 'Analise Estrategica';
+      case 'demand-forecast': return 'Previsao de Demanda';
       case 'financial': return 'Financeiro';
       case 'esg-panel': return 'Painel ESG';
-      case 'fleet': return 'Frota de Veículos';
-      case 'fleet-issues': return 'Inconsistências da Frota';
-      case 'maintenance': return 'Gestão de Preventivas';
+      case 'fleet': return 'Frota de Veiculos';
+      case 'fleet-issues': return 'Inconsistencias da Frota';
+      case 'maintenance': return 'Gestao de Preventivas';
       case 'maintenance-tv': return 'Painel TV de Manutencao';
       case 'fuel': return 'Controle de Abastecimento';
       case 'brand-models': return 'Marcas e Modelos';
       case 'location': return 'Rastreamento';
       case 'service-orders': return 'Oficina';
-      case 'qr-service-requests': return 'Solicitações do QR';
-      case 'waste-disposal': return 'Descarte de Resíduos';
+      case 'qr-service-requests': return 'Solicitacoes do QR';
+      case 'waste-disposal': return 'Descarte de Residuos';
       case 'service': return 'Almoxarifado';
-      case 'settings': return 'Configurações';
+      case 'settings': return 'Configuracoes';
       case 'drivers': return 'Motoristas';
-      case 'reports': return 'Relatórios';
-      case 'reports-tires': return 'Relatórios de Pneus';
-      case 'reports-vehicles': return 'Relatórios de Veículos';
-      case 'reports-maintenance': return 'Relatórios de Manutenção';
-      case 'reports-fuel': return 'Relatórios de Abastecimento';
-      case 'branches': return 'Gestão de Filiais';
-      case 'tracker': return 'Configurações do Rastreador';
-      case 'classification-sector': return 'Classificação e Setor';
-      case 'occurrences': return 'Módulo de Ocorrências';
+      case 'reports': return 'Relatorios';
+      case 'reports-tires': return 'Relatorios de Pneus';
+      case 'reports-vehicles': return 'Relatorios de Veiculos';
+      case 'reports-maintenance': return 'Relatorios de Manutencao';
+      case 'reports-fuel': return 'Relatorios de Abastecimento';
+      case 'branches': return 'Gestao de Filiais';
+      case 'tracker': return 'Configuracoes do Rastreador';
+      case 'classification-sector': return 'Classificacao e Setor';
+      case 'occurrences': return 'Modulo de Ocorrencias';
       case 'rh': return 'Recursos Humanos';
       default: return 'GM Control';
     }
@@ -1472,7 +1566,7 @@ export const App = () => {
       addToast('success', 'Perfil Atualizado', 'Sua foto de perfil foi alterada com sucesso.');
     } catch (error) {
       console.error(error);
-      addToast('error', 'Erro', 'Não foi possível atualizar sua foto.');
+      addToast('error', 'Erro', 'Nao foi possivel atualizar sua foto.');
     }
   };
 
@@ -1597,7 +1691,7 @@ export const App = () => {
         isLoading={publicRgData.isLoading}
         error={publicRgData.error}
         onCreateServiceRequest={async request => {
-          if (!vehicleRgId) throw new Error('Veículo não encontrado.');
+          if (!vehicleRgId) throw new Error('Veiculo nao encontrado.');
           const publicRequest = await storageService.addPublicServiceRequest({
             ...request,
             vehicleId: publicRgData.vehicle?.id || vehicleRgId,
@@ -1626,7 +1720,7 @@ export const App = () => {
   const handleAddFuelEntry = async (entry: FuelEntry) => {
     try {
       await storageService.addFuelEntry(orgId, entry);
-      addToast('success', 'Abastecimento Registrado', `Lançamento para o veículo ${entry.vehiclePlate} realizado com sucesso.`);
+      addToast('success', 'Abastecimento Registrado', `Lancamento para o veiculo ${entry.vehiclePlate} realizado com sucesso.`);
       
       // Update vehicle odometer and litrometro if entry values are higher
       const vehicle = vehicles.find(v => v.id === entry.vehicleId);
@@ -1644,16 +1738,16 @@ export const App = () => {
         }
       }
     } catch (error) {
-      addToast('error', 'Erro ao registrar', 'Não foi possível salvar o abastecimento.');
+      addToast('error', 'Erro ao registrar', 'Nao foi possivel salvar o abastecimento.');
     }
   };
 
   const handleDeleteFuelEntry = async (id: string) => {
     try {
       await storageService.deleteFuelEntry(orgId, id);
-      addToast('success', 'Registro Removido', 'O abastecimento foi excluído com sucesso.');
+      addToast('success', 'Registro Removido', 'O abastecimento foi excluido com sucesso.');
     } catch (error) {
-      addToast('error', 'Erro ao remover', 'Não foi possível excluir o registro.');
+      addToast('error', 'Erro ao remover', 'Nao foi possivel excluir o registro.');
     }
   };
 
@@ -1662,7 +1756,7 @@ export const App = () => {
       await storageService.addFuelStation(orgId, station);
       addToast('success', 'Posto Cadastrado', `O posto ${station.name} foi cadastrado com sucesso.`);
     } catch (error) {
-      addToast('error', 'Erro ao cadastrar', 'Não foi possível cadastrar o posto.');
+      addToast('error', 'Erro ao cadastrar', 'Nao foi possivel cadastrar o posto.');
     }
   };
 
@@ -1671,16 +1765,16 @@ export const App = () => {
       await storageService.updateFuelStation(orgId, id, data);
       addToast('success', 'Posto Atualizado', 'Os dados do posto foram atualizados com sucesso.');
     } catch (error) {
-      addToast('error', 'Erro ao atualizar', 'Não foi possível atualizar os dados do posto.');
+      addToast('error', 'Erro ao atualizar', 'Nao foi possivel atualizar os dados do posto.');
     }
   };
 
   const handleDeleteFuelStation = async (id: string) => {
     try {
       await storageService.deleteFuelStation(orgId, id);
-      addToast('success', 'Posto Removido', 'O posto foi excluído com sucesso.');
+      addToast('success', 'Posto Removido', 'O posto foi excluido com sucesso.');
     } catch (error) {
-      addToast('error', 'Erro ao remover', 'Não foi possível excluir o posto.');
+      addToast('error', 'Erro ao remover', 'Nao foi possivel excluir o posto.');
     }
   };
 
@@ -1692,7 +1786,7 @@ export const App = () => {
         serviceOrders={serviceOrders}
         onCreateServiceRequest={async request => {
           const vehicle = vehicles.find(item => item.id === vehicleRgId || item.plate === vehicleRgId);
-          if (!vehicle) throw new Error('Veículo não encontrado.');
+          if (!vehicle) throw new Error('Veiculo nao encontrado.');
           const detailLines = [
             'Solicitacao enviada pelo portal do veiculo.',
             `Motorista: ${request.driverName}`,
@@ -1700,8 +1794,8 @@ export const App = () => {
             request.problemType ? `Tipo informado: ${request.problemType}` : '',
             request.informedOdometer ? `KM informado pelo motorista: ${request.informedOdometer.toLocaleString('pt-BR')}` : '',
             request.driverLocation ? `Local informado: ${request.driverLocation}` : '',
-            `Veículo parado: ${request.vehicleStopped ? 'SIM' : 'NÃO'}`,
-            `Urgência: ${request.urgency}`,
+            `Veiculo parado: ${request.vehicleStopped ? 'SIM' : 'NAO'}`,
+            `Urgencia: ${request.urgency}`,
             '',
             request.details
           ].filter(Boolean).join('\n');
@@ -1733,9 +1827,9 @@ export const App = () => {
     const getModuleLabel = () => {
       switch(activeModule) {
         case 'TIRES': return 'Pneus';
-        case 'MECHANICAL': return 'Manutenção';
+        case 'MECHANICAL': return 'Manutencao';
         case 'VEHICLES': return 'Frota';
-        case 'FUEL': return 'Combustível';
+        case 'FUEL': return 'Combustivel';
         default: return 'Sistema';
       }
     };
@@ -1781,7 +1875,7 @@ export const App = () => {
                   setActiveModule(allowedModules[nextIndex]);
                 }}
                 className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                title="Trocar Módulo"
+                title="Trocar Modulo"
               >
                 <SwitchCamera className="h-5 w-5" />
               </button>
@@ -1806,8 +1900,8 @@ export const App = () => {
           {activeModule === 'TIRES' && (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Movimentação de Pneus</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">Selecione um veículo para iniciar a inspeção ou troca.</p>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Movimentacao de Pneus</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Selecione um veiculo para iniciar a inspecao ou troca.</p>
               </div>
               <TireMovement 
                 tires={tires} 
@@ -1826,8 +1920,8 @@ export const App = () => {
           {activeModule === 'VEHICLES' && (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Gestão de Frota</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">Visualize e gerencie os veículos da frota.</p>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Gestao de Frota</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Visualize e gerencie os veiculos da frota.</p>
               </div>
               <VehicleManager 
                 orgId={orgId}
@@ -1862,8 +1956,8 @@ export const App = () => {
           {activeModule === 'MECHANICAL' && (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Manutenção</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">Gerencie ordens de serviço e manutenções.</p>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Manutencao</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Gerencie ordens de servico e manutencoes.</p>
               </div>
               <ServiceOrderHub 
                 orgId={orgId}
@@ -1901,7 +1995,7 @@ export const App = () => {
           {activeModule === 'FUEL' && (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Combustível</h2>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white">Combustivel</h2>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">Registre abastecimentos e gerencie postos.</p>
               </div>
               <FuelDashboard 
@@ -1942,7 +2036,7 @@ export const App = () => {
           onExportData={() => {}}
           onImportData={() => {}}
           userLevel={userRole}
-          userName={user.displayName || user.name || user.email || 'Usuário'}
+          userName={user.displayName || user.name || user.email || 'Usuario'}
           userPhotoUrl={user.photoUrl}
           onOpenProfile={() => setIsProfileOpen(true)}
           settings={settings}
@@ -2438,11 +2532,10 @@ export const App = () => {
               />
             )}
             {currentTab === 'tire-disposal' && allowedModules.includes('TIRES') && (
-              <WasteManagement 
+              <TireDisposal
                 orgId={orgId} 
                 partners={partners} 
                 collaborators={collaborators} 
-                type="TIRE"
               />
             )}
             {(currentTab === 'reports' || currentTab === 'reports-tires' || currentTab === 'reports-vehicles' || currentTab === 'reports-maintenance') && (allowedModules.includes('VEHICLES') || allowedModules.includes('TIRES')) && (
@@ -2679,7 +2772,7 @@ export const App = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-800">Sincronização Concluída</h3>
+              <h3 className="text-lg font-bold text-slate-800">Sincronizacao Concluida</h3>
               <button onClick={() => setSyncModal({ isOpen: false, updatedPlates: [] })} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
@@ -2688,7 +2781,7 @@ export const App = () => {
               {syncModal.updatedPlates.length > 0 ? (
                 <>
                   <p className="text-sm text-slate-600 mb-4">
-                    Foram atualizados {syncModal.updatedPlates.length} veículos com sucesso:
+                    Foram atualizados {syncModal.updatedPlates.length} veiculos com sucesso:
                   </p>
                   <div className="max-h-60 overflow-y-auto bg-slate-50 rounded-lg p-4 border border-slate-100">
                     <ul className="space-y-2">
@@ -2703,7 +2796,7 @@ export const App = () => {
                 </>
               ) : (
                 <p className="text-sm text-slate-600 text-center py-4">
-                  Nenhum veículo precisou ser atualizado no momento.
+                  Nenhum veiculo precisou ser atualizado no momento.
                 </p>
               )}
             </div>

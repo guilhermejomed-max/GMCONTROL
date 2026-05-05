@@ -36,7 +36,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
   orgId = 'default'
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
 
@@ -243,13 +243,13 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-12 print:p-0 print:space-y-4">
       
-      {/* HEADER E AÇÕES */}
+      {/* HEADER E ACOES */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm print:hidden">
         <div>
            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
               <Landmark className="h-7 w-7 text-indigo-600" /> Console Financeiro
            </h2>
-           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Análise de ativos, depreciação e retorno sobre investimento (ROI).</p>
+           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Analise de ativos, depreciacao e retorno sobre investimento (ROI).</p>
         </div>
         <div className="flex gap-2 w-full lg:w-auto">
            <select 
@@ -265,7 +265,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                // Scroll to report section
                document.getElementById('custom-report')?.scrollIntoView({ behavior: 'smooth' });
            }} className="flex-1 lg:flex-none px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all">
-              <FileSpreadsheet className="h-4 w-4" /> Relatório Detalhado
+              <FileSpreadsheet className="h-4 w-4" /> Relatorio Detalhado
            </button>
         </div>
       </div>
@@ -273,13 +273,13 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
       {/* EQUITY SCORECARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Patrimônio Líquido (Equity)</p>
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Patrimonio Liquido (Equity)</p>
            <h3 className="text-xl font-black text-slate-800 dark:text-white truncate">{money(stats.currentEquity)}</h3>
            <div className="mt-4 flex items-center gap-2">
               <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                  <div className="h-full bg-indigo-500" style={{ width: `${(stats.currentEquity / (stats.totalInvested || 1)) * 100}%` }}></div>
               </div>
-              <span className="text-[10px] font-bold text-indigo-500">{Math.round((stats.currentEquity / (stats.totalInvested || 1)) * 100)}% Útil</span>
+              <span className="text-[10px] font-bold text-indigo-500">{Math.round((stats.currentEquity / (stats.totalInvested || 1)) * 100)}% Util</span>
            </div>
         </div>
 
@@ -305,20 +305,20 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm border-l-4 border-l-red-500">
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Perda Real (Sucata)</p>
            <h3 className="text-xl font-black text-red-600 truncate">{money(stats.totalScrapLoss)}</h3>
-           <p className="text-[10px] text-slate-400 mt-4 font-medium">Investimento não recuperado</p>
+           <p className="text-[10px] text-slate-400 mt-4 font-medium">Investimento nao recuperado</p>
         </div>
       </div>
 
-      {/* RANK DE EFICIÊNCIA (NOVO) */}
+      {/* RANK DE EFICIENCIA (NOVO) */}
       <div className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden print:hidden">
          <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50">
             <div>
                <h3 className="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-                  <BarChart className="h-5 w-5 text-emerald-500" /> Rank de Eficiência (CPK Real)
+                  <BarChart className="h-5 w-5 text-emerald-500" /> Rank de Eficiencia (CPK Real)
                </h3>
                <p className="text-xs text-slate-500 mt-1">Comparativo de performance considerando custo total (compra + reformas) e quilometragem real.</p>
             </div>
-            <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full uppercase">Melhor Custo-Benefício</span>
+            <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full uppercase">Melhor Custo-Beneficio</span>
          </div>
          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -326,8 +326,8 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                   <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">
                      <th className="p-6">Marca & Modelo</th>
                      <th className="p-6 text-center">Amostra (Un)</th>
-                     <th className="p-6 text-right">Média KM/Vida</th>
-                     <th className="p-6 text-right">KM 1ª Vida</th>
+                     <th className="p-6 text-right">Media KM/Vida</th>
+                     <th className="p-6 text-right">KM 1a Vida</th>
                      <th className="p-6 text-right">KM Recap</th>
                      <th className="p-6 text-right bg-blue-50/50 dark:bg-blue-900/10">CPK Real</th>
                      <th className="p-6 text-center">Status</th>
@@ -365,7 +365,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                         <td className="p-6 text-center">
                            {idx === 0 ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-full uppercase border border-emerald-100 dark:border-emerald-800">
-                                 <ArrowDownRight className="h-3 w-3" /> Campeão
+                                 <ArrowDownRight className="h-3 w-3" /> Campeao
                               </span>
                            ) : (
                               <span className="text-slate-400 font-bold text-xs">
@@ -395,11 +395,11 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
           <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50 dark:bg-slate-950/50 print:bg-white print:p-0 print:mb-4 print:border-none">
               <div>
                   <h3 className="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-                      <FileSpreadsheet className="h-5 w-5 text-blue-600" /> Relatório de Movimentação
+                      <FileSpreadsheet className="h-5 w-5 text-blue-600" /> Relatorio de Movimentacao
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1 print:hidden">Gere relatórios detalhados de uso, recapagens e descartes por período.</p>
+                  <p className="text-xs text-slate-500 mt-1 print:hidden">Gere relatorios detalhados de uso, recapagens e descartes por periodo.</p>
                   <p className="text-xs text-slate-500 mt-1 hidden print:block">
-                      Período: {reportStartDate ? new Date(reportStartDate).toLocaleDateString() : 'Início'} até {reportEndDate ? new Date(reportEndDate).toLocaleDateString() : 'Fim'}
+                      Periodo: {reportStartDate ? new Date(reportStartDate).toLocaleDateString() : 'Inicio'} ate {reportEndDate ? new Date(reportEndDate).toLocaleDateString() : 'Fim'}
                   </p>
               </div>
               
@@ -434,7 +434,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
               {!reportData ? (
                   <div className="text-center py-12 text-slate-400 print:hidden">
                       <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">Selecione um período acima para visualizar os dados.</p>
+                      <p className="text-sm font-medium">Selecione um periodo acima para visualizar os dados.</p>
                   </div>
               ) : (
                   <>
@@ -491,9 +491,9 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
                       </div>
                   </div>
                   
-                  {/* RESUMO DO PERÍODO */}
+                  {/* RESUMO DO PERIODO */}
                   <div className="bg-slate-800 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
-                      <h4 className="font-black text-lg uppercase tracking-widest">Resumo Líquido do Período</h4>
+                      <h4 className="font-black text-lg uppercase tracking-widest">Resumo Liquido do Periodo</h4>
                       <div className="flex gap-8">
                           <div className="text-center">
                               <p className="text-[10px] text-slate-400 uppercase font-bold">Saldo de Pneus</p>

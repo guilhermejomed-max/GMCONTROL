@@ -25,7 +25,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
       const v: Vehicle = {
         id: Date.now().toString(),
         plate: vehiclePlate.toUpperCase(),
-        model: 'Modelo Padrão',
+        model: 'Modelo Padrao',
         type: 'CAVALO',
         axles: 2,
         odometer: 0,
@@ -94,19 +94,19 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
             </div>
             <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-2">Bem-vindo ao GM Control!</h2>
             <p className="text-slate-500 dark:text-slate-400 mb-8 text-lg">
-              Seu sistema profissional de gestão de frotas está pronto. Vamos configurar o básico em menos de 1 minuto?
+              Seu sistema profissional de gestao de frotas esta pronto. Vamos configurar o basico em menos de 1 minuto?
             </p>
             <button 
               onClick={() => setStep(2)}
               className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
             >
-              Começar Agora <ArrowRight className="h-5 w-5" />
+              Comecar Agora <ArrowRight className="h-5 w-5" />
             </button>
             <button 
               onClick={onComplete}
               className="mt-4 text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
             >
-              Pular configuração (Ir para Dashboard)
+              Pular configuracao (Ir para Dashboard)
             </button>
           </div>
         )}
@@ -119,8 +119,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                 <Truck className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Seu Primeiro Veículo</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Qual a placa do seu caminhão principal?</p>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Seu Primeiro Veiculo</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Qual a placa do seu caminhao principal?</p>
               </div>
             </div>
             
@@ -152,8 +152,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                 <Disc className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Pneu Padrão</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Qual marca você mais usa?</p>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Pneu Padrao</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Qual marca voce mais usa?</p>
               </div>
             </div>
             
@@ -187,7 +187,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
             </div>
             <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-2">Tudo Pronto!</h2>
             <p className="text-slate-500 dark:text-slate-400 mb-8">
-              Você já tem 1 veículo e 1 pneu cadastrados.<br/>Explore o sistema e assuma o controle.
+              Voce ja tem 1 veiculo e 1 pneu cadastrados.<br/>Explore o sistema e assuma o controle.
             </p>
             <button 
               onClick={onComplete}

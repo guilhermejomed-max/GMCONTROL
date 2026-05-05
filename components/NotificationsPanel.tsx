@@ -37,7 +37,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   onDeleteAllAlerts 
 }) => {
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
 
@@ -75,7 +75,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
       if (s.status !== 'OVERDUE') return false;
       const vehicle = vehicles.find(v => v.id === s.vehicleId);
       const plan = maintenancePlans.find(p => p.id === s.planId);
-      const isOil = plan?.name.toLowerCase().includes('óleo') || plan?.name.toLowerCase().includes('oleo');
+      const isOil = plan?.name.toLowerCase().includes('oleo') || plan?.name.toLowerCase().includes('oleo');
       return isOil && isVehicleAtBase(vehicle);
     });
 
@@ -157,7 +157,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           <div>
             <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
               <Bell className="h-5 w-5 text-blue-600"/>
-              Notificações
+              Notificacoes
               {totalAlerts > 0 && <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">{totalAlerts}</span>}
             </h3>
           </div>
@@ -179,10 +179,10 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           )}
 
           {/* OVERDUE MAINTENANCE */}
-          <NotificationGroup title="Manutenção Vencida" items={visibleMaintenance}>
+          <NotificationGroup title="Manutencao Vencida" items={visibleMaintenance}>
             {(schedule: any) => {
               const vehicle = vehicles.find(v => v.id === schedule.vehicleId);
-              const planName = schedule.isVehicleBased ? 'Troca de Óleo (Preventiva)' : maintenancePlans.find(p => p.id === schedule.planId)?.name;
+              const planName = schedule.isVehicleBased ? 'Troca de Oleo (Preventiva)' : maintenancePlans.find(p => p.id === schedule.planId)?.name;
               return (
                 <div key={schedule.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-red-100 dark:border-red-900/30 shadow-sm flex items-start gap-3 relative group transition-all hover:shadow-md">
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
@@ -190,7 +190,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                     <AlertTriangle className="h-5 w-5"/>
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-bold text-slate-800 dark:text-white text-sm">{vehicle?.plate || 'Veículo'}</h4>
+                    <h4 className="font-bold text-slate-800 dark:text-white text-sm">{vehicle?.plate || 'Veiculo'}</h4>
                     <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Plano: <span className="font-bold">{planName}</span></p>
                   </div>
                   <button onClick={() => dismissNotification(schedule.id)} className="text-slate-300 hover:text-slate-500"><X className="h-4 w-4"/></button>
@@ -211,7 +211,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                   </div>
                   <div className="flex-1">
                     <h4 className="font-bold text-slate-800 dark:text-white text-sm">Fogo: {tire.fireNumber}</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Veículo: {vehicle?.plate || 'Estoque'} • Sulco: <span className="text-red-500 font-black">{tire.currentTreadDepth}mm</span></p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Veiculo: {vehicle?.plate || 'Estoque'} • Sulco: <span className="text-red-500 font-black">{tire.currentTreadDepth}mm</span></p>
                   </div>
                   <button onClick={() => dismissNotification(tire.id)} className="text-slate-300 hover:text-slate-500"><X className="h-4 w-4"/></button>
                 </div>
@@ -237,7 +237,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
           </NotificationGroup>
 
           {/* SYSTEM MENTIONS */}
-          <NotificationGroup title="Menções e Equipe" items={unreadNotifications}>
+          <NotificationGroup title="Mencoes e Equipe" items={unreadNotifications}>
             {(note: AppNotification) => (
               <div 
                 key={note.id} 
@@ -252,7 +252,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                   <h4 className="font-bold text-slate-800 dark:text-white text-sm">{note.senderName}</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 font-medium">{note.text}</p>
                   <span className="text-[10px] text-slate-400 mt-1 block">
-                    {new Date(note.createdAt).toLocaleDateString('pt-BR')} às {new Date(note.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(note.createdAt).toLocaleDateString('pt-BR')} as {new Date(note.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <button 

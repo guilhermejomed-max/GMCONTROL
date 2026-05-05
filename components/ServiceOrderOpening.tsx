@@ -71,7 +71,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
     occurrenceId: occurrenceId || '',
     vehiclePlate: vehicleId ? vehicles.find(v => v.id === vehicleId)?.plate || '' : '',
     odometer: 0,
-    indisponibilidade: 'Não',
+    indisponibilidade: 'Nao',
     supplierName: '',
     providerName: '',
     externalServiceCost: 0,
@@ -152,7 +152,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
       setSelectedPartId(item.id);
       setIsScannerOpen(false);
     } else {
-      alert(`Peça com código ${code} não encontrada no estoque.`);
+      alert(`Peca com codigo ${code} nao encontrada no estoque.`);
     }
   };
 
@@ -229,7 +229,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             <div className="p-1.5 bg-blue-600 rounded">
               <Wrench className="h-4 w-4 text-white" />
             </div>
-            <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight">Abertura de Ordem de Serviço</h2>
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight">Abertura de Ordem de Servico</h2>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-slate-300 rounded-full transition-colors">
             <X className="h-5 w-5 text-slate-600" />
@@ -262,7 +262,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
               </div>
             </div>
             <div className="col-span-1 md:col-span-6">
-              <label className={labelClass}>Número da OS :</label>
+              <label className={labelClass}>Numero da OS :</label>
               <input 
                 type="text" 
                 className={`${inputClass} bg-white font-bold text-blue-700`} 
@@ -277,8 +277,8 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             <div className="col-span-1 md:col-span-12">
               <label className={labelClass}>Tipo :</label>
               <select name="serviceType" value={formData.serviceType} className={inputClass} onChange={handleChange}>
-                <option value="INTERNAL">Serviços Interno</option>
-                <option value="EXTERNAL">Serviços Externo</option>
+                <option value="INTERNAL">Servicos Interno</option>
+                <option value="EXTERNAL">Servicos Externo</option>
                 <option value="BOTH">Misto</option>
               </select>
             </div>
@@ -288,8 +288,8 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-12">
               <label className={labelClass}>Gerou Indisponibilidade :</label>
-              <select name="indisponibilidade" value={formData.indisponibilidade || 'Não'} className={inputClass} onChange={handleChange}>
-                <option value="Não">Não</option>
+              <select name="indisponibilidade" value={formData.indisponibilidade || 'Nao'} className={inputClass} onChange={handleChange}>
+                <option value="Nao">Nao</option>
                 <option value="Sim">Sim</option>
               </select>
             </div>
@@ -302,7 +302,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
               <input type="text" name="date" value={formData.date + ' ' + new Date().toLocaleTimeString().substring(0, 5)} className={inputClass} readOnly />
             </div>
             <div className="col-span-1 md:col-span-4">
-              <label className={labelClass}>Duração dos proc. :</label>
+              <label className={labelClass}>Duracao dos proc. :</label>
               <input type="text" name="duration" className={inputClass} value="00:00" readOnly />
             </div>
             <div className="col-span-1 md:col-span-4">
@@ -337,10 +337,10 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           )}
 
-          {/* Row 7: Veículo, Box */}
+          {/* Row 7: Veiculo, Box */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-5 relative" ref={vehicleDropdownRef}>
-              <label className={labelClass}>Placa do Veículo :</label>
+              <label className={labelClass}>Placa do Veiculo :</label>
               <div className="flex gap-1">
                 <div className="relative flex-1">
                   <input 
@@ -392,15 +392,15 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
             <div className="col-span-1 md:col-span-8">
               <div className="bg-slate-200 border border-slate-300 rounded px-2 py-1 text-[9px] text-slate-500">
-                Ultima OS encerrada : 12609 / Km saída : 307225 / Data : 09/03/26 09:48
+                Ultima OS encerrada : 12609 / Km saida : 307225 / Data : 09/03/26 09:48
               </div>
             </div>
           </div>
 
-          {/* Row 11: Funcionário */}
+          {/* Row 11: Funcionario */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Funcionário :</label>
+              <label className={labelClass}>Funcionario :</label>
               <select 
                 name="employeeId" 
                 className={inputClass} 
@@ -418,10 +418,10 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 12: Tipos de serviço */}
+          {/* Row 12: Tipos de servico */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Tipos de serviço :</label>
+              <label className={labelClass}>Tipos de servico :</label>
               <select 
                 name="sectorId" 
                 className={inputClass} 
@@ -439,10 +439,10 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 13: Classificação */}
+          {/* Row 13: Classificacao */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Classificação :</label>
+              <label className={labelClass}>Classificacao :</label>
               <select 
                 name="classificationId" 
                 className={inputClass} 
@@ -452,7 +452,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
                   setFormData(prev => ({ ...prev, classificationId: e.target.value, classificationName: classification?.name }));
                 }}
               >
-                <option value="">Selecione a Classificação...</option>
+                <option value="">Selecione a Classificacao...</option>
                 {classifications.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -460,10 +460,10 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 13.5: Base de Manutenção (Added for Arrival Alert) */}
+          {/* Row 13.5: Base de Manutencao (Added for Arrival Alert) */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Base de Manutenção (Gera Alerta de Chegada) :</label>
+              <label className={labelClass}>Base de Manutencao (Gera Alerta de Chegada) :</label>
               <select 
                 name="maintenanceBaseId" 
                 className={inputClass} 
@@ -553,10 +553,10 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           )}
 
-          {/* Row 14: Serviços Solicitados */}
+          {/* Row 14: Servicos Solicitados */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
             <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Serviços solicitados :</label>
+              <label className={labelClass}>Servicos solicitados :</label>
               <textarea 
                 name="details" 
                 className={`${inputClass} h-12 resize-none`} 
@@ -566,10 +566,10 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 15: Observações */}
+          {/* Row 15: Observacoes */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
             <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Observações :</label>
+              <label className={labelClass}>Observacoes :</label>
               <textarea 
                 name="notes" 
                 className={`${inputClass} h-12 resize-none`} 
@@ -578,21 +578,21 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             </div>
           </div>
 
-          {/* Row 16: Peças (Added) */}
+          {/* Row 16: Pecas (Added) */}
           <div className="space-y-2 border border-slate-300 rounded p-3 bg-slate-100/50">
             <h3 className={sectionTitleClass}>
-              <Package className="h-3 w-3" /> Peças e Materiais
+              <Package className="h-3 w-3" /> Pecas e Materiais
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
               <div className="col-span-1 md:col-span-7">
-                <label className={labelClass}>Selecionar Peça :</label>
+                <label className={labelClass}>Selecionar Peca :</label>
                 <div className="flex gap-1">
                   <select 
                     className={inputClass}
                     value={selectedPartId}
                     onChange={(e) => setSelectedPartId(e.target.value)}
                   >
-                    <option value="">Selecione uma peça do estoque...</option>
+                    <option value="">Selecione uma peca do estoque...</option>
                     {stockItems.map(item => (
                       <option key={item.id} value={item.id}>{item.name} (R$ {item.averageCost.toFixed(2)})</option>
                     ))}
@@ -601,7 +601,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
                     type="button"
                     onClick={() => setIsScannerOpen(true)}
                     className="p-1 bg-blue-100 text-blue-600 rounded border border-blue-200 hover:bg-blue-200"
-                    title="Escanear Código"
+                    title="Escanear Codigo"
                   >
                     <ScanLine className="h-4 w-4" />
                   </button>
@@ -633,7 +633,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
                 <table className="w-full text-[10px]">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="px-2 py-1 text-left">Peça</th>
+                      <th className="px-2 py-1 text-left">Peca</th>
                       <th className="px-2 py-1 text-center">Qtd</th>
                       <th className="px-2 py-1 text-right">Unit</th>
                       <th className="px-2 py-1 text-right">Total</th>
@@ -664,7 +664,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
             )}
           </div>
 
-          {/* Footer: Custos e Botões */}
+          {/* Footer: Custos e Botoes */}
           <div className="pt-4 border-t border-slate-400 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
@@ -687,7 +687,7 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
                 />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-slate-800 font-bold text-[10px] uppercase">+ Valor Peças :</span>
+                <span className="text-slate-800 font-bold text-[10px] uppercase">+ Valor Pecas :</span>
                 <input 
                   type="number" 
                   name="partsCost"
@@ -720,13 +720,13 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
           {/* Meta Info */}
           <div className="grid grid-cols-12 gap-2 text-[9px] text-slate-500 pt-2">
             <div className="col-span-4">
-              Última Interação : <span className="bg-slate-200 px-1 rounded">08/04/2026 09:25</span>
+              Ultima Interacao : <span className="bg-slate-200 px-1 rounded">08/04/2026 09:25</span>
             </div>
             <div className="col-span-4">
-              Usuário Abertura : <span className="bg-slate-200 px-1 rounded">{currentUser?.name || currentUser?.email || 'GUILHERME.MARTINS'}</span>
+              Usuario Abertura : <span className="bg-slate-200 px-1 rounded">{currentUser?.name || currentUser?.email || 'GUILHERME.MARTINS'}</span>
             </div>
             <div className="col-span-4 text-right">
-              Data Inclusão / Atualização : <span className="bg-slate-200 px-1 rounded">09/04/2026 09:26</span>
+              Data Inclusao / Atualizacao : <span className="bg-slate-200 px-1 rounded">09/04/2026 09:26</span>
             </div>
           </div>
         </form>
@@ -736,8 +736,8 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
         <Scanner 
           onScan={handleScanPart} 
           onClose={() => setIsScannerOpen(false)} 
-          title="Escanear Peça"
-          placeholder="Código de barras..."
+          title="Escanear Peca"
+          placeholder="Codigo de barras..."
         />
       )}
     </div>

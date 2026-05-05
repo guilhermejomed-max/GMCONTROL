@@ -41,7 +41,7 @@ const formatDate = (val: string) => {
     }
 };
 
-// --- DEFINIÇÃO ESTÁTICA DE COLUNAS ---
+// --- DEFINICAO ESTATICA DE COLUNAS ---
 const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
     TIRES: [
       { id: 'fireNumber', label: 'Fogo', accessor: (t: Tire) => t.fireNumber },
@@ -49,8 +49,8 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'model', label: 'Modelo', accessor: (t: Tire) => t.model },
       { id: 'size', label: 'Medida', accessor: (t: Tire) => `${t.width}/${t.profile} R${t.rim}` },
       { id: 'status', label: 'Status', accessor: (t: Tire) => t.status },
-      { id: 'vehicle', label: 'Veículo Atual', accessor: (t: Tire, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === t.vehicleId)?.plate || (t.location || 'Estoque') },
-      { id: 'position', label: 'Posição', accessor: (t: Tire) => t.position || '-' },
+      { id: 'vehicle', label: 'Veiculo Atual', accessor: (t: Tire, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === t.vehicleId)?.plate || (t.location || 'Estoque') },
+      { id: 'position', label: 'Posicao', accessor: (t: Tire) => t.position || '-' },
       { id: 'depth', label: 'Sulco (mm)', accessor: (t: Tire) => Number(t.currentTreadDepth || 0).toFixed(1) },
       { id: 'kms', label: 'KM Total', accessor: (t: Tire) => (t.totalKms || 0).toLocaleString() },
       { id: 'cost', label: 'Investimento', accessor: (t: Tire) => Number(t.totalInvestment || t.price || 0), format: money },
@@ -73,27 +73,27 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'type', label: 'Tipo', accessor: (v: Vehicle) => v.type },
       { id: 'year', label: 'Ano', accessor: (v: Vehicle) => v.year || '-' },
       { id: 'color', label: 'Cor', accessor: (v: Vehicle) => v.color || '-' },
-      { id: 'fuelType', label: 'Combustível', accessor: (v: Vehicle) => v.fuelType || '-' },
+      { id: 'fuelType', label: 'Combustivel', accessor: (v: Vehicle) => v.fuelType || '-' },
       { id: 'axles', label: 'Eixos', accessor: (v: Vehicle) => v.axles || 0 },
-      { id: 'odometer', label: 'Hodômetro', accessor: (v: Vehicle) => v.odometer?.toLocaleString() || '0' },
+      { id: 'odometer', label: 'Hodometro', accessor: (v: Vehicle) => v.odometer?.toLocaleString() || '0' },
       { id: 'vin', label: 'Chassi', accessor: (v: Vehicle) => v.vin || '-' },
       { id: 'renavam', label: 'Renavam', accessor: (v: Vehicle) => v.renavam || '-' },
       { id: 'engine', label: 'Motor', accessor: (v: Vehicle) => v.engine || '-' },
-      { id: 'transmission', label: 'Câmbio', accessor: (v: Vehicle) => v.transmission || '-' },
+      { id: 'transmission', label: 'Cambio', accessor: (v: Vehicle) => v.transmission || '-' },
       { id: 'tiresBrand', label: 'Marca Pneus', accessor: (v: Vehicle) => v.tiresBrand || '-' },
       { id: 'tiresSize', label: 'Medida Pneus', accessor: (v: Vehicle) => v.tiresSize || '-' },
       { id: 'tireCount', label: 'Qtd Pneus', accessor: (v: Vehicle, ctx: any) => ctx.tires?.filter((t: Tire) => t.vehicleId === v.id).length || 0 },
-      { id: 'location', label: 'Última Loc.', accessor: (v: Vehicle) => v.lastLocation?.city || '-' },
-      { id: 'lastUpdate', label: 'Atualização', accessor: (v: Vehicle) => formatDate(v.lastLocation?.updatedAt || '') },
+      { id: 'location', label: 'Ultima Loc.', accessor: (v: Vehicle) => v.lastLocation?.city || '-' },
+      { id: 'lastUpdate', label: 'Atualizacao', accessor: (v: Vehicle) => formatDate(v.lastLocation?.updatedAt || '') },
     ],
     MAINTENANCE: [
       { id: 'date', label: 'Data', accessor: (o: ServiceOrder) => formatDate(o.date || o.completedAt || o.createdAt) },
-      { id: 'vehicle', label: 'Veículo', accessor: (o: ServiceOrder, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === o.vehicleId)?.plate || '-' },
-      { id: 'title', label: 'Serviço', accessor: (o: ServiceOrder) => o.title },
+      { id: 'vehicle', label: 'Veiculo', accessor: (o: ServiceOrder, ctx: any) => ctx.vehicles?.find((v: Vehicle) => v.id === o.vehicleId)?.plate || '-' },
+      { id: 'title', label: 'Servico', accessor: (o: ServiceOrder) => o.title },
       { id: 'status', label: 'Status', accessor: (o: ServiceOrder) => o.status },
       { id: 'mechanic', label: 'Colaborador', accessor: (o: ServiceOrder) => o.collaboratorName || '-' },
-      { id: 'laborCost', label: 'Mão de Obra', accessor: (o: ServiceOrder) => o.laborCost || 0, format: money },
-      { id: 'partsCost', label: 'Peças', accessor: (o: ServiceOrder) => (o.parts || []).reduce((sum, p) => sum + (p.quantity * p.unitCost), 0), format: money },
+      { id: 'laborCost', label: 'Mao de Obra', accessor: (o: ServiceOrder) => o.laborCost || 0, format: money },
+      { id: 'partsCost', label: 'Pecas', accessor: (o: ServiceOrder) => (o.parts || []).reduce((sum, p) => sum + (p.quantity * p.unitCost), 0), format: money },
       { id: 'cost', label: 'Custo Total', accessor: (o: ServiceOrder) => {
         const partsCost = (o.parts || []).reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
         return (o.laborCost || 0) + partsCost;
@@ -102,56 +102,56 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
     MOVEMENTS: [
       { id: 'date', label: 'Data', accessor: (log: any) => formatDate(log.date) },
       { id: 'tire', label: 'Pneu', accessor: (log: any, ctx: any) => ctx.tires?.find((t: Tire) => t.id === log.tireId)?.fireNumber || (log.details?.match(/Pneu ([0-9A-Z]+)/)?.[1] || 'N/D') },
-      { id: 'action', label: 'Ação', accessor: (log: any) => log.action },
+      { id: 'action', label: 'Acao', accessor: (log: any) => log.action },
       { id: 'details', label: 'Detalhes', accessor: (log: any) => log.details },
     ],
     MISSING_TIRES: [
       { id: 'plate', label: 'Placa', accessor: (m: any) => m.plate },
       { id: 'fleetNumber', label: 'Prefixo', accessor: (m: any) => m.fleetNumber },
       { id: 'model', label: 'Modelo', accessor: (m: any) => m.model },
-      { id: 'axle', label: 'Eixo', accessor: (m: any) => `${m.axle}º Eixo` },
-      { id: 'position', label: 'Posição', accessor: (m: any) => m.position },
+      { id: 'axle', label: 'Eixo', accessor: (m: any) => `${m.axle}o Eixo` },
+      { id: 'position', label: 'Posicao', accessor: (m: any) => m.position },
     ],
     COSTS: [
       { id: 'date', label: 'Data', accessor: (item: any) => formatDate(item.date) },
       { id: 'type', label: 'Tipo Custo', accessor: (item: any) => item.type },
       { id: 'ref', label: 'Ref (Placa/Fogo)', accessor: (item: any) => item.ref },
       { id: 'value', label: 'Valor', accessor: (item: any) => item.value, format: money },
-      { id: 'desc', label: 'Descrição', accessor: (item: any) => item.desc },
+      { id: 'desc', label: 'Descricao', accessor: (item: any) => item.desc },
     ],
     SUMMARY: [
-      { id: 'metric', label: 'Métrica', accessor: (item: any) => item.metric },
+      { id: 'metric', label: 'Metrica', accessor: (item: any) => item.metric },
       { id: 'value', label: 'Valor', accessor: (item: any) => item.value },
     ],
     BRAND_MODELS: [
       { id: 'brand', label: 'Marca', accessor: (item: any) => item.brand },
       { id: 'model', label: 'Modelo', accessor: (item: any) => item.model },
       { id: 'type', label: 'Tipo', accessor: (item: any) => item.type },
-      { id: 'vehicleCount', label: 'Qtd Veículos', accessor: (item: any) => item.vehicleCount },
+      { id: 'vehicleCount', label: 'Qtd Veiculos', accessor: (item: any) => item.vehicleCount },
       { id: 'totalKms', label: 'KM Total da Frota', accessor: (item: any) => item.totalKms.toLocaleString() },
-      { id: 'avgKms', label: 'KM Médio', accessor: (item: any) => item.avgKms.toLocaleString() },
+      { id: 'avgKms', label: 'KM Medio', accessor: (item: any) => item.avgKms.toLocaleString() },
     ],
     MODEL_COSTS: [
-      { id: 'model', label: 'Modelo do Veículo', accessor: (item: any) => item.model },
+      { id: 'model', label: 'Modelo do Veiculo', accessor: (item: any) => item.model },
       { id: 'plate', label: 'Placa', accessor: (item: any) => item.plate },
       { id: 'date', label: 'Data', accessor: (item: any) => formatDate(item.date) },
-      { id: 'service', label: 'Serviço/Manutenção', accessor: (item: any) => item.service },
+      { id: 'service', label: 'Servico/Manutencao', accessor: (item: any) => item.service },
       { id: 'cost', label: 'Custo', accessor: (item: any) => item.cost, format: money },
     ],
     OCCURRENCES: [
       { id: 'date', label: 'Data', accessor: (o: Occurrence) => formatDate(o.createdAt) },
-      { id: 'vehicle', label: 'Veículo', accessor: (o: Occurrence) => o.vehiclePlate },
+      { id: 'vehicle', label: 'Veiculo', accessor: (o: Occurrence) => o.vehiclePlate },
       { id: 'reason', label: 'Motivo', accessor: (o: Occurrence) => o.reasonName },
-      { id: 'description', label: 'Descrição', accessor: (o: Occurrence) => o.description || '-' },
+      { id: 'description', label: 'Descricao', accessor: (o: Occurrence) => o.description || '-' },
       { id: 'status', label: 'Status', accessor: (o: Occurrence) => o.status === 'OPEN' ? 'Pendente' : 'Resolvido' },
       { id: 'user', label: 'Relatado por', accessor: (o: Occurrence) => o.userName },
       { id: 'resolvedAt', label: 'Resolvido em', accessor: (o: Occurrence) => o.resolvedAt ? formatDate(o.resolvedAt) : '-' },
     ],
     FUEL: [
       { id: 'date', label: 'Data', accessor: (e: any) => formatDate(e.date) },
-      { id: 'vehicle', label: 'Veículo', accessor: (e: any) => e.vehiclePlate },
+      { id: 'vehicle', label: 'Veiculo', accessor: (e: any) => e.vehiclePlate },
       { id: 'liters', label: 'Litros', accessor: (e: any) => e.liters.toLocaleString() },
-      { id: 'unitPrice', label: 'Preço Unit.', accessor: (e: any) => e.unitPrice, format: money },
+      { id: 'unitPrice', label: 'Preco Unit.', accessor: (e: any) => e.unitPrice, format: money },
       { id: 'totalCost', label: 'Total', accessor: (e: any) => e.totalCost, format: money },
       { id: 'odometer', label: 'KM', accessor: (e: any) => e.odometer.toLocaleString() },
       { id: 'station', label: 'Posto', accessor: (e: any) => e.stationName || '-' },
@@ -161,7 +161,7 @@ const COLUMN_DEFINITIONS: Record<ReportSource, ColumnDef[]> = {
       { id: 'category', label: 'Categoria', accessor: (item: any) => item.category },
       { id: 'value', label: 'Valor Total', accessor: (item: any) => item.value, format: money },
       { id: 'percentage', label: '% do Total', accessor: (item: any) => `${item.percentage.toFixed(1)}%` },
-      { id: 'count', label: 'Qtd. Lançamentos', accessor: (item: any) => item.count },
+      { id: 'count', label: 'Qtd. Lancamentos', accessor: (item: any) => item.count },
     ]
 };
 
@@ -186,7 +186,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   const tires = useMemo(() => {
-    // Pneus agora são universais
+    // Pneus agora sao universais
     return allTires;
   }, [allTires]);
 
@@ -208,7 +208,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
     return allFuelEntries;
   }, [allFuelEntries]);
   
-  // Inicializa com as colunas padrão
+  // Inicializa com as colunas padrao
   const [selectedColumns, setSelectedColumns] = useState<string[]>(
       COLUMN_DEFINITIONS[
         activeModule === 'TIRES' ? 'TIRES' : 
@@ -255,7 +255,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
   };
 
   // --- HANDLER PARA TROCA DE FONTE ---
-  // Atualiza a fonte e as colunas simultaneamente para evitar renderização vazia
+  // Atualiza a fonte e as colunas simultaneamente para evitar renderizacao vazia
   const handleSourceChange = (newSource: ReportSource) => {
       setSource(newSource);
       // Seleciona automaticamente as primeiras 8 colunas da nova fonte
@@ -297,7 +297,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
     } else if (source === 'COSTS') {
       const purchases = tires.map(t => ({
         date: t.purchaseDate || (t.history?.find(h => h.action === 'CADASTRADO')?.date) || new Date().toISOString(),
-        type: 'AQUISIÇÃO',
+        type: 'AQUISICAO',
         ref: t.fireNumber,
         value: t.price || 0,
         desc: `Compra ${t.brand} ${t.model}`
@@ -316,7 +316,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
         const totalCost = (o.laborCost || 0) + partsCost;
         return {
           date: o.date || o.completedAt || o.createdAt,
-          type: 'MANUTENÇÃO',
+          type: 'MANUTENCAO',
           ref: o.vehiclePlate,
           value: totalCost, 
           desc: `${o.title} ${o.collaboratorName ? `(${o.collaboratorName})` : ''}`
@@ -425,7 +425,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
             (o.parts || []).forEach(p => {
                 const name = p.name.toUpperCase();
                 const partCost = p.quantity * p.unitCost;
-                if (name.includes('ÓLEO') || name.includes('OLEO')) {
+                if (name.includes('OLEO') || name.includes('OLEO')) {
                     costs.oil.value += partCost;
                     costs.oil.count++;
                 } else if (name.includes('FILTRO')) {
@@ -451,16 +451,16 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
         const total = Object.values(costs).reduce((acc, c) => acc + c.value, 0);
 
         rawData = [
-            { category: 'Óleo', value: costs.oil.value, count: costs.oil.count, percentage: total > 0 ? (costs.oil.value / total) * 100 : 0 },
+            { category: 'Oleo', value: costs.oil.value, count: costs.oil.count, percentage: total > 0 ? (costs.oil.value / total) * 100 : 0 },
             { category: 'Filtros', value: costs.filters.value, count: costs.filters.count, percentage: total > 0 ? (costs.filters.value / total) * 100 : 0 },
-            { category: 'Mão de Obra Interna', value: costs.internalLabor.value, count: costs.internalLabor.count, percentage: total > 0 ? (costs.internalLabor.value / total) * 100 : 0 },
-            { category: 'Mão de Obra Externa', value: costs.externalLabor.value, count: costs.externalLabor.count, percentage: total > 0 ? (costs.externalLabor.value / total) * 100 : 0 },
-            { category: 'Outras Peças', value: costs.otherParts.value, count: costs.otherParts.count, percentage: total > 0 ? (costs.otherParts.value / total) * 100 : 0 },
+            { category: 'Mao de Obra Interna', value: costs.internalLabor.value, count: costs.internalLabor.count, percentage: total > 0 ? (costs.internalLabor.value / total) * 100 : 0 },
+            { category: 'Mao de Obra Externa', value: costs.externalLabor.value, count: costs.externalLabor.count, percentage: total > 0 ? (costs.externalLabor.value / total) * 100 : 0 },
+            { category: 'Outras Pecas', value: costs.otherParts.value, count: costs.otherParts.count, percentage: total > 0 ? (costs.otherParts.value / total) * 100 : 0 },
             { category: 'Pneus (Reformas)', value: costs.retreading.value, count: costs.retreading.count, percentage: total > 0 ? (costs.retreading.value / total) * 100 : 0 },
         ];
         return rawData;
     } else if (source === 'SUMMARY') {
-        // Cálculo do resumo
+        // Calculo do resumo
         const filteredTires = tires.filter(t => {
             const d = new Date(t.purchaseDate ? t.purchaseDate + (t.purchaseDate.includes('T') ? '' : 'T12:00:00') : new Date());
             if (startDate && d < new Date(startDate + 'T12:00:00')) return false;
@@ -548,7 +548,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
     return filtered;
   }, [source, tires, vehicles, serviceOrders, retreadOrders, startDate, endDate, searchText, sortConfig, selectedModel, selectedPlate, selectedType]);
 
-  // --- RESUMO DO RELATÓRIO ---
+  // --- RESUMO DO RELATORIO ---
   const reportSummary = useMemo(() => {
     if (reportData.length === 0) return null;
 
@@ -574,7 +574,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
     };
   }, [reportData, source, tires, vehicles]);
 
-  // --- FUNÇÕES DE INTERFACE ---
+  // --- FUNCOES DE INTERFACE ---
   const toggleColumn = (id: string) => {
     setSelectedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   };
@@ -598,7 +598,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
       cols.map(c => {
         const val = c.accessor(row, context);
         const formatted = c.format ? c.format(val) : (val !== undefined && val !== null ? val : '-');
-        // Remove pontos e vírgulas que podem quebrar o CSV se necessário, ou apenas escapa
+        // Remove pontos e virgulas que podem quebrar o CSV se necessario, ou apenas escapa
         return `"${String(formatted).replace(/"/g, '""')}"`;
       }).join(';')
     );
@@ -634,7 +634,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Relatório - GM Control</title>
+          <title>Relatorio - GM Control</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
             
@@ -757,13 +757,13 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
               <div class="logo-box">GM</div>
               <div class="company-info">
                 <h1>GM CONTROL</h1>
-                <p>Gestão Inteligente de Frotas e Pneus</p>
+                <p>Gestao Inteligente de Frotas e Pneus</p>
               </div>
             </div>
             <div class="report-meta">
-              <h2>${source === 'TIRES' ? 'Inventário de Pneus' : source === 'VEHICLES' ? 'Frota de Veículos' : source === 'MAINTENANCE' ? 'Relatório de Manutenção' : source === 'COSTS' ? 'Análise Financeira' : source === 'MODEL_COSTS' ? 'Custos por Modelo' : source === 'OCCURRENCES' ? 'Relatório de Ocorrências' : 'Relatório Operacional'}</h2>
+              <h2>${source === 'TIRES' ? 'Inventario de Pneus' : source === 'VEHICLES' ? 'Frota de Veiculos' : source === 'MAINTENANCE' ? 'Relatorio de Manutencao' : source === 'COSTS' ? 'Analise Financeira' : source === 'MODEL_COSTS' ? 'Custos por Modelo' : source === 'OCCURRENCES' ? 'Relatorio de Ocorrencias' : 'Relatorio Operacional'}</h2>
               <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
-              <p>Período: ${startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Início'} — ${endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'}</p>
+              <p>Periodo: ${startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Inicio'} - ${endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'}</p>
             </div>
           </div>
 
@@ -779,7 +779,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                   <div class="value">${money(reportSummary.totalValue)}</div>
                 </div>
                 <div class="summary-container-item">
-                  <div class="label">Custo Médio</div>
+                  <div class="label">Custo Medio</div>
                   <div class="value">${money(reportSummary.avgValue || 0)}</div>
                 </div>
               ` : ''}
@@ -794,8 +794,8 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
           </table>
 
           <div class="footer">
-            <div>GM Control &copy; ${new Date().getFullYear()} • Sistema de Gestão</div>
-            <div>Relatório Gerencial • Documento Interno</div>
+            <div>GM Control &copy; ${new Date().getFullYear()} • Sistema de Gestao</div>
+            <div>Relatorio Gerencial • Documento Interno</div>
           </div>
 
           <script>
@@ -824,9 +824,9 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
-            <FileBarChart className="h-8 w-8 text-indigo-600"/> Centro de Inteligência
+            <FileBarChart className="h-8 w-8 text-indigo-600"/> Centro de Inteligencia
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Análise avançada de dados e exportação de relatórios gerenciais.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Analise avancada de dados e exportacao de relatorios gerenciais.</p>
         </div>
         <div className="flex gap-3">
           <button onClick={() => { 
@@ -862,26 +862,26 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
 
       <div className="flex flex-col lg:flex-row gap-8 h-full overflow-hidden">
         
-        {/* SIDEBAR DE CONFIGURAÇÃO */}
+        {/* SIDEBAR DE CONFIGURACAO */}
         {!isFullScreen && (
           <div className="w-full lg:w-80 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-y-auto custom-scrollbar flex-shrink-0">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
-              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-base"><Filter className="h-5 w-5 text-indigo-500"/> Parâmetros</h3>
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-base"><Filter className="h-5 w-5 text-indigo-500"/> Parametros</h3>
             </div>
             
             <div className="p-6 space-y-8">
               {/* FONTE DE DADOS */}
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">1. Módulo de Dados</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">1. Modulo de Dados</label>
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { id: 'TIRES', label: 'Inventário de Pneus', icon: Package, modules: ['TIRES'] },
+                    { id: 'TIRES', label: 'Inventario de Pneus', icon: Package, modules: ['TIRES'] },
                     { id: 'MISSING_TIRES', label: 'Pneus Faltantes', icon: AlertCircle, modules: ['TIRES'] },
                     { id: 'VEHICLES', label: 'Frota e KM', icon: Truck, modules: ['VEHICLES'] },
                     { id: 'FUEL', label: 'Abastecimento', icon: Fuel, modules: ['FUEL'] },
-                    { id: 'OCCURRENCES', label: 'Ocorrências', icon: AlertCircle, modules: ['VEHICLES'] },
+                    { id: 'OCCURRENCES', label: 'Ocorrencias', icon: AlertCircle, modules: ['VEHICLES'] },
                     { id: 'BRAND_MODELS', label: 'Marcas e Modelos', icon: Package, modules: ['VEHICLES'] },
-                    { id: 'MAINTENANCE', label: 'Manutenção', icon: Wrench, modules: ['MECHANICAL'] },
+                    { id: 'MAINTENANCE', label: 'Manutencao', icon: Wrench, modules: ['MECHANICAL'] },
                     { id: 'MODEL_COSTS', label: 'Custos por Modelo', icon: TrendingUp, modules: ['MECHANICAL'] },
                     { id: 'DETAILED_COSTS', label: 'Custos Detalhados', icon: DollarSign, modules: ['MECHANICAL'] }
                   ].filter(opt => !activeModule || opt.modules.includes(activeModule)).map(opt => (
@@ -917,7 +917,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Início</label>
+                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Inicio</label>
                       <input type="date" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={startDate} onChange={e => setStartDate(e.target.value)} />
                     </div>
                     <div>
@@ -950,7 +950,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Tipo de Veículo</label>
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block">Tipo de Veiculo</label>
                     <select 
                       className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
                       value={selectedType}
@@ -964,7 +964,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                 </div>
               </div>
 
-              {/* SELEÇÃO DE COLUNAS */}
+              {/* SELECAO DE COLUNAS */}
               <div>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex justify-between items-center">
                   <span>3. Colunas</span>
@@ -986,7 +986,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
           </div>
         )}
 
-        {/* ÁREA DE PRÉ-VISUALIZAÇÃO (TABELA) */}
+        {/* AREA DE PRE-VISUALIZACAO (TABELA) */}
         <div className={`flex-1 flex flex-col gap-8 overflow-hidden ${isFullScreen ? 'w-full' : ''}`}>
           
           {/* SUMMARY CARDS */}
@@ -1020,7 +1020,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
                         <TrendingUp className="h-7 w-7"/>
                       </div>
                       <div>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Média por Carro</p>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Media por Carro</p>
                         <p className="text-xl font-black text-slate-900 dark:text-white truncate">{money(reportSummary.avgValue || 0)}</p>
                       </div>
                     </div>
@@ -1034,7 +1034,7 @@ export const ReportsHub: React.FC<ReportsHubProps> = ({
             <div className="px-6 py-5 bg-slate-50/50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                <div className="flex items-center gap-3">
                   <Columns className="h-5 w-5 text-indigo-500"/>
-                  <span className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-tight">Pré-visualização dos Dados</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-tight">Pre-visualizacao dos Dados</span>
                </div>
                <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase mr-2">Status:</span>

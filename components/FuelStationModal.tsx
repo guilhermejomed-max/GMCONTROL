@@ -71,24 +71,24 @@ export const FuelStationModal: React.FC<FuelStationModalProps> = React.memo(({
               <input 
                 type="text" 
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
-                placeholder="Ex: São Paulo"
+                placeholder="Ex: Sao Paulo"
                 value={newStation.city}
                 onChange={e => setNewStation(prev => ({ ...prev, city: e.target.value }))}
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Endereço</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Endereco</label>
               <input 
                 type="text" 
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
-                placeholder="Rua, Número, Bairro"
+                placeholder="Rua, Numero, Bairro"
                 value={newStation.address}
                 onChange={e => setNewStation(prev => ({ ...prev, address: e.target.value }))}
               />
             </div>
             
             <div className="sm:col-span-2 space-y-3">
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Tipos de Combustível Disponíveis</label>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Tipos de Combustivel Disponiveis</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {COMMON_FUEL_TYPES.map(fuelType => {
                   const isSelected = newStation.fuelTypes?.includes(fuelType);
@@ -134,7 +134,7 @@ export const FuelStationModal: React.FC<FuelStationModalProps> = React.memo(({
               type="submit"
               className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none transition-all"
             >
-              {editingStation ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR POSTO'}
+              {editingStation ? 'SALVAR ALTERACOES' : 'CADASTRAR POSTO'}
             </button>
           </div>
         </form>

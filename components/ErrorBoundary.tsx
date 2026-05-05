@@ -38,8 +38,8 @@ class ErrorBoundary extends Component<Props, State> {
         if (this.state.error?.message) {
           const parsed = JSON.parse(this.state.error.message);
           if (parsed.error && parsed.operationType) {
-            errorMessage = "Erro de Permissão no Banco de Dados";
-            details = `Operação: ${parsed.operationType} em ${parsed.path || 'desconhecido'}`;
+            errorMessage = "Erro de Permissao no Banco de Dados";
+            details = `Operacao: ${parsed.operationType} em ${parsed.path || 'desconhecido'}`;
           }
         }
       } catch (e) {
@@ -55,7 +55,7 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">{errorMessage}</h1>
             <p className="text-slate-600 mb-6">
-              {details || "Tente recarregar a página ou entre em contato com o suporte se o problema persistir."}
+              {details || "Tente recarregar a pagina ou entre em contato com o suporte se o problema persistir."}
             </p>
             
             {details && (
@@ -69,7 +69,7 @@ class ErrorBoundary extends Component<Props, State> {
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
             >
               <RefreshCcw className="h-5 w-5" />
-              Recarregar Aplicação
+              Recarregar Aplicacao
             </button>
           </div>
         </div>
