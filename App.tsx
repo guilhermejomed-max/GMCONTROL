@@ -532,17 +532,13 @@ export const App = () => {
   }, []);
 
   useEffect(() => {
-    setProfileSchedulesLoaded(false);
-    if (!user?.uid) return;
-    const saved = localStorage.getItem(`gmcontrol:schedules:${user.uid}`);
-    if (!saved) {
-      setProfileSchedules([]);
-      setProfileSchedulesLoaded(true);
+    if (!user?.uid) {
+      setProfileSchedulesLoaded(false);
       return;
     }
-
+    const saved = localStorage.getItem(`gmcontrol:schedules:${user.uid}`);
     try {
-      setProfileSchedules(JSON.parse(saved));
+      setProfileSchedules(saved ? JSON.parse(saved) : []);
     } catch {
       setProfileSchedules([]);
     }
@@ -561,20 +557,22 @@ export const App = () => {
     if (!user?.uid) return;
     const timer = window.setInterval(() => {
       const now = new Date();
-      const currentTime = now.toTimeString().slice(0, 5); // HH:MM
-      const currentDate = now.toISOString().split('T')[0];
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const currentTime = `${hh}:${mm}`;
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const due = profileSchedulesRef.current.find(
-        item => item.enabled && item.time === currentTime && item.lastTriggeredDate !== currentDate
+        item => item.enabled && item.time === currentTime && item.lastTriggeredDate !== localDate
       );
       if (due) {
         setActiveScheduleAlert(due);
         setProfileSchedules(prev =>
-          prev.map(item => item.id === due.id ? { ...item, lastTriggeredDate: currentDate } : item)
+          prev.map(item => item.id === due.id ? { ...item, lastTriggeredDate: localDate } : item)
         );
       }
-    }, 5000); // verifica a cada 5s para nao perder o minuto
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, [user?.uid]); // sem profileSchedules na dep: usa ref para evitar stale closure
+  }, [user?.uid]);
 
   // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {
@@ -2698,7 +2696,7 @@ const distance = R * c; // in metres
                     onChange={event => setScheduleNotes(event.target.value)}
                     className="md:col-span-2 px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <button className="md:col-span-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-colors">
+                  <button type="submit" className="md:col-span-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-colors">
                     Agendar tarefa
                   </button>
                 </form>
