@@ -554,25 +554,27 @@ export const App = () => {
     localStorage.setItem(`gmcontrol:schedules:${user.uid}`, JSON.stringify(profileSchedules));
   }, [user?.uid, profileSchedules, profileSchedulesLoaded]);
 
-  const profileSchedulesRef = useRef(profileSchedules);
+  const profileSchedulesRef = useRef<ProfileSchedule[]>([]);
   useEffect(() => { profileSchedulesRef.current = profileSchedules; }, [profileSchedules]);
 
   useEffect(() => {
     if (!user?.uid) return;
     const timer = window.setInterval(() => {
       const now = new Date();
-      const currentTime = now.toTimeString().slice(0, 5);
+      const currentTime = now.toTimeString().slice(0, 5); // HH:MM
       const currentDate = now.toISOString().split('T')[0];
       const due = profileSchedulesRef.current.find(
         item => item.enabled && item.time === currentTime && item.lastTriggeredDate !== currentDate
       );
       if (due) {
         setActiveScheduleAlert(due);
-        setProfileSchedules(prev => prev.map(item => item.id === due.id ? { ...item, lastTriggeredDate: currentDate } : item));
+        setProfileSchedules(prev =>
+          prev.map(item => item.id === due.id ? { ...item, lastTriggeredDate: currentDate } : item)
+        );
       }
-    }, 10000);
+    }, 5000); // verifica a cada 5s para nao perder o minuto
     return () => window.clearInterval(timer);
-  }, [user?.uid]);
+  }, [user?.uid]); // sem profileSchedules na dep: usa ref para evitar stale closure
 
   // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {
