@@ -216,6 +216,8 @@ export const App = () => {
 
   // App State
   const [currentTab, setCurrentTab] = useState<TabView>('dashboard');
+  const [isMultitaskMode, setIsMultitaskMode] = useState(false);
+  const [multitaskTabs, setMultitaskTabs] = useState<[TabView, TabView]>(['fleet', 'movement']);
   const [isReportsFullScreen, setIsReportsFullScreen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -256,6 +258,10 @@ export const App = () => {
   const [allowedModules, setAllowedModules] = useState<ModuleType[]>(['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR']);
   const [activeModule, setActiveModule] = useState<ModuleType>('TIRES');
   const [trackerSettings, setTrackerSettings] = useState<TrackerSettings | null>(null);
+  const multitaskHasTires = isMultitaskMode && multitaskTabs.some(tab => ['dashboard', 'inventory', 'register', 'movement', 'inspection', 'financial'].includes(tab));
+  const multitaskHasMechanical = isMultitaskMode && multitaskTabs.some(tab => ['dashboard', 'maintenance', 'service-orders'].includes(tab));
+  const multitaskHasVehicles = isMultitaskMode && multitaskTabs.some(tab => ['dashboard', 'fleet', 'location'].includes(tab));
+  const multitaskHasFuel = isMultitaskMode && multitaskTabs.some(tab => ['dashboard', 'fuel'].includes(tab));
   
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [wasteDisposals, setWasteDisposals] = useState<WasteDisposal[]>([]);
@@ -487,7 +493,7 @@ export const App = () => {
 
   // 3. Tires Module Data (Lazy)
   useEffect(() => {
-    if (!user || (activeModule !== 'TIRES' && currentTab !== 'dashboard')) return;
+    if (!user || (activeModule !== 'TIRES' && currentTab !== 'dashboard' && !multitaskHasTires)) return;
     const unsubFinancialRecords = storageService.subscribeToFinancialRecords(orgId, setFinancialRecords);
     const unsubRetreadOrders = storageService.subscribeToRetreadOrders(orgId, setRetreadOrders);
     const unsubTireLoans = storageService.subscribeToTireLoans(orgId, setTireLoans);
@@ -497,11 +503,11 @@ export const App = () => {
         unsubRetreadOrders();
         unsubTireLoans();
     };
-  }, [user, activeModule, currentTab]);
+  }, [user, activeModule, currentTab, multitaskHasTires]);
 
   // 4. Mechanical Module Data (Lazy)
   useEffect(() => {
-    if (!user || (activeModule !== 'MECHANICAL' && currentTab !== 'dashboard' && currentTab !== 'command-center')) return;
+    if (!user || (activeModule !== 'MECHANICAL' && currentTab !== 'dashboard' && currentTab !== 'command-center' && !multitaskHasMechanical)) return;
     const unsubMaintenancePlans = storageService.subscribeToMaintenancePlans(orgId, setMaintenancePlans);
     const unsubPartners = storageService.subscribeToPartners(orgId, setPartners);
     const unsubPublicRequests = storageService.subscribeToPublicServiceRequests(setPublicServiceRequests);
@@ -511,21 +517,21 @@ export const App = () => {
         unsubPartners();
         unsubPublicRequests();
     };
-  }, [user, activeModule, currentTab]);
+  }, [user, activeModule, currentTab, multitaskHasMechanical]);
 
   // 5. Fuel Module Data (Lazy)
   useEffect(() => {
-    if ((!user && !isVehicleRgRoute) || (activeModule !== 'FUEL' && currentTab !== 'dashboard' && !isVehicleRgRoute)) return;
+    if ((!user && !isVehicleRgRoute) || (activeModule !== 'FUEL' && currentTab !== 'dashboard' && !multitaskHasFuel && !isVehicleRgRoute)) return;
     const unsubFuelEntries = storageService.subscribeToFuelEntries(orgId, setFuelEntries, limits.fuelEntries);
     
     return () => {
         unsubFuelEntries();
     };
-  }, [user, activeModule, currentTab, limits.fuelEntries, isVehicleRgRoute]);
+  }, [user, activeModule, currentTab, limits.fuelEntries, isVehicleRgRoute, multitaskHasFuel]);
 
   // 6. Other Data (Lazy - Occurrences and Fleet Specifics)
   useEffect(() => {
-    if (!user || (activeModule !== 'VEHICLES' && activeModule !== 'MECHANICAL' && activeModule !== 'JMDSSMAQ' && currentTab !== 'dashboard' && currentTab !== 'location' && currentTab !== 'occurrences' && currentTab !== 'service-orders')) return;
+    if (!user || (activeModule !== 'VEHICLES' && activeModule !== 'MECHANICAL' && activeModule !== 'JMDSSMAQ' && currentTab !== 'dashboard' && currentTab !== 'location' && currentTab !== 'occurrences' && currentTab !== 'service-orders' && !multitaskHasVehicles && !multitaskHasMechanical && !multitaskHasFuel)) return;
     const unsubArrivalAlerts = storageService.subscribeToArrivalAlerts(orgId, setArrivalAlerts);
     const unsubDrivers = storageService.subscribeToDrivers(orgId, setDrivers);
     const unsubOccurrenceReasons = storageService.subscribeToOccurrenceReasons(orgId, setOccurrenceReasons);
@@ -539,7 +545,7 @@ export const App = () => {
         unsubOccurrences();
         unsubWasteDisposals();
     };
-  }, [user, activeModule, currentTab]);
+  }, [user, activeModule, currentTab, multitaskHasVehicles, multitaskHasMechanical, multitaskHasFuel]);
 
   // MIGRATION: Set default fuelType to 'DIESEL S10' for all records that don't have one
   useEffect(() => {
@@ -1123,6 +1129,22 @@ export const App = () => {
   };
 
   const handleAddServiceOrder = async (partialOrder: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => {
+      const isTireChangeOrder = (partialOrder.title || '').toLowerCase().includes('troca de pneus');
+      if (isTireChangeOrder && (partialOrder.vehicleId || partialOrder.vehiclePlate)) {
+          const existingTireChangeOrder = serviceOrders
+              .filter(order => {
+                  const sameVehicle = order.vehicleId === partialOrder.vehicleId || order.vehiclePlate === partialOrder.vehiclePlate;
+                  const isOpen = order.status === 'PENDENTE' || order.status === 'EM_ANDAMENTO';
+                  const isSameService = (order.title || '').toLowerCase().includes('troca de pneus');
+                  return sameVehicle && isOpen && isSameService;
+              })
+              .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime())[0];
+
+          if (existingTireChangeOrder) {
+              return existingTireChangeOrder;
+          }
+      }
+
       const maxOrderNum = serviceOrders.reduce((max, o) => Math.max(max, o.orderNumber), 0);
       
       const linkedOccId = partialOrder.occurrenceId || preselectedOccurrenceId;
@@ -1397,6 +1419,81 @@ export const App = () => {
     }
   };
 
+  const multitaskOptions: { tab: TabView; label: string; module?: ModuleType }[] = [
+    { tab: 'fleet', label: 'Cadastro de Veiculos', module: 'VEHICLES' },
+    { tab: 'movement', label: 'Movimentacao de Pneus', module: 'TIRES' },
+    { tab: 'inventory', label: 'Estoque de Pneus', module: 'TIRES' },
+    { tab: 'register', label: 'Cadastro de Pneus', module: 'TIRES' },
+    { tab: 'service-orders', label: 'Ordens de Servico', module: 'MECHANICAL' },
+    { tab: 'maintenance', label: 'Manutencao', module: 'MECHANICAL' },
+    { tab: 'fuel', label: 'Abastecimento', module: 'FUEL' },
+    { tab: 'dashboard', label: 'Painel Executivo' }
+  ].filter(option => !option.module || allowedModules.includes(option.module));
+
+  const updateMultitaskTab = (index: 0 | 1, tab: TabView) => {
+    setMultitaskTabs(prev => {
+      const next: [TabView, TabView] = [prev[0], prev[1]];
+      next[index] = tab;
+      return next;
+    });
+  };
+
+  const renderMultitaskContent = (tab: TabView, paneIndex: 0 | 1) => {
+    switch (tab) {
+      case 'dashboard':
+        return (
+          <ExecutiveDashboard vehicles={vehicles} tires={tires} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} fuelEntries={fuelEntries} financialRecords={financialRecords} drivers={drivers} publicServiceRequests={publicServiceRequests} occurrences={occurrences} maintenanceSchedules={maintenanceSchedules} onNavigate={(next) => updateMultitaskTab(paneIndex, next as TabView)} />
+        );
+      case 'fleet':
+        if (!allowedModules.includes('VEHICLES')) break;
+        return (
+          <VehicleManager orgId={orgId} vehicles={vehicles} vehicleBrandModels={vehicleBrandModels} tires={tires} serviceOrders={serviceOrders} fuelEntries={fuelEntries} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} onAddVehicle={auditedAddVehicle} onDeleteVehicle={auditedDeleteVehicle} onUpdateVehicle={auditedUpdateVehicle} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onDeleteAlert={(id) => storageService.deleteArrivalAlert(orgId, id)} onSimulateArrival={handleSimulateArrival} userLevel={userRole} settings={settings} trackerSettings={trackerSettings} onSyncSascar={syncSascar} branches={branches} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} fuelTypes={fuelTypes} onLoadMore={() => handleLoadMore('vehicles')} hasMore={hasMore.vehicles} arrivalAlerts={arrivalAlerts} />
+        );
+      case 'movement':
+        if (!allowedModules.includes('TIRES')) break;
+        return (
+          <TireMovement tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />
+        );
+      case 'inventory':
+        if (!allowedModules.includes('TIRES')) break;
+        return (
+          <InventoryList tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} serviceOrders={serviceOrders} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} settings={settings} onDelete={(id) => storageService.deleteTire(orgId, id)} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onRegister={() => updateMultitaskTab(paneIndex, 'register')} onEditTire={(tire) => { setEditingTire(tire); updateMultitaskTab(paneIndex, 'register'); }} onNotification={addToast} userLevel={userRole} vehicleTypes={vehicleTypes} onLoadMore={() => handleLoadMore('tires')} hasMore={hasMore.tires} />
+        );
+      case 'register':
+        if (!allowedModules.includes('TIRES')) break;
+        return (
+          <TireForm onAddTire={(tire) => storageService.addTire(orgId, tire)} onUpdateTire={async (tire) => { await storageService.updateTire(orgId, tire); setEditingTire(null); }} editingTire={editingTire || undefined} onCancel={() => setEditingTire(null)} onFinish={() => setEditingTire(null)} existingTires={tires} settings={settings} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} />
+        );
+      case 'service-orders':
+        if (!allowedModules.includes('MECHANICAL')) break;
+        return (
+          <ServiceOrderHub orgId={orgId} serviceOrders={serviceOrders} branches={branches} defaultBranchId={selectedBranchId} maintenancePlans={maintenancePlans} maintenanceSchedules={maintenanceSchedules} vehicles={vehicles} vehicleBrandModels={vehicleBrandModels} tires={tires} stockItems={stockItems} onUpdateOrder={handleUpdateServiceOrder} onUpdateOrderBatch={(updates) => storageService.updateServiceOrderBatch(orgId, updates)} onAddOrder={handleAddServiceOrder} settings={settings} arrivalAlerts={arrivalAlerts} collaborators={collaborators} partners={partners} onAddCollaborator={(c) => storageService.addCollaborator(orgId, c)} onUpdateCollaborator={(id, updates) => storageService.updateCollaborator(orgId, id, updates)} onDeleteCollaborator={(id) => storageService.deleteCollaborator(orgId, id)} userLevel={userRole} drivers={drivers} classifications={classifications} sectors={sectors} currentUser={user ? { name: user.displayName, email: user.email } : undefined} occurrences={occurrences} />
+        );
+      case 'maintenance':
+        if (!allowedModules.includes('MECHANICAL')) break;
+        return (
+          <MaintenanceDashboard vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} maintenanceSchedules={maintenanceSchedules} maintenancePlans={maintenancePlans} vehicleBrandModels={vehicleBrandModels} serviceOrders={serviceOrders} settings={settings} onOpenServiceOrder={(vehicleId) => { setPreselectedVehicleId(vehicleId); setShouldOpenOSModal(true); updateMultitaskTab(paneIndex, 'service-orders'); }} />
+        );
+      case 'fuel':
+        if (!allowedModules.includes('FUEL')) break;
+        return (
+          <FuelDashboard vehicles={vehicles} fuelEntries={fuelEntries} fuelStations={fuelStations} drivers={drivers} branches={branches} defaultBranchId={selectedBranchId} onAddEntry={handleAddFuelEntry} onDeleteEntry={handleDeleteFuelEntry} onAddStation={handleAddFuelStation} onUpdateStation={handleUpdateFuelStation} onDeleteStation={handleDeleteFuelStation} fuelTypes={fuelTypes} fuelCategory="LIQUID" />
+        );
+      default:
+        break;
+    }
+
+    return (
+      <div className="min-h-[320px] flex items-center justify-center text-center text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+        <div>
+          <LayoutDashboard className="h-8 w-8 mx-auto mb-3 opacity-40" />
+          <p className="text-sm font-black">Tela indisponivel neste modo</p>
+          <p className="text-xs mt-1">Escolha outra tela no seletor acima.</p>
+        </div>
+      </div>
+    );
+  };
+
   if (loadingAuth) {
       return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><Loader2 className="h-10 w-10 text-blue-500 animate-spin" /></div>;
   }
@@ -1625,16 +1722,11 @@ export const App = () => {
               <TireMovement 
                 tires={tires} 
                 vehicles={vehicles} 
+                serviceOrders={serviceOrders}
                 onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
                 onAddTire={(tire) => storageService.addTire(orgId, tire)} 
                 onCreateServiceOrder={handleAddServiceOrder}
                 onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
-                onOpenServiceOrders={() => {
-                  if (allowedModules.includes('MECHANICAL')) {
-                    setActiveModule('MECHANICAL');
-                    setCurrentTab('service-orders');
-                  }
-                }}
                 userLevel={userRole} 
                 settings={settings} 
               />
@@ -1834,7 +1926,7 @@ export const App = () => {
 
                       <button
                           onClick={() => setCurrentTab('dashboard')}
-                          className={`hidden md:flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-black shadow-sm backdrop-blur-sm transition-all ${
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-black shadow-sm backdrop-blur-sm transition-all ${
                             currentTab === 'dashboard'
                               ? 'bg-slate-950 text-white border-slate-950 dark:bg-blue-600 dark:border-blue-500'
                               : 'bg-white/50 dark:bg-slate-900/50 border-slate-200/50 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 hover:text-blue-600'
@@ -1843,6 +1935,19 @@ export const App = () => {
                       >
                           <LayoutDashboard className="h-4 w-4" />
                           Painel Executivo
+                      </button>
+
+                      <button
+                          onClick={() => setIsMultitaskMode(prev => !prev)}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-black shadow-sm backdrop-blur-sm transition-all ${
+                            isMultitaskMode
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-white/50 dark:bg-slate-900/50 border-slate-200/50 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 hover:text-blue-600'
+                          }`}
+                          title="Abrir modo multitarefas"
+                      >
+                          <SwitchCamera className="h-4 w-4" />
+                          <span className="hidden sm:inline">Multitarefas</span>
                       </button>
 
                       <span className="hidden lg:flex bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 items-center gap-2 shadow-sm backdrop-blur-sm transition-all hover:bg-white dark:hover:bg-slate-900 cursor-default">
@@ -1868,6 +1973,60 @@ export const App = () => {
               </header>
             )}
 
+            {isMultitaskMode ? (
+              <section className="space-y-4">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-2">
+                      <SwitchCamera className="h-5 w-5 text-blue-600" />
+                      Multitarefas
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">Abra duas telas ao mesmo tempo e trabalhe sem trocar de modulo.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setMultitaskTabs(['fleet', 'movement'])}
+                      className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      Veiculos + Pneus
+                    </button>
+                    <button
+                      onClick={() => setIsMultitaskMode(false)}
+                      className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                      title="Fechar multitarefas"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                  {multitaskTabs.map((tab, index) => (
+                    <div key={`${index}-${tab}`} className="min-w-0 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                      <div className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Area {index + 1}</p>
+                          <h3 className="text-sm font-black text-slate-800 dark:text-white truncate">{getPageTitle(tab)}</h3>
+                        </div>
+                        <select
+                          value={tab}
+                          onChange={(event) => updateMultitaskTab(index as 0 | 1, event.target.value as TabView)}
+                          className="w-44 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-black text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {multitaskOptions.map(option => (
+                            <option key={option.tab} value={option.tab}>{option.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="p-3 overflow-auto max-h-[calc(100vh-250px)]">
+                        {renderMultitaskContent(tab, index as 0 | 1)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : (
+            <>
             {currentTab === 'dashboard' && (
               <ExecutiveDashboard
                 vehicles={vehicles}
@@ -1954,7 +2113,7 @@ export const App = () => {
                 defaultBranchId={selectedBranchId} 
               />
             )}
-            {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onOpenServiceOrders={() => { if (allowedModules.includes('MECHANICAL')) { setActiveModule('MECHANICAL'); setCurrentTab('service-orders'); } }} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} serviceOrders={serviceOrders} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
             {currentTab === 'brand-models' && allowedModules.includes('VEHICLES') && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} fuelTypes={fuelTypes} />}
             {currentTab === 'vehicle-types' && allowedModules.includes('VEHICLES') && <VehicleTypeManager orgId={orgId} />}
             {currentTab === 'fuel-types' && allowedModules.includes('FUEL') && <FuelTypeManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} />}
@@ -2269,6 +2428,8 @@ export const App = () => {
               />
             )}
             {currentTab === 'tracker' && userRole === 'CREATOR' && <TrackerSettingsComponent orgId={orgId} />}
+            </>
+            )}
         </div>
       </main>
 

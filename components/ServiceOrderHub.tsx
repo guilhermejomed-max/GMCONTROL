@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection, Occurrence } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw, FileText, Paperclip } from 'lucide-react';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw, FileText, Paperclip, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 import { ServiceOrderOpening } from './ServiceOrderOpening';
@@ -18,7 +18,7 @@ interface ServiceOrderHubProps {
   stockItems?: StockItem[]; // Needed for maintenance plan items
   onUpdateOrder: (orderId: string, updates: Partial<ServiceOrder>) => Promise<void>;
   onUpdateOrderBatch?: (updates: { id: string, updates: Partial<ServiceOrder> }[]) => Promise<void>;
-  onAddOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
+  onAddOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<ServiceOrder | void>;
   settings?: SystemSettings;
   arrivalAlerts?: ArrivalAlert[];
   initialVehicleId?: string;
@@ -93,6 +93,16 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
     // Pneus agora são universais
     return allTires;
   }, [allTires]);
+
+  const getLinkedTireFireNumbers = (order: ServiceOrder) => {
+    const linked = order.tireFireNumbers && order.tireFireNumbers.length > 0
+      ? order.tireFireNumbers
+      : order.tireFireNumber
+        ? [order.tireFireNumber]
+        : [];
+
+    return Array.from(new Set(linked.filter(Boolean)));
+  };
 
   const filteredCollaborators = useMemo(() => {
     return collaborators;
@@ -354,17 +364,33 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const tire = tires.find(t => t.id === editOrderTireId);
           const sType = (settings?.serviceTypes || []).find(s => s.id === editOrderSectorId);
           const classification = classifications.find(c => c.id === editOrderClassificationId);
+          const externalCost = (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : 0;
+          const partsCost = editOrderParts.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0);
+          const totalCost = laborCost + externalCost + partsCost;
+
+          const existingTireIds = editingOrder.tireIds || (editingOrder.tireId ? [editingOrder.tireId] : []);
+          const existingFireNumbers = editingOrder.tireFireNumbers || (editingOrder.tireFireNumber ? [editingOrder.tireFireNumber] : []);
+          const nextTireIds = Array.from(new Set([
+              ...existingTireIds,
+              ...(editOrderTireId ? [editOrderTireId] : [])
+          ].filter(Boolean)));
+          const nextFireNumbers = Array.from(new Set([
+              ...existingFireNumbers,
+              ...(tire?.fireNumber ? [tire.fireNumber] : [])
+          ].filter(Boolean)));
 
           await onUpdateOrder(editingOrder.id, {
               title: editOrderTitle,
               details: editOrderDetails,
               tireId: editOrderTireId || undefined,
               tireFireNumber: tire?.fireNumber,
+              tireIds: nextTireIds.length > 0 ? nextTireIds : undefined,
+              tireFireNumbers: nextFireNumbers.length > 0 ? nextFireNumbers : undefined,
               date: editOrderDate,
               axles: editOrderAxles.length > 0 ? editOrderAxles : undefined,
               serviceType: editOrderServiceType,
               providerName: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') ? (partner?.name || editOrderProviderName) : undefined,
-              externalServiceCost: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : undefined,
+              externalServiceCost: externalCost > 0 ? externalCost : undefined,
               services: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && service ? [{ 
                   id: service.id, 
                   name: service.name, 
@@ -376,6 +402,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               collaboratorName: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? collaborator?.name : undefined,
               laborHours: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined) : undefined,
               laborCost: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined,
+              totalCost: totalCost > 0 ? totalCost : undefined,
               sectorId: editOrderSectorId || undefined,
               sectorName: sType?.name,
               classificationId: editOrderClassificationId || undefined,
@@ -617,6 +644,22 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                 <Disc className="h-3 w-3 text-purple-500"/> Eixos: {order.axles.map(a => `${a.axle}${a.side === 'BOTH' ? '' : a.side === 'LEFT' ? 'E' : 'D'}`).join(', ')}
                             </span>
                         )}
+                        {getLinkedTireFireNumbers(order).length > 0 && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-lg border border-emerald-100 dark:border-emerald-800/50">
+                                <Disc className="h-3 w-3 text-emerald-500"/> Pneus: {getLinkedTireFireNumbers(order).slice(0, 3).join(', ')}
+                                {getLinkedTireFireNumbers(order).length > 3 ? ` +${getLinkedTireFireNumbers(order).length - 3}` : ''}
+                            </span>
+                        )}
+                        {order.removedTireFireNumbers && order.removedTireFireNumbers.length > 0 && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg border border-red-100 dark:border-red-800/50">
+                                <ArrowUpCircle className="h-3 w-3"/> Retirados: {order.removedTireFireNumbers.length}
+                            </span>
+                        )}
+                        {order.appliedTireFireNumbers && order.appliedTireFireNumbers.length > 0 && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-lg border border-green-100 dark:border-green-800/50">
+                                <ArrowDownCircle className="h-3 w-3"/> Aplicados: {order.appliedTireFireNumbers.length}
+                            </span>
+                        )}
                         {order.collaboratorName && (
                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800/50">
                                 <UserCircle className="h-3 w-3"/> {order.collaboratorName}
@@ -834,7 +877,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               </div>
 
                               <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Pneu (Opcional)</label>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Pneu principal (Opcional)</label>
                                   <select 
                                       className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                       value={editOrderTireId}
@@ -847,6 +890,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                           <option key={t.id} value={t.id}>#{t.fireNumber} - {t.brand}</option>
                                       ))}
                                   </select>
+                                  {getLinkedTireFireNumbers(editingOrder).length > 0 && (
+                                      <p className="mt-2 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-lg px-2 py-1">
+                                          Vinculados: {getLinkedTireFireNumbers(editingOrder).join(', ')}
+                                      </p>
+                                  )}
                               </div>
                           </div>
                       </div>
@@ -1206,6 +1254,33 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                 <p className="text-sm font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
                                     <Disc className="h-4 w-4"/>
                                     {viewingOrderDetails.axles.map(a => `Eixo ${a.axle} (${a.side === 'BOTH' ? 'Ambos' : a.side === 'LEFT' ? 'Esq' : 'Dir'})`).join(', ')}
+                                </p>
+                            </div>
+                          )}
+                          {getLinkedTireFireNumbers(viewingOrderDetails).length > 0 && (
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Pneus vinculados</span>
+                                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                                    <Disc className="h-4 w-4 text-emerald-500"/>
+                                    {getLinkedTireFireNumbers(viewingOrderDetails).join(', ')}
+                                </p>
+                            </div>
+                          )}
+                          {viewingOrderDetails.removedTireFireNumbers && viewingOrderDetails.removedTireFireNumbers.length > 0 && (
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Retirados</span>
+                                <p className="text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+                                    <ArrowUpCircle className="h-4 w-4"/>
+                                    {viewingOrderDetails.removedTireFireNumbers.join(', ')}
+                                </p>
+                            </div>
+                          )}
+                          {viewingOrderDetails.appliedTireFireNumbers && viewingOrderDetails.appliedTireFireNumbers.length > 0 && (
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Aplicados</span>
+                                <p className="text-sm font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
+                                    <ArrowDownCircle className="h-4 w-4"/>
+                                    {viewingOrderDetails.appliedTireFireNumbers.join(', ')}
                                 </p>
                             </div>
                           )}

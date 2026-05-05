@@ -14,7 +14,7 @@ interface InspectionHubProps {
   branches?: any[];
   defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
-  onCreateServiceOrder: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
+  onCreateServiceOrder: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<ServiceOrder | void>;
   settings?: SystemSettings;
   vehicleTypes?: VehicleType[];
 }

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect, FC } from 'react';
+import React, { useState, useMemo, useEffect, useRef, FC } from 'react';
 import { Tire, Vehicle, TireStatus, UserLevel, SystemSettings, VehicleType, ServiceOrder } from '../types';
 import { Truck, Search, X, CheckCircle2, Disc, ArrowDownCircle, ArrowUpCircle, ScanLine, Gauge, ArrowLeft, Container, RefreshCw, Repeat, ArrowRight, Activity, TrendingDown, Calendar, Milestone, Recycle, ChevronRight, Target, Move, ArrowRightLeft, MousePointerClick, Loader2, Package, AlertTriangle, RefreshCcw, Plus, Wrench } from 'lucide-react';
 import { Scanner } from './Scanner';
@@ -9,12 +9,13 @@ import { isSteerAxle, getAxlePositions } from '../lib/vehicleUtils';
 interface TireMovementProps {
   tires: Tire[];
   vehicles: Vehicle[];
+  serviceOrders?: ServiceOrder[];
   branches?: any[];
   defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onAddTire: (tire: Tire) => Promise<void>;
-  onCreateServiceOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
-  onOpenServiceOrders?: () => void;
+  onCreateServiceOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<ServiceOrder | void>;
+  onUpdateServiceOrder?: (id: string, updates: Partial<ServiceOrder>) => Promise<void>;
   userLevel: UserLevel;
   settings?: SystemSettings;
   onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
@@ -181,12 +182,13 @@ const MovementSchematic: FC<{
 export const TireMovement: FC<TireMovementProps> = ({ 
   tires: allTires, 
   vehicles, 
+  serviceOrders = [],
   branches = [],
   defaultBranchId,
   onUpdateTire, 
   onAddTire, 
   onCreateServiceOrder,
-  onOpenServiceOrders,
+  onUpdateServiceOrder,
   userLevel, 
   settings, 
   onNotification,
@@ -205,6 +207,8 @@ export const TireMovement: FC<TireMovementProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDismountConfirm, setShowDismountConfirm] = useState(false);
   const [isConsultingPosition, setIsConsultingPosition] = useState(false);
+  const [activeTireChangeOrder, setActiveTireChangeOrder] = useState<ServiceOrder | null>(null);
+  const tireChangeOrderPromiseRef = useRef<Promise<ServiceOrder | null> | null>(null);
 
   // States for Swap Modal
   const [swapInTire, setSwapInTire] = useState<Tire | null>(null);
@@ -253,6 +257,8 @@ export const TireMovement: FC<TireMovementProps> = ({
       setSelectedVehicle(vehicle);
       setSelectedPos(null);
       setRotationSource(null);
+      setActiveTireChangeOrder(null);
+      tireChangeOrderPromiseRef.current = null;
   };
 
   const availableStock = useMemo(() => {
@@ -313,6 +319,9 @@ export const TireMovement: FC<TireMovementProps> = ({
               }]
           };
           await onUpdateTire(updatedTire);
+          await appendMovementToServiceOrder({
+              applied: [`${tireToMount.fireNumber} em ${selectedVehicle.plate} pos ${selectedPos} com KM ${mountKm}. Valor: R$ ${getTireOrderCost(tireToMount).toFixed(2)}.`]
+          }, [tireToMount], [tireToMount]);
           setSelectedPos(null); 
       } catch (err) {
           alert("Erro ao montar pneu.");
@@ -358,6 +367,9 @@ export const TireMovement: FC<TireMovementProps> = ({
           };
           
           await onUpdateTire(updatedTire);
+          await appendMovementToServiceOrder({
+              removed: [`${freshTire.fireNumber} de ${selectedVehicle.plate} pos ${selectedPos}. Rodou ${kmsRun}km.`]
+          }, [freshTire]);
           setSelectedPos(null);
       } catch (error) {
           console.error("Dismount Error:", error);
@@ -374,6 +386,161 @@ export const TireMovement: FC<TireMovementProps> = ({
       setIsSwapConfirmOpen(true);
   };
 
+  const findOpenTireChangeOrder = () => {
+      if (!selectedVehicle) return null;
+
+      return serviceOrders
+          .filter(order => {
+              const sameVehicle = order.vehicleId === selectedVehicle.id || order.vehiclePlate === selectedVehicle.plate;
+              const isOpen = order.status === 'PENDENTE' || order.status === 'EM_ANDAMENTO';
+              const isTireChange = (order.title || '').toLowerCase().includes('troca de pneus');
+              return sameVehicle && isOpen && isTireChange;
+          })
+          .sort((a, b) => {
+              const dateA = new Date(a.createdAt || a.date || 0).getTime();
+              const dateB = new Date(b.createdAt || b.date || 0).getTime();
+              return dateB - dateA;
+          })[0] || null;
+  };
+
+  const ensureTireChangeOrder = async (initialLine?: string): Promise<ServiceOrder | null> => {
+      if (!selectedVehicle || !onCreateServiceOrder) return null;
+      if (activeTireChangeOrder?.id) return activeTireChangeOrder;
+      if (tireChangeOrderPromiseRef.current) return tireChangeOrderPromiseRef.current;
+
+      const orderPromise = (async (): Promise<ServiceOrder | null> => {
+          const existingOrder = findOpenTireChangeOrder();
+          if (existingOrder) {
+              if (initialLine && onUpdateServiceOrder && !existingOrder.details?.includes(initialLine)) {
+                  const updatedDetails = [existingOrder.details, initialLine].filter(Boolean).join('\n');
+                  const updatedOrder = { ...existingOrder, details: updatedDetails };
+                  await onUpdateServiceOrder(existingOrder.id, { details: updatedDetails });
+                  setActiveTireChangeOrder(updatedOrder);
+                  return updatedOrder;
+              }
+
+              setActiveTireChangeOrder(existingOrder);
+              return existingOrder;
+          }
+
+          const created = await onCreateServiceOrder({
+              vehicleId: selectedVehicle.id,
+              vehiclePlate: selectedVehicle.plate,
+              title: `Troca de pneus - ${selectedVehicle.plate}`,
+              details: [
+                  `OS unica aberta pela movimentacao de pneus.`,
+                  `Veiculo: ${selectedVehicle.plate}`,
+                  `KM atual: ${selectedVehicle.odometer || 0}`,
+                  initialLine ? '' : undefined,
+                  initialLine ? initialLine : undefined
+              ].filter(Boolean).join('\n'),
+              status: 'PENDENTE',
+              serviceType: 'INTERNAL',
+              date: new Date().toISOString().split('T')[0],
+              odometer: selectedVehicle.odometer || 0,
+              branchId: defaultBranchId || selectedVehicle.branchId,
+              tireIds: [],
+              tireFireNumbers: []
+          });
+
+          if (created && 'id' in created) {
+              setActiveTireChangeOrder(created);
+              return created;
+          }
+
+          return null;
+      })();
+
+      tireChangeOrderPromiseRef.current = orderPromise;
+      try {
+          return await orderPromise;
+      } finally {
+          tireChangeOrderPromiseRef.current = null;
+      }
+  };
+
+  const getTireOrderCost = (tire: Tire) => {
+      return Number(tire.totalInvestment || tire.price || 0);
+  };
+
+  const buildTirePart = (tire: Tire) => ({
+      itemId: `tire-${tire.id}`,
+      name: `Pneu aplicado #${tire.fireNumber} - ${tire.brand} ${tire.model}`,
+      quantity: 1,
+      unitCost: getTireOrderCost(tire)
+  });
+
+  const appendMovementToServiceOrder = async ({
+      removed = [],
+      applied = []
+  }: {
+      removed?: string[];
+      applied?: string[];
+  }, linkedTires: Tire[], appliedTires: Tire[] = []) => {
+      if (!selectedVehicle || !onCreateServiceOrder) return;
+
+      const order = await ensureTireChangeOrder();
+      if (!order) return;
+      const uniqueTireIds = Array.from(new Set([
+          ...(order?.tireIds || activeTireChangeOrder?.tireIds || []),
+          ...linkedTires.map(tire => tire.id).filter(Boolean)
+      ]));
+      const uniqueFireNumbers = Array.from(new Set([
+          ...(order?.tireFireNumbers || activeTireChangeOrder?.tireFireNumbers || []),
+          ...linkedTires.map(tire => tire.fireNumber).filter(Boolean)
+      ]));
+      const removedFireNumbers = Array.from(new Set([
+          ...(order.removedTireFireNumbers || activeTireChangeOrder?.removedTireFireNumbers || []),
+          ...removed.map(line => line.split(' ')[0]).filter(Boolean)
+      ]));
+      const appliedFireNumbers = Array.from(new Set([
+          ...(order.appliedTireFireNumbers || activeTireChangeOrder?.appliedTireFireNumbers || []),
+          ...appliedTires.map(tire => tire.fireNumber).filter(Boolean)
+      ]));
+
+      const baseDetails = order?.details || activeTireChangeOrder?.details || [
+          `OS unica aberta pela movimentacao de pneus.`,
+          `Veiculo: ${selectedVehicle.plate}`,
+          `KM atual: ${selectedVehicle.odometer || 0}`
+      ].join('\n');
+      const movementBlock = [
+          ``,
+          `Movimentacao registrada em ${new Date().toLocaleString('pt-BR')}:`,
+          removed.length > 0 ? `Pneus retirados:` : undefined,
+          ...removed.map(line => `- ${line}`),
+          applied.length > 0 ? `Pneus aplicados:` : undefined,
+          ...applied.map(line => `- ${line}`)
+      ].filter(Boolean).join('\n');
+      const updatedDetails = `${baseDetails}${movementBlock}`;
+      const existingParts = order?.parts || activeTireChangeOrder?.parts || [];
+      const nextParts = [...existingParts];
+      appliedTires.forEach(tire => {
+          const tirePart = buildTirePart(tire);
+          if (!nextParts.some(part => part.itemId === tirePart.itemId)) {
+              nextParts.push(tirePart);
+          }
+      });
+      const partsTotal = nextParts.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0);
+      const totalCost = partsTotal + (order?.laborCost || activeTireChangeOrder?.laborCost || 0) + (order?.externalServiceCost || activeTireChangeOrder?.externalServiceCost || 0);
+
+      const updates: Partial<ServiceOrder> = {
+          details: updatedDetails,
+          tireIds: uniqueTireIds,
+          tireFireNumbers: uniqueFireNumbers,
+          tireId: uniqueTireIds[0],
+          tireFireNumber: uniqueFireNumbers[0],
+          removedTireFireNumbers: removedFireNumbers.length > 0 ? removedFireNumbers : undefined,
+          appliedTireFireNumbers: appliedFireNumbers.length > 0 ? appliedFireNumbers : undefined,
+          parts: nextParts.length > 0 ? nextParts : undefined,
+          totalCost
+      };
+
+      if (order?.id && onUpdateServiceOrder) {
+          await onUpdateServiceOrder(order.id, updates);
+          setActiveTireChangeOrder({ ...order, ...updates });
+      }
+  };
+
   const handleOpenTireServiceOrder = async () => {
       if (!selectedVehicle || !selectedPos || !onCreateServiceOrder) return;
       if (isProcessing) return;
@@ -384,28 +551,15 @@ export const TireMovement: FC<TireMovementProps> = ({
               ? `Pneu atual: ${selectedTire.fireNumber} - ${selectedTire.brand} ${selectedTire.model}. Sulco: ${selectedTire.currentTreadDepth}mm.`
               : 'Posicao sem pneu montado no momento da abertura.';
 
-          await onCreateServiceOrder({
-              vehicleId: selectedVehicle.id,
-              vehiclePlate: selectedVehicle.plate,
-              tireId: selectedTire?.id,
-              tireFireNumber: selectedTire?.fireNumber,
-              title: `Troca de pneus - ${selectedVehicle.plate}`,
-              details: [
-                  `OS aberta automaticamente pela tela de movimentacao de pneus.`,
-                  `Veiculo: ${selectedVehicle.plate}`,
-                  `Posicao: ${selectedPos}`,
-                  tireText,
-                  `KM atual: ${selectedVehicle.odometer || 0}`
+          const order = await ensureTireChangeOrder([
+                  ``,
+                  `Abertura solicitada na posicao ${selectedPos}:`,
+                  tireText
               ].join('\n'),
-              status: 'PENDENTE',
-              serviceType: 'INTERNAL',
-              date: new Date().toISOString().split('T')[0],
-              odometer: selectedVehicle.odometer || 0,
-              branchId: defaultBranchId || selectedVehicle.branchId
-          });
+          );
 
-          onNotification?.('Sucesso', 'O.S. de troca de pneus aberta automaticamente.', 'success');
-          onOpenServiceOrders?.();
+          onNotification?.('Sucesso', order?.orderNumber ? `O.S. #${order.orderNumber} aberta para a troca do veiculo.` : 'O.S. de troca aberta para o veiculo.', 'success');
+          setIsConsultingPosition(true);
       } catch (error) {
           console.error('Erro ao abrir OS de troca de pneus:', error);
           onNotification?.('Erro', 'Falha ao abrir O.S. de troca de pneus.', 'error');
@@ -474,6 +628,10 @@ export const TireMovement: FC<TireMovementProps> = ({
           // Executar atualizações
           await onUpdateTire(updatedTireOut);
           await onUpdateTire(updatedTireIn);
+          await appendMovementToServiceOrder({
+              removed: [`${tireOut.fireNumber} de ${selectedVehicle.plate} pos ${selectedPos}. Rodou ${kmsRun}km. Sulco final: ${finalDepth}mm.`],
+              applied: [`${swapInTire.fireNumber} em ${selectedVehicle.plate} pos ${selectedPos} com KM ${currentOdometer}. Valor: R$ ${getTireOrderCost(swapInTire).toFixed(2)}.`]
+          }, [tireOut, swapInTire], [swapInTire]);
 
           setIsQuickSwapMode(false);
           setIsSwapConfirmOpen(false);
@@ -623,12 +781,19 @@ export const TireMovement: FC<TireMovementProps> = ({
                         <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Modo Movimentação</span>
                     </div>
                 </div>
+                <div className="flex items-center gap-2">
+                {activeTireChangeOrder && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 border border-blue-100 dark:border-blue-800/50 shadow-sm">
+                        <Wrench className="h-4 w-4"/> OS #{String(activeTireChangeOrder.orderNumber).padStart(4, '0')} ativa
+                    </div>
+                )}
                 {rotationSource && (
                     <div className="animate-pulse bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 border border-purple-200 dark:border-purple-800 shadow-sm">
                         <Target className="h-4 w-4"/> Destino do Rodízio
                         <button onClick={() => setRotationSource(null)} className="ml-2 hover:bg-purple-200 rounded-full p-1"><X className="h-3 w-3"/></button>
                     </div>
                 )}
+                </div>
             </div>
         )}
 

@@ -425,6 +425,10 @@ export interface ServiceOrder {
   maintenancePlanId?: string; // Added maintenancePlanId, removed tireId/tireFireNumber
   tireId?: string; // Re-added for linking O.S. to specific tire
   tireFireNumber?: string; // Re-added for linking O.S. to specific tire
+  tireIds?: string[]; // Multiple tires linked to one service order
+  tireFireNumbers?: string[]; // Multiple fire numbers linked to one service order
+  removedTireFireNumbers?: string[]; // Tires removed during tire movement service order
+  appliedTireFireNumbers?: string[]; // Tires installed during tire movement service order
   title: string;
   details: string;
   startTime?: string; // New field for start time
