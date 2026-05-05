@@ -470,6 +470,12 @@ export const TireMovement: FC<TireMovementProps> = ({
       unitCost: getTireOrderCost(tire)
   });
 
+  const getServiceAxleLabel = (position?: string | null) => {
+      if (!position) return undefined;
+      const axleMatch = position.match(/\d+/)?.[0];
+      return axleMatch ? `Eixo ${axleMatch}` : position;
+  };
+
   const appendMovementToServiceOrder = async ({
       removed = [],
       applied = []
@@ -522,6 +528,21 @@ export const TireMovement: FC<TireMovementProps> = ({
       });
       const partsTotal = nextParts.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0);
       const totalCost = partsTotal + (order?.laborCost || activeTireChangeOrder?.laborCost || 0) + (order?.externalServiceCost || activeTireChangeOrder?.externalServiceCost || 0);
+      const removedTires = linkedTires.filter(tire => !appliedTires.some(appliedTire => appliedTire.id === tire.id));
+      const nextTireServiceMovements = [
+          ...(order.tireServiceMovements || activeTireChangeOrder?.tireServiceMovements || []),
+          {
+              date: new Date().toISOString(),
+              position: selectedPos || undefined,
+              axle: getServiceAxleLabel(selectedPos),
+              removedFireNumber: removedTires[0]?.fireNumber,
+              appliedFireNumber: appliedTires[0]?.fireNumber,
+              removedValue: removedTires[0] ? getTireOrderCost(removedTires[0]) : undefined,
+              appliedValue: appliedTires[0] ? getTireOrderCost(appliedTires[0]) : undefined,
+              serviceBy: order.collaboratorName || order.providerName || order.createdBy,
+              notes: [...removed, ...applied].join(' | ')
+          }
+      ];
 
       const updates: Partial<ServiceOrder> = {
           details: updatedDetails,
@@ -531,6 +552,7 @@ export const TireMovement: FC<TireMovementProps> = ({
           tireFireNumber: uniqueFireNumbers[0],
           removedTireFireNumbers: removedFireNumbers.length > 0 ? removedFireNumbers : undefined,
           appliedTireFireNumbers: appliedFireNumbers.length > 0 ? appliedFireNumbers : undefined,
+          tireServiceMovements: nextTireServiceMovements,
           parts: nextParts.length > 0 ? nextParts : undefined,
           totalCost
       };

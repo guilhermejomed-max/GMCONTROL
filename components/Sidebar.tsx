@@ -8,6 +8,7 @@ interface SidebarProps {
   onTabChange: (tab: TabView) => void;
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
+  isDesktopCollapsed?: boolean;
   onLogout: () => void;
   onExportData: () => void;
   onImportData: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -30,6 +31,7 @@ export const Sidebar: FC<SidebarProps> = ({
   onTabChange, 
   isMobileOpen, 
   setIsMobileOpen, 
+  isDesktopCollapsed = false,
   onLogout, 
   userLevel, 
   userName, 
@@ -105,7 +107,7 @@ export const Sidebar: FC<SidebarProps> = ({
 
   // Alteração: Z-Index aumentado para sobrepor elementos do mapa (z-[9999])
   const baseClasses = `fixed z-[9999] w-72 bg-[#020617] text-slate-300 transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-800/50 h-screen inset-y-0 left-0`;
-  const mobileClasses = isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0";
+  const mobileClasses = isMobileOpen ? "translate-x-0" : isDesktopCollapsed ? "-translate-x-full" : "-translate-x-full lg:translate-x-0";
 
   const getModuleIconFor = (mod: ModuleType) => {
     if (mod === 'TIRES') return <Disc className="h-4 w-4 text-white" />;

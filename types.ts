@@ -429,6 +429,17 @@ export interface ServiceOrder {
   tireFireNumbers?: string[]; // Multiple fire numbers linked to one service order
   removedTireFireNumbers?: string[]; // Tires removed during tire movement service order
   appliedTireFireNumbers?: string[]; // Tires installed during tire movement service order
+  tireServiceMovements?: {
+    date: string;
+    position?: string;
+    axle?: string;
+    removedFireNumber?: string;
+    appliedFireNumber?: string;
+    removedValue?: number;
+    appliedValue?: number;
+    serviceBy?: string;
+    notes?: string;
+  }[];
   title: string;
   details: string;
   startTime?: string; // New field for start time

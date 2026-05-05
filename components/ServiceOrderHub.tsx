@@ -104,6 +104,26 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
     return Array.from(new Set(linked.filter(Boolean)));
   };
 
+  const isTireServiceOrder = (order: ServiceOrder) => {
+    return (order.title || '').toLowerCase().includes('troca de pneus')
+      || !!order.tireServiceMovements?.length
+      || !!order.removedTireFireNumbers?.length
+      || !!order.appliedTireFireNumbers?.length;
+  };
+
+  const getTireServiceRows = (order: ServiceOrder) => {
+    if (order.tireServiceMovements?.length) return order.tireServiceMovements;
+
+    const maxRows = Math.max(order.removedTireFireNumbers?.length || 0, order.appliedTireFireNumbers?.length || 0, 1);
+    return Array.from({ length: maxRows }).map((_, index) => ({
+      date: order.date || order.createdAt,
+      removedFireNumber: order.removedTireFireNumbers?.[index],
+      appliedFireNumber: order.appliedTireFireNumbers?.[index],
+      serviceBy: order.collaboratorName || order.providerName || order.createdBy,
+      notes: order.details
+    }));
+  };
+
   const filteredCollaborators = useMemo(() => {
     return collaborators;
   }, [collaborators, defaultBranchId]);
@@ -367,6 +387,11 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
           const externalCost = (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : 0;
           const partsCost = editOrderParts.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0);
           const totalCost = laborCost + externalCost + partsCost;
+          const serviceBy = collaborator?.name || partner?.name || editOrderProviderName || editingOrder.createdBy;
+          const tireServiceMovements = editingOrder.tireServiceMovements?.map(movement => ({
+              ...movement,
+              serviceBy
+          }));
 
           const existingTireIds = editingOrder.tireIds || (editingOrder.tireId ? [editingOrder.tireId] : []);
           const existingFireNumbers = editingOrder.tireFireNumbers || (editingOrder.tireFireNumber ? [editingOrder.tireFireNumber] : []);
@@ -403,6 +428,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               laborHours: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined) : undefined,
               laborCost: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined,
               totalCost: totalCost > 0 ? totalCost : undefined,
+              tireServiceMovements,
               sectorId: editOrderSectorId || undefined,
               sectorName: sType?.name,
               classificationId: editOrderClassificationId || undefined,
@@ -670,6 +696,27 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                     <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 italic leading-relaxed">
                         "{order.details}"
                     </p>
+
+                    {isTireServiceOrder(order) && (
+                        <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl p-2">
+                            <div>
+                                <span className="text-[8px] font-black text-red-500 uppercase">Pneu retirado</span>
+                                <p className="text-[11px] font-black text-slate-800 dark:text-white truncate">{order.removedTireFireNumbers?.join(', ') || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span className="text-[8px] font-black text-green-600 uppercase">Pneu aplicado</span>
+                                <p className="text-[11px] font-black text-slate-800 dark:text-white truncate">{order.appliedTireFireNumbers?.join(', ') || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span className="text-[8px] font-black text-purple-600 uppercase">Eixo</span>
+                                <p className="text-[11px] font-black text-slate-800 dark:text-white truncate">{getTireServiceRows(order).map(row => row.axle || row.position).filter(Boolean).join(', ') || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span className="text-[8px] font-black text-blue-600 uppercase">Quem fez</span>
+                                <p className="text-[11px] font-black text-slate-800 dark:text-white truncate">{order.collaboratorName || order.providerName || order.createdBy || 'N/A'}</p>
+                            </div>
+                        </div>
+                    )}
 
                     {order.attachments && order.attachments.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
@@ -1305,12 +1352,68 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       </div>
 
                       {/* Service Title & Details */}
-                      <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
-                          <h4 className="font-black text-slate-800 dark:text-white text-lg">{viewingOrderDetails.title}</h4>
-                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                              "{viewingOrderDetails.details}"
-                          </p>
-                      </div>
+                      {isTireServiceOrder(viewingOrderDetails) ? (
+                          <div className="space-y-4 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
+                              <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                      <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">OS de pneus</span>
+                                      <h4 className="font-black text-slate-800 dark:text-white text-lg">{viewingOrderDetails.title}</h4>
+                                  </div>
+                                  <div className="text-right">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase">Valor total</span>
+                                      <p className="text-lg font-black text-slate-900 dark:text-white">
+                                          R$ {((viewingOrderDetails.laborCost || 0) + (viewingOrderDetails.externalServiceCost || 0) + (viewingOrderDetails.parts?.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0) || 0)).toFixed(2)}
+                                      </p>
+                                  </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-3">
+                                  {getTireServiceRows(viewingOrderDetails).map((movement, idx) => (
+                                      <div key={`${movement.date}-${idx}`} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 space-y-3">
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                              <div>
+                                                  <span className="text-[10px] font-black text-red-500 uppercase tracking-wider">Pneu retirado</span>
+                                                  <p className="text-sm font-black text-slate-800 dark:text-white">{movement.removedFireNumber || 'N/A'}</p>
+                                                  <p className="text-[10px] font-bold text-slate-500">Valor: R$ {(movement.removedValue || 0).toFixed(2)}</p>
+                                              </div>
+                                              <div>
+                                                  <span className="text-[10px] font-black text-green-600 uppercase tracking-wider">Pneu aplicado</span>
+                                                  <p className="text-sm font-black text-slate-800 dark:text-white">{movement.appliedFireNumber || 'N/A'}</p>
+                                                  <p className="text-[10px] font-bold text-slate-500">Valor: R$ {(movement.appliedValue || 0).toFixed(2)}</p>
+                                              </div>
+                                              <div>
+                                                  <span className="text-[10px] font-black text-purple-600 uppercase tracking-wider">Eixo / posicao</span>
+                                                  <p className="text-sm font-black text-slate-800 dark:text-white">{[movement.axle, movement.position].filter(Boolean).join(' - ') || 'N/A'}</p>
+                                              </div>
+                                              <div>
+                                                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Quem fez</span>
+                                                  <p className="text-sm font-black text-slate-800 dark:text-white">{movement.serviceBy || viewingOrderDetails.collaboratorName || viewingOrderDetails.providerName || viewingOrderDetails.createdBy || 'N/A'}</p>
+                                              </div>
+                                              <div>
+                                                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Mao de obra</span>
+                                                  <p className="text-sm font-black text-slate-800 dark:text-white">R$ {(viewingOrderDetails.laborCost || 0).toFixed(2)}</p>
+                                              </div>
+                                              <div>
+                                                  <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Outros custos</span>
+                                                  <p className="text-sm font-black text-slate-800 dark:text-white">R$ {(viewingOrderDetails.externalServiceCost || 0).toFixed(2)}</p>
+                                              </div>
+                                          </div>
+                                          <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Observacoes</span>
+                                              <p className="text-xs font-bold text-slate-600 dark:text-slate-300 leading-relaxed mt-1">{movement.notes || viewingOrderDetails.details || 'Sem observacoes.'}</p>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
+                              <h4 className="font-black text-slate-800 dark:text-white text-lg">{viewingOrderDetails.title}</h4>
+                              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                                  "{viewingOrderDetails.details}"
+                              </p>
+                          </div>
+                      )}
 
                       {viewingOrderDetails.attachments && viewingOrderDetails.attachments.length > 0 && (
                           <div className="space-y-4">
