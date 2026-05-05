@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ServiceOrder, Vehicle, SystemSettings, Tire, TireStatus, ArrivalAlert, MaintenancePlan, MaintenanceSchedule, VehicleBrandModel, StockItem, Driver, Partner, Collaborator, UserLevel, AVAILABLE_PERMISSIONS, ModuleType, Branch, AxleSelection, Occurrence } from '../types';
-import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw, FileText, Paperclip, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Wrench, Search, ChevronDown, CheckCircle2, Loader, AlertTriangle, Calendar, Truck, Disc, Plus, X, Save, Clock, Timer, Bell, ClipboardList, CheckSquare, Package, Trash2, UserCircle, DollarSign, Settings, Shield, Lock, Building2, Tag, RefreshCw, FileText, Paperclip, ArrowUpCircle, ArrowDownCircle, Printer, Download } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { MaintenancePlanManager } from './MaintenancePlanManager';
 import { ServiceOrderOpening } from './ServiceOrderOpening';
@@ -122,6 +122,149 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       serviceBy: order.collaboratorName || order.providerName || order.createdBy,
       notes: order.details
     }));
+  };
+
+  const getOrderTotal = (order: ServiceOrder) => {
+    return (order.laborCost || 0)
+      + (order.externalServiceCost || 0)
+      + (order.parts?.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0) || 0);
+  };
+
+  const escapePrintHtml = (value: unknown) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  const handlePrintOrder = (order: ServiceOrder) => {
+    const printWindow = window.open('', '_blank', 'width=980,height=720');
+    if (!printWindow) {
+      alert('Permita pop-ups para imprimir ou salvar a OS em PDF.');
+      return;
+    }
+
+    const tireRows = getTireServiceRows(order);
+    const partsTotal = order.parts?.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0) || 0;
+    const rowsHtml = isTireServiceOrder(order)
+      ? tireRows.map(row => `
+          <tr>
+            <td>${escapePrintHtml(row.removedFireNumber || 'N/A')}</td>
+            <td>${escapePrintHtml(row.appliedFireNumber || 'N/A')}</td>
+            <td>${escapePrintHtml([row.axle, row.position].filter(Boolean).join(' - ') || 'N/A')}</td>
+            <td>${escapePrintHtml(row.serviceBy || order.collaboratorName || order.providerName || order.createdBy || 'N/A')}</td>
+            <td>R$ ${(row.appliedValue || 0).toFixed(2)}</td>
+            <td>${escapePrintHtml(row.notes || order.details || '')}</td>
+          </tr>
+        `).join('')
+      : `
+          <tr>
+            <td colspan="6">${escapePrintHtml(order.details || 'Sem observacoes.')}</td>
+          </tr>
+        `;
+
+    const partsHtml = order.parts?.length
+      ? order.parts.map(part => `
+          <tr>
+            <td>${escapePrintHtml(part.name)}</td>
+            <td>${part.quantity}</td>
+            <td>R$ ${part.unitCost.toFixed(2)}</td>
+            <td>R$ ${(part.quantity * part.unitCost).toFixed(2)}</td>
+          </tr>
+        `).join('')
+      : '<tr><td colspan="4">Nenhum item vinculado.</td></tr>';
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>OS ${String(order.orderNumber).padStart(4, '0')} - ${escapePrintHtml(order.vehiclePlate)}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; padding: 28px; background: #fff; }
+            header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 3px solid #0f172a; padding-bottom: 18px; margin-bottom: 22px; }
+            h1 { margin: 0; font-size: 24px; }
+            h2 { margin: 24px 0 10px; font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: #1d4ed8; }
+            .muted { color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+            .plate { border: 2px solid #0f172a; padding: 8px 14px; border-radius: 6px; font-weight: 900; letter-spacing: .08em; text-align: center; }
+            .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 10px; }
+            .box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; min-height: 58px; }
+            .label { display: block; color: #64748b; font-size: 10px; font-weight: 900; text-transform: uppercase; margin-bottom: 5px; }
+            .value { font-size: 13px; font-weight: 800; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th { background: #f1f5f9; text-align: left; font-size: 10px; text-transform: uppercase; padding: 9px; border: 1px solid #cbd5e1; }
+            td { font-size: 12px; padding: 9px; border: 1px solid #cbd5e1; vertical-align: top; }
+            .totals { margin-top: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+            .total { background: #0f172a; color: white; border-color: #0f172a; }
+            footer { margin-top: 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+            .sign { border-top: 1px solid #0f172a; text-align: center; padding-top: 8px; font-size: 11px; color: #475569; }
+            @media print { body { padding: 18px; } button { display: none; } }
+          </style>
+        </head>
+        <body>
+          <header>
+            <div>
+              <div class="muted">GM Control</div>
+              <h1>Ordem de Servico #${String(order.orderNumber).padStart(4, '0')}</h1>
+              <div class="muted">${escapePrintHtml(isTireServiceOrder(order) ? 'OS de pneus' : 'OS de manutencao')}</div>
+            </div>
+            <div>
+              <div class="muted">Veiculo</div>
+              <div class="plate">${escapePrintHtml(order.vehiclePlate)}</div>
+            </div>
+          </header>
+
+          <section class="grid">
+            <div class="box"><span class="label">Data</span><div class="value">${escapePrintHtml(order.date || order.createdAt?.split('T')[0] || 'N/A')}</div></div>
+            <div class="box"><span class="label">Status</span><div class="value">${escapePrintHtml(order.status)}</div></div>
+            <div class="box"><span class="label">Hodometro</span><div class="value">${escapePrintHtml(order.odometer?.toLocaleString() || 'N/A')} KM</div></div>
+            <div class="box"><span class="label">Responsavel</span><div class="value">${escapePrintHtml(order.collaboratorName || order.providerName || order.createdBy || 'N/A')}</div></div>
+          </section>
+
+          <h2>${escapePrintHtml(order.title)}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Pneu retirado</th>
+                <th>Pneu aplicado</th>
+                <th>Eixo / posicao</th>
+                <th>Quem fez</th>
+                <th>Valor aplicado</th>
+                <th>Observacoes</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+
+          <h2>Valores</h2>
+          <section class="totals">
+            <div class="box"><span class="label">Pneus / pecas</span><div class="value">R$ ${partsTotal.toFixed(2)}</div></div>
+            <div class="box"><span class="label">Mao de obra</span><div class="value">R$ ${(order.laborCost || 0).toFixed(2)}</div></div>
+            <div class="box"><span class="label">Outros custos</span><div class="value">R$ ${(order.externalServiceCost || 0).toFixed(2)}</div></div>
+            <div class="box total"><span class="label" style="color:#cbd5e1">Total</span><div class="value">R$ ${getOrderTotal(order).toFixed(2)}</div></div>
+          </section>
+
+          <h2>Itens vinculados</h2>
+          <table>
+            <thead><tr><th>Item</th><th>Qtd</th><th>Valor unitario</th><th>Total</th></tr></thead>
+            <tbody>${partsHtml}</tbody>
+          </table>
+
+          <footer>
+            <div class="sign">Responsavel pelo servico</div>
+            <div class="sign">Conferencia / aprovacao</div>
+          </footer>
+
+          <script>
+            window.onload = function () {
+              window.focus();
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const filteredCollaborators = useMemo(() => {
@@ -1258,9 +1401,27 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">#{String(viewingOrderDetails.orderNumber).padStart(4, '0')}</p>
                           </div>
                       </div>
-                      <button onClick={() => setViewingOrderDetails(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
-                          <X className="h-6 w-6 text-slate-500"/>
-                      </button>
+                      <div className="flex items-center gap-2">
+                          <button
+                              onClick={() => handlePrintOrder(viewingOrderDetails)}
+                              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
+                              title="Imprimir OS"
+                          >
+                              <Printer className="h-4 w-4" />
+                              Imprimir
+                          </button>
+                          <button
+                              onClick={() => handlePrintOrder(viewingOrderDetails)}
+                              className="px-3 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
+                              title="Salvar OS em PDF"
+                          >
+                              <Download className="h-4 w-4" />
+                              PDF
+                          </button>
+                          <button onClick={() => setViewingOrderDetails(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                              <X className="h-6 w-6 text-slate-500"/>
+                          </button>
+                      </div>
                   </div>
 
                   {/* Content */}
@@ -1306,10 +1467,15 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           )}
                           {getLinkedTireFireNumbers(viewingOrderDetails).length > 0 && (
                             <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Pneus vinculados</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                    {isTireServiceOrder(viewingOrderDetails) ? 'Pneus retirados' : 'Pneus vinculados'}
+                                </span>
                                 <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
                                     <Disc className="h-4 w-4 text-emerald-500"/>
-                                    {getLinkedTireFireNumbers(viewingOrderDetails).join(', ')}
+                                    {(isTireServiceOrder(viewingOrderDetails) && viewingOrderDetails.removedTireFireNumbers?.length
+                                        ? viewingOrderDetails.removedTireFireNumbers
+                                        : getLinkedTireFireNumbers(viewingOrderDetails)
+                                    ).join(', ')}
                                 </p>
                             </div>
                           )}
@@ -1498,7 +1664,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                   </div>
 
                   {/* Footer */}
-                  <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end">
+                  <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row justify-end gap-3">
+                      <button
+                          onClick={() => handlePrintOrder(viewingOrderDetails)}
+                          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                      >
+                          <Printer className="h-4 w-4" />
+                          Imprimir / Salvar PDF
+                      </button>
                       <button 
                           onClick={() => setViewingOrderDetails(null)}
                           className="px-8 py-3 bg-slate-800 dark:bg-slate-700 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-900 dark:hover:bg-slate-600 transition-all active:scale-95 shadow-lg"
