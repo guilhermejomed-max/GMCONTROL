@@ -1334,13 +1334,13 @@ export const App = () => {
       if (['MARK_PARTIAL_FILLUP', 'DISCARD_FUEL_SEGMENT'].includes(issue.actionType)) {
           if (!issue.relatedFuelEntryId) throw new Error('Nenhum abastecimento relacionado foi encontrado para ajuste.');
           const entry = fuelEntries.find(item => item.id === issue.relatedFuelEntryId);
-          if (!entry) throw new Error('Abastecimento relacionado nÃ£o encontrado.');
+          if (!entry) throw new Error('Abastecimento relacionado não encontrado.');
 
           const tag = issue.actionType === 'MARK_PARTIAL_FILLUP' ? '[parcial]' : '[trecho descartado]';
           const reason = justification ? ` Motivo: ${justification}` : '';
           const notes = `${entry.notes || ''}${entry.notes ? '\n' : ''}${tag} Ajustado pelo painel de inconsistencias em ${new Date().toLocaleString('pt-BR')}.${reason}`.trim();
           await storageService.updateFuelEntry(orgId, entry.id, { notes });
-          storageService.logActivity(orgId, 'CorreÃ§Ã£o AutomÃ¡tica', `${vehicle.plate}: abastecimento ${entry.odometer} km marcado como ${tag}`, 'VEHICLES');
+          storageService.logActivity(orgId, 'Correção Automática', `${vehicle.plate}: abastecimento ${entry.odometer} km marcado como ${tag}`, 'VEHICLES');
           return `${vehicle.plate}: abastecimento marcado como ${tag}.`;
       }
 
@@ -1354,7 +1354,7 @@ export const App = () => {
                   await storageService.updateFuelEntry(orgId, entry.id, { notes });
               }
           }
-          storageService.logActivity(orgId, 'Tratamento de InconsistÃªncia', `${vehicle.plate}: ${issue.title} ${suffix}. Justificativa: ${justification || 'sem justificativa'}`, 'VEHICLES');
+          storageService.logActivity(orgId, 'Tratamento de Inconsistência', `${vehicle.plate}: ${issue.title} ${suffix}. Justificativa: ${justification || 'sem justificativa'}`, 'VEHICLES');
           return `${vehicle.plate}: alerta ${suffix}.`;
       }
 
@@ -1974,9 +1974,9 @@ export const App = () => {
         />
       )}
       
-      <main className={`${!isReportsFullScreen && !isSidebarCollapsed ? 'lg:ml-72' : ''} min-h-screen p-3 md:p-4 lg:py-6 lg:px-8 transition-all duration-300`}>
-        <div className="w-full space-y-4 md:space-y-6">
-            {!isReportsFullScreen && (
+      <main className={`${!isReportsFullScreen && !isSidebarCollapsed ? 'lg:ml-72' : ''} min-h-screen ${isMultitaskMode ? 'p-2 md:p-3 lg:p-4' : 'p-3 md:p-4 lg:py-6 lg:px-8'} transition-all duration-300`}>
+        <div className={`w-full ${isMultitaskMode ? 'space-y-3' : 'space-y-4 md:space-y-6'}`}>
+            {!isReportsFullScreen && !isMultitaskMode && (
               <header className="sticky top-0 z-30 mb-4 md:mb-6 px-3 py-2 md:py-3 bg-slate-100/90 dark:bg-slate-950/90 backdrop-blur-md flex items-center gap-3 border-b border-slate-200/50 dark:border-slate-800/50 shadow-sm rounded-xl md:rounded-2xl">
                   <div className="flex items-center gap-2 pl-1 min-w-fit">
                       <button className="lg:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors" onClick={() => setIsMobileOpen(true)}>
@@ -2072,33 +2072,24 @@ export const App = () => {
             )}
 
             {isMultitaskMode ? (
-              <section className="space-y-4">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-2">
-                      <SwitchCamera className="h-5 w-5 text-blue-600" />
-                      Multitarefas
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">Abra duas telas ao mesmo tempo e trabalhe sem trocar de modulo.</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setMultitaskTabs(['fleet', 'movement'])}
-                      className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      Veiculos + Pneus
-                    </button>
-                    <button
-                      onClick={() => setIsMultitaskMode(false)}
-                      className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                      title="Fechar multitarefas"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
+              <section className="space-y-3">
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setMultitaskTabs(['fleet', 'movement'])}
+                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+                  >
+                    Veiculos + Pneus
+                  </button>
+                  <button
+                    onClick={() => setIsMultitaskMode(false)}
+                    className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                    title="Fechar multitarefas"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
                   {multitaskTabs.map((tab, index) => (
                     <div key={`${index}-${tab}`} className="min-w-0 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
                       <div className="sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center justify-between gap-3">
@@ -2116,7 +2107,7 @@ export const App = () => {
                           ))}
                         </select>
                       </div>
-                      <div className="p-3 overflow-auto max-h-[calc(100vh-250px)]">
+                      <div className="p-2 md:p-3 overflow-auto max-h-[calc(100vh-112px)]">
                         {renderMultitaskContent(tab, index as 0 | 1)}
                       </div>
                     </div>
