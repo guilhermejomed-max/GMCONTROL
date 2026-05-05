@@ -325,7 +325,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                              onClick={() => storageService.updateWasteDisposal(orgId, disposal.id, { stage: 'EMISSAO_MTR' })}
                             className="text-[9px] font-black text-blue-600 hover:underline uppercase"
                            >
-                             Emitir MTR ->
+                             Emitir MTR {'→'}
                            </button>
                          )}
                          {disposal.stage === 'EMISSAO_MTR' && (
@@ -333,7 +333,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                              onClick={() => storageService.updateWasteDisposal(orgId, disposal.id, { stage: 'RETIRADA' })}
                             className="text-[9px] font-black text-amber-600 hover:underline uppercase"
                            >
-                             Marcar Retirada ->
+                             Marcar Retirada {'→'}
                            </button>
                          )}
                          {disposal.stage === 'RETIRADA' && !disposal.attachmentUrl && (
@@ -363,7 +363,7 @@ export const WasteManagement: React.FC<WasteManagementProps> = ({ orgId, partner
                               onClick={() => storageService.updateWasteDisposal(orgId, disposal.id, { stage: 'FINALIZADO' })}
                               className="text-[9px] font-black text-emerald-600 hover:underline uppercase"
                             >
-                              Finalizar ->
+                              Finalizar {'→'}
                             </button>
                          )}
                        </div>
