@@ -1207,6 +1207,8 @@ export const App = () => {
               }
           }
       }
+
+      return newOrder;
   };
 
   const handleResolveFleetIssue = async (issue: FleetIssue, justification = ''): Promise<string> => {
@@ -1626,6 +1628,7 @@ export const App = () => {
                 onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} 
                 onAddTire={(tire) => storageService.addTire(orgId, tire)} 
                 onCreateServiceOrder={handleAddServiceOrder}
+                onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)}
                 onOpenServiceOrders={() => {
                   if (allowedModules.includes('MECHANICAL')) {
                     setActiveModule('MECHANICAL');
@@ -1951,7 +1954,7 @@ export const App = () => {
                 defaultBranchId={selectedBranchId} 
               />
             )}
-            {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} onOpenServiceOrders={() => { if (allowedModules.includes('MECHANICAL')) { setActiveModule('MECHANICAL'); setCurrentTab('service-orders'); } }} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
+            {currentTab === 'movement' && allowedModules.includes('TIRES') && <TireMovement tires={tires} vehicles={vehicles} branches={branches} defaultBranchId={selectedBranchId} onUpdateTire={(tire) => storageService.updateTire(orgId, tire)} onAddTire={(tire) => storageService.addTire(orgId, tire)} onCreateServiceOrder={handleAddServiceOrder} onUpdateServiceOrder={(id, updates) => storageService.updateServiceOrder(orgId, id, updates)} onOpenServiceOrders={() => { if (allowedModules.includes('MECHANICAL')) { setActiveModule('MECHANICAL'); setCurrentTab('service-orders'); } }} userLevel={userRole} settings={settings} onNotification={addToast} vehicleTypes={vehicleTypes} />}
             {currentTab === 'brand-models' && allowedModules.includes('VEHICLES') && <BrandModelManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} maintenancePlans={maintenancePlans} vehicles={vehicles} serviceOrders={serviceOrders} tires={tires} defaultBranchId={selectedBranchId} vehicleTypes={vehicleTypes} fuelTypes={fuelTypes} />}
             {currentTab === 'vehicle-types' && allowedModules.includes('VEHICLES') && <VehicleTypeManager orgId={orgId} />}
             {currentTab === 'fuel-types' && allowedModules.includes('FUEL') && <FuelTypeManager orgId={orgId} vehicleBrandModels={vehicleBrandModels} />}
