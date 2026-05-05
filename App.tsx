@@ -855,7 +855,7 @@ const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
           Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-const distance = R * c;; // in metres
+const distance = R * c; // in metres
 
         const radius = point.radius || 500;
         if (distance <= radius) {
