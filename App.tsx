@@ -765,15 +765,15 @@ export const App = () => {
         const { lat, lng } = vehicle.lastLocation;
         
         // Calculate distance (Haversine formula)
-        const R = 6371e3; // metres
-        const Ï†1 = lat * Math.PI/180;
-        const Ï†2 = alert.targetLat * Math.PI/180;
-        const Î”Ï† = (alert.targetLat - lat) * Math.PI/180;
-        const Î”Î» = (alert.targetLng - lng) * Math.PI/180;
+const R = 6371e3; // metres
+const p1 = lat * Math.PI / 180;
+const p2 = alert.targetLat * Math.PI / 180;
+const deltaPhi = (alert.targetLat - lat) * Math.PI / 180;
+const deltaLambda = (alert.targetLng - lng) * Math.PI / 180;
 
-        const a = Math.sin(Î”Ï†/2) * Math.sin(Î”Ï†/2) +
-                Math.cos(Ï†1) * Math.cos(Ï†2) *
-                Math.sin(Î”Î»/2) * Math.sin(Î”Î»/2);
+        const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
+          Math.cos(p1) * Math.cos(p2) *
+          Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         const distance = R * c; // in metres
 
