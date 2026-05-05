@@ -531,23 +531,27 @@ export const App = () => {
     return () => unsubAuth();
   }, []);
 
+  // Carrega tarefas agendadas do Firebase ao logar
   useEffect(() => {
     if (!user?.uid) {
       setProfileSchedulesLoaded(false);
+      setProfileSchedules([]);
       return;
     }
-    const saved = localStorage.getItem(`gmcontrol:schedules:${user.uid}`);
-    try {
-      setProfileSchedules(saved ? JSON.parse(saved) : []);
-    } catch {
+    storageService.getUserProfile(user.uid).then(profile => {
+      const saved = (profile as any)?.profileSchedules;
+      setProfileSchedules(Array.isArray(saved) ? saved : []);
+      setProfileSchedulesLoaded(true);
+    }).catch(() => {
       setProfileSchedules([]);
-    }
-    setProfileSchedulesLoaded(true);
+      setProfileSchedulesLoaded(true);
+    });
   }, [user?.uid]);
 
+  // Salva tarefas agendadas no Firebase sempre que mudarem
   useEffect(() => {
     if (!user?.uid || !profileSchedulesLoaded) return;
-    localStorage.setItem(`gmcontrol:schedules:${user.uid}`, JSON.stringify(profileSchedules));
+    storageService.updateTeamMember(orgId, user.uid, { profileSchedules } as any);
   }, [user?.uid, profileSchedules, profileSchedulesLoaded]);
 
   const profileSchedulesRef = useRef<ProfileSchedule[]>([]);
