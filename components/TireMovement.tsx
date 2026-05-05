@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, FC } from 'react';
-import { Tire, Vehicle, TireStatus, UserLevel, SystemSettings, VehicleType } from '../types';
-import { Truck, Search, X, CheckCircle2, Disc, ArrowDownCircle, ArrowUpCircle, ScanLine, Gauge, ArrowLeft, Container, RefreshCw, Repeat, ArrowRight, Activity, TrendingDown, Calendar, Milestone, Recycle, ChevronRight, Target, Move, ArrowRightLeft, MousePointerClick, Loader2, Package, AlertTriangle, RefreshCcw, Plus } from 'lucide-react';
+import { Tire, Vehicle, TireStatus, UserLevel, SystemSettings, VehicleType, ServiceOrder } from '../types';
+import { Truck, Search, X, CheckCircle2, Disc, ArrowDownCircle, ArrowUpCircle, ScanLine, Gauge, ArrowLeft, Container, RefreshCw, Repeat, ArrowRight, Activity, TrendingDown, Calendar, Milestone, Recycle, ChevronRight, Target, Move, ArrowRightLeft, MousePointerClick, Loader2, Package, AlertTriangle, RefreshCcw, Plus, Wrench } from 'lucide-react';
 import { Scanner } from './Scanner';
 import { TireForm } from './TireForm';
 import { isSteerAxle, getAxlePositions } from '../lib/vehicleUtils';
@@ -13,6 +13,8 @@ interface TireMovementProps {
   defaultBranchId?: string;
   onUpdateTire: (tire: Tire) => Promise<void>;
   onAddTire: (tire: Tire) => Promise<void>;
+  onCreateServiceOrder?: (order: Omit<ServiceOrder, 'id' | 'orderNumber' | 'createdAt' | 'createdBy'>) => Promise<void>;
+  onOpenServiceOrders?: () => void;
   userLevel: UserLevel;
   settings?: SystemSettings;
   onNotification?: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
@@ -183,6 +185,8 @@ export const TireMovement: FC<TireMovementProps> = ({
   defaultBranchId,
   onUpdateTire, 
   onAddTire, 
+  onCreateServiceOrder,
+  onOpenServiceOrders,
   userLevel, 
   settings, 
   onNotification,
@@ -200,6 +204,7 @@ export const TireMovement: FC<TireMovementProps> = ({
   const [mountDate, setMountDate] = useState(new Date().toISOString().split('T')[0]); // Added Date State
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDismountConfirm, setShowDismountConfirm] = useState(false);
+  const [isConsultingPosition, setIsConsultingPosition] = useState(false);
 
   // States for Swap Modal
   const [swapInTire, setSwapInTire] = useState<Tire | null>(null);
@@ -240,6 +245,7 @@ export const TireMovement: FC<TireMovementProps> = ({
       setSwapInTire(null);
       setSwapOutDepth('');
       setIsSwapConfirmOpen(false);
+      setIsConsultingPosition(false);
   }, [selectedPos]);
 
   // When selecting vehicle, reset internal states
@@ -273,6 +279,7 @@ export const TireMovement: FC<TireMovementProps> = ({
           }
       } else {
           setSelectedPos(pos);
+          setIsConsultingPosition(false);
           setMountKm(selectedVehicle?.odometer || 0); 
           setMountDate(new Date().toISOString().split('T')[0]); // Reset date to today
           setStockSearch('');
@@ -365,6 +372,46 @@ export const TireMovement: FC<TireMovementProps> = ({
       setSwapInTire(tireIn);
       setSwapOutDepth(selectedTire.currentTreadDepth.toString());
       setIsSwapConfirmOpen(true);
+  };
+
+  const handleOpenTireServiceOrder = async () => {
+      if (!selectedVehicle || !selectedPos || !onCreateServiceOrder) return;
+      if (isProcessing) return;
+
+      setIsProcessing(true);
+      try {
+          const tireText = selectedTire
+              ? `Pneu atual: ${selectedTire.fireNumber} - ${selectedTire.brand} ${selectedTire.model}. Sulco: ${selectedTire.currentTreadDepth}mm.`
+              : 'Posicao sem pneu montado no momento da abertura.';
+
+          await onCreateServiceOrder({
+              vehicleId: selectedVehicle.id,
+              vehiclePlate: selectedVehicle.plate,
+              tireId: selectedTire?.id,
+              tireFireNumber: selectedTire?.fireNumber,
+              title: `Troca de pneus - ${selectedVehicle.plate}`,
+              details: [
+                  `OS aberta automaticamente pela tela de movimentacao de pneus.`,
+                  `Veiculo: ${selectedVehicle.plate}`,
+                  `Posicao: ${selectedPos}`,
+                  tireText,
+                  `KM atual: ${selectedVehicle.odometer || 0}`
+              ].join('\n'),
+              status: 'PENDENTE',
+              serviceType: 'INTERNAL',
+              date: new Date().toISOString().split('T')[0],
+              odometer: selectedVehicle.odometer || 0,
+              branchId: defaultBranchId || selectedVehicle.branchId
+          });
+
+          onNotification?.('Sucesso', 'O.S. de troca de pneus aberta automaticamente.', 'success');
+          onOpenServiceOrders?.();
+      } catch (error) {
+          console.error('Erro ao abrir OS de troca de pneus:', error);
+          onNotification?.('Erro', 'Falha ao abrir O.S. de troca de pneus.', 'error');
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const confirmQuickSwap = async () => {
@@ -634,7 +681,41 @@ export const TireMovement: FC<TireMovementProps> = ({
                         <button onClick={() => setSelectedPos(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6 text-slate-500"/></button>
                     </div>
 
-                    {isSwapConfirmOpen && selectedTire && swapInTire ? (
+                    {!isConsultingPosition ? (
+                        <div className="p-6 space-y-5">
+                            <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                    {selectedVehicle?.plate} • {selectedPos}
+                                </p>
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                                    {selectedTire ? `Pneu ${selectedTire.fireNumber}` : 'Posicao vazia'}
+                                </h3>
+                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">
+                                    {selectedTire
+                                        ? `${selectedTire.brand} ${selectedTire.model} • ${selectedTire.currentTreadDepth}mm • ${selectedTire.pressure} PSI`
+                                        : 'Abra uma OS de troca ou consulte o estoque para montar um pneu nesta posicao.'}
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={handleOpenTireServiceOrder}
+                                disabled={isProcessing || !onCreateServiceOrder}
+                                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-lg shadow-blue-600/20 transition-all"
+                                title={onCreateServiceOrder ? 'Abrir OS automatica de troca de pneus' : 'Abertura de OS indisponivel'}
+                            >
+                                {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wrench className="h-5 w-5" />}
+                                Abrir OS
+                            </button>
+
+                            <button
+                                onClick={() => setIsConsultingPosition(true)}
+                                className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 border border-slate-200 dark:border-slate-700 hover:border-blue-300 transition-all"
+                            >
+                                <Search className="h-5 w-5" />
+                                Consulta
+                            </button>
+                        </div>
+                    ) : isSwapConfirmOpen && selectedTire && swapInTire ? (
                         // --- CONFIRM SWAP (DEPTH INPUT) ---
                         <div className="p-6 bg-orange-50 dark:bg-orange-900/10 h-full flex flex-col justify-center">
                             <div className="text-center mb-6">
@@ -665,6 +746,25 @@ export const TireMovement: FC<TireMovementProps> = ({
                     ) : selectedTire && !isQuickSwapMode ? (
                         // --- TIRE IS MOUNTED: SHOW ACTIONS ---
                         <div className="p-6 space-y-6">
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={handleOpenTireServiceOrder}
+                                    disabled={isProcessing || !onCreateServiceOrder}
+                                    className="py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all"
+                                    title={onCreateServiceOrder ? 'Abrir OS automatica de troca de pneus' : 'Abertura de OS indisponivel'}
+                                >
+                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+                                    Abrir OS
+                                </button>
+                                <button
+                                    onClick={() => setShowDismountConfirm(false)}
+                                    className="py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
+                                >
+                                    <Search className="h-4 w-4" />
+                                    Consulta
+                                </button>
+                            </div>
+
                             {/* Tire Info Card */}
                             <div className="bg-slate-800 text-white p-5 rounded-2xl shadow-lg border border-slate-700 relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-4 opacity-10"><Disc className="h-24 w-24"/></div>
@@ -728,6 +828,25 @@ export const TireMovement: FC<TireMovementProps> = ({
                                         <button onClick={() => setIsQuickSwapMode(false)} className="text-xs text-slate-400 font-bold hover:text-slate-600">Cancelar Troca</button>
                                     )}
                                 </div>
+                                {!isQuickSwapMode && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={handleOpenTireServiceOrder}
+                                            disabled={isProcessing || !onCreateServiceOrder}
+                                            className="py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                                        >
+                                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+                                            Abrir OS
+                                        </button>
+                                        <button
+                                            onClick={() => setStockSearch('')}
+                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
+                                        >
+                                            <Search className="h-4 w-4" />
+                                            Consulta
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="flex gap-2">
                                     <div className="relative flex-1">
                                         <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400"/>
