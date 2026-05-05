@@ -6,6 +6,7 @@ import {
   CheckCircle2, Info, ChevronRight, BadgeAlert, Layers, Milestone
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, AreaChart, Area } from 'recharts';
+import { getTireLiveKm } from '../lib/tireIntelligence';
 
 interface DemandForecastProps {
   tires: Tire[];
@@ -61,8 +62,7 @@ export const DemandForecast: FC<DemandForecastProps> = ({
       let confidence: 'REAL' | 'ESTIMATIVA' = 'ESTIMATIVA';
 
       // Cálculo de KM Rodado Real
-      let kmRun = tire.totalKms || 0;
-      if (tire.installOdometer) kmRun += Math.max(0, vehicle.odometer - tire.installOdometer);
+      const kmRun = getTireLiveKm(tire, vehicle);
 
       const wear = original - current;
 

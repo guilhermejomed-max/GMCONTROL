@@ -9,6 +9,7 @@ import { DigitalTwin } from './DigitalTwin';
 import { getAllValidPositions } from '../lib/vehicleUtils';
 import { calculateFuelEfficiency, calculateRollingFuelEfficiency, getFuelVolume, sortFuelEntries } from '../lib/fuelUtils';
 import { chooseAuthoritativeOdometer, isImplausibleImportedOdometer, parseTrackerOdometerKm } from '../lib/odometerUtils';
+import { getTireCpk, getTireInvestment, getTireLiveKm } from '../lib/tireIntelligence';
 
 const SASCAR_CODES_CSV = `GBX3J82;1639616
 DAJ5H64;2215706
@@ -1073,8 +1074,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       
       // Verifica se algum pneu passou da vida útil estimada (padrão 80k se não houver catálogo)
       const hasExpiredTires = mountedTires.some(t => {
-          const run = Math.max(0, vehicle.odometer - (t.installOdometer || 0));
-          const totalRun = (t.totalKms || 0) + run;
+          const totalRun = getTireLiveKm(t, vehicle);
           
           // Tenta pegar do catálogo nas configurações, senão usa 80k
           const modelDef = settings?.tireModels?.find(m => m.brand === t.brand && m.model === t.model);
@@ -2983,7 +2983,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                             tires
                               .filter(t => t.vehicleId === selectedVehicleRG.id)
-                              .reduce((acc, t) => acc + (t.totalInvestment || t.price || 0), 0)
+                              .reduce((acc, t) => acc + getTireInvestment(t), 0)
                           )}
                         </p>
                       </div>
@@ -2995,8 +2995,8 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                             let totalConsumed = 0;
                             let totalKms = 0;
                             vehicleTires.forEach(t => {
-                              const investment = t.totalInvestment || t.price || 0;
-                              const totalKm = t.totalKms || 0;
+                              const investment = getTireInvestment(t);
+                              const totalKm = getTireLiveKm(t, selectedVehicleRG);
                               
                               if (totalKm > 0) {
                                   totalConsumed += investment;
@@ -3072,7 +3072,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                   </div>
                                   <div>
                                     <p className="text-[8px] text-slate-400 uppercase font-bold">KM Rodado</p>
-                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{((tire.totalKms || 0) + (tire.installOdometer ? Math.max(0, selectedVehicleRG.odometer - tire.installOdometer) : 0)).toLocaleString()} km</p>
+                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{getTireLiveKm(tire, selectedVehicleRG).toLocaleString()} km</p>
                                   </div>
                                   <div>
                                     <p className="text-[8px] text-slate-400 uppercase font-bold">Recapagens</p>
@@ -3081,7 +3081,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                                   <div>
                                     <p className="text-[8px] text-slate-400 uppercase font-bold">CPK</p>
                                     <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                                      R$ {((((tire.totalKms || 0) + (tire.installOdometer ? Math.max(0, selectedVehicleRG.odometer - tire.installOdometer) : 0))) > 0 ? (Number(tire.totalInvestment || tire.price || 0) / ((tire.totalKms || 0) + (tire.installOdometer ? Math.max(0, selectedVehicleRG.odometer - tire.installOdometer) : 0))) : 0).toFixed(4)}
+                                      R$ {getTireCpk(tire, selectedVehicleRG).toFixed(4)}
                                     </p>
                                   </div>
                                 </div>

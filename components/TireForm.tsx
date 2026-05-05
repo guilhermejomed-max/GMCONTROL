@@ -143,6 +143,13 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
       }
       
       const selectedVehicle = formData.vehicleId ? vehicles.find(v => v.id === formData.vehicleId) : null;
+      const price = Number(formData.price || 0);
+      const previousPrice = Number(editingTire?.price || 0);
+      const previousInvestment = Number((formData as Tire).totalInvestment || editingTire?.totalInvestment || 0);
+      const preservedServiceInvestment = editingTire ? Math.max(0, previousInvestment - previousPrice) : 0;
+      const initialRetreadInvestment = !editingTire && Number(formData.retreadCount || 0) > 0 ? Number(formData.retreadCost || 0) : 0;
+      const totalInvestment = price + preservedServiceInvestment + initialRetreadInvestment;
+      const totalKms = Number(formData.totalKms || 0);
       
       const newTire: Tire = {
         id: editingTire ? editingTire.id : Date.now().toString(36),
@@ -155,11 +162,11 @@ export const TireForm: FC<TireFormProps> = ({ onAddTire, onUpdateTire, editingTi
         currentTreadDepth: formData.currentTreadDepth,
         pressure: formData.targetPressure,
         history: editingTire ? (formData as Tire).history : [{ date: new Date().toISOString(), action: 'CADASTRADO', details: formData.vehicleId ? `Novo pneu registrado e montado no veículo ${selectedVehicle?.plate || ''}.` : 'Novo pneu registrado no estoque.' }],
-        totalKms: formData.totalKms,
+        totalKms,
         firstLifeKms: formData.firstLifeKms,
         retreadKms: formData.retreadKms,
-        totalInvestment: formData.price,
-        costPerKm: 0,
+        totalInvestment,
+        costPerKm: totalKms > 0 ? totalInvestment / totalKms : 0,
         retreadCount: formData.retreadCount,
         treadType: formData.treadType as 'LISO' | 'BORRACHUDO',
         purchaseDate: formData.purchaseDate,

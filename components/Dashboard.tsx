@@ -15,6 +15,7 @@ import {
   AlertCircle, ChevronRight, BarChart3, History, ScrollText, Wallet, ShoppingCart, Percent
 } from 'lucide-react';
 import { MaintenanceAgenda } from './MaintenanceAgenda';
+import { getTireInvestment, getTireLiveKm } from '../lib/tireIntelligence';
 
 interface DashboardProps {
   tires: Tire[];
@@ -178,7 +179,7 @@ export const Dashboard: FC<DashboardProps> = ({
     let totalServices = 0;
     filteredTires.forEach(t => {
         totalAcquisition += Number(t.price || 0);
-        const serviceCost = Number(t.totalInvestment || t.price || 0) - Number(t.price || 0);
+        const serviceCost = getTireInvestment(t) - Number(t.price || 0);
         if (serviceCost > 0) totalServices += serviceCost;
     });
     const costDistribution = [
@@ -234,10 +235,8 @@ export const Dashboard: FC<DashboardProps> = ({
     filteredTires.forEach(t => {
         // CPK Calculation
         const vehicle = vehicles?.find(v => v.id === t.vehicleId);
-        const currentRun = (vehicle && t.installOdometer) ? Math.max(0, vehicle.odometer - t.installOdometer) : 0;
-        const totalKm = (t.totalKms || 0) + currentRun;
-        
-        const investment = Number(t.totalInvestment || t.price || 0);
+        const totalKm = getTireLiveKm(t, vehicle);
+        const investment = getTireInvestment(t);
         const original = t.originalTreadDepth || 18;
         const current = t.currentTreadDepth || original;
         const safetyLimit = settings?.minTreadDepth || 3;
@@ -279,7 +278,7 @@ export const Dashboard: FC<DashboardProps> = ({
         // Retreads
         const retreadEvents = t.history?.filter(h => h.action === 'RETORNO_RECAPAGEM') || [];
         if (retreadEvents.length > 0) {
-            const totalRetreadCost = Number(t.totalInvestment || t.price || 0) - Number(t.price || 0);
+            const totalRetreadCost = getTireInvestment(t) - Number(t.price || 0);
             const costPerRetread = totalRetreadCost / retreadEvents.length;
             
             retreadEvents.forEach(ev => {
@@ -312,8 +311,7 @@ export const Dashboard: FC<DashboardProps> = ({
     let totalWearMm = 0, totalKmForWear = 0, totalRetreadSavings = 0;
     filteredTires.forEach(t => {
         const vehicle = vehicles?.find(v => v.id === t.vehicleId);
-        const currentRun = (vehicle && t.installOdometer) ? Math.max(0, vehicle.odometer - t.installOdometer) : 0;
-        const run = (t.totalKms || 0) + currentRun;
+        const run = getTireLiveKm(t, vehicle);
 
         if (run > 0) {
             const consumed = (t.originalTreadDepth || 18) - t.currentTreadDepth;
@@ -321,7 +319,7 @@ export const Dashboard: FC<DashboardProps> = ({
         }
         if (t.retreadCount > 0) {
             const newTirePrice = Number(t.price || calculatedAvgNewPrice);
-            let retreadCosts = Number(t.totalInvestment || t.price || 0) - newTirePrice;
+            let retreadCosts = getTireInvestment(t) - newTirePrice;
             if (retreadCosts <= 0) {
                 // Se não temos o custo real registrado, estimamos o custo da recapagem em 30% do valor de um pneu novo
                 retreadCosts = t.retreadCount * (newTirePrice * 0.3);

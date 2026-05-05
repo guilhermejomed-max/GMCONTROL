@@ -14,6 +14,7 @@ import {
   Line, AreaChart, Area 
 } from 'recharts';
 import { storageService } from '../services/storageService';
+import { getTireInvestment, getTireLiveKm } from '../lib/tireIntelligence';
 
 interface FinancialHubProps {
   tires: Tire[];
@@ -88,7 +89,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
     }> = {};
 
     filteredTires.forEach(tire => {
-      const investment = Number(tire.totalInvestment || tire.price || 0);
+      const investment = getTireInvestment(tire);
       const original = tire.originalTreadDepth || 18;
       const current = tire.currentTreadDepth;
       const safetyLimit = 3.0;
@@ -105,7 +106,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
       // Savings
       if (tire.retreadCount > 0) {
           const newTirePrice = Number(tire.price || 2800);
-          let totalRetreadCost = Number(tire.totalInvestment || tire.price || 0) - newTirePrice;
+          let totalRetreadCost = getTireInvestment(tire) - newTirePrice;
           if (totalRetreadCost <= 0) {
               totalRetreadCost = tire.retreadCount * (newTirePrice * 0.3);
           }
@@ -113,14 +114,8 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
       }
 
       // CPK Calculation
-      let tireTotalKm = tire.totalKms || 0;
-      if (tire.vehicleId && vehicles && tire.installOdometer) {
-          const v = vehicles.find(vh => vh.id === tire.vehicleId);
-          if (v) {
-              const currentRun = Math.max(0, v.odometer - tire.installOdometer);
-              tireTotalKm += currentRun;
-          }
-      }
+      const vehicle = tire.vehicleId ? vehicles.find(vh => vh.id === tire.vehicleId) : undefined;
+      const tireTotalKm = getTireLiveKm(tire, vehicle);
 
       // Populate Global Stats
       if (tireTotalKm > 0) {
@@ -212,7 +207,7 @@ export const FinancialHub: React.FC<FinancialHubProps> = ({
 
         if (discardEvents.length > 0) {
             discardedCount += discardEvents.length;
-            discardedValue += Number(tire.totalInvestment || tire.price || 0) * discardEvents.length;
+            discardedValue += getTireInvestment(tire) * discardEvents.length;
         }
     });
 

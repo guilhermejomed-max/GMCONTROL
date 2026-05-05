@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { TireComparison } from './TireComparison';
 import { isSteerAxle } from '../lib/vehicleUtils';
+import { getTireLiveKm } from '../lib/tireIntelligence';
 
 interface InspectionHubProps {
   tires: Tire[];
@@ -280,8 +281,7 @@ const ProInspectionPanel: FC<ProInspectionPanelProps> = ({
   tire, vehicle, data, onChange, onNext, onPrev, onQuickSave, isFirst, isLast, settings, isSaving
 }) => {
   const [showCamera, setShowCamera] = useState(false);
-  const kmRunOnVehicle = Math.max(0, vehicle.odometer - (tire.installOdometer || 0));
-  const liveTotalKm = (tire.totalKms || 0) + kmRunOnVehicle;
+  const liveTotalKm = getTireLiveKm(tire, vehicle);
 
   const toggleDamage = (damage: VisualDamage) => {
       const current = data.visualDamages || [];
@@ -501,15 +501,13 @@ export const InspectionHub: FC<InspectionHubProps> = ({
 
     setIsSaving(true);
     try {
-      const kmSinceInstall = Math.max(0, Number(selectedVehicle.odometer) - Number(activeTire.installOdometer || 0));
-      const finalTotalKms = Number(activeTire.totalKms || 0) + kmSinceInstall;
+      const liveTotalKms = getTireLiveKm(activeTire, selectedVehicle);
 
       const updatedTire: Tire = {
         ...activeTire,
         currentTreadDepth: data.depth !== undefined ? Number(data.depth) : activeTire.currentTreadDepth,
         pressure: data.pressure !== undefined ? Number(data.pressure) : activeTire.pressure,
-        totalKms: finalTotalKms,
-        installOdometer: Number(selectedVehicle.odometer),
+        lastMeasuredOdometer: Number(selectedVehicle.odometer),
         lastInspectionDate: new Date().toISOString(),
         treadReadings: { 
             depth1: Number(data.depth1) || 0, 
@@ -521,7 +519,7 @@ export const InspectionHub: FC<InspectionHubProps> = ({
         history: [...(activeTire.history || []), {
             date: new Date().toISOString(),
             action: 'INSPECAO',
-            details: `Inspeção realizada. KM do Pneu: ${finalTotalKms}km. Sulco Médio: ${data.depth}mm.`
+            details: `Inspeção realizada. KM apurado do pneu: ${liveTotalKms}km. Sulco Médio: ${data.depth}mm.`
         }]
       };
 
