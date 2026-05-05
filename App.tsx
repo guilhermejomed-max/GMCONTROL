@@ -531,7 +531,6 @@ export const App = () => {
     return () => unsubAuth();
   }, []);
 
-  // Carrega tarefas agendadas do Firebase ao logar
   useEffect(() => {
     if (!user?.uid) {
       setProfileSchedulesLoaded(false);
@@ -548,7 +547,6 @@ export const App = () => {
     });
   }, [user?.uid]);
 
-  // Salva tarefas agendadas no Firebase sempre que mudarem
   useEffect(() => {
     if (!user?.uid || !profileSchedulesLoaded) return;
     storageService.updateTeamMember(orgId, user.uid, { profileSchedules } as any);
