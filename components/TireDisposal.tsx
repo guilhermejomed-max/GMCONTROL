@@ -19,7 +19,7 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [items, setItems] = useState<WasteDisposalItem[]>([]);
-  const [currentItem, setCurrentItem] = useState({ wasteTypeId: '', quantity: '' });
+  const [currentItem, setCurrentItem] = useState({ wasteTypeId: '', fireNumber: '', discardCause: '', quantity: '1' });
   const [metadata, setMetadata] = useState({
     date: new Date().toISOString().split('T')[0],
     responsibleId: '',
@@ -49,6 +49,19 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
   }, [wasteTypes]);
 
   const tireTypeIds = useMemo(() => new Set(tireTypes.map(type => type.id)), [tireTypes]);
+  const discardCauses = [
+    'Fim de vida / desgaste natural',
+    'Corte lateral',
+    'Bolha',
+    'Arrancamento',
+    'Rodagem baixa',
+    'Recapagem recusada',
+    'Recapagem com falha',
+    'Desgaste irregular',
+    'Furo sem reparo',
+    'Acidente / impacto',
+    'Outro'
+  ];
 
   const tireDisposals = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -63,6 +76,8 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
         if (!query) return true;
         return (
           disposal.items.some(item => item.wasteTypeName.toLowerCase().includes(query)) ||
+          disposal.items.some(item => (item.fireNumber || '').toLowerCase().includes(query)) ||
+          disposal.items.some(item => (item.discardCause || '').toLowerCase().includes(query)) ||
           disposal.partnerName.toLowerCase().includes(query) ||
           disposal.responsibleName.toLowerCase().includes(query) ||
           (disposal.certificateNumber || '').toLowerCase().includes(query) ||
@@ -92,7 +107,7 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
 
   const resetForm = () => {
     setItems([]);
-    setCurrentItem({ wasteTypeId: '', quantity: '' });
+    setCurrentItem({ wasteTypeId: '', fireNumber: '', discardCause: '', quantity: '1' });
     setSelectedFile(null);
     setMetadata({
       date: new Date().toISOString().split('T')[0],
@@ -109,8 +124,10 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
   const handleAddItem = () => {
     const quantity = Number(currentItem.quantity);
     const tireType = tireTypes.find(type => type.id === currentItem.wasteTypeId);
-    if (!tireType || !Number.isInteger(quantity) || quantity <= 0) {
-      alert('Selecione o tipo de pneu/sucata e informe uma quantidade inteira.');
+    const fireNumber = currentItem.fireNumber.trim();
+    const discardCause = currentItem.discardCause.trim();
+    if (!tireType || !fireNumber || !discardCause || !Number.isInteger(quantity) || quantity <= 0) {
+      alert('Selecione o tipo, informe o numero de fogo, a causa e uma quantidade inteira.');
       return;
     }
 
@@ -120,10 +137,12 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
         wasteTypeId: tireType.id,
         wasteTypeName: tireType.name,
         quantity,
-        unit: tireType.unit
+        unit: tireType.unit,
+        fireNumber,
+        discardCause
       }
     ]);
-    setCurrentItem({ wasteTypeId: '', quantity: '' });
+    setCurrentItem({ wasteTypeId: '', fireNumber: '', discardCause: '', quantity: '1' });
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -278,11 +297,15 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
                   <td className="px-5 py-4">
                     <div className="space-y-1">
                       {disposal.items.map((item, index) => (
-                        <div key={`${item.wasteTypeId}-${index}`} className="flex items-center gap-2">
-                          <span className="font-black text-slate-800 dark:text-white">{item.wasteTypeName}</span>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-black">
-                            {item.quantity} un
-                          </span>
+                        <div key={`${item.wasteTypeId}-${index}`} className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-black text-slate-800 dark:text-white">{item.fireNumber || item.wasteTypeName}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-black">
+                              {item.quantity} un
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-bold mt-1">{item.wasteTypeName}</p>
+                          <p className="text-[10px] text-red-500 font-black mt-1">{item.discardCause || 'Causa nao informada'}</p>
                         </div>
                       ))}
                     </div>
@@ -345,7 +368,7 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
               <form onSubmit={handleSubmit} className="p-5 space-y-5">
                 <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-3">
                   <p className="text-xs font-black uppercase tracking-widest text-slate-400">Pneus do lote</p>
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_48px] gap-3 items-end">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
                     <div>
                       <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Tipo de pneu/sucata</label>
                       <select value={currentItem.wasteTypeId} onChange={event => setCurrentItem(prev => ({ ...prev, wasteTypeId: event.target.value }))} className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-bold">
@@ -354,19 +377,35 @@ export const TireDisposal: React.FC<TireDisposalProps> = ({ orgId, partners, col
                       </select>
                     </div>
                     <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Numero de fogo</label>
+                      <input value={currentItem.fireNumber} onChange={event => setCurrentItem(prev => ({ ...prev, fireNumber: event.target.value }))} placeholder="Ex: 15648" className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-bold" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Causa do descarte</label>
+                      <select value={currentItem.discardCause} onChange={event => setCurrentItem(prev => ({ ...prev, discardCause: event.target.value }))} className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-bold">
+                        <option value="">Selecione...</option>
+                        {discardCauses.map(cause => <option key={cause} value={cause}>{cause}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-[1fr_48px] gap-3 items-end">
+                      <div>
                       <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">Quantidade</label>
                       <input type="number" min="1" step="1" value={currentItem.quantity} onChange={event => setCurrentItem(prev => ({ ...prev, quantity: event.target.value }))} className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-bold text-center" />
+                      </div>
+                      <button type="button" onClick={handleAddItem} disabled={tireTypes.length === 0} className="h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 disabled:opacity-50">
+                        <Plus className="h-5 w-5" />
+                      </button>
                     </div>
-                    <button type="button" onClick={handleAddItem} disabled={tireTypes.length === 0} className="h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 disabled:opacity-50">
-                      <Plus className="h-5 w-5" />
-                    </button>
                   </div>
                   {tireTypes.length === 0 && <p className="text-[10px] font-bold text-red-500">Cadastre um tipo da categoria PNEU/TIRE nas configuracoes para registrar descarte.</p>}
                   {items.length > 0 && (
                     <div className="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-700">
                       {items.map((item, index) => (
                         <div key={`${item.wasteTypeId}-${index}`} className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                          <span className="text-sm font-black text-slate-700 dark:text-slate-200">{item.wasteTypeName}</span>
+                          <div>
+                            <span className="text-sm font-black text-slate-700 dark:text-slate-200">{item.fireNumber || item.wasteTypeName}</span>
+                            <p className="text-[10px] font-bold text-slate-400">{item.wasteTypeName} - {item.discardCause || 'Sem causa'}</p>
+                          </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-black text-emerald-700">{item.quantity} un</span>
                             <button type="button" onClick={() => setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index))} className="text-slate-400 hover:text-red-600">

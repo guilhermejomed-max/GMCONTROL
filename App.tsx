@@ -531,6 +531,7 @@ export const App = () => {
     return () => unsubAuth();
   }, []);
 
+  // Carrega tarefas agendadas do Firebase ao logar
   useEffect(() => {
     if (!user?.uid) {
       setProfileSchedulesLoaded(false);
@@ -547,6 +548,7 @@ export const App = () => {
     });
   }, [user?.uid]);
 
+  // Salva tarefas agendadas no Firebase sempre que mudarem
   useEffect(() => {
     if (!user?.uid || !profileSchedulesLoaded) return;
     storageService.updateTeamMember(orgId, user.uid, { profileSchedules } as any);
@@ -555,26 +557,35 @@ export const App = () => {
   const profileSchedulesRef = useRef<ProfileSchedule[]>([]);
   useEffect(() => { profileSchedulesRef.current = profileSchedules; }, [profileSchedules]);
 
+  const getScheduleMinutes = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return hours * 60 + minutes;
+  };
+
   useEffect(() => {
-    if (!user?.uid) return;
-    const timer = window.setInterval(() => {
+    if (!user?.uid || !profileSchedulesLoaded) return;
+    const checkDueSchedules = () => {
+      if (activeScheduleAlert) return;
       const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      const currentTime = `${hh}:${mm}`;
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const due = profileSchedulesRef.current.find(
-        item => item.enabled && item.time === currentTime && item.lastTriggeredDate !== localDate
-      );
+      const due = profileSchedulesRef.current.find(item => {
+        if (!item.enabled || item.lastTriggeredDate === localDate) return false;
+        const scheduleMinutes = getScheduleMinutes(item.time);
+        return scheduleMinutes !== null && scheduleMinutes <= currentMinutes;
+      });
       if (due) {
         setActiveScheduleAlert(due);
         setProfileSchedules(prev =>
           prev.map(item => item.id === due.id ? { ...item, lastTriggeredDate: localDate } : item)
         );
       }
-    }, 5000);
+    };
+    checkDueSchedules();
+    const timer = window.setInterval(checkDueSchedules, 5000);
     return () => window.clearInterval(timer);
-  }, [user?.uid]);
+  }, [user?.uid, profileSchedulesLoaded, activeScheduleAlert]);
 
   // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {

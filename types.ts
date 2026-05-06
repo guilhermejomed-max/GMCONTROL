@@ -794,6 +794,8 @@ export interface WasteDisposalItem {
   wasteTypeName: string;
   quantity: number;
   unit: WasteUnit;
+  fireNumber?: string;
+  discardCause?: string;
 }
 
 export interface WasteDisposal {
