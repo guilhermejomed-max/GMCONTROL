@@ -327,6 +327,7 @@ export const App = () => {
   const [scheduleNotes, setScheduleNotes] = useState('');
   const [activeScheduleAlert, setActiveScheduleAlert] = useState<ProfileSchedule | null>(null);
   const [profileSchedulesLoaded, setProfileSchedulesLoaded] = useState(false);
+  const [profileSchedulesOwnerId, setProfileSchedulesOwnerId] = useState('');
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
@@ -535,24 +536,55 @@ export const App = () => {
   useEffect(() => {
     if (!user?.uid) {
       setProfileSchedulesLoaded(false);
+      setProfileSchedulesOwnerId('');
       setProfileSchedules([]);
       return;
     }
+    setProfileSchedulesLoaded(false);
+    setProfileSchedulesOwnerId('');
+    const backupKey = `gm_profile_schedules_${user.uid}`;
+    const localBackup = (() => {
+      try {
+        const raw = localStorage.getItem(backupKey);
+        if (!raw) return { schedules: [] as ProfileSchedule[], updatedAt: '' };
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return { schedules: parsed as ProfileSchedule[], updatedAt: '' };
+        return {
+          schedules: Array.isArray(parsed?.schedules) ? parsed.schedules as ProfileSchedule[] : [],
+          updatedAt: typeof parsed?.updatedAt === 'string' ? parsed.updatedAt : ''
+        };
+      } catch {
+        return { schedules: [] as ProfileSchedule[], updatedAt: '' };
+      }
+    })();
     storageService.getUserProfile(user.uid).then(profile => {
       const saved = (profile as any)?.profileSchedules;
-      setProfileSchedules(Array.isArray(saved) ? saved : []);
+      const remoteSchedules = Array.isArray(saved) ? saved as ProfileSchedule[] : null;
+      const remoteUpdatedAt = typeof (profile as any)?.profileSchedulesUpdatedAt === 'string' ? (profile as any).profileSchedulesUpdatedAt : '';
+      const localIsNewer = localBackup.updatedAt && (!remoteUpdatedAt || localBackup.updatedAt > remoteUpdatedAt);
+      const nextSchedules = localIsNewer ? localBackup.schedules : (remoteSchedules ?? localBackup.schedules);
+      setProfileSchedules(nextSchedules);
+      setProfileSchedulesOwnerId(user.uid);
       setProfileSchedulesLoaded(true);
     }).catch(() => {
-      setProfileSchedules([]);
+      setProfileSchedules(localBackup.schedules);
+      setProfileSchedulesOwnerId(user.uid);
       setProfileSchedulesLoaded(true);
     });
   }, [user?.uid]);
 
   // Salva tarefas agendadas no Firebase sempre que mudarem
   useEffect(() => {
-    if (!user?.uid || !profileSchedulesLoaded) return;
-    storageService.updateTeamMember(orgId, user.uid, { profileSchedules } as any);
-  }, [user?.uid, profileSchedules, profileSchedulesLoaded]);
+    if (!user?.uid || !profileSchedulesLoaded || profileSchedulesOwnerId !== user.uid) return;
+    const updatedAt = new Date().toISOString();
+    try {
+      localStorage.setItem(`gm_profile_schedules_${user.uid}`, JSON.stringify({ schedules: profileSchedules, updatedAt }));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar backup local das tarefas:', error);
+    }
+    storageService.updateTeamMember(orgId, user.uid, { profileSchedules, profileSchedulesUpdatedAt: updatedAt } as any)
+      .catch(error => console.error('Erro ao salvar tarefas diarias:', error));
+  }, [orgId, user?.uid, profileSchedules, profileSchedulesLoaded, profileSchedulesOwnerId]);
 
   const profileSchedulesRef = useRef<ProfileSchedule[]>([]);
   useEffect(() => { profileSchedulesRef.current = profileSchedules; }, [profileSchedules]);

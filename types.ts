@@ -358,6 +358,8 @@ export interface TeamMember {
   branchId?: string | null; // Filial vinculada
   sectorId?: string; // Novo: Setor vinculado
   sectorName?: string; // Novo: Nome do setor vinculado
+  profileSchedules?: any[];
+  profileSchedulesUpdatedAt?: string;
 }
 
 export interface StockItem {

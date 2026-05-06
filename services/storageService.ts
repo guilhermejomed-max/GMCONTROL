@@ -166,7 +166,10 @@ const LocalDB = {
     update: (collection: string, id: string, updates: any) => {
         const key = `gm_local_${collection}`;
         const current = JSON.parse(localStorage.getItem(key) || '[]');
-        const updated = current.map((i: any) => i.id === id ? { ...i, ...updates } : i);
+        const exists = current.some((i: any) => i.id === id);
+        const updated = exists
+            ? current.map((i: any) => i.id === id ? { ...i, ...updates } : i)
+            : [...current, { id, ...updates }];
         LocalDB.set(collection, updated);
     },
 
