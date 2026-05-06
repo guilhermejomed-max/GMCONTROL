@@ -280,7 +280,8 @@ const repairMojibakeText = (value: string) => {
 export const App = () => {
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
-  const orgId = user?.uid || 'default';
+  const userId = user?.uid || user?.id || '';
+  const orgId = userId || 'default';
 
   // App State
   const [currentTab, setCurrentTab] = useState<TabView>('dashboard');
@@ -485,7 +486,14 @@ export const App = () => {
             const profile = await storageService.getUserProfile(u.uid);
             if (profile) {
                 // Merge auth user with profile data
-                setUser({ ...u, ...profile });
+                setUser({
+                  ...profile,
+                  ...u,
+                  id: profile.id || u.uid,
+                  uid: u.uid || profile.id,
+                  displayName: (u as any).displayName || profile.name,
+                  email: (u as any).email || profile.email
+                });
                 setUserRole(profile.role);
                 const userModules = (profile.allowedModules || ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR'])
                   .filter((m: any) => ['TIRES', 'MECHANICAL', 'VEHICLES', 'FUEL', 'JMDSSMAQ', 'HR'].includes(m)) as ModuleType[];
@@ -534,7 +542,7 @@ export const App = () => {
 
   // Carrega tarefas agendadas do Firebase ao logar
   useEffect(() => {
-    if (!user?.uid) {
+    if (!userId) {
       setProfileSchedulesLoaded(false);
       setProfileSchedulesOwnerId('');
       setProfileSchedules([]);
@@ -542,7 +550,7 @@ export const App = () => {
     }
     setProfileSchedulesLoaded(false);
     setProfileSchedulesOwnerId('');
-    const backupKey = `gm_profile_schedules_${user.uid}`;
+    const backupKey = `gm_profile_schedules_${userId}`;
     const localBackup = (() => {
       try {
         const raw = localStorage.getItem(backupKey);
@@ -557,34 +565,34 @@ export const App = () => {
         return { schedules: [] as ProfileSchedule[], updatedAt: '' };
       }
     })();
-    storageService.getUserProfile(user.uid).then(profile => {
+    storageService.getUserProfile(userId).then(profile => {
       const saved = (profile as any)?.profileSchedules;
       const remoteSchedules = Array.isArray(saved) ? saved as ProfileSchedule[] : null;
       const remoteUpdatedAt = typeof (profile as any)?.profileSchedulesUpdatedAt === 'string' ? (profile as any).profileSchedulesUpdatedAt : '';
       const localIsNewer = localBackup.updatedAt && (!remoteUpdatedAt || localBackup.updatedAt > remoteUpdatedAt);
       const nextSchedules = localIsNewer ? localBackup.schedules : (remoteSchedules ?? localBackup.schedules);
       setProfileSchedules(nextSchedules);
-      setProfileSchedulesOwnerId(user.uid);
+      setProfileSchedulesOwnerId(userId);
       setProfileSchedulesLoaded(true);
     }).catch(() => {
       setProfileSchedules(localBackup.schedules);
-      setProfileSchedulesOwnerId(user.uid);
+      setProfileSchedulesOwnerId(userId);
       setProfileSchedulesLoaded(true);
     });
-  }, [user?.uid]);
+  }, [userId]);
 
   // Salva tarefas agendadas no Firebase sempre que mudarem
   useEffect(() => {
-    if (!user?.uid || !profileSchedulesLoaded || profileSchedulesOwnerId !== user.uid) return;
+    if (!userId || !profileSchedulesLoaded || profileSchedulesOwnerId !== userId) return;
     const updatedAt = new Date().toISOString();
     try {
-      localStorage.setItem(`gm_profile_schedules_${user.uid}`, JSON.stringify({ schedules: profileSchedules, updatedAt }));
+      localStorage.setItem(`gm_profile_schedules_${userId}`, JSON.stringify({ schedules: profileSchedules, updatedAt }));
     } catch (error) {
       console.warn('Nao foi possivel salvar backup local das tarefas:', error);
     }
-    storageService.updateTeamMember(orgId, user.uid, { profileSchedules, profileSchedulesUpdatedAt: updatedAt } as any)
+    storageService.updateTeamMember(orgId, userId, { profileSchedules, profileSchedulesUpdatedAt: updatedAt } as any)
       .catch(error => console.error('Erro ao salvar tarefas diarias:', error));
-  }, [orgId, user?.uid, profileSchedules, profileSchedulesLoaded, profileSchedulesOwnerId]);
+  }, [orgId, userId, profileSchedules, profileSchedulesLoaded, profileSchedulesOwnerId]);
 
   const profileSchedulesRef = useRef<ProfileSchedule[]>([]);
   useEffect(() => { profileSchedulesRef.current = profileSchedules; }, [profileSchedules]);
@@ -596,7 +604,7 @@ export const App = () => {
   };
 
   useEffect(() => {
-    if (!user?.uid || !profileSchedulesLoaded) return;
+    if (!userId || !profileSchedulesLoaded) return;
     const checkDueSchedules = () => {
       if (activeScheduleAlert) return;
       const now = new Date();
@@ -617,7 +625,7 @@ export const App = () => {
     checkDueSchedules();
     const timer = window.setInterval(checkDueSchedules, 5000);
     return () => window.clearInterval(timer);
-  }, [user?.uid, profileSchedulesLoaded, activeScheduleAlert]);
+  }, [userId, profileSchedulesLoaded, activeScheduleAlert]);
 
   // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {
@@ -633,15 +641,15 @@ export const App = () => {
     const unsubCollaborators = storageService.subscribeToCollaborators(orgId, setCollaborators);
 
     let unsubNotifications = () => {};
-    if (user?.uid) {
-      unsubNotifications = storageService.subscribeToNotifications(orgId, user.uid, (newNotes) => {
+    if (userId) {
+      unsubNotifications = storageService.subscribeToNotifications(orgId, userId, (newNotes) => {
         setNotifications(prev => {
           const unread = newNotes.filter(n => !n.read);
           const lastRead = prev.filter(n => !n.read);
           
           if (unread.length > lastRead.length) {
             const latest = unread[0];
-            if (latest && latest.senderId !== user.uid) {
+            if (latest && latest.senderId !== userId) {
               const alreadyToasted = prev.some(n => n.id === latest.id);
               if (!alreadyToasted) {
                 addToast('info', `Novo Alerta: ${latest.senderName}`, latest.text);
@@ -1608,9 +1616,9 @@ const distance = R * c; // in metres
   };
 
   const handleUpdateUserPhoto = async (base64: string) => {
-    if (!user?.uid) return;
+    if (!userId) return;
     try {
-      await storageService.updateTeamMember(orgId, user.uid, { photoUrl: base64 });
+      await storageService.updateTeamMember(orgId, userId, { photoUrl: base64 });
       setUser(prev => ({ ...prev, photoUrl: base64 }));
       addToast('success', 'Perfil Atualizado', 'Sua foto de perfil foi alterada com sucesso.');
     } catch (error) {
@@ -1634,20 +1642,20 @@ const distance = R * c; // in metres
   };
 
   const saveProfileSchedulesNow = async (nextSchedules: ProfileSchedule[]) => {
-    if (!user?.uid) {
+    if (!userId) {
       addToast('error', 'Perfil nao encontrado', 'Entre novamente para salvar tarefas diarias.');
       return false;
     }
 
     const updatedAt = new Date().toISOString();
     try {
-      localStorage.setItem(`gm_profile_schedules_${user.uid}`, JSON.stringify({ schedules: nextSchedules, updatedAt }));
+      localStorage.setItem(`gm_profile_schedules_${userId}`, JSON.stringify({ schedules: nextSchedules, updatedAt }));
     } catch (error) {
       console.warn('Nao foi possivel salvar tarefas no backup local:', error);
     }
 
     try {
-      await storageService.updateTeamMember(orgId, user.uid, { profileSchedules: nextSchedules, profileSchedulesUpdatedAt: updatedAt } as any);
+      await storageService.updateTeamMember(orgId, userId, { profileSchedules: nextSchedules, profileSchedulesUpdatedAt: updatedAt } as any);
       return true;
     } catch (error) {
       console.error('Erro ao salvar tarefas diarias:', error);
@@ -1673,7 +1681,7 @@ const distance = R * c; // in metres
     const saved = await saveProfileSchedulesNow(nextSchedules);
     if (!saved) return;
     setProfileSchedules(nextSchedules);
-    setProfileSchedulesOwnerId(user?.uid || '');
+    setProfileSchedulesOwnerId(userId);
     setProfileSchedulesLoaded(true);
     setScheduleTitle('');
     setScheduleTime('');
