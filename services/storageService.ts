@@ -76,6 +76,13 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
 const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
 
 const normalizePublicVehicleKey = (value: any) => String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+const normalizeComparableKey = (value: any) => String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+const getVehicleFreshness = (vehicle: Partial<Vehicle>) => new Date(
+  vehicle.lastAutoUpdateDate ||
+  vehicle.lastLocation?.updatedAt ||
+  vehicle.lastPreventiveDate ||
+  '1970-01-01'
+).getTime();
 
 const toPublicVehicleRg = (vehicle: Vehicle) => sanitize({
   id: vehicle.id,
@@ -819,12 +826,17 @@ export const storageService = {
   subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`vehicles`, callback);
     return db.collection("vehicles").onSnapshot((snapshot) => {
-      const vehicles: Vehicle[] = [];
+      const vehiclesByPlate = new Map<string, Vehicle>();
       snapshot.forEach((doc) => {
         const data = doc.data() as Vehicle;
-        vehicles.push({ ...data, id: doc.id });
+        const vehicle = { ...data, id: doc.id };
+        const key = normalizePublicVehicleKey(vehicle.plate) || doc.id;
+        const current = vehiclesByPlate.get(key);
+        if (!current || getVehicleFreshness(vehicle) >= getVehicleFreshness(current)) {
+          vehiclesByPlate.set(key, vehicle);
+        }
       });
-      callback(vehicles);
+      callback(Array.from(vehiclesByPlate.values()));
     }, (error) => handleFirestoreError(error, OperationType.LIST, "vehicles"));
   },
 
@@ -849,11 +861,13 @@ export const storageService = {
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
       if (vehicle.plate && vehicle.type) {
-        const samePlate = await db.collection("vehicles").where("plate", "==", vehicle.plate).get();
+        const targetPlateKey = normalizePublicVehicleKey(vehicle.plate);
+        const samePlate = await db.collection("vehicles").get();
         const duplicateBatch = db.batch();
         let duplicateCount = 0;
         samePlate.docs.forEach(doc => {
-          if (doc.id !== vehicle.id && doc.data().type !== vehicle.type) {
+          const data = doc.data();
+          if (normalizePublicVehicleKey(data.plate) === targetPlateKey && data.type !== vehicle.type) {
             duplicateBatch.set(doc.ref, sanitize({ type: vehicle.type, lastAutoUpdateDate: updates.lastAutoUpdateDate }), { merge: true });
             duplicateCount++;
           }
@@ -968,11 +982,14 @@ export const storageService = {
     }
     
     return db.collection("vehicleBrandModels").onSnapshot((snapshot) => {
-      const models: VehicleBrandModel[] = [];
+      const modelsByName = new Map<string, VehicleBrandModel>();
       snapshot.forEach((doc) => {
         const data = doc.data() as VehicleBrandModel;
-        models.push({ ...data, id: doc.id });
+        const model = { ...data, id: doc.id };
+        const key = `${normalizeComparableKey(model.brand)}|${normalizeComparableKey(model.model)}` || doc.id;
+        modelsByName.set(key, model);
       });
+      const models = Array.from(modelsByName.values());
       seedIfEmpty(models);
       callback(models);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "vehicleBrandModels"));
@@ -993,12 +1010,14 @@ export const storageService = {
     try {
       await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model), { merge: true });
       if (model.brand && model.model && model.type) {
-        const sameModel = await db.collection("vehicleBrandModels").where("brand", "==", model.brand).get();
+        const brandKey = normalizeComparableKey(model.brand);
+        const modelKey = normalizeComparableKey(model.model);
+        const sameModel = await db.collection("vehicleBrandModels").get();
         const duplicateBatch = db.batch();
         let duplicateCount = 0;
         sameModel.docs.forEach(doc => {
           const data = doc.data();
-          if (doc.id !== model.id && data.model === model.model && data.type !== model.type) {
+          if (normalizeComparableKey(data.brand) === brandKey && normalizeComparableKey(data.model) === modelKey && data.type !== model.type) {
             duplicateBatch.set(doc.ref, sanitize({ type: model.type }), { merge: true });
             duplicateCount++;
           }
