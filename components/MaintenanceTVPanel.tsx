@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CalendarDays, CheckCircle2, Maximize, Monitor, Truck, Wrench } from 'lucide-react';
+import { Filter, Maximize, Monitor, Search, Wrench } from 'lucide-react';
 import { ServiceOrder, Vehicle } from '../types';
 
 interface MaintenanceTVPanelProps {
@@ -7,58 +7,70 @@ interface MaintenanceTVPanelProps {
   serviceOrders: ServiceOrder[];
 }
 
+type ColumnKey = 'vin' | 'renavam' | 'year' | 'model' | 'type' | 'color' | 'plate' | 'oilLiters' | 'dateOs';
 type MaintenanceStatus = 'VENCIDA' | 'PROXIMA' | 'OK' | 'SEM_DADOS';
 
-const formatKm = (value: number) => `${Math.round(value || 0).toLocaleString('pt-BR')} km`;
+const columnLabels: Record<ColumnKey, string> = {
+  vin: 'CHASSI',
+  renavam: 'RENAVAM',
+  year: 'FABRICACAO',
+  model: 'MODELO',
+  type: 'TIPO VEICULO',
+  color: 'COR',
+  plate: 'PLACA',
+  oilLiters: 'LT OLEO',
+  dateOs: 'DATA OS'
+};
+
+const statusStyle: Record<MaintenanceStatus, string> = {
+  VENCIDA: 'bg-red-50 text-red-700 border-red-200',
+  PROXIMA: 'bg-amber-50 text-amber-700 border-amber-200',
+  OK: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  SEM_DADOS: 'bg-slate-100 text-slate-600 border-slate-200'
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value.includes('T') ? value : `${value}T08:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
 
 const getOrderCost = (order: ServiceOrder) => {
   const parts = (order.parts || []).reduce((sum, part) => sum + (part.quantity * part.unitCost), 0);
   return Number(order.totalCost || 0) + Number(order.laborCost || 0) + Number(order.externalServiceCost || 0) + parts;
 };
 
-const statusMeta: Record<MaintenanceStatus, { label: string; text: string; bg: string; border: string; bar: string }> = {
-  VENCIDA: {
-    label: 'Vencida',
-    text: 'text-red-100',
-    bg: 'bg-red-950',
-    border: 'border-red-500',
-    bar: 'bg-red-500'
-  },
-  PROXIMA: {
-    label: 'Proxima',
-    text: 'text-amber-100',
-    bg: 'bg-amber-950',
-    border: 'border-amber-400',
-    bar: 'bg-amber-400'
-  },
-  OK: {
-    label: 'Em dia',
-    text: 'text-emerald-100',
-    bg: 'bg-emerald-950',
-    border: 'border-emerald-500',
-    bar: 'bg-emerald-500'
-  },
-  SEM_DADOS: {
-    label: 'Sem plano',
-    text: 'text-slate-100',
-    bg: 'bg-slate-900',
-    border: 'border-slate-700',
-    bar: 'bg-slate-600'
-  }
-};
-
 export const MaintenanceTVPanel: React.FC<MaintenanceTVPanelProps> = ({ vehicles, serviceOrders }) => {
-  const [compact, setCompact] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [filters, setFilters] = useState<Record<ColumnKey, string>>({
+    vin: '',
+    renavam: '',
+    year: '',
+    model: '',
+    type: '',
+    color: '',
+    plate: '',
+    oilLiters: '',
+    dateOs: ''
+  });
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const data = useMemo(() => {
+  const rows = useMemo(() => {
     const activeOrders = serviceOrders.filter(order => order.status !== 'CONCLUIDO' && order.status !== 'CANCELADO');
-    const rows = vehicles
+
+    return vehicles
       .filter(vehicle => String(vehicle.type || '').toUpperCase() !== 'CARRETA')
       .map(vehicle => {
         const odometer = Number(vehicle.odometer || 0);
@@ -79,194 +91,145 @@ export const MaintenanceTVPanel: React.FC<MaintenanceTVPanelProps> = ({ vehicles
         }
 
         return {
-          vehicle,
-          odometer,
-          interval,
-          lastKm,
-          nextKm,
-          remainingKm,
+          id: vehicle.id,
           status,
           openOrders: relatedOrders.length,
-          openOrderCost: relatedOrders.reduce((sum, order) => sum + getOrderCost(order), 0),
-          lastOrderDate: lastOrder?.completedAt || lastOrder?.date || lastOrder?.createdAt
+          openCost: relatedOrders.reduce((sum, order) => sum + getOrderCost(order), 0),
+          remainingKm,
+          values: {
+            vin: vehicle.vin || '',
+            renavam: vehicle.renavam || '',
+            year: vehicle.year ? String(vehicle.year) : '',
+            model: vehicle.model || '',
+            type: vehicle.axles ? `${String(vehicle.axles).padStart(2, '0')} EIXOS` : vehicle.type || '',
+            color: vehicle.color || '',
+            plate: vehicle.plate || '',
+            oilLiters: vehicle.oilLiters ? String(vehicle.oilLiters) : '',
+            dateOs: formatDateTime(lastOrder?.completedAt || lastOrder?.date || lastOrder?.createdAt)
+          }
         };
+      })
+      .filter(row => {
+        return (Object.keys(filters) as ColumnKey[]).every(key => {
+          const filter = filters[key].trim().toLowerCase();
+          if (!filter) return true;
+          return String(row.values[key] || '').toLowerCase().includes(filter);
+        });
       })
       .sort((a, b) => {
         const weight: Record<MaintenanceStatus, number> = { VENCIDA: 0, PROXIMA: 1, SEM_DADOS: 2, OK: 3 };
-        return weight[a.status] - weight[b.status] || a.remainingKm - b.remainingKm;
+        return weight[a.status] - weight[b.status] || a.values.plate.localeCompare(b.values.plate);
       });
+  }, [vehicles, serviceOrders, filters]);
 
-    return {
-      rows,
-      overdue: rows.filter(row => row.status === 'VENCIDA'),
-      upcoming: rows.filter(row => row.status === 'PROXIMA'),
-      ok: rows.filter(row => row.status === 'OK'),
-      noPlan: rows.filter(row => row.status === 'SEM_DADOS'),
-      openOrders: activeOrders.length
-    };
-  }, [vehicles, serviceOrders]);
+  const summary = useMemo(() => ({
+    total: rows.length,
+    vencidas: rows.filter(row => row.status === 'VENCIDA').length,
+    proximas: rows.filter(row => row.status === 'PROXIMA').length,
+    abertas: rows.reduce((sum, row) => sum + row.openOrders, 0)
+  }), [rows]);
 
-  const priorityRows = [...data.overdue, ...data.upcoming].slice(0, compact ? 18 : 12);
-  const watchRows = data.noPlan.slice(0, compact ? 9 : 6);
+  const updateFilter = (key: ColumnKey, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
 
   const requestFullscreen = () => {
     const element = document.documentElement;
     if (element.requestFullscreen) element.requestFullscreen();
   };
 
-  const renderVehicleCard = (row: (typeof data.rows)[number], dense = false) => {
-    const meta = statusMeta[row.status];
-    const progress = row.nextKm > 0 && row.interval > 0
-      ? Math.max(0, Math.min(100, ((row.odometer - row.lastKm) / row.interval) * 100))
-      : 0;
-
-    return (
-      <article key={row.vehicle.id} className={`rounded-lg border ${meta.border} ${meta.bg} p-4 shadow-sm`}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className={`${dense ? 'text-2xl' : 'text-4xl'} font-black tracking-tight text-white truncate`}>
-                {row.vehicle.plate}
-              </h3>
-              <span className={`rounded-md px-2 py-1 text-[10px] font-black uppercase ${row.status === 'VENCIDA' ? 'bg-red-500 text-white' : row.status === 'PROXIMA' ? 'bg-amber-400 text-slate-950' : row.status === 'OK' ? 'bg-emerald-500 text-white' : 'bg-slate-600 text-white'}`}>
-                {meta.label}
-              </span>
-            </div>
-            <p className="mt-1 truncate text-sm font-bold text-slate-300">
-              {row.vehicle.brand || '-'} {row.vehicle.model || ''} {row.vehicle.fleetNumber ? `| Prefixo ${row.vehicle.fleetNumber}` : ''}
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-[10px] font-black uppercase text-slate-400">Restante</p>
-            <p className={`${dense ? 'text-xl' : 'text-3xl'} font-black ${meta.text}`}>
-              {row.status === 'SEM_DADOS' ? '-' : row.remainingKm <= 0 ? `${formatKm(Math.abs(row.remainingKm))} vencido` : formatKm(row.remainingKm)}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/35">
-          <div className={`h-full ${meta.bar}`} style={{ width: `${progress}%` }} />
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-            <p className="text-[10px] font-black uppercase text-slate-400">Atual</p>
-            <p className="text-sm font-black text-white">{formatKm(row.odometer)}</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-            <p className="text-[10px] font-black uppercase text-slate-400">Proxima</p>
-            <p className="text-sm font-black text-white">{row.nextKm > 0 ? formatKm(row.nextKm) : '-'}</p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-            <p className="text-[10px] font-black uppercase text-slate-400">O.S.</p>
-            <p className="text-sm font-black text-white">{row.openOrders}</p>
-          </div>
-        </div>
-      </article>
-    );
-  };
-
   return (
-    <div className="min-h-[calc(100vh-7rem)] overflow-hidden rounded-lg border border-slate-800 bg-slate-950 text-white shadow-2xl">
-      <header className="border-b border-slate-800 bg-slate-900 px-6 py-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-blue-600">
-              <Monitor className="h-8 w-8" />
-            </div>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-widest text-blue-300">Painel TV manutencao</p>
-              <h2 className="text-4xl font-black leading-tight">Prioridade da Oficina</h2>
-              <p className="text-sm font-bold text-slate-400">Atualizado em {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-            </div>
+    <div className="min-h-[calc(100vh-7rem)] overflow-hidden rounded-lg border border-slate-300 bg-white text-slate-950 shadow-xl">
+      <header className="flex flex-col gap-3 border-b border-slate-300 bg-slate-50 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-600 text-white">
+            <Monitor className="h-6 w-6" />
           </div>
+          <div>
+            <h2 className="text-xl font-black uppercase tracking-tight">Painel TV Manutencao</h2>
+            <p className="text-xs font-bold text-slate-500">Atualizado em {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setCompact(prev => !prev)}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-black hover:bg-slate-700"
-            >
-              {compact ? 'Visao destaque' : 'Visao compacta'}
-            </button>
-            <button
-              onClick={requestFullscreen}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-black hover:bg-blue-700"
-            >
-              <Maximize className="h-4 w-4" />
-              Tela cheia
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase">
+          <span className="rounded border border-slate-300 bg-white px-3 py-2">Total: {summary.total}</span>
+          <span className="rounded border border-red-200 bg-red-50 px-3 py-2 text-red-700">Vencidas: {summary.vencidas}</span>
+          <span className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700">Proximas: {summary.proximas}</span>
+          <span className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700">OS abertas: {summary.abertas}</span>
+          <button onClick={requestFullscreen} className="flex items-center gap-2 rounded bg-slate-900 px-3 py-2 text-white">
+            <Maximize className="h-4 w-4" />
+            Tela cheia
+          </button>
         </div>
       </header>
 
-      <main className="space-y-5 p-5">
-        <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-          {[
-            ['Vencidas', data.overdue.length, AlertTriangle, 'text-red-300', 'border-red-500/60 bg-red-950'],
-            ['Proximas', data.upcoming.length, CalendarDays, 'text-amber-300', 'border-amber-400/60 bg-amber-950'],
-            ['Em dia', data.ok.length, CheckCircle2, 'text-emerald-300', 'border-emerald-500/50 bg-emerald-950'],
-            ['Sem plano', data.noPlan.length, Truck, 'text-slate-300', 'border-slate-700 bg-slate-900'],
-            ['O.S. abertas', data.openOrders, Wrench, 'text-blue-300', 'border-blue-500/50 bg-blue-950']
-          ].map(([label, value, Icon, color, card]: any) => (
-            <div key={label} className={`rounded-lg border ${card} p-4`}>
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-black uppercase text-slate-400">{label}</p>
-                <Icon className={`h-6 w-6 ${color}`} />
-              </div>
-              <p className={`mt-2 text-5xl font-black ${color}`}>{value}</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.45fr_.55fr]">
-          <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-red-300">Fila de entrada</p>
-                <h3 className="text-2xl font-black">Vencidas e proximas</h3>
-              </div>
-              <p className="text-sm font-black text-slate-400">{priorityRows.length} em destaque</p>
-            </div>
-            <div className={`grid gap-3 ${compact ? 'grid-cols-1 2xl:grid-cols-3' : 'grid-cols-1 2xl:grid-cols-2'}`}>
-              {priorityRows.map(row => renderVehicleCard(row, compact))}
-              {priorityRows.length === 0 && (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-950 p-8 text-center">
-                  <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-emerald-300" />
-                  <p className="text-2xl font-black text-emerald-100">Sem preventiva vencida ou proxima.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <aside className="space-y-5">
-            <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sem plano preventivo</p>
-              <h3 className="mt-1 text-2xl font-black">{data.noPlan.length} veiculos</h3>
-              <div className="mt-4 space-y-2">
-                {watchRows.map(row => (
-                  <div key={row.vehicle.id} className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950 p-3">
-                    <div>
-                      <p className="text-lg font-black">{row.vehicle.plate}</p>
-                      <p className="text-xs font-bold text-slate-500">{row.vehicle.brand || '-'} {row.vehicle.model || ''}</p>
+      <div className="overflow-auto" style={{ height: 'calc(100vh - 180px)' }}>
+        <table className="w-full border-collapse text-left text-[14px]" style={{ minWidth: 1760 }}>
+          <thead className="sticky top-0 z-20 bg-white shadow-sm">
+            <tr>
+              {(Object.keys(columnLabels) as ColumnKey[]).map(key => (
+                <th key={key} className="border-r border-slate-300 px-4 py-4 text-sm font-black uppercase">
+                  {columnLabels[key]}
+                </th>
+              ))}
+              <th className="border-r border-slate-300 px-4 py-4 text-sm font-black uppercase">STATUS</th>
+              <th className="px-4 py-4 text-sm font-black uppercase">OS ABERTA</th>
+            </tr>
+            <tr className="border-y border-slate-300 bg-slate-50">
+              {(Object.keys(columnLabels) as ColumnKey[]).map(key => (
+                <th key={key} className="border-r border-slate-300 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-full">
+                      <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-slate-400" />
+                      <input
+                        type={key === 'dateOs' ? 'text' : 'text'}
+                        placeholder={key === 'dateOs' ? 'dd/mm/aaaa' : ''}
+                        className="h-7 w-full rounded border border-slate-300 bg-white pl-7 pr-2 text-xs font-bold outline-none focus:border-blue-500"
+                        value={filters[key]}
+                        onChange={event => updateFilter(key, event.target.value)}
+                      />
                     </div>
-                    <Truck className="h-5 w-5 text-slate-500" />
+                    <Filter className="h-3.5 w-3.5 shrink-0 text-slate-700" />
                   </div>
+                </th>
+              ))}
+              <th className="border-r border-slate-300 px-4 py-3" />
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.id} className="border-b border-slate-200 odd:bg-white even:bg-slate-50 hover:bg-blue-50">
+                {(Object.keys(columnLabels) as ColumnKey[]).map(key => (
+                  <td key={key} className="whitespace-nowrap px-4 py-2 font-medium">
+                    {row.values[key] || '-'}
+                  </td>
                 ))}
-                {watchRows.length === 0 && <p className="rounded-lg border border-slate-800 bg-slate-950 p-4 text-sm font-bold text-slate-400">Todos os veiculos possuem plano.</p>}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resumo operacional</p>
-              <div className="mt-4 space-y-3 text-sm font-bold text-slate-300">
-                <div className="flex justify-between"><span>Total monitorado</span><span>{data.rows.length}</span></div>
-                <div className="flex justify-between"><span>Necessitam acao</span><span>{data.overdue.length + data.upcoming.length}</span></div>
-                <div className="flex justify-between"><span>O.S. em aberto</span><span>{data.openOrders}</span></div>
-              </div>
-            </div>
-          </aside>
-        </section>
-      </main>
+                <td className="whitespace-nowrap px-4 py-2">
+                  <span className={`inline-flex rounded border px-2 py-1 text-[11px] font-black uppercase ${statusStyle[row.status]}`}>
+                    {row.status === 'VENCIDA' ? 'Vencida' : row.status === 'PROXIMA' ? 'Proxima' : row.status === 'OK' ? 'Em dia' : 'Sem plano'}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-2 font-black">
+                  {row.openOrders > 0 ? (
+                    <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-xs text-blue-700">
+                      <Wrench className="h-3.5 w-3.5" />
+                      {row.openOrders}
+                    </span>
+                  ) : '-'}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-4 py-10 text-center text-sm font-black text-slate-500">
+                  Nenhum veiculo encontrado para os filtros aplicados.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
