@@ -1189,14 +1189,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       {/* EDIT ORDER MODAL */}
       {editingOrder && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+              <div className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col">
                   <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                       <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
                           <Wrench className="h-5 w-5 text-blue-600"/> Editar O.S. #{String(editingOrder.orderNumber).padStart(4, '0')}
                       </h3>
                       <button onClick={() => setEditingOrder(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
                   </div>
-                  <form onSubmit={handleUpdateOrderDetails} className="p-6 space-y-6">
+                  <form onSubmit={handleUpdateOrderDetails} className="p-5 md:p-6 space-y-6 overflow-y-auto">
                       {/* Section: Basic Info */}
                       <div className="space-y-4">
                           <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
@@ -1204,8 +1204,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Informacoes do Veiculo</h4>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="col-span-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="col-span-1 md:col-span-2">
                                   <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Veiculo</label>
                                   <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white font-black text-sm">
                                       {editingOrder.vehiclePlate}
@@ -1253,7 +1253,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Detalhes do Servico</h4>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                               <div>
                                   <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de Servico</label>
                                   <select 
@@ -1270,9 +1270,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               {(editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') && (
                                   <div className="animate-in slide-in-from-top-2">
                                       <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Funcionarios internos</label>
-                                      <div className="flex gap-2">
+                                      <div className="flex flex-col sm:flex-row gap-2">
                                           <select 
-                                              className="flex-1 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                              className="min-w-0 flex-1 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                               value={editSelectedCollaboratorId}
                                               onChange={e => setEditSelectedCollaboratorId(e.target.value)}
                                           >
@@ -1283,7 +1283,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                                   <option key={c.id} value={c.id}>{c.name}</option>
                                               ))}
                                           </select>
-                                          <button type="button" onClick={handleAddCollaboratorToEdit} className="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase">
+                                          <button type="button" onClick={handleAddCollaboratorToEdit} className="h-12 sm:h-auto px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase shrink-0">
                                               Add
                                           </button>
                                       </div>
@@ -1324,7 +1324,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           </div>
 
                           {(editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderPartnerId && (
-                              <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2">
                                   <div>
                                       <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Servico Externo</label>
                                       <select 
@@ -1433,12 +1433,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               </div>
                           )}
 
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                               <div>
                                   <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Servicos da OS</label>
-                                  <div className="flex gap-2">
+                                  <div className="flex flex-col sm:flex-row gap-2">
                                       <select 
-                                          className="flex-1 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          className="min-w-0 flex-1 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                           value={editSelectedServiceTypeId}
                                           onChange={e => setEditSelectedServiceTypeId(e.target.value)}
                                       >
@@ -1449,7 +1449,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                               <option key={st.id} value={st.id}>{st.name}</option>
                                           ))}
                                       </select>
-                                      <button type="button" onClick={handleAddServiceTypeToEdit} className="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase">
+                                      <button type="button" onClick={handleAddServiceTypeToEdit} className="h-12 sm:h-auto px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase shrink-0">
                                           Add
                                       </button>
                                   </div>
@@ -1481,8 +1481,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="col-span-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="col-span-1 md:col-span-2">
                                   <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Descricao do Servico</label>
                                   <textarea 
                                       required 
@@ -1514,9 +1514,9 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                           </div>
                           
                           <div className="space-y-3">
-                              <div className="flex gap-2 items-center">
+                              <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_90px_52px] gap-2 items-center">
                                   <select 
-                                    className="w-[200px] h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                    className="w-full h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
                                     value={editSelectedStockItemId}
                                     onChange={e => setEditSelectedStockItemId(e.target.value)}
                                   >
@@ -1528,7 +1528,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                   <input 
                                     type="number" 
                                     min="1"
-                                    className="w-20 h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold text-center transition-all"
+                                    className="w-full h-[45px] p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold text-center transition-all"
                                     value={editSelectedStockItemQty}
                                     onChange={e => setEditSelectedStockItemQty(Number(e.target.value))}
                                   />
