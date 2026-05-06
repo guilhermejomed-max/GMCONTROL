@@ -348,12 +348,16 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
   const [editOrderDetails, setEditOrderDetails] = useState('');
   const [editOrderDate, setEditOrderDate] = useState('');
   const [editOrderCollaboratorId, setEditOrderCollaboratorId] = useState('');
+  const [editAssignedCollaborators, setEditAssignedCollaborators] = useState<{ id: string; name: string; hourlyRate?: number }[]>([]);
+  const [editSelectedCollaboratorId, setEditSelectedCollaboratorId] = useState('');
   const [editOrderLaborHours, setEditOrderLaborHours] = useState<number | ''>('');
   const [editOrderServiceType, setEditOrderServiceType] = useState<'INTERNAL' | 'EXTERNAL' | 'BOTH'>('INTERNAL');
   const [editOrderProviderName, setEditOrderProviderName] = useState('');
   const [editOrderExternalServiceCost, setEditOrderExternalServiceCost] = useState<number | ''>('');
   const [editOrderPartnerId, setEditOrderPartnerId] = useState('');
   const [editOrderServiceId, setEditOrderServiceId] = useState('');
+  const [editOrderServiceItems, setEditOrderServiceItems] = useState<{ id: string; name: string; cost?: number; source?: 'INTERNAL' | 'EXTERNAL' | 'MANUAL' }[]>([]);
+  const [editSelectedServiceTypeId, setEditSelectedServiceTypeId] = useState('');
   const [editOrderAxles, setEditOrderAxles] = useState<AxleSelection[]>([]);
   const [editOrderSectorId, setEditOrderSectorId] = useState('');
   const [editOrderClassificationId, setEditOrderClassificationId] = useState('');
@@ -400,6 +404,53 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
   const handleRemovePartFromEdit = (index: number) => {
       setEditOrderParts(editOrderParts.filter((_, i) => i !== index));
+  };
+
+  const handleAddCollaboratorToEdit = () => {
+      if (!editSelectedCollaboratorId) return;
+      const collaborator = filteredCollaborators.find(c => c.id === editSelectedCollaboratorId);
+      if (!collaborator || editAssignedCollaborators.some(item => item.id === collaborator.id)) {
+          setEditSelectedCollaboratorId('');
+          return;
+      }
+
+      setEditAssignedCollaborators([
+          ...editAssignedCollaborators,
+          {
+              id: collaborator.id,
+              name: collaborator.name,
+              hourlyRate: collaborator.hourlyRate || (collaborator.salary ? collaborator.salary / 220 : undefined)
+          }
+      ]);
+      setEditSelectedCollaboratorId('');
+  };
+
+  const handleRemoveCollaboratorFromEdit = (id: string) => {
+      setEditAssignedCollaborators(editAssignedCollaborators.filter(item => item.id !== id));
+  };
+
+  const handleAddServiceTypeToEdit = () => {
+      if (!editSelectedServiceTypeId) return;
+      const serviceType = (settings?.serviceTypes || []).find(s => s.id === editSelectedServiceTypeId);
+      if (!serviceType || editOrderServiceItems.some(item => item.id === serviceType.id)) {
+          setEditSelectedServiceTypeId('');
+          return;
+      }
+
+      setEditOrderServiceItems([
+          ...editOrderServiceItems,
+          {
+              id: serviceType.id,
+              name: serviceType.name,
+              cost: Number(serviceType.cost || 0),
+              source: 'INTERNAL'
+          }
+      ]);
+      setEditSelectedServiceTypeId('');
+  };
+
+  const handleRemoveServiceTypeFromEdit = (id: string) => {
+      setEditOrderServiceItems(editOrderServiceItems.filter(item => item.id !== id));
   };
 
   const maintenanceAlerts = useMemo(() => {
@@ -534,12 +585,42 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
       setEditOrderDate(order.date || '');
       setEditOrderParts(order.parts || []);
       setEditOrderCollaboratorId(order.collaboratorId || '');
+      setEditAssignedCollaborators(
+          order.assignedCollaborators?.length
+              ? order.assignedCollaborators
+              : order.collaboratorId || order.collaboratorName
+                  ? [{
+                      id: order.collaboratorId || `legacy-${order.collaboratorName}`,
+                      name: order.collaboratorName || order.employeeName || 'Responsavel',
+                    }]
+                  : []
+      );
+      setEditSelectedCollaboratorId('');
       setEditOrderLaborHours(order.laborHours || '');
       setEditOrderServiceType(order.serviceType || 'INTERNAL');
       setEditOrderProviderName(order.providerName || '');
       setEditOrderExternalServiceCost(order.externalServiceCost || '');
       setEditOrderTireId(order.tireId || '');
       setEditOrderSectorId(order.sectorId || '');
+      setEditOrderServiceItems(
+          order.serviceItems?.length
+              ? order.serviceItems
+              : order.services?.length
+                  ? order.services.map(service => ({
+                      id: service.id,
+                      name: service.name,
+                      cost: service.cost,
+                      source: 'EXTERNAL' as const
+                    }))
+                  : order.sectorId || order.sectorName
+                      ? [{
+                          id: order.sectorId || `legacy-${order.sectorName}`,
+                          name: order.sectorName || order.title || 'Servico',
+                          source: 'INTERNAL' as const
+                        }]
+                      : []
+      );
+      setEditSelectedServiceTypeId('');
       setEditOrderClassificationId(order.classificationId || '');
       setEditOrderAxles(order.axles || []);
       
@@ -564,22 +645,49 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
       setIsUpdating(true);
       try {
-          const collaborator = filteredCollaborators.find(c => c.id === editOrderCollaboratorId);
-          const laborCost = (collaborator && editOrderLaborHours) ? (collaborator.hourlyRate || (collaborator.salary / 220)) * Number(editOrderLaborHours) : 0;
+          const laborHours = editOrderLaborHours !== '' ? Number(editOrderLaborHours) : 0;
+          const selectedCollaborators = editAssignedCollaborators.length > 0
+              ? editAssignedCollaborators
+              : filteredCollaborators
+                  .filter(c => c.id === editOrderCollaboratorId)
+                  .map(c => ({
+                      id: c.id,
+                      name: c.name,
+                      hourlyRate: c.hourlyRate || (c.salary ? c.salary / 220 : undefined)
+                  }));
+          const laborCost = (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH')
+              ? selectedCollaborators.reduce((sum, collaborator) => sum + (Number(collaborator.hourlyRate || 0) * laborHours), 0)
+              : 0;
 
           const partner = partners.find(p => p.id === editOrderPartnerId);
           const service = partner?.services.find(s => s.id === editOrderServiceId);
           const tire = tires.find(t => t.id === editOrderTireId);
-          const sType = (settings?.serviceTypes || []).find(s => s.id === editOrderSectorId);
           const classification = classifications.find(c => c.id === editOrderClassificationId);
           const externalCost = (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : 0;
           const partsCost = editOrderParts.reduce((sum, part) => sum + (part.quantity * part.unitCost), 0);
           const totalCost = laborCost + externalCost + partsCost;
-          const serviceBy = collaborator?.name || partner?.name || editOrderProviderName || editingOrder.createdBy;
+          const collaboratorNames = selectedCollaborators.map(item => item.name).filter(Boolean);
+          const serviceBy = collaboratorNames.join(', ') || partner?.name || editOrderProviderName || editingOrder.createdBy;
           const tireServiceMovements = editingOrder.tireServiceMovements?.map(movement => ({
               ...movement,
               serviceBy
           }));
+          const internalServices = editOrderServiceItems.map(item => ({
+              id: item.id,
+              name: item.name,
+              cost: Number(item.cost || 0),
+              axles: editOrderAxles.length > 0 ? editOrderAxles : undefined
+          }));
+          const externalServices = (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && service ? [{
+              id: service.id,
+              name: service.name,
+              cost: externalCost,
+              axles: editOrderAxles.length > 0 ? editOrderAxles : undefined
+          }] : [];
+          const nextServices = Array.from(
+              new Map([...internalServices, ...externalServices].map(item => [item.id, item])).values()
+          );
+          const serviceNames = editOrderServiceItems.map(item => item.name).filter(Boolean);
 
           const existingTireIds = editingOrder.tireIds || (editingOrder.tireId ? [editingOrder.tireId] : []);
           const existingFireNumbers = editingOrder.tireFireNumbers || (editingOrder.tireFireNumber ? [editingOrder.tireFireNumber] : []);
@@ -604,21 +712,20 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
               serviceType: editOrderServiceType,
               providerName: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') ? (partner?.name || editOrderProviderName) : undefined,
               externalServiceCost: externalCost > 0 ? externalCost : undefined,
-              services: (editOrderServiceType === 'EXTERNAL' || editOrderServiceType === 'BOTH') && service ? [{ 
-                  id: service.id, 
-                  name: service.name, 
-                  cost: (editOrderExternalServiceCost !== '' ? Number(editOrderExternalServiceCost) : 0),
-                  axles: editOrderAxles.length > 0 ? editOrderAxles : undefined
-              }] : undefined,
+              services: nextServices.length > 0 ? nextServices : undefined,
+              serviceItems: editOrderServiceItems.length > 0 ? editOrderServiceItems : undefined,
               parts: editOrderParts.length > 0 ? editOrderParts : undefined,
-              collaboratorId: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderCollaboratorId || undefined) : undefined,
-              collaboratorName: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? collaborator?.name : undefined,
-              laborHours: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (editOrderLaborHours !== '' ? Number(editOrderLaborHours) : undefined) : undefined,
+              assignedCollaborators: selectedCollaborators.length > 0 ? selectedCollaborators : undefined,
+              collaboratorId: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (selectedCollaborators[0]?.id || undefined) : undefined,
+              collaboratorName: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (collaboratorNames.join(', ') || undefined) : undefined,
+              employeeId: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (selectedCollaborators[0]?.id || undefined) : undefined,
+              employeeName: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (collaboratorNames.join(', ') || undefined) : undefined,
+              laborHours: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborHours > 0 ? laborHours : undefined) : undefined,
               laborCost: (editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') ? (laborCost > 0 ? laborCost : undefined) : undefined,
               totalCost: totalCost > 0 ? totalCost : undefined,
               tireServiceMovements,
-              sectorId: editOrderSectorId || undefined,
-              sectorName: sType?.name,
+              sectorId: editOrderServiceItems[0]?.id || editOrderSectorId || undefined,
+              sectorName: serviceNames.length > 0 ? serviceNames.join(', ') : undefined,
               classificationId: editOrderClassificationId || undefined,
               classificationName: classification?.name
           });
@@ -1162,17 +1269,36 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               
                               {(editOrderServiceType === 'INTERNAL' || editOrderServiceType === 'BOTH') && (
                                   <div className="animate-in slide-in-from-top-2">
-                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Colaborador Interno</label>
-                                      <select 
-                                          className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
-                                          value={editOrderCollaboratorId}
-                                          onChange={e => setEditOrderCollaboratorId(e.target.value)}
-                                      >
-                                          <option value="">Selecionar...</option>
-                                          {filteredCollaborators.filter(c => c.isActive || c.id === editingOrder.collaboratorId).map(c => (
-                                              <option key={c.id} value={c.id}>{c.name}</option>
-                                          ))}
-                                      </select>
+                                      <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Funcionarios internos</label>
+                                      <div className="flex gap-2">
+                                          <select 
+                                              className="flex-1 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                              value={editSelectedCollaboratorId}
+                                              onChange={e => setEditSelectedCollaboratorId(e.target.value)}
+                                          >
+                                              <option value="">Selecionar...</option>
+                                              {filteredCollaborators
+                                                .filter(c => (c.isActive || c.id === editingOrder.collaboratorId) && !editAssignedCollaborators.some(item => item.id === c.id))
+                                                .map(c => (
+                                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                              ))}
+                                          </select>
+                                          <button type="button" onClick={handleAddCollaboratorToEdit} className="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase">
+                                              Add
+                                          </button>
+                                      </div>
+                                      {editAssignedCollaborators.length > 0 && (
+                                          <div className="flex flex-wrap gap-2 mt-2">
+                                              {editAssignedCollaborators.map(collaborator => (
+                                                  <span key={collaborator.id} className="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-lg text-[10px] font-black text-blue-700 dark:text-blue-300 uppercase">
+                                                      {collaborator.name}
+                                                      <button type="button" onClick={() => handleRemoveCollaboratorFromEdit(collaborator.id)} className="hover:text-red-500">
+                                                          <X className="h-3 w-3" />
+                                                      </button>
+                                                  </span>
+                                              ))}
+                                          </div>
+                                      )}
                                   </div>
                               )}
 
@@ -1309,17 +1435,36 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
                           <div className="grid grid-cols-2 gap-4">
                               <div>
-                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Tipo de servico</label>
-                                  <select 
-                                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
-                                      value={editOrderSectorId}
-                                      onChange={e => setEditOrderSectorId(e.target.value)}
-                                  >
-                                      <option value="">Selecionar...</option>
-                                      {(settings?.serviceTypes || []).map(st => (
-                                          <option key={st.id} value={st.id}>{st.name}</option>
-                                      ))}
-                                  </select>
+                                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Servicos da OS</label>
+                                  <div className="flex gap-2">
+                                      <select 
+                                          className="flex-1 p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white font-bold transition-all"
+                                          value={editSelectedServiceTypeId}
+                                          onChange={e => setEditSelectedServiceTypeId(e.target.value)}
+                                      >
+                                          <option value="">Selecionar...</option>
+                                          {(settings?.serviceTypes || [])
+                                            .filter(st => !editOrderServiceItems.some(item => item.id === st.id))
+                                            .map(st => (
+                                              <option key={st.id} value={st.id}>{st.name}</option>
+                                          ))}
+                                      </select>
+                                      <button type="button" onClick={handleAddServiceTypeToEdit} className="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase">
+                                          Add
+                                      </button>
+                                  </div>
+                                  {editOrderServiceItems.length > 0 && (
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                          {editOrderServiceItems.map(service => (
+                                              <span key={service.id} className="inline-flex items-center gap-2 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-lg text-[10px] font-black text-emerald-700 dark:text-emerald-300 uppercase">
+                                                  {service.name}
+                                                  <button type="button" onClick={() => handleRemoveServiceTypeFromEdit(service.id)} className="hover:text-red-500">
+                                                      <X className="h-3 w-3" />
+                                                  </button>
+                                              </span>
+                                          ))}
+                                      </div>
+                                  )}
                               </div>
                               <div>
                                   <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">Classificacao</label>
