@@ -1188,17 +1188,25 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
 
       {/* EDIT ORDER MODAL */}
       {editingOrder && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 md:p-4 animate-in fade-in">
+              <div
+                className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 border border-slate-200 dark:border-slate-800 flex flex-col"
+                style={{
+                  width: 'min(1180px, calc(100vw - 24px))',
+                  maxWidth: 'calc(100vw - 24px)',
+                  height: 'min(860px, calc(100vh - 24px))',
+                  maxHeight: 'calc(100vh - 24px)'
+                }}
+              >
                   <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                       <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
                           <Wrench className="h-5 w-5 text-blue-600"/> Editar O.S. #{String(editingOrder.orderNumber).padStart(4, '0')}
                       </h3>
                       <button onClick={() => setEditingOrder(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-5 w-5 text-slate-500"/></button>
                   </div>
-                  <form onSubmit={handleUpdateOrderDetails} className="p-5 md:p-6 space-y-6 overflow-y-auto">
+                  <form onSubmit={handleUpdateOrderDetails} className="p-4 md:p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
                       {/* Section: Basic Info */}
-                      <div className="space-y-4">
+                      <div className="space-y-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                           <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                               <Truck className="h-4 w-4 text-blue-500"/>
                               <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Informacoes do Veiculo</h4>
@@ -1247,7 +1255,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       </div>
 
                       {/* Section: Service Details */}
-                      <div className="space-y-4">
+                      <div className="space-y-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                           <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                               <Wrench className="h-4 w-4 text-blue-500"/>
                               <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Detalhes do Servico</h4>
@@ -1505,7 +1513,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                       </div>
 
                       {/* Section: Parts */}
-                      <div className="space-y-4">
+                      <div className="space-y-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                               <div className="flex items-center gap-2">
                                   <Package className="h-4 w-4 text-blue-500"/>
