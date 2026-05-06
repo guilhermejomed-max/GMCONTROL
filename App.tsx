@@ -1633,12 +1633,35 @@ const distance = R * c; // in metres
     event.target.value = '';
   };
 
-  const handleAddSchedule = (event: React.FormEvent) => {
+  const saveProfileSchedulesNow = async (nextSchedules: ProfileSchedule[]) => {
+    if (!user?.uid) {
+      addToast('error', 'Perfil nao encontrado', 'Entre novamente para salvar tarefas diarias.');
+      return false;
+    }
+
+    const updatedAt = new Date().toISOString();
+    try {
+      localStorage.setItem(`gm_profile_schedules_${user.uid}`, JSON.stringify({ schedules: nextSchedules, updatedAt }));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar tarefas no backup local:', error);
+    }
+
+    try {
+      await storageService.updateTeamMember(orgId, user.uid, { profileSchedules: nextSchedules, profileSchedulesUpdatedAt: updatedAt } as any);
+      return true;
+    } catch (error) {
+      console.error('Erro ao salvar tarefas diarias:', error);
+      addToast('warning', 'Salvo neste navegador', 'Nao consegui sincronizar com a nuvem agora, mas a tarefa ficou salva localmente.');
+      return true;
+    }
+  };
+
+  const handleAddSchedule = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!scheduleTitle.trim() || !scheduleTime) return;
 
-    setProfileSchedules(prev => [
-      ...prev,
+    const nextSchedules = [
+      ...profileSchedules,
       {
         id: Date.now().toString(),
         title: scheduleTitle.trim(),
@@ -1646,10 +1669,30 @@ const distance = R * c; // in metres
         notes: scheduleNotes.trim() || undefined,
         enabled: true
       }
-    ]);
+    ];
+    const saved = await saveProfileSchedulesNow(nextSchedules);
+    if (!saved) return;
+    setProfileSchedules(nextSchedules);
+    setProfileSchedulesOwnerId(user?.uid || '');
+    setProfileSchedulesLoaded(true);
     setScheduleTitle('');
     setScheduleTime('');
     setScheduleNotes('');
+    addToast('success', 'Tarefa salva', 'Seu agendamento ficou salvo no perfil.');
+  };
+
+  const handleToggleSchedule = async (scheduleId: string) => {
+    const nextSchedules = profileSchedules.map(schedule =>
+      schedule.id === scheduleId ? { ...schedule, enabled: !schedule.enabled } : schedule
+    );
+    const saved = await saveProfileSchedulesNow(nextSchedules);
+    if (saved) setProfileSchedules(nextSchedules);
+  };
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    const nextSchedules = profileSchedules.filter(schedule => schedule.id !== scheduleId);
+    const saved = await saveProfileSchedulesNow(nextSchedules);
+    if (saved) setProfileSchedules(nextSchedules);
   };
 
   const multitaskOptions: { tab: TabView; label: string; module?: ModuleType }[] = [
@@ -2759,13 +2802,15 @@ const distance = R * c; // in metres
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setProfileSchedules(prev => prev.map(schedule => schedule.id === item.id ? { ...schedule, enabled: !schedule.enabled } : schedule))}
+                          type="button"
+                          onClick={() => handleToggleSchedule(item.id)}
                           className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase ${item.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
                         >
                           {item.enabled ? 'Ativo' : 'Pausado'}
                         </button>
                         <button
-                          onClick={() => setProfileSchedules(prev => prev.filter(schedule => schedule.id !== item.id))}
+                          type="button"
+                          onClick={() => handleDeleteSchedule(item.id)}
                           className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                           <X className="h-4 w-4" />
