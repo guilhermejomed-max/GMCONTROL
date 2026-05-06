@@ -64,6 +64,9 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
     laborCost: 0,
     partsCost: 0,
     parts: [],
+    services: [],
+    serviceItems: [],
+    assignedCollaborators: [],
     axles: [],
     details: '',
     title: '',
@@ -145,6 +148,8 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
   const [selectedPartId, setSelectedPartId] = useState('');
   const [selectedPartQty, setSelectedPartQty] = useState(1);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [selectedServiceTypeId, setSelectedServiceTypeId] = useState('');
 
   const handleScanPart = (code: string) => {
     const item = stockItems.find(i => i.code === code);
@@ -197,6 +202,104 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
     }));
   };
 
+  const handleAddEmployee = () => {
+    if (!selectedEmployeeId) return;
+    const collaborator = collaborators.find(col => col.id === selectedEmployeeId);
+    if (!collaborator) return;
+
+    const current = formData.assignedCollaborators || [];
+    if (current.some(item => item.id === collaborator.id)) {
+      setSelectedEmployeeId('');
+      return;
+    }
+
+    const nextEmployees = [
+      ...current,
+      {
+        id: collaborator.id,
+        name: collaborator.name,
+        hourlyRate: collaborator.hourlyRate || (collaborator.salary ? collaborator.salary / 220 : undefined)
+      }
+    ];
+
+    setFormData(prev => ({
+      ...prev,
+      assignedCollaborators: nextEmployees,
+      employeeId: nextEmployees[0]?.id || '',
+      employeeName: nextEmployees.map(item => item.name).join(', '),
+      collaboratorId: nextEmployees[0]?.id || '',
+      collaboratorName: nextEmployees.map(item => item.name).join(', ')
+    }));
+    setSelectedEmployeeId('');
+  };
+
+  const handleRemoveEmployee = (id: string) => {
+    const nextEmployees = (formData.assignedCollaborators || []).filter(item => item.id !== id);
+    setFormData(prev => ({
+      ...prev,
+      assignedCollaborators: nextEmployees,
+      employeeId: nextEmployees[0]?.id || '',
+      employeeName: nextEmployees.map(item => item.name).join(', '),
+      collaboratorId: nextEmployees[0]?.id || '',
+      collaboratorName: nextEmployees.map(item => item.name).join(', ')
+    }));
+  };
+
+  const handleAddServiceType = () => {
+    if (!selectedServiceTypeId) return;
+    const serviceType = (settings?.serviceTypes || []).find((service: any) => service.id === selectedServiceTypeId);
+    if (!serviceType) return;
+
+    const currentServiceItems = formData.serviceItems || [];
+    if (currentServiceItems.some(item => item.id === serviceType.id)) {
+      setSelectedServiceTypeId('');
+      return;
+    }
+
+    const nextServiceItems = [
+      ...currentServiceItems,
+      {
+        id: serviceType.id,
+        name: serviceType.name,
+        cost: Number(serviceType.cost || 0),
+        source: 'INTERNAL' as const
+      }
+    ];
+    const nextServices = nextServiceItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      cost: Number(item.cost || 0)
+    }));
+
+    setFormData(prev => ({
+      ...prev,
+      serviceItems: nextServiceItems,
+      services: nextServices,
+      sectorId: nextServiceItems[0]?.id || '',
+      sectorName: nextServiceItems.map(item => item.name).join(', '),
+      title: prev.title || nextServiceItems.map(item => item.name).join(' + ')
+    }));
+    setSelectedServiceTypeId('');
+  };
+
+  const handleRemoveServiceType = (id: string) => {
+    const nextServiceItems = (formData.serviceItems || []).filter(item => item.id !== id);
+    const nextServices = nextServiceItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      cost: Number(item.cost || 0)
+    }));
+
+    setFormData(prev => ({
+      ...prev,
+      serviceItems: nextServiceItems,
+      services: nextServices,
+      sectorId: nextServiceItems[0]?.id || '',
+      sectorName: nextServiceItems.map(item => item.name).join(', '),
+      title: nextServiceItems.length > 0 ? nextServiceItems.map(item => item.name).join(' + ') : prev.title
+    }));
+  };
+
   if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -213,7 +316,23 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    const serviceNames = (formData.serviceItems || []).map(item => item.name);
+    const employeeNames = (formData.assignedCollaborators || []).map(item => item.name);
+    const normalizedOrder = {
+      ...formData,
+      title: formData.title || serviceNames.join(' + ') || 'Manutencao',
+      details: [
+        serviceNames.length > 0 ? `Servicos: ${serviceNames.join(', ')}` : undefined,
+        employeeNames.length > 0 ? `Funcionarios: ${employeeNames.join(', ')}` : undefined,
+        formData.details
+      ].filter(Boolean).join('\n'),
+      sectorName: serviceNames.length > 0 ? serviceNames.join(', ') : formData.sectorName,
+      employeeName: employeeNames.length > 0 ? employeeNames.join(', ') : formData.employeeName,
+      collaboratorId: (formData.assignedCollaborators || [])[0]?.id || formData.collaboratorId || formData.employeeId,
+      collaboratorName: employeeNames.length > 0 ? employeeNames.join(', ') : formData.collaboratorName || formData.employeeName,
+      totalCost: Number(formData.laborCost || 0) + Number(formData.partsCost || 0) + Number(formData.externalServiceCost || 0)
+    };
+    onSubmit(normalizedOrder);
   };
 
   const inputClass = "w-full px-2 py-1 bg-slate-50 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-xs font-medium text-slate-700";
@@ -399,44 +518,66 @@ export const ServiceOrderOpening: React.FC<ServiceOrderOpeningProps> = ({
 
           {/* Row 11: Funcionario */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-12">
-              <label className={labelClass}>Funcionario :</label>
-              <select 
-                name="employeeId" 
-                className={inputClass} 
-                value={formData.employeeId || ''} 
-                onChange={(e) => {
-                  const c = collaborators.find(col => col.id === e.target.value);
-                  setFormData(prev => ({ ...prev, employeeId: e.target.value, employeeName: c?.name }));
-                }}
-              >
-                <option value="">Selecione...</option>
-                {collaborators.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
+            <div className="col-span-1 md:col-span-9">
+              <label className={labelClass}>Funcionarios :</label>
+              <select className={inputClass} value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
+                <option value="">Selecione um funcionario...</option>
+                {collaborators
+                  .filter(c => c.isActive !== false && !(formData.assignedCollaborators || []).some(item => item.id === c.id))
+                  .map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
               </select>
             </div>
+            <div className="col-span-1 md:col-span-3">
+              <button type="button" onClick={handleAddEmployee} className="w-full py-1.5 bg-blue-600 text-white rounded text-[10px] font-black uppercase hover:bg-blue-700">
+                Adicionar
+              </button>
+            </div>
+            {(formData.assignedCollaborators || []).length > 0 && (
+              <div className="col-span-1 md:col-span-12 flex flex-wrap gap-2">
+                {(formData.assignedCollaborators || []).map(employee => (
+                  <span key={employee.id} className="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 text-blue-800 rounded text-[10px] font-black uppercase">
+                    {employee.name}
+                    <button type="button" onClick={() => handleRemoveEmployee(employee.id)} className="text-blue-500 hover:text-red-600">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Row 12: Tipos de servico */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="col-span-1 md:col-span-12">
+            <div className="col-span-1 md:col-span-9">
               <label className={labelClass}>Tipos de servico :</label>
-              <select 
-                name="sectorId" 
-                className={inputClass} 
-                value={formData.sectorId || ''} 
-                onChange={(e) => {
-                  const sType = (settings?.serviceTypes || []).find((s: any) => s.id === e.target.value);
-                  setFormData(prev => ({ ...prev, sectorId: e.target.value, sectorName: sType?.name }));
-                }}
-              >
-                <option value="">Selecione...</option>
-                {(settings?.serviceTypes || []).map((st: any) => (
-                  <option key={st.id} value={st.id}>{st.name}</option>
-                ))}
+              <select className={inputClass} value={selectedServiceTypeId} onChange={(e) => setSelectedServiceTypeId(e.target.value)}>
+                <option value="">Selecione um servico...</option>
+                {(settings?.serviceTypes || [])
+                  .filter((st: any) => !(formData.serviceItems || []).some(item => item.id === st.id))
+                  .map((st: any) => (
+                    <option key={st.id} value={st.id}>{st.name}</option>
+                  ))}
               </select>
             </div>
+            <div className="col-span-1 md:col-span-3">
+              <button type="button" onClick={handleAddServiceType} className="w-full py-1.5 bg-blue-600 text-white rounded text-[10px] font-black uppercase hover:bg-blue-700">
+                Adicionar
+              </button>
+            </div>
+            {(formData.serviceItems || []).length > 0 && (
+              <div className="col-span-1 md:col-span-12 flex flex-wrap gap-2">
+                {(formData.serviceItems || []).map(service => (
+                  <span key={service.id} className="inline-flex items-center gap-2 px-2 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded text-[10px] font-black uppercase">
+                    {service.name}
+                    <button type="button" onClick={() => handleRemoveServiceType(service.id)} className="text-emerald-500 hover:text-red-600">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Row 13: Classificacao */}

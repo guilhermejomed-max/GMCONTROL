@@ -124,6 +124,25 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
     }));
   };
 
+  const getOrderServiceNames = (order: ServiceOrder) => {
+    const detailedNames = [
+      ...(order.serviceItems || []).map(item => item.name),
+      ...(order.services || []).map(service => service.name)
+    ].filter(Boolean);
+    const names = detailedNames.length > 0 ? detailedNames : [order.sectorName].filter(Boolean);
+
+    return Array.from(new Set(names));
+  };
+
+  const getOrderCollaboratorNames = (order: ServiceOrder) => {
+    const assignedNames = (order.assignedCollaborators || []).map(item => item.name).filter(Boolean);
+    const names = assignedNames.length > 0
+      ? assignedNames
+      : [order.collaboratorName, order.employeeName, order.providerName].filter(Boolean);
+
+    return Array.from(new Set(names));
+  };
+
   const getOrderTotal = (order: ServiceOrder) => {
     return (order.laborCost || 0)
       + (order.externalServiceCost || 0)
@@ -194,8 +213,8 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
             <tbody>
               <tr>
                 <td>${escapePrintHtml(order.title)}</td>
-                <td>${escapePrintHtml(order.sectorName || order.classificationName || order.serviceType || 'Manutencao')}</td>
-                <td>${escapePrintHtml(order.collaboratorName || order.providerName || order.createdBy || 'N/A')}</td>
+                <td>${escapePrintHtml(getOrderServiceNames(order).join(', ') || order.classificationName || order.serviceType || 'Manutencao')}</td>
+                <td>${escapePrintHtml(getOrderCollaboratorNames(order).join(', ') || order.createdBy || 'N/A')}</td>
                 <td>${escapePrintHtml(order.details || 'Sem observacoes.')}</td>
               </tr>
             </tbody>
@@ -257,7 +276,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
             <div class="box"><span class="label">Data</span><div class="value">${escapePrintHtml(order.date || order.createdAt?.split('T')[0] || 'N/A')}</div></div>
             <div class="box"><span class="label">Status</span><div class="value">${escapePrintHtml(order.status)}</div></div>
             <div class="box"><span class="label">Hodometro</span><div class="value">${escapePrintHtml(order.odometer?.toLocaleString() || 'N/A')} KM</div></div>
-            <div class="box"><span class="label">Responsavel</span><div class="value">${escapePrintHtml(order.collaboratorName || order.providerName || order.createdBy || 'N/A')}</div></div>
+            <div class="box"><span class="label">Responsavel</span><div class="value">${escapePrintHtml(getOrderCollaboratorNames(order).join(', ') || order.createdBy || 'N/A')}</div></div>
           </section>
 
           ${serviceSectionHtml}
@@ -855,9 +874,14 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                 <ArrowDownCircle className="h-3 w-3"/> Aplicados: {order.appliedTireFireNumbers.length}
                             </span>
                         )}
-                        {order.collaboratorName && (
+                        {getOrderCollaboratorNames(order).length > 0 && (
                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg border border-blue-100 dark:border-blue-800/50">
-                                <UserCircle className="h-3 w-3"/> {order.collaboratorName}
+                                <UserCircle className="h-3 w-3"/> {getOrderCollaboratorNames(order).join(', ')}
+                            </span>
+                        )}
+                        {getOrderServiceNames(order).length > 0 && (
+                            <span className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg border border-indigo-100 dark:border-indigo-800/50">
+                                <Wrench className="h-3 w-3"/> {getOrderServiceNames(order).join(', ')}
                             </span>
                         )}
                     </div>
@@ -1479,7 +1503,7 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Responsavel</span>
                               <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                   <UserCircle className="h-4 w-4 text-purple-500"/>
-                                  {viewingOrderDetails.collaboratorName || viewingOrderDetails.providerName || 'N/A'}
+                                  {getOrderCollaboratorNames(viewingOrderDetails).join(', ') || 'N/A'}
                               </p>
                           </div>
                           {viewingOrderDetails.axles && viewingOrderDetails.axles.length > 0 && (
@@ -1523,12 +1547,12 @@ export const ServiceOrderHub: React.FC<ServiceOrderHubProps> = ({
                                 </p>
                             </div>
                           )}
-                          {viewingOrderDetails.sectorName && (
+                          {getOrderServiceNames(viewingOrderDetails).length > 0 && (
                             <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Tipo de servico</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Servicos</span>
                                 <p className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                     <Building2 className="h-4 w-4 text-indigo-500"/>
-                                    {viewingOrderDetails.sectorName}
+                                    {getOrderServiceNames(viewingOrderDetails).join(', ')}
                                 </p>
                             </div>
                           )}
