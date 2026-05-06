@@ -861,7 +861,7 @@ export const App = () => {
           // Migrate Brand Models
           for (const bm of vehicleBrandModels) {
             if (!bm.fuelType) {
-              await storageService.updateVehicleBrandModel(orgId, { ...bm, fuelType: 'DIESEL S10' });
+              await storageService.updateVehicleBrandModel(orgId, { id: bm.id, fuelType: 'DIESEL S10' } as any);
               migratedCount++;
             }
           }

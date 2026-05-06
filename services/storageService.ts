@@ -848,6 +848,18 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veiculo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
+      if (vehicle.plate && vehicle.type) {
+        const samePlate = await db.collection("vehicles").where("plate", "==", vehicle.plate).get();
+        const duplicateBatch = db.batch();
+        let duplicateCount = 0;
+        samePlate.docs.forEach(doc => {
+          if (doc.id !== vehicle.id && doc.data().type !== vehicle.type) {
+            duplicateBatch.set(doc.ref, sanitize({ type: vehicle.type, lastAutoUpdateDate: updates.lastAutoUpdateDate }), { merge: true });
+            duplicateCount++;
+          }
+        });
+        if (duplicateCount > 0) await duplicateBatch.commit();
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${vehicle.id}`);
     }
@@ -957,7 +969,10 @@ export const storageService = {
     
     return db.collection("vehicleBrandModels").onSnapshot((snapshot) => {
       const models: VehicleBrandModel[] = [];
-      snapshot.forEach((doc) => models.push(doc.data() as VehicleBrandModel));
+      snapshot.forEach((doc) => {
+        const data = doc.data() as VehicleBrandModel;
+        models.push({ ...data, id: doc.id });
+      });
       seedIfEmpty(models);
       callback(models);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "vehicleBrandModels"));
@@ -973,14 +988,27 @@ export const storageService = {
     logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
   },
 
-  updateVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
-    if (mockUser || !db) { LocalDB.update(`vehicleBrandModels`, model.id, model); logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
+  updateVehicleBrandModel: async (orgId: string, model: Partial<VehicleBrandModel> & { id: string }) => {
+    if (mockUser || !db) { LocalDB.update(`vehicleBrandModels`, model.id, model); logActivity(orgId, "Editou Marca/Modelo", `${model.brand || model.id} ${model.model || ''}`, 'TIRES'); return; }
     try {
       await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model), { merge: true });
+      if (model.brand && model.model && model.type) {
+        const sameModel = await db.collection("vehicleBrandModels").where("brand", "==", model.brand).get();
+        const duplicateBatch = db.batch();
+        let duplicateCount = 0;
+        sameModel.docs.forEach(doc => {
+          const data = doc.data();
+          if (doc.id !== model.id && data.model === model.model && data.type !== model.type) {
+            duplicateBatch.set(doc.ref, sanitize({ type: model.type }), { merge: true });
+            duplicateCount++;
+          }
+        });
+        if (duplicateCount > 0) await duplicateBatch.commit();
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicleBrandModels/${model.id}`);
     }
-    logActivity(orgId, "Editou Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES');
+    logActivity(orgId, "Editou Marca/Modelo", `${model.brand || model.id} ${model.model || ''}`, 'TIRES');
   },
 
   deleteVehicleBrandModel: async (orgId: string, id: string) => {
@@ -1035,7 +1063,10 @@ export const storageService = {
     
     return db.collection("vehicleTypes").onSnapshot((snapshot) => {
       const types: VehicleType[] = [];
-      snapshot.forEach((doc) => types.push(doc.data() as VehicleType));
+      snapshot.forEach((doc) => {
+        const data = doc.data() as VehicleType;
+        types.push({ ...data, id: doc.id });
+      });
       seedIfEmpty(types);
       callback(types);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "vehicleTypes"));

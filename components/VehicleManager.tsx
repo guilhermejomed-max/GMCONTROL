@@ -979,10 +979,15 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
 
   const handleSaveBrandModel = async (e: FormEvent) => {
     e.preventDefault();
+    const selectedType = vehicleTypes.find(vt => vt.name === brandModelFormData.type || vt.name.toUpperCase() === String(brandModelFormData.type || '').trim().toUpperCase())?.name || String(brandModelFormData.type || '').trim();
+    const modelData = {
+      ...brandModelFormData,
+      type: selectedType
+    };
     if (editingBrandModelId) {
-      await storageService.updateVehicleBrandModel(orgId, { id: editingBrandModelId, ...brandModelFormData });
+      await storageService.updateVehicleBrandModel(orgId, { id: editingBrandModelId, ...modelData });
     } else {
-      await storageService.addVehicleBrandModel(orgId, { id: Date.now().toString(), ...brandModelFormData });
+      await storageService.addVehicleBrandModel(orgId, { id: Date.now().toString(), ...modelData });
     }
     setEditingBrandModelId(null);
     setIsAddingBrand(false);

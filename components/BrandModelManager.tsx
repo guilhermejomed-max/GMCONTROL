@@ -95,15 +95,21 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
     
     setIsSaving(true);
     try {
+      const selectedType = vehicleTypes.find(vt => vt.name === formData.type || vt.name.toUpperCase() === String(formData.type || '').trim().toUpperCase())?.name || String(formData.type || '').trim();
+      const modelData = {
+        ...formData,
+        type: selectedType
+      };
+
       if (editingModelId) {
         await storageService.updateVehicleBrandModel(orgId, {
           id: editingModelId,
-          ...formData
+          ...modelData
         } as VehicleBrandModel);
       } else {
         await storageService.addVehicleBrandModel(orgId, {
           id: Date.now().toString(36),
-          ...formData
+          ...modelData
         } as VehicleBrandModel);
       }
       setIsAddingBrand(false);
