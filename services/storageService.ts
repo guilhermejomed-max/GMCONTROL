@@ -820,7 +820,10 @@ export const storageService = {
     if (mockUser || !db) return LocalDB.subscribe(`vehicles`, callback);
     return db.collection("vehicles").onSnapshot((snapshot) => {
       const vehicles: Vehicle[] = [];
-      snapshot.forEach((doc) => vehicles.push(doc.data() as Vehicle));
+      snapshot.forEach((doc) => {
+        const data = doc.data() as Vehicle;
+        vehicles.push({ ...data, id: doc.id });
+      });
       callback(vehicles);
     }, (error) => handleFirestoreError(error, OperationType.LIST, "vehicles"));
   },

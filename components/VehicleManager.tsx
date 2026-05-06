@@ -1200,9 +1200,11 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     e.preventDefault();
     setIsSaving(true);
     try {
+      const selectedType = vehicleTypes.find(vt => vt.name === formData.type || vt.name.toUpperCase() === String(formData.type || '').trim().toUpperCase())?.name || String(formData.type || '').trim();
       const vehicleData: any = {
         ...formData,
         plate: formData.plate.toUpperCase(),
+        type: selectedType,
         year: formData.year ? parseInt(formData.year) : undefined,
         revisionIntervalKm: Number(formData.revisionIntervalKm),
         oilLiters: Number(formData.oilLiters),
