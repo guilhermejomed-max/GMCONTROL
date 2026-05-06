@@ -1107,14 +1107,17 @@ export const storageService = {
         return;
     }
     try {
-      const batch = db.batch();
-      updates.forEach(update => {
-        if(update.id) {
-          const ref = db.collection("vehicles").doc(update.id);
-          batch.update(ref, sanitize(update));
-        }
-      });
-      await batch.commit();
+      const validUpdates = updates.filter(update => update.id);
+      for (let i = 0; i < validUpdates.length; i += 240) {
+        const batch = db.batch();
+        validUpdates.slice(i, i + 240).forEach(update => {
+            const ref = db.collection("vehicles").doc(update.id);
+            batch.update(ref, sanitize(update));
+            const publicRef = db.collection("public_vehicle_rgs").doc(update.id);
+            batch.set(publicRef, toPublicVehicleRg(update as Vehicle), { merge: true });
+        });
+        await batch.commit();
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, "vehicles_batch");
     }
@@ -1680,9 +1683,13 @@ export const storageService = {
   },
 
   saveSettings: async (orgId: string, settings: SystemSettings) => {
-    if (mockUser || !db) { LocalDB.set(`settings`, settings); return; }
+    if (mockUser || !db) {
+      const current = LocalDB.get(`settings`, DEFAULT_SETTINGS) as SystemSettings;
+      LocalDB.set(`settings`, { ...DEFAULT_SETTINGS, ...current, ...settings });
+      return;
+    }
     try {
-      await db.collection("settings").doc("global").set(sanitize(settings));
+      await db.collection("settings").doc("global").set(sanitize(settings), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, "settings/global");
     }

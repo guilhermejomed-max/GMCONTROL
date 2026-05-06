@@ -360,6 +360,8 @@ export interface TeamMember {
   sectorName?: string; // Novo: Nome do setor vinculado
   profileSchedules?: any[];
   profileSchedulesUpdatedAt?: string;
+  profileShortcuts?: any[];
+  profileShortcutsUpdatedAt?: string;
 }
 
 export interface StockItem {

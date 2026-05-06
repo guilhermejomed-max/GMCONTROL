@@ -172,7 +172,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
      });
   }, [currentLogs, logFilter]);
 
-  const handleSaveSettings = async (e?: React.FormEvent) => {
+  const handleSaveSettings = async (e?: React.FormEvent, overrides: Partial<SystemSettings> = {}) => {
     if (e) e.preventDefault();
     setIsSaving(true);
     setSaveSuccess(false);
@@ -182,7 +182,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
         tireModels: catalogItems, 
         serviceTypes: serviceTypes,
         standardProcedures: standardProcedures,
-        savedPoints: savedPoints
+        savedPoints: savedPoints,
+        ...overrides
       };
       await storageService.saveSettings(orgId, finalSettings);
       onUpdateSettings(finalSettings);
@@ -196,8 +197,35 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     }
   };
 
+  const persistSettingsPatch = async (patch: Partial<SystemSettings>) => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      const finalSettings = {
+        ...formData,
+        tireModels: catalogItems,
+        serviceTypes,
+        standardProcedures,
+        savedPoints,
+        ...patch
+      };
+      setFormData(finalSettings);
+      await storageService.saveSettings(orgId, finalSettings);
+      onUpdateSettings(finalSettings);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+      return true;
+    } catch (error) {
+      console.error("Failed to save settings patch", error);
+      alert("Erro ao salvar configuracao.");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // --- CATALOG HANDLERS ---
-  const handleAddCatalogItem = () => {
+  const handleAddCatalogItem = async () => {
      if (!newModel.brand || !newModel.model) {
         alert("Marca e Modelo sao obrigatorios.");
         return;
@@ -216,18 +244,19 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
      };
      const updatedList = [...catalogItems, item];
      setCatalogItems(updatedList);
-     setFormData({...formData, tireModels: updatedList});
-     setNewModel({ brand: '', model: '', width: 295, profile: 80, rim: 22.5, standardPressure: 110, originalDepth: 18.0, estimatedLifespanKm: 80000, limitDepth: 3.0 });
+     if (await persistSettingsPatch({ tireModels: updatedList })) {
+       setNewModel({ brand: '', model: '', width: 295, profile: 80, rim: 22.5, standardPressure: 110, originalDepth: 18.0, estimatedLifespanKm: 80000, limitDepth: 3.0 });
+     }
   };
 
-  const handleDeleteCatalogItem = (id: string) => {
+  const handleDeleteCatalogItem = async (id: string) => {
      const updatedList = catalogItems.filter(i => i.id !== id);
      setCatalogItems(updatedList);
-     setFormData({...formData, tireModels: updatedList});
+     await persistSettingsPatch({ tireModels: updatedList });
   };
 
   // --- SERVICE TYPES HANDLERS ---
-  const handleAddServiceType = () => {
+  const handleAddServiceType = async () => {
       if (!newServiceType.trim()) return;
       const newItem: ServiceTypeDefinition = {
           id: Date.now().toString(),
@@ -235,18 +264,19 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
       };
       const updatedList = [...serviceTypes, newItem];
       setServiceTypes(updatedList);
-      setFormData({...formData, serviceTypes: updatedList});
-      setNewServiceType('');
+      if (await persistSettingsPatch({ serviceTypes: updatedList })) {
+        setNewServiceType('');
+      }
   };
 
-  const handleDeleteServiceType = (id: string) => {
+  const handleDeleteServiceType = async (id: string) => {
       const updatedList = serviceTypes.filter(s => s.id !== id);
       setServiceTypes(updatedList);
-      setFormData({...formData, serviceTypes: updatedList});
+      await persistSettingsPatch({ serviceTypes: updatedList });
   };
 
   // --- PROCEDURES HANDLERS ---
-  const handleAddProcedure = () => {
+  const handleAddProcedure = async () => {
     if (!newProcedure.name.trim()) return;
     const procedure = {
       ...newProcedure,
@@ -254,18 +284,19 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     };
     const updatedList = [...standardProcedures, procedure];
     setStandardProcedures(updatedList);
-    setFormData({...formData, standardProcedures: updatedList});
-    setNewProcedure({ name: '', category: 'OIL', description: '', estimatedCost: 0 });
+    if (await persistSettingsPatch({ standardProcedures: updatedList })) {
+      setNewProcedure({ name: '', category: 'OIL', description: '', estimatedCost: 0 });
+    }
   };
 
-  const handleDeleteProcedure = (id: string) => {
+  const handleDeleteProcedure = async (id: string) => {
     const updatedList = standardProcedures.filter(p => p.id !== id);
     setStandardProcedures(updatedList);
-    setFormData({...formData, standardProcedures: updatedList});
+    await persistSettingsPatch({ standardProcedures: updatedList });
   };
 
   // --- POINTS HANDLERS ---
-  const handleAddPoint = () => {
+  const handleAddPoint = async () => {
     if (!newPoint.name || !newPoint.lat || !newPoint.lng) {
       alert("Nome, Latitude e Longitude sao obrigatorios.");
       return;
@@ -279,14 +310,15 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
     };
     const updatedList = [...savedPoints, item];
     setSavedPoints(updatedList);
-    setFormData({...formData, savedPoints: updatedList});
-    setNewPoint({ name: '', lat: 0, lng: 0, radius: 500 });
+    if (await persistSettingsPatch({ savedPoints: updatedList })) {
+      setNewPoint({ name: '', lat: 0, lng: 0, radius: 500 });
+    }
   };
 
-  const handleDeletePoint = (id: string) => {
+  const handleDeletePoint = async (id: string) => {
     const updatedList = savedPoints.filter(p => p.id !== id);
     setSavedPoints(updatedList);
-    setFormData({...formData, savedPoints: updatedList});
+    await persistSettingsPatch({ savedPoints: updatedList });
   };
 
   // --- TEAM HANDLERS ---
@@ -796,6 +828,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                />
                <button
+                 type="button"
                  onClick={async () => {
                    if (!newPaymentMethod.trim()) return;
                    await storageService.addPaymentMethod(orgId, {
@@ -815,6 +848,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  <div key={method.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                    <span className="font-bold text-slate-700">{method.name}</span>
                    <button
+                     type="button"
                      onClick={() => storageService.deletePaymentMethod(orgId, method.id)}
                      className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
                    >
@@ -848,6 +882,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                />
                <button
+                 type="button"
                  onClick={async () => {
                    if (!newSector.trim()) return;
                    await storageService.addSector(orgId, {
@@ -867,6 +902,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                  <div key={sector.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                    <span className="font-bold text-slate-700">{sector.name}</span>
                    <button
+                     type="button"
                      onClick={() => storageService.deleteSector(orgId, sector.id)}
                      className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
                    >
@@ -888,7 +924,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   </h3>
                   <p className="text-slate-500 text-sm mt-1">Defina marcas, modelos e a <strong>vida util esperada</strong> para previsao de troca.</p>
                </div>
-               <button onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
+               <button type="button" onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
                   {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Lista
                </button>
             </div>
@@ -929,7 +965,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         </div>
                      </div>
 
-                     <button onClick={handleAddCatalogItem} className="w-full py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar a Lista</button>
+                     <button type="button" onClick={handleAddCatalogItem} className="w-full py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar a Lista</button>
                   </div>
                </div>
 
@@ -956,7 +992,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                     )}
                                  </div>
                               </div>
-                              <button onClick={() => handleDeleteCatalogItem(item.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="h-4 w-4" /></button>
+                              <button type="button" onClick={() => handleDeleteCatalogItem(item.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="h-4 w-4" /></button>
                            </div>
                         ))}
                      </div>
@@ -980,7 +1016,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                     <p className="text-sm text-slate-500 font-medium">Gestao de residuos, operacoes e procedimentos tecnicos.</p>
                   </div>
                </div>
-               <button 
+               <button
+                  type="button"
                   onClick={(e) => handleSaveSettings(e)} 
                   disabled={isSaving} 
                   className={`w-full md:w-auto px-6 py-2.5 rounded-xl font-bold text-white shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}
@@ -1052,7 +1089,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                             </div>
                                         </div>
 
-                                        <button 
+                                        <button
+                                            type="button"
                                             onClick={handleAddWasteType}
                                             className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 mt-2"
                                         >
@@ -1068,7 +1106,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                     {wasteTypes.map(type => (
                                         <div key={type.id} className="flex flex-col bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all group relative overflow-hidden">
                                             <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button 
+                                                <button
+                                                    type="button"
                                                     onClick={() => handleDeleteWasteType(type.id)} 
                                                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                                     title="Excluir"
@@ -1130,7 +1169,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                             value={newServiceType || ''} 
                                             onChange={e => setNewServiceType(e.target.value)} 
                                         />
-                                        <button 
+                                        <button
+                                            type="button"
                                             onClick={handleAddServiceType} 
                                             className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
                                         >
@@ -1152,7 +1192,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                         {serviceTypes.map(st => (
                                             <div key={st.id} className="bg-slate-50/30 p-4 px-5 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-300 hover:bg-white hover:shadow-md transition-all group">
                                                 <span className="text-[13px] font-black text-slate-700 truncate pr-2 uppercase tracking-tight">{st.name}</span>
-                                                <button 
+                                                <button
+                                                    type="button"
                                                     onClick={() => handleDeleteServiceType(st.id)} 
                                                     className="text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-xl transition-all"
                                                 >
@@ -1202,7 +1243,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                         <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">Passo a Passo</label>
                                         <textarea className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all h-36 resize-none shadow-sm" placeholder="1. Verificar nivel do fluido&#10;2. Trocar juntas..." value={newProcedure.description || ''} onChange={e => setNewProcedure({...newProcedure, description: e.target.value})} />
                                     </div>
-                                    <button onClick={handleAddProcedure} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100">
+                                    <button type="button" onClick={handleAddProcedure} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100">
                                         <Plus className="h-4 w-4" /> Criar Procedimento
                                     </button>
                                 </div>
@@ -1221,7 +1262,8 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                         {standardProcedures.map(p => (
                                             <div key={p.id} className="bg-slate-50/20 p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 hover:bg-white hover:shadow-lg transition-all group relative">
                                                 <div className="absolute top-4 right-4">
-                                                    <button 
+                                                    <button
+                                                        type="button"
                                                         onClick={() => { if(confirm("Deseja apagar este procedimento?")) handleDeleteProcedure(p.id); }} 
                                                         className="text-slate-300 hover:text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all"
                                                     >
@@ -1263,7 +1305,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                   </h3>
                   <p className="text-slate-500 text-sm mt-1">Cadastre locais frequentes para agilizar o agendamento de chegada dos veiculos.</p>
                </div>
-               <button onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
+               <button type="button" onClick={(e) => handleSaveSettings(e)} disabled={isSaving} className={`px-4 py-2 rounded-lg font-bold text-white shadow transition-all flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'}`}>
                   {saveSuccess ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} Salvar Lista
                </button>
             </div>
@@ -1290,7 +1332,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                         <label className="block text-xs font-bold text-slate-500 mb-1">Raio de Alerta (Metros)</label>
                         <input type="number" className="w-full p-2 border border-slate-300 rounded text-black bg-white" placeholder="500" value={newPoint.radius ?? 500} onChange={e => setNewPoint({...newPoint, radius: Number(e.target.value)})} />
                      </div>
-                     <button onClick={handleAddPoint} className="w-full py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar Ponto</button>
+                     <button type="button" onClick={handleAddPoint} className="w-full py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors mt-2 flex items-center justify-center gap-2"><Plus className="h-4 w-4" /> Adicionar Ponto</button>
                   </div>
                </div>
 
@@ -1311,7 +1353,7 @@ export const Settings: React.FC<SettingsProps> = ({ orgId, currentSettings, onUp
                                  </div>
                                  <div className="text-[10px] font-bold text-emerald-600 mt-1">Raio: {point.radius}m</div>
                               </div>
-                              <button onClick={() => handleDeletePoint(point.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="h-4 w-4" /></button>
+                              <button type="button" onClick={() => handleDeletePoint(point.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 className="h-4 w-4" /></button>
                            </div>
                         ))}
                      </div>

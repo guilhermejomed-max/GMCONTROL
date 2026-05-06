@@ -219,6 +219,45 @@ type ProfileSchedule = {
   lastTriggeredDate?: string;
 };
 
+type ProfileShortcut = {
+  id: string;
+  keys: string;
+  tab: TabView;
+  enabled: boolean;
+};
+
+const formatShortcutEvent = (event: { ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean; key: string }) => {
+  const parts: string[] = [];
+  if (event.ctrlKey || event.metaKey) parts.push('CTRL');
+  if (event.altKey) parts.push('ALT');
+  if (event.shiftKey) parts.push('SHIFT');
+  const key = event.key.length === 1 ? event.key.toUpperCase() : event.key.toUpperCase().replace('ARROW', '');
+  if (!['CONTROL', 'META', 'ALT', 'SHIFT'].includes(key)) parts.push(key);
+  return parts.join('+');
+};
+
+const TRACTOR_BRANDS = ['SCANIA', 'DAF', 'VOLVO', 'MERCEDES'];
+
+const normalizeVehicleText = (value: any) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+const classifyVehicleType = (vehicle: Partial<Vehicle> | Partial<VehicleBrandModel>) => {
+  const text = normalizeVehicleText(`${(vehicle as any).brand || ''} ${(vehicle as any).model || ''} ${(vehicle as any).name || ''} ${(vehicle as any).description || ''}`);
+  return TRACTOR_BRANDS.some(brand => text.includes(brand)) ? 'CAVALO' : 'CARRETA';
+};
+
+const moduleForTab = (tab: TabView): ModuleType | undefined => {
+  if (['inventory', 'register', 'movement', 'inspection', 'retreading', 'retreader-ranking', 'demand-forecast', 'tire-disposal'].includes(tab)) return 'TIRES';
+  if (['fleet', 'location', 'drivers', 'fleet-issues', 'brand-models', 'vehicle-types', 'occurrences'].includes(tab)) return 'VEHICLES';
+  if (['maintenance', 'maintenance-tv', 'service-orders', 'service', 'partners', 'waste-disposal'].includes(tab)) return 'MECHANICAL';
+  if (['fuel', 'fuel-gas', 'fuel-types', 'reports-fuel'].includes(tab)) return 'FUEL';
+  if (['ambulatory', 'ppe-stock', 'rh'].includes(tab)) return 'HR';
+  return undefined;
+};
+
 const cp1252ByteMap: Record<number, number> = {
   0x20AC: 0x80,
   0x201A: 0x82,
@@ -329,6 +368,9 @@ export const App = () => {
   const [activeScheduleAlert, setActiveScheduleAlert] = useState<ProfileSchedule | null>(null);
   const [profileSchedulesLoaded, setProfileSchedulesLoaded] = useState(false);
   const [profileSchedulesOwnerId, setProfileSchedulesOwnerId] = useState('');
+  const [profileShortcuts, setProfileShortcuts] = useState<ProfileShortcut[]>([]);
+  const [shortcutKeys, setShortcutKeys] = useState('');
+  const [shortcutTab, setShortcutTab] = useState<TabView>('movement');
   const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>(undefined);
   const [userBranchId, setUserBranchId] = useState<string | undefined>(undefined);
   
@@ -546,11 +588,13 @@ export const App = () => {
       setProfileSchedulesLoaded(false);
       setProfileSchedulesOwnerId('');
       setProfileSchedules([]);
+      setProfileShortcuts([]);
       return;
     }
     setProfileSchedulesLoaded(false);
     setProfileSchedulesOwnerId('');
     const backupKey = `gm_profile_schedules_${userId}`;
+    const shortcutsBackupKey = `gm_profile_shortcuts_${userId}`;
     const localBackup = (() => {
       try {
         const raw = localStorage.getItem(backupKey);
@@ -565,21 +609,42 @@ export const App = () => {
         return { schedules: [] as ProfileSchedule[], updatedAt: '' };
       }
     })();
+    const localShortcutsBackup = (() => {
+      try {
+        const raw = localStorage.getItem(shortcutsBackupKey);
+        if (!raw) return { shortcuts: [] as ProfileShortcut[], updatedAt: '' };
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return { shortcuts: parsed as ProfileShortcut[], updatedAt: '' };
+        return {
+          shortcuts: Array.isArray(parsed?.shortcuts) ? parsed.shortcuts as ProfileShortcut[] : [],
+          updatedAt: typeof parsed?.updatedAt === 'string' ? parsed.updatedAt : ''
+        };
+      } catch {
+        return { shortcuts: [] as ProfileShortcut[], updatedAt: '' };
+      }
+    })();
     storageService.getUserProfile(userId).then(profile => {
       const saved = (profile as any)?.profileSchedules;
       const remoteSchedules = Array.isArray(saved) ? saved as ProfileSchedule[] : null;
       const remoteUpdatedAt = typeof (profile as any)?.profileSchedulesUpdatedAt === 'string' ? (profile as any).profileSchedulesUpdatedAt : '';
       const localIsNewer = localBackup.updatedAt && (!remoteUpdatedAt || localBackup.updatedAt > remoteUpdatedAt);
       const nextSchedules = localIsNewer ? localBackup.schedules : (remoteSchedules ?? localBackup.schedules);
+      const savedShortcuts = (profile as any)?.profileShortcuts;
+      const remoteShortcuts = Array.isArray(savedShortcuts) ? savedShortcuts as ProfileShortcut[] : null;
+      const remoteShortcutsUpdatedAt = typeof (profile as any)?.profileShortcutsUpdatedAt === 'string' ? (profile as any).profileShortcutsUpdatedAt : '';
+      const localShortcutsIsNewer = localShortcutsBackup.updatedAt && (!remoteShortcutsUpdatedAt || localShortcutsBackup.updatedAt > remoteShortcutsUpdatedAt);
+      const nextShortcuts = localShortcutsIsNewer ? localShortcutsBackup.shortcuts : (remoteShortcuts ?? localShortcutsBackup.shortcuts);
       setProfileSchedules(nextSchedules);
+      setProfileShortcuts(nextShortcuts);
       setProfileSchedulesOwnerId(userId);
       setProfileSchedulesLoaded(true);
     }).catch(() => {
       setProfileSchedules(localBackup.schedules);
+      setProfileShortcuts(localShortcutsBackup.shortcuts);
       setProfileSchedulesOwnerId(userId);
       setProfileSchedulesLoaded(true);
     });
-  }, [userId]);
+  }, [userId, allowedModules]);
 
   // Salva tarefas agendadas no Firebase sempre que mudarem
   useEffect(() => {
@@ -594,8 +659,22 @@ export const App = () => {
       .catch(error => console.error('Erro ao salvar tarefas diarias:', error));
   }, [orgId, userId, profileSchedules, profileSchedulesLoaded, profileSchedulesOwnerId]);
 
+  useEffect(() => {
+    if (!userId || !profileSchedulesLoaded || profileSchedulesOwnerId !== userId) return;
+    const updatedAt = new Date().toISOString();
+    try {
+      localStorage.setItem(`gm_profile_shortcuts_${userId}`, JSON.stringify({ shortcuts: profileShortcuts, updatedAt }));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar backup local dos atalhos:', error);
+    }
+    storageService.updateTeamMember(orgId, userId, { profileShortcuts, profileShortcutsUpdatedAt: updatedAt } as any)
+      .catch(error => console.error('Erro ao salvar atalhos:', error));
+  }, [orgId, userId, profileShortcuts, profileSchedulesLoaded, profileSchedulesOwnerId]);
+
   const profileSchedulesRef = useRef<ProfileSchedule[]>([]);
   useEffect(() => { profileSchedulesRef.current = profileSchedules; }, [profileSchedules]);
+  const profileShortcutsRef = useRef<ProfileShortcut[]>([]);
+  useEffect(() => { profileShortcutsRef.current = profileShortcuts; }, [profileShortcuts]);
 
   const getScheduleMinutes = (time: string) => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -626,6 +705,27 @@ export const App = () => {
     const timer = window.setInterval(checkDueSchedules, 5000);
     return () => window.clearInterval(timer);
   }, [userId, profileSchedulesLoaded, activeScheduleAlert]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping = target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      if (isTyping || target?.isContentEditable) return;
+      const shortcut = formatShortcutEvent(event);
+      if (!shortcut || (!event.ctrlKey && !event.metaKey && !event.altKey)) return;
+      const match = profileShortcutsRef.current.find(item => item.enabled && item.keys === shortcut);
+      if (!match) return;
+      event.preventDefault();
+      const nextModule = moduleForTab(match.tab);
+      if (nextModule && allowedModules.includes(nextModule)) setActiveModule(nextModule);
+      setIsProfileOpen(false);
+      setIsMultitaskMode(false);
+      setCurrentTab(match.tab);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [userId]);
 
   // 1. Global/Critical Subscriptions (Always load)
   useEffect(() => {
@@ -795,6 +895,43 @@ export const App = () => {
       runMigration();
     }
   }, [userRole, vehicles.length, vehicleBrandModels.length, fuelEntries.length, orgId]);
+
+  useEffect(() => {
+    if (!user || vehicles.length === 0) return;
+
+    const runVehicleTypeMigration = async () => {
+      try {
+        const vehicleUpdates = vehicles
+          .map(vehicle => ({ ...vehicle, type: classifyVehicleType(vehicle) }))
+          .filter(vehicle => vehicle.type !== vehicles.find(current => current.id === vehicle.id)?.type);
+
+        const brandModelUpdates = vehicleBrandModels
+          .map(model => ({ ...model, type: classifyVehicleType(model) }))
+          .filter(model => model.type !== vehicleBrandModels.find(current => current.id === model.id)?.type);
+
+        if (vehicleUpdates.length > 0) {
+          await storageService.updateVehicleBatch(orgId, vehicleUpdates);
+        }
+
+        for (const model of brandModelUpdates) {
+          await storageService.updateVehicleBrandModel(orgId, model);
+        }
+
+        if (vehicleUpdates.length > 0 || brandModelUpdates.length > 0) {
+          addToast(
+            'success',
+            'Tipos atualizados',
+            `${vehicleUpdates.length} veiculo(s) e ${brandModelUpdates.length} marca/modelo(s) foram classificados como CAVALO ou CARRETA.`
+          );
+        }
+      } catch (error) {
+        console.error('Falha ao classificar tipos de veiculo:', error);
+        addToast('error', 'Erro ao classificar veiculos', 'Nao foi possivel atualizar os tipos automaticamente.');
+      }
+    };
+
+    runVehicleTypeMigration();
+  }, [user, vehicles, vehicleBrandModels, orgId]);
 
   // AUTOMATED UPDATES CHECK (Run once when data is available)
   useEffect(() => {
@@ -1222,6 +1359,7 @@ const distance = R * c; // in metres
 
   const auditedUpdateVehicle = async (vehicle: Vehicle) => {
       const existing = vehicles.find(v => v.id === vehicle.id);
+      const classifiedVehicle = { ...vehicle, type: classifyVehicleType(vehicle) };
       const nextOdometer = Number(vehicle.odometer || 0);
 
       if (isImplausibleImportedOdometer(nextOdometer)) {
@@ -1229,7 +1367,7 @@ const distance = R * c; // in metres
           throw new Error('Hodometro invalido');
       }
 
-      await storageService.updateVehicle(orgId, vehicle);
+      await storageService.updateVehicle(orgId, classifiedVehicle);
 
       if (!existing) return;
 
@@ -1237,9 +1375,10 @@ const distance = R * c; // in metres
       if ((existing.odometer || 0) !== nextOdometer) {
           changes.push(`KM ${Number(existing.odometer || 0).toLocaleString('pt-BR')} -> ${nextOdometer.toLocaleString('pt-BR')}`);
       }
-      if ((existing.sascarCode || '') !== (vehicle.sascarCode || '')) changes.push('codigo rastreador');
-      if ((existing.renavam || '') !== (vehicle.renavam || '')) changes.push('RENAVAM');
-      if ((existing.vin || '') !== (vehicle.vin || '')) changes.push('chassi');
+      if ((existing.sascarCode || '') !== (classifiedVehicle.sascarCode || '')) changes.push('codigo rastreador');
+      if ((existing.renavam || '') !== (classifiedVehicle.renavam || '')) changes.push('RENAVAM');
+      if ((existing.vin || '') !== (classifiedVehicle.vin || '')) changes.push('chassi');
+      if ((existing.type || '') !== (classifiedVehicle.type || '')) changes.push(`tipo ${existing.type || '-'} -> ${classifiedVehicle.type}`);
 
       if (changes.length > 0) {
           storageService.logActivity(orgId, 'Auditoria Veiculo', `${vehicle.plate}: ${changes.join(', ')}`, 'VEHICLES');
@@ -1247,14 +1386,15 @@ const distance = R * c; // in metres
   };
 
   const auditedAddVehicle = async (vehicle: Vehicle) => {
+      const classifiedVehicle = { ...vehicle, type: classifyVehicleType(vehicle) };
       const nextOdometer = Number(vehicle.odometer || 0);
       if (nextOdometer > 0 && isImplausibleImportedOdometer(nextOdometer)) {
           addToast('error', 'KM invalido', `O hodometro de ${vehicle.plate} parece invalido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
           throw new Error('Hodometro invalido');
       }
 
-      await storageService.addVehicle(orgId, vehicle);
-      storageService.logActivity(orgId, 'Novo Veiculo', `${vehicle.plate} cadastrado com KM ${nextOdometer.toLocaleString('pt-BR')}`, 'VEHICLES');
+      await storageService.addVehicle(orgId, classifiedVehicle);
+      storageService.logActivity(orgId, 'Novo Veiculo', `${classifiedVehicle.plate} cadastrado como ${classifiedVehicle.type} com KM ${nextOdometer.toLocaleString('pt-BR')}`, 'VEHICLES');
   };
 
   const auditedDeleteVehicle = async (id: string) => {
@@ -1703,6 +1843,59 @@ const distance = R * c; // in metres
     if (saved) setProfileSchedules(nextSchedules);
   };
 
+  const saveProfileShortcutsNow = async (nextShortcuts: ProfileShortcut[]) => {
+    if (!userId) {
+      addToast('error', 'Perfil nao encontrado', 'Entre novamente para salvar atalhos.');
+      return false;
+    }
+    const updatedAt = new Date().toISOString();
+    try {
+      localStorage.setItem(`gm_profile_shortcuts_${userId}`, JSON.stringify({ shortcuts: nextShortcuts, updatedAt }));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar atalhos no backup local:', error);
+    }
+    try {
+      await storageService.updateTeamMember(orgId, userId, { profileShortcuts: nextShortcuts, profileShortcutsUpdatedAt: updatedAt } as any);
+      return true;
+    } catch (error) {
+      console.error('Erro ao salvar atalhos:', error);
+      addToast('warning', 'Salvo neste navegador', 'Nao consegui sincronizar com a nuvem agora, mas o atalho ficou salvo localmente.');
+      return true;
+    }
+  };
+
+  const handleShortcutCapture = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    event.preventDefault();
+    const shortcut = formatShortcutEvent(event);
+    if (shortcut.includes('+')) setShortcutKeys(shortcut);
+  };
+
+  const handleAddShortcut = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!shortcutKeys || !shortcutTab) return;
+    const nextShortcuts = [
+      ...profileShortcuts.filter(item => item.keys !== shortcutKeys),
+      { id: Date.now().toString(), keys: shortcutKeys, tab: shortcutTab, enabled: true }
+    ];
+    const saved = await saveProfileShortcutsNow(nextShortcuts);
+    if (!saved) return;
+    setProfileShortcuts(nextShortcuts);
+    setShortcutKeys('');
+    addToast('success', 'Atalho salvo', `${shortcutKeys} abre ${getPageTitle(shortcutTab)}.`);
+  };
+
+  const handleToggleShortcut = async (shortcutId: string) => {
+    const nextShortcuts = profileShortcuts.map(shortcut => shortcut.id === shortcutId ? { ...shortcut, enabled: !shortcut.enabled } : shortcut);
+    const saved = await saveProfileShortcutsNow(nextShortcuts);
+    if (saved) setProfileShortcuts(nextShortcuts);
+  };
+
+  const handleDeleteShortcut = async (shortcutId: string) => {
+    const nextShortcuts = profileShortcuts.filter(shortcut => shortcut.id !== shortcutId);
+    const saved = await saveProfileShortcutsNow(nextShortcuts);
+    if (saved) setProfileShortcuts(nextShortcuts);
+  };
+
   const multitaskOptions: { tab: TabView; label: string; module?: ModuleType }[] = [
     { tab: 'fleet', label: 'Cadastro de Veiculos', module: 'VEHICLES' },
     { tab: 'movement', label: 'Movimentacao de Pneus', module: 'TIRES' },
@@ -1712,6 +1905,21 @@ const distance = R * c; // in metres
     { tab: 'maintenance', label: 'Manutencao', module: 'MECHANICAL' },
     { tab: 'fuel', label: 'Abastecimento', module: 'FUEL' },
     { tab: 'dashboard', label: 'Painel Executivo' }
+  ].filter(option => !option.module || allowedModules.includes(option.module));
+
+  const shortcutOptions: { tab: TabView; label: string; module?: ModuleType }[] = [
+    { tab: 'dashboard', label: 'Painel Executivo' },
+    { tab: 'fleet', label: 'Cadastro de Veiculos', module: 'VEHICLES' },
+    { tab: 'location', label: 'Rastreamento', module: 'VEHICLES' },
+    { tab: 'drivers', label: 'Motoristas', module: 'VEHICLES' },
+    { tab: 'movement', label: 'Movimentacao de Pneus', module: 'TIRES' },
+    { tab: 'inventory', label: 'Estoque de Pneus', module: 'TIRES' },
+    { tab: 'register', label: 'Cadastro de Pneus', module: 'TIRES' },
+    { tab: 'inspection', label: 'Inspecao de Pneus', module: 'TIRES' },
+    { tab: 'service-orders', label: 'Ordens de Servico', module: 'MECHANICAL' },
+    { tab: 'maintenance', label: 'Manutencao', module: 'MECHANICAL' },
+    { tab: 'fuel', label: 'Abastecimento', module: 'FUEL' },
+    { tab: 'reports', label: 'Relatorios' }
   ].filter(option => !option.module || allowedModules.includes(option.module));
 
   const updateMultitaskTab = (index: 0 | 1, tab: TabView) => {
@@ -2819,6 +3027,68 @@ const distance = R * c; // in metres
                         <button
                           type="button"
                           onClick={() => handleDeleteSchedule(item.id)}
+                          className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Atalhos</h4>
+                  <span className="text-[10px] font-bold text-slate-400">{profileShortcuts.filter(item => item.enabled).length} ativo(s)</span>
+                </div>
+
+                <form onSubmit={handleAddShortcut} className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4">
+                  <input
+                    type="text"
+                    placeholder="Pressione Ctrl+M"
+                    value={shortcutKeys}
+                    onKeyDown={handleShortcutCapture}
+                    onChange={() => undefined}
+                    className="px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-black text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                    required
+                  />
+                  <select
+                    value={shortcutTab}
+                    onChange={event => setShortcutTab(event.target.value as TabView)}
+                    className="px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {shortcutOptions.map(option => (
+                      <option key={option.tab} value={option.tab}>{option.label}</option>
+                    ))}
+                  </select>
+                  <button type="submit" className="md:col-span-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-colors">
+                    Salvar atalho
+                  </button>
+                </form>
+
+                <div className="space-y-2">
+                  {profileShortcuts.length === 0 ? (
+                    <div className="p-5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-sm font-bold text-slate-400">
+                      Nenhum atalho configurado.
+                    </div>
+                  ) : profileShortcuts.map(item => (
+                    <div key={item.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-slate-800 dark:text-white truncate">{item.keys}</p>
+                        <p className="text-xs font-bold text-slate-500">{getPageTitle(item.tab)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleShortcut(item.id)}
+                          className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase ${item.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}
+                        >
+                          {item.enabled ? 'Ativo' : 'Pausado'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteShortcut(item.id)}
                           className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                           <X className="h-4 w-4" />

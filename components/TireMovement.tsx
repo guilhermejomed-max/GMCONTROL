@@ -208,6 +208,7 @@ export const TireMovement: FC<TireMovementProps> = ({
   const [showDismountConfirm, setShowDismountConfirm] = useState(false);
   const [isConsultingPosition, setIsConsultingPosition] = useState(false);
   const [activeTireChangeOrder, setActiveTireChangeOrder] = useState<ServiceOrder | null>(null);
+  const [isTireServiceMode, setIsTireServiceMode] = useState(false);
   const tireChangeOrderPromiseRef = useRef<Promise<ServiceOrder | null> | null>(null);
 
   // States for Swap Modal
@@ -258,6 +259,7 @@ export const TireMovement: FC<TireMovementProps> = ({
       setSelectedPos(null);
       setRotationSource(null);
       setActiveTireChangeOrder(null);
+      setIsTireServiceMode(false);
       tireChangeOrderPromiseRef.current = null;
   };
 
@@ -484,6 +486,7 @@ export const TireMovement: FC<TireMovementProps> = ({
       applied?: string[];
   }, linkedTires: Tire[], appliedTires: Tire[] = []) => {
       if (!selectedVehicle || !onCreateServiceOrder) return;
+      if (!isTireServiceMode && !activeTireChangeOrder?.id) return;
 
       const order = await ensureTireChangeOrder();
       if (!order) return;
@@ -580,6 +583,7 @@ export const TireMovement: FC<TireMovementProps> = ({
               ].join('\n'),
           );
 
+          if (order) setIsTireServiceMode(true);
           onNotification?.('Sucesso', order?.orderNumber ? `O.S. #${order.orderNumber} aberta para a troca do veiculo.` : 'O.S. de troca aberta para o veiculo.', 'success');
           setIsConsultingPosition(true);
       } catch (error) {
@@ -800,13 +804,15 @@ export const TireMovement: FC<TireMovementProps> = ({
                     </button>
                     <div>
                         <h2 className="text-xl font-black text-slate-800 dark:text-white leading-none">{selectedVehicle.plate}</h2>
-                        <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Modo Movimentacao</span>
+                        <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">
+                            {isTireServiceMode ? 'Lancamento automatico na OS ativo' : 'Modo Movimentacao'}
+                        </span>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                 {activeTireChangeOrder && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 border border-blue-100 dark:border-blue-800/50 shadow-sm">
-                        <Wrench className="h-4 w-4"/> OS #{String(activeTireChangeOrder.orderNumber).padStart(4, '0')} ativa
+                        <Wrench className="h-4 w-4"/> OS #{String(activeTireChangeOrder.orderNumber).padStart(4, '0')} ativa - automatico
                     </div>
                 )}
                 {rotationSource && (
