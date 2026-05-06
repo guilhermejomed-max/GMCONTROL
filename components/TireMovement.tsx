@@ -229,6 +229,51 @@ export const TireMovement: FC<TireMovementProps> = ({
     return tires.filter(t => t.vehicleId === selectedVehicle.id);
   }, [tires, selectedVehicle]);
 
+  const openTireChangeOrder = useMemo(() => {
+      if (!selectedVehicle) return null;
+
+      return serviceOrders
+          .filter(order => {
+              const sameVehicle = order.vehicleId === selectedVehicle.id || order.vehiclePlate === selectedVehicle.plate;
+              const isOpen = order.status === 'PENDENTE' || order.status === 'EM_ANDAMENTO';
+              const isTireChange = (order.title || '').toLowerCase().includes('troca de pneus');
+              return sameVehicle && isOpen && isTireChange;
+          })
+          .sort((a, b) => {
+              const dateA = new Date(a.createdAt || a.date || 0).getTime();
+              const dateB = new Date(b.createdAt || b.date || 0).getTime();
+              return dateB - dateA;
+          })[0] || null;
+  }, [serviceOrders, selectedVehicle]);
+
+  const shouldBypassPositionPrompt = Boolean(
+      selectedVehicle && (isTireServiceMode || activeTireChangeOrder?.id || openTireChangeOrder?.id)
+  );
+
+  useEffect(() => {
+      if (!selectedVehicle) return;
+
+      if (openTireChangeOrder) {
+          if (activeTireChangeOrder?.id !== openTireChangeOrder.id) {
+              setActiveTireChangeOrder(openTireChangeOrder);
+          }
+          setIsTireServiceMode(true);
+          return;
+      }
+
+      if (activeTireChangeOrder) {
+          const latestOrder = serviceOrders.find(order => order.id === activeTireChangeOrder.id) || activeTireChangeOrder;
+          const sameVehicle = latestOrder.vehicleId === selectedVehicle.id || latestOrder.vehiclePlate === selectedVehicle.plate;
+          const isOpen = latestOrder.status === 'PENDENTE' || latestOrder.status === 'EM_ANDAMENTO';
+          if (!sameVehicle || !isOpen) {
+              setActiveTireChangeOrder(null);
+              setIsTireServiceMode(false);
+          } else if (latestOrder !== activeTireChangeOrder) {
+              setActiveTireChangeOrder(latestOrder);
+          }
+      }
+  }, [selectedVehicle, serviceOrders, openTireChangeOrder, activeTireChangeOrder]);
+
   const selectedTire = useMemo(() => {
       if (!selectedPos) return null;
       return mountedTires.find(t => t.position === selectedPos);
@@ -250,8 +295,8 @@ export const TireMovement: FC<TireMovementProps> = ({
       setSwapInTire(null);
       setSwapOutDepth('');
       setIsSwapConfirmOpen(false);
-      setIsConsultingPosition(isTireServiceMode || Boolean(activeTireChangeOrder?.id));
-  }, [selectedPos, isTireServiceMode, activeTireChangeOrder?.id]);
+      setIsConsultingPosition(shouldBypassPositionPrompt);
+  }, [selectedPos, shouldBypassPositionPrompt]);
 
   // When selecting vehicle, reset internal states
   const handleSelectVehicle = (vehicle: Vehicle) => {
@@ -287,7 +332,7 @@ export const TireMovement: FC<TireMovementProps> = ({
           }
       } else {
           setSelectedPos(pos);
-          setIsConsultingPosition(isTireServiceMode || Boolean(activeTireChangeOrder?.id));
+          setIsConsultingPosition(shouldBypassPositionPrompt);
           setMountKm(selectedVehicle?.odometer || 0); 
           setMountDate(new Date().toISOString().split('T')[0]); // Reset date to today
           setStockSearch('');
@@ -389,20 +434,7 @@ export const TireMovement: FC<TireMovementProps> = ({
   };
 
   const findOpenTireChangeOrder = () => {
-      if (!selectedVehicle) return null;
-
-      return serviceOrders
-          .filter(order => {
-              const sameVehicle = order.vehicleId === selectedVehicle.id || order.vehiclePlate === selectedVehicle.plate;
-              const isOpen = order.status === 'PENDENTE' || order.status === 'EM_ANDAMENTO';
-              const isTireChange = (order.title || '').toLowerCase().includes('troca de pneus');
-              return sameVehicle && isOpen && isTireChange;
-          })
-          .sort((a, b) => {
-              const dateA = new Date(a.createdAt || a.date || 0).getTime();
-              const dateB = new Date(b.createdAt || b.date || 0).getTime();
-              return dateB - dateA;
-          })[0] || null;
+      return openTireChangeOrder;
   };
 
   const ensureTireChangeOrder = async (initialLine?: string): Promise<ServiceOrder | null> => {
@@ -486,7 +518,7 @@ export const TireMovement: FC<TireMovementProps> = ({
       applied?: string[];
   }, linkedTires: Tire[], appliedTires: Tire[] = []) => {
       if (!selectedVehicle || !onCreateServiceOrder) return;
-      if (!isTireServiceMode && !activeTireChangeOrder?.id) return;
+      if (!shouldBypassPositionPrompt) return;
 
       const order = await ensureTireChangeOrder();
       if (!order) return;
@@ -571,6 +603,8 @@ export const TireMovement: FC<TireMovementProps> = ({
       if (isProcessing) return;
 
       setIsProcessing(true);
+      setIsTireServiceMode(true);
+      setIsConsultingPosition(true);
       try {
           const tireText = selectedTire
               ? `Pneu atual: ${selectedTire.fireNumber} - ${selectedTire.brand} ${selectedTire.model}. Sulco: ${selectedTire.currentTreadDepth}mm.`
@@ -583,10 +617,10 @@ export const TireMovement: FC<TireMovementProps> = ({
               ].join('\n'),
           );
 
-          if (order) setIsTireServiceMode(true);
+          if (order) setActiveTireChangeOrder(order);
           onNotification?.('Sucesso', order?.orderNumber ? `O.S. #${order.orderNumber} aberta para a troca do veiculo.` : 'O.S. de troca aberta para o veiculo.', 'success');
-          setIsConsultingPosition(true);
       } catch (error) {
+          setIsTireServiceMode(false);
           console.error('Erro ao abrir OS de troca de pneus:', error);
           onNotification?.('Erro', 'Falha ao abrir O.S. de troca de pneus.', 'error');
       } finally {
@@ -874,7 +908,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                         <button onClick={() => setSelectedPos(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6 text-slate-500"/></button>
                     </div>
 
-                    {!isConsultingPosition && !isTireServiceMode && !activeTireChangeOrder ? (
+                    {!isConsultingPosition && !shouldBypassPositionPrompt ? (
                         <div className="p-6 space-y-5">
                             <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
@@ -939,7 +973,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                     ) : selectedTire && !isQuickSwapMode ? (
                         // --- TIRE IS MOUNTED: SHOW ACTIONS ---
                         <div className="p-6 space-y-6">
-                            {!isTireServiceMode && !activeTireChangeOrder && (
+                            {!shouldBypassPositionPrompt && (
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     onClick={handleOpenTireServiceOrder}
@@ -1023,7 +1057,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                                         <button onClick={() => setIsQuickSwapMode(false)} className="text-xs text-slate-400 font-bold hover:text-slate-600">Cancelar Troca</button>
                                     )}
                                 </div>
-                                {!isQuickSwapMode && !isTireServiceMode && !activeTireChangeOrder && (
+                                {!isQuickSwapMode && !shouldBypassPositionPrompt && (
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
                                             onClick={handleOpenTireServiceOrder}
