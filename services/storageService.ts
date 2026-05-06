@@ -84,6 +84,56 @@ const getVehicleFreshness = (vehicle: Partial<Vehicle>) => new Date(
   '1970-01-01'
 ).getTime();
 
+const VEHICLE_TYPE_OVERRIDES_KEY = 'gm_vehicle_type_overrides_v1';
+const BRAND_MODEL_TYPE_OVERRIDES_KEY = 'gm_brand_model_type_overrides_v1';
+
+const readLocalMap = (key: string): Record<string, string> => {
+  try {
+    if (typeof localStorage === 'undefined') return {};
+    return JSON.parse(localStorage.getItem(key) || '{}');
+  } catch {
+    return {};
+  }
+};
+
+const writeLocalMap = (key: string, value: Record<string, string>) => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch {
+    // Local persistence is a UI consistency layer; Firestore remains the source of truth.
+  }
+};
+
+const rememberVehicleType = (vehicle: Partial<Vehicle>) => {
+  const plateKey = normalizePublicVehicleKey(vehicle.plate);
+  if (!plateKey || !vehicle.type) return;
+  const overrides = readLocalMap(VEHICLE_TYPE_OVERRIDES_KEY);
+  overrides[plateKey] = vehicle.type;
+  writeLocalMap(VEHICLE_TYPE_OVERRIDES_KEY, overrides);
+};
+
+const applyVehicleTypeOverride = (vehicle: Vehicle): Vehicle => {
+  const plateKey = normalizePublicVehicleKey(vehicle.plate);
+  const overrideType = plateKey ? readLocalMap(VEHICLE_TYPE_OVERRIDES_KEY)[plateKey] : undefined;
+  return overrideType ? { ...vehicle, type: overrideType } : vehicle;
+};
+
+const rememberBrandModelType = (model: Partial<VehicleBrandModel>) => {
+  if (!model.brand || !model.model || !model.type) return;
+  const key = `${normalizeComparableKey(model.brand)}|${normalizeComparableKey(model.model)}`;
+  const overrides = readLocalMap(BRAND_MODEL_TYPE_OVERRIDES_KEY);
+  overrides[key] = model.type;
+  writeLocalMap(BRAND_MODEL_TYPE_OVERRIDES_KEY, overrides);
+};
+
+const applyBrandModelTypeOverride = (model: VehicleBrandModel): VehicleBrandModel => {
+  const key = `${normalizeComparableKey(model.brand)}|${normalizeComparableKey(model.model)}`;
+  const overrideType = readLocalMap(BRAND_MODEL_TYPE_OVERRIDES_KEY)[key];
+  return overrideType ? { ...model, type: overrideType } : model;
+};
+
 const toPublicVehicleRg = (vehicle: Vehicle) => sanitize({
   id: vehicle.id,
   plate: vehicle.plate || '',
@@ -829,7 +879,7 @@ export const storageService = {
       const vehiclesByPlate = new Map<string, Vehicle>();
       snapshot.forEach((doc) => {
         const data = doc.data() as Vehicle;
-        const vehicle = { ...data, id: doc.id };
+        const vehicle = applyVehicleTypeOverride({ ...data, id: doc.id });
         const key = normalizePublicVehicleKey(vehicle.plate) || doc.id;
         const current = vehiclesByPlate.get(key);
         if (!current || getVehicleFreshness(vehicle) >= getVehicleFreshness(current)) {
@@ -841,6 +891,7 @@ export const storageService = {
   },
 
   addVehicle: async (orgId: string, vehicle: Vehicle) => {
+    rememberVehicleType(vehicle);
     if (mockUser || !db) { LocalDB.add(`vehicles`, vehicle); logActivity(orgId, "Novo Veiculo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(vehicle));
@@ -856,6 +907,7 @@ export const storageService = {
   },
 
   updateVehicle: async (orgId: string, vehicle: Vehicle) => {
+    rememberVehicleType(vehicle);
     const updates = { ...vehicle, lastAutoUpdateDate: new Date().toISOString() };
     if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veiculo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
@@ -985,7 +1037,7 @@ export const storageService = {
       const modelsByName = new Map<string, VehicleBrandModel>();
       snapshot.forEach((doc) => {
         const data = doc.data() as VehicleBrandModel;
-        const model = { ...data, id: doc.id };
+        const model = applyBrandModelTypeOverride({ ...data, id: doc.id });
         const key = `${normalizeComparableKey(model.brand)}|${normalizeComparableKey(model.model)}` || doc.id;
         modelsByName.set(key, model);
       });
@@ -996,6 +1048,7 @@ export const storageService = {
   },
 
   addVehicleBrandModel: async (orgId: string, model: VehicleBrandModel) => {
+    rememberBrandModelType(model);
     if (mockUser || !db) { LocalDB.add(`vehicleBrandModels`, model); logActivity(orgId, "Nova Marca/Modelo", `${model.brand} ${model.model}`, 'TIRES'); return; }
     try {
       await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model));
@@ -1006,6 +1059,7 @@ export const storageService = {
   },
 
   updateVehicleBrandModel: async (orgId: string, model: Partial<VehicleBrandModel> & { id: string }) => {
+    rememberBrandModelType(model);
     if (mockUser || !db) { LocalDB.update(`vehicleBrandModels`, model.id, model); logActivity(orgId, "Editou Marca/Modelo", `${model.brand || model.id} ${model.model || ''}`, 'TIRES'); return; }
     try {
       await db.collection("vehicleBrandModels").doc(model.id).set(sanitize(model), { merge: true });
