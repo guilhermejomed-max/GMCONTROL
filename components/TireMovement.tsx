@@ -250,8 +250,8 @@ export const TireMovement: FC<TireMovementProps> = ({
       setSwapInTire(null);
       setSwapOutDepth('');
       setIsSwapConfirmOpen(false);
-      setIsConsultingPosition(false);
-  }, [selectedPos]);
+      setIsConsultingPosition(isTireServiceMode || Boolean(activeTireChangeOrder?.id));
+  }, [selectedPos, isTireServiceMode, activeTireChangeOrder?.id]);
 
   // When selecting vehicle, reset internal states
   const handleSelectVehicle = (vehicle: Vehicle) => {
@@ -287,7 +287,7 @@ export const TireMovement: FC<TireMovementProps> = ({
           }
       } else {
           setSelectedPos(pos);
-          setIsConsultingPosition(false);
+          setIsConsultingPosition(isTireServiceMode || Boolean(activeTireChangeOrder?.id));
           setMountKm(selectedVehicle?.odometer || 0); 
           setMountDate(new Date().toISOString().split('T')[0]); // Reset date to today
           setStockSearch('');
@@ -874,7 +874,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                         <button onClick={() => setSelectedPos(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="h-6 w-6 text-slate-500"/></button>
                     </div>
 
-                    {!isConsultingPosition ? (
+                    {!isConsultingPosition && !isTireServiceMode && !activeTireChangeOrder ? (
                         <div className="p-6 space-y-5">
                             <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
@@ -939,6 +939,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                     ) : selectedTire && !isQuickSwapMode ? (
                         // --- TIRE IS MOUNTED: SHOW ACTIONS ---
                         <div className="p-6 space-y-6">
+                            {!isTireServiceMode && !activeTireChangeOrder && (
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     onClick={handleOpenTireServiceOrder}
@@ -957,6 +958,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                                     Consulta
                                 </button>
                             </div>
+                            )}
 
                             {/* Tire Info Card */}
                             <div className="bg-slate-800 text-white p-5 rounded-2xl shadow-lg border border-slate-700 relative overflow-hidden">
@@ -1021,7 +1023,7 @@ export const TireMovement: FC<TireMovementProps> = ({
                                         <button onClick={() => setIsQuickSwapMode(false)} className="text-xs text-slate-400 font-bold hover:text-slate-600">Cancelar Troca</button>
                                     )}
                                 </div>
-                                {!isQuickSwapMode && (
+                                {!isQuickSwapMode && !isTireServiceMode && !activeTireChangeOrder && (
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
                                             onClick={handleOpenTireServiceOrder}
