@@ -793,9 +793,13 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.add(`vehicles`, vehicle); logActivity(orgId, "Novo Veiculo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(vehicle));
-      await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(vehicle), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `vehicles/${vehicle.id}`);
+    }
+    try {
+      await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(vehicle), { merge: true });
+    } catch (error) {
+      console.warn("Nao foi possivel publicar RG publico do veiculo apos cadastro:", error);
     }
     logActivity(orgId, "Novo Veiculo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
@@ -805,9 +809,13 @@ export const storageService = {
     if (mockUser || !db) { LocalDB.update(`vehicles`, vehicle.id, updates); logActivity(orgId, "Editou Veiculo", `Placa: ${vehicle.plate}`, 'TIRES'); return; }
     try {
       await db.collection("vehicles").doc(vehicle.id).set(sanitize(updates), { merge: true });
-      await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(updates as Vehicle), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `vehicles/${vehicle.id}`);
+    }
+    try {
+      await db.collection("public_vehicle_rgs").doc(vehicle.id).set(toPublicVehicleRg(updates as Vehicle), { merge: true });
+    } catch (error) {
+      console.warn("Nao foi possivel atualizar RG publico do veiculo:", error);
     }
     logActivity(orgId, "Editou Veiculo", `Placa: ${vehicle.plate}`, 'TIRES');
   },
@@ -1113,10 +1121,15 @@ export const storageService = {
         validUpdates.slice(i, i + 240).forEach(update => {
             const ref = db.collection("vehicles").doc(update.id);
             batch.update(ref, sanitize(update));
-            const publicRef = db.collection("public_vehicle_rgs").doc(update.id);
-            batch.set(publicRef, toPublicVehicleRg(update as Vehicle), { merge: true });
         });
         await batch.commit();
+      }
+      for (const update of validUpdates) {
+        try {
+          await db.collection("public_vehicle_rgs").doc(update.id).set(toPublicVehicleRg(update as Vehicle), { merge: true });
+        } catch (error) {
+          console.warn("Nao foi possivel atualizar RG publico no lote de veiculos:", update.id, error);
+        }
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, "vehicles_batch");

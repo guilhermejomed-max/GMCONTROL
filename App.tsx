@@ -236,18 +236,14 @@ const formatShortcutEvent = (event: { ctrlKey: boolean; metaKey: boolean; altKey
   return parts.join('+');
 };
 
-const TRACTOR_BRANDS = ['SCANIA', 'DAF', 'VOLVO', 'MERCEDES'];
-
-const normalizeVehicleText = (value: any) =>
-  String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase();
-
-const classifyVehicleType = (vehicle: Partial<Vehicle> | Partial<VehicleBrandModel>) => {
-  const text = normalizeVehicleText(`${(vehicle as any).brand || ''} ${(vehicle as any).model || ''} ${(vehicle as any).name || ''} ${(vehicle as any).description || ''}`);
-  return TRACTOR_BRANDS.some(brand => text.includes(brand)) ? 'CAVALO' : 'CARRETA';
-};
+const normalizeShortcutKeys = (value: string) =>
+  value
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/CONTROL/g, 'CTRL')
+    .replace(/COMMAND|CMD|META/g, 'CTRL')
+    .replace(/\+\+/g, '+');
 
 const moduleForTab = (tab: TabView): ModuleType | undefined => {
   if (['inventory', 'register', 'movement', 'inspection', 'retreading', 'retreader-ranking', 'demand-forecast', 'tire-disposal'].includes(tab)) return 'TIRES';
@@ -896,43 +892,6 @@ export const App = () => {
     }
   }, [userRole, vehicles.length, vehicleBrandModels.length, fuelEntries.length, orgId]);
 
-  useEffect(() => {
-    if (!user || vehicles.length === 0) return;
-
-    const runVehicleTypeMigration = async () => {
-      try {
-        const vehicleUpdates = vehicles
-          .map(vehicle => ({ ...vehicle, type: classifyVehicleType(vehicle) }))
-          .filter(vehicle => vehicle.type !== vehicles.find(current => current.id === vehicle.id)?.type);
-
-        const brandModelUpdates = vehicleBrandModels
-          .map(model => ({ ...model, type: classifyVehicleType(model) }))
-          .filter(model => model.type !== vehicleBrandModels.find(current => current.id === model.id)?.type);
-
-        if (vehicleUpdates.length > 0) {
-          await storageService.updateVehicleBatch(orgId, vehicleUpdates);
-        }
-
-        for (const model of brandModelUpdates) {
-          await storageService.updateVehicleBrandModel(orgId, model);
-        }
-
-        if (vehicleUpdates.length > 0 || brandModelUpdates.length > 0) {
-          addToast(
-            'success',
-            'Tipos atualizados',
-            `${vehicleUpdates.length} veiculo(s) e ${brandModelUpdates.length} marca/modelo(s) foram classificados como CAVALO ou CARRETA.`
-          );
-        }
-      } catch (error) {
-        console.error('Falha ao classificar tipos de veiculo:', error);
-        addToast('error', 'Erro ao classificar veiculos', 'Nao foi possivel atualizar os tipos automaticamente.');
-      }
-    };
-
-    runVehicleTypeMigration();
-  }, [user, vehicles, vehicleBrandModels, orgId]);
-
   // AUTOMATED UPDATES CHECK (Run once when data is available)
   useEffect(() => {
       if (vehicles.length > 0 && settings) {
@@ -1359,7 +1318,6 @@ const distance = R * c; // in metres
 
   const auditedUpdateVehicle = async (vehicle: Vehicle) => {
       const existing = vehicles.find(v => v.id === vehicle.id);
-      const classifiedVehicle = { ...vehicle, type: classifyVehicleType(vehicle) };
       const nextOdometer = Number(vehicle.odometer || 0);
 
       if (isImplausibleImportedOdometer(nextOdometer)) {
@@ -1367,7 +1325,7 @@ const distance = R * c; // in metres
           throw new Error('Hodometro invalido');
       }
 
-      await storageService.updateVehicle(orgId, classifiedVehicle);
+      await storageService.updateVehicle(orgId, vehicle);
 
       if (!existing) return;
 
@@ -1375,10 +1333,10 @@ const distance = R * c; // in metres
       if ((existing.odometer || 0) !== nextOdometer) {
           changes.push(`KM ${Number(existing.odometer || 0).toLocaleString('pt-BR')} -> ${nextOdometer.toLocaleString('pt-BR')}`);
       }
-      if ((existing.sascarCode || '') !== (classifiedVehicle.sascarCode || '')) changes.push('codigo rastreador');
-      if ((existing.renavam || '') !== (classifiedVehicle.renavam || '')) changes.push('RENAVAM');
-      if ((existing.vin || '') !== (classifiedVehicle.vin || '')) changes.push('chassi');
-      if ((existing.type || '') !== (classifiedVehicle.type || '')) changes.push(`tipo ${existing.type || '-'} -> ${classifiedVehicle.type}`);
+      if ((existing.sascarCode || '') !== (vehicle.sascarCode || '')) changes.push('codigo rastreador');
+      if ((existing.renavam || '') !== (vehicle.renavam || '')) changes.push('RENAVAM');
+      if ((existing.vin || '') !== (vehicle.vin || '')) changes.push('chassi');
+      if ((existing.type || '') !== (vehicle.type || '')) changes.push(`tipo ${existing.type || '-'} -> ${vehicle.type}`);
 
       if (changes.length > 0) {
           storageService.logActivity(orgId, 'Auditoria Veiculo', `${vehicle.plate}: ${changes.join(', ')}`, 'VEHICLES');
@@ -1386,15 +1344,14 @@ const distance = R * c; // in metres
   };
 
   const auditedAddVehicle = async (vehicle: Vehicle) => {
-      const classifiedVehicle = { ...vehicle, type: classifyVehicleType(vehicle) };
       const nextOdometer = Number(vehicle.odometer || 0);
       if (nextOdometer > 0 && isImplausibleImportedOdometer(nextOdometer)) {
           addToast('error', 'KM invalido', `O hodometro de ${vehicle.plate} parece invalido: ${nextOdometer.toLocaleString('pt-BR')} km.`);
           throw new Error('Hodometro invalido');
       }
 
-      await storageService.addVehicle(orgId, classifiedVehicle);
-      storageService.logActivity(orgId, 'Novo Veiculo', `${classifiedVehicle.plate} cadastrado como ${classifiedVehicle.type} com KM ${nextOdometer.toLocaleString('pt-BR')}`, 'VEHICLES');
+      await storageService.addVehicle(orgId, vehicle);
+      storageService.logActivity(orgId, 'Novo Veiculo', `${vehicle.plate} cadastrado como ${vehicle.type} com KM ${nextOdometer.toLocaleString('pt-BR')}`, 'VEHICLES');
   };
 
   const auditedDeleteVehicle = async (id: string) => {
@@ -1865,23 +1822,29 @@ const distance = R * c; // in metres
   };
 
   const handleShortcutCapture = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    event.preventDefault();
     const shortcut = formatShortcutEvent(event);
-    if (shortcut.includes('+')) setShortcutKeys(shortcut);
+    if (shortcut.includes('+')) {
+      event.preventDefault();
+      setShortcutKeys(shortcut);
+    }
   };
 
   const handleAddShortcut = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!shortcutKeys || !shortcutTab) return;
+    const normalizedKeys = normalizeShortcutKeys(shortcutKeys);
+    if (!normalizedKeys || !normalizedKeys.includes('+') || !shortcutTab) {
+      addToast('error', 'Atalho invalido', 'Informe uma combinacao como CTRL+M ou ALT+F.');
+      return;
+    }
     const nextShortcuts = [
-      ...profileShortcuts.filter(item => item.keys !== shortcutKeys),
-      { id: Date.now().toString(), keys: shortcutKeys, tab: shortcutTab, enabled: true }
+      ...profileShortcuts.filter(item => item.keys !== normalizedKeys),
+      { id: Date.now().toString(), keys: normalizedKeys, tab: shortcutTab, enabled: true }
     ];
     const saved = await saveProfileShortcutsNow(nextShortcuts);
     if (!saved) return;
     setProfileShortcuts(nextShortcuts);
     setShortcutKeys('');
-    addToast('success', 'Atalho salvo', `${shortcutKeys} abre ${getPageTitle(shortcutTab)}.`);
+    addToast('success', 'Atalho salvo', `${normalizedKeys} abre ${getPageTitle(shortcutTab)}.`);
   };
 
   const handleToggleShortcut = async (shortcutId: string) => {
@@ -3049,7 +3012,7 @@ const distance = R * c; // in metres
                     placeholder="Pressione Ctrl+M"
                     value={shortcutKeys}
                     onKeyDown={handleShortcutCapture}
-                    onChange={() => undefined}
+                    onChange={event => setShortcutKeys(normalizeShortcutKeys(event.target.value))}
                     className="px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-black text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                     required
                   />

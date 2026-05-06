@@ -32,6 +32,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
   const [isComparing, setIsComparing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
+  const defaultVehicleType = vehicleTypes.length > 0 ? vehicleTypes[0].name : '';
   
   const vehicleBrandModels = useMemo(() => {
     return defaultBranchId ? allVehicleBrandModels.filter(bm => bm.branchId === defaultBranchId) : allVehicleBrandModels;
@@ -44,7 +45,7 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
   const [formData, setFormData] = useState<Partial<VehicleBrandModel>>({
     brand: '',
     model: '',
-    type: vehicleTypes.length > 0 ? vehicleTypes[0].name : '',
+    type: defaultVehicleType,
     axles: 3,
     maintenancePlanId: '',
     oilChangeInterval: 0,
@@ -64,13 +65,13 @@ export const BrandModelManager: FC<BrandModelManagerProps> = ({
 
   const handleOpenAddBrand = () => {
     setIsAddingBrand(true);
-    setFormData({ brand: '', model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: 'DIESEL S10' });
+    setFormData({ brand: '', model: '', type: defaultVehicleType, axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: 'DIESEL S10' });
   };
 
   const handleOpenAddModel = (brand: string) => {
     setIsAddingModel(true);
     setEditingModelId(null);
-    setFormData({ brand, model: '', type: 'CAVALO', axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: 'DIESEL S10' });
+    setFormData({ brand, model: '', type: defaultVehicleType, axles: 3, maintenancePlanId: '', oilChangeInterval: 0, oilLiters: 0, fuelType: 'DIESEL S10' });
   };
 
   const handleOpenEditModel = (bm: VehicleBrandModel) => {

@@ -949,6 +949,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   // Brand Models State
   const [isManagingBrandModels, setIsManagingBrandModels] = useState(false);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(propVehicleTypes);
+  const defaultVehicleType = vehicleTypes.length > 0 ? vehicleTypes[0].name : '';
 
   useEffect(() => {
     if (propVehicleTypes.length > 0) {
@@ -966,7 +967,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
   const [brandModelFormData, setBrandModelFormData] = useState<Omit<VehicleBrandModel, 'id'>>({
     brand: '',
     model: '',
-    type: 'CAVALO',
+    type: defaultVehicleType,
     axles: 3,
     maintenancePlanId: undefined
   });
@@ -981,7 +982,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     setEditingBrandModelId(null);
     setIsAddingBrand(false);
     setIsAddingModel(false);
-    setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 3, maintenancePlanId: undefined });
+    setBrandModelFormData({ brand: '', model: '', type: defaultVehicleType, axles: 3, maintenancePlanId: undefined });
   };
 
   const handleDeleteBrandModel = async (id: string) => {
@@ -999,7 +1000,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     brand: '',
     brandModelId: '',
     axles: 3,
-    type: 'CAVALO',
+    type: defaultVehicleType,
     odometer: 0,
     sascarCode: '',
     vin: '',
@@ -1136,7 +1137,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       brand: '',
       brandModelId: '',
       axles: 3,
-      type: 'CAVALO',
+      type: defaultVehicleType,
       odometer: 0,
       sascarCode: '',
       vin: '',
@@ -1206,13 +1207,21 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       if (editingId) {
         // Update existing vehicle
         const existingVehicle = vehicles.find(v => v.id === editingId);
-        if (existingVehicle) {
+        if (!existingVehicle) {
+          throw new Error(`Veiculo ${editingId} nao encontrado para atualizacao.`);
+        }
           const updatedVehicle: Vehicle = {
             ...existingVehicle,
             ...vehicleData
           };
           await onUpdateVehicle(updatedVehicle);
-        }
+          const linkedBrandModel = vehicleBrandModels.find(bm => bm.id === updatedVehicle.brandModelId);
+          if (linkedBrandModel && updatedVehicle.type && linkedBrandModel.type !== updatedVehicle.type) {
+            await storageService.updateVehicleBrandModel(orgId, {
+              ...linkedBrandModel,
+              type: updatedVehicle.type
+            });
+          }
       } else {
         // Create new vehicle
         const newVehicle: Vehicle = {
@@ -1221,12 +1230,19 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           totalCost: 0
         };
         await onAddVehicle(newVehicle);
+        const linkedBrandModel = vehicleBrandModels.find(bm => bm.id === newVehicle.brandModelId);
+        if (linkedBrandModel && newVehicle.type && linkedBrandModel.type !== newVehicle.type) {
+          await storageService.updateVehicleBrandModel(orgId, {
+            ...linkedBrandModel,
+            type: newVehicle.type
+          });
+        }
       }
       
       setIsAdding(false);
       setEditingId(null);
       setFormData({ 
-        plate: '', model: '', brand: '', brandModelId: '', axles: 3, type: 'CAVALO', odometer: 0, sascarCode: '',
+        plate: '', model: '', brand: '', brandModelId: '', axles: 3, type: defaultVehicleType, odometer: 0, sascarCode: '',
         vin: '', year: '', color: '', fuelType: 'DIESEL S10', fleetNumber: '',
         engine: '', transmission: '', renavam: '', tiresBrand: '', tiresSize: '',
         revisionIntervalKm: 10000, oilLiters: 0, lastPreventiveKm: 0, lastPreventiveDate: '',
@@ -1234,6 +1250,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
         ownership: 'OWNED'
       });
     } catch (error) {
+      console.error('Erro ao salvar veiculo:', error);
       alert("Erro ao salvar veiculo.");
     } finally {
       setIsSaving(false);
@@ -3336,7 +3353,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                 <button 
                   onClick={() => {
                     setIsAddingBrand(true);
-                    setBrandModelFormData({ brand: '', model: '', type: 'CAVALO', axles: 3 });
+                    setBrandModelFormData({ brand: '', model: '', type: defaultVehicleType, axles: 3 });
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all"
                 >
@@ -3396,7 +3413,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                   onClick={() => {
                     setIsAddingModel(true);
                     setEditingBrandModelId(null);
-                    setBrandModelFormData({ brand: selectedBrand, model: '', type: 'CAVALO', axles: 3 });
+                    setBrandModelFormData({ brand: selectedBrand, model: '', type: defaultVehicleType, axles: 3 });
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 transition-all"
                 >
