@@ -104,6 +104,42 @@ const toPublicVehicleRg = (vehicle: Vehicle) => sanitize({
   updatedAt: new Date().toISOString()
 });
 
+const toPublicVehicleRgPatch = (vehicle: Partial<Vehicle>) => {
+  const patch: Record<string, any> = { updatedAt: new Date().toISOString() };
+
+  if (vehicle.id !== undefined) patch.id = vehicle.id;
+  if (vehicle.plate !== undefined) {
+    patch.plate = vehicle.plate || '';
+    patch.plateKey = normalizePublicVehicleKey(vehicle.plate);
+  }
+  if (vehicle.model !== undefined) patch.model = vehicle.model || '';
+  if (vehicle.brand !== undefined) patch.brand = vehicle.brand || '';
+  if (vehicle.type !== undefined) patch.type = vehicle.type || '';
+  if (vehicle.year !== undefined) patch.year = vehicle.year || '';
+  if (vehicle.color !== undefined) patch.color = vehicle.color || '';
+  if (vehicle.fuelType !== undefined) patch.fuelType = vehicle.fuelType || '';
+  if (vehicle.fleetNumber !== undefined) {
+    patch.fleetNumber = vehicle.fleetNumber || '';
+    patch.fleetNumberKey = normalizePublicVehicleKey(vehicle.fleetNumber);
+  }
+  if (vehicle.sascarCode !== undefined) {
+    patch.sascarCode = vehicle.sascarCode || '';
+    patch.sascarCodeKey = normalizePublicVehicleKey(vehicle.sascarCode);
+  }
+  if (vehicle.odometer !== undefined) patch.odometer = vehicle.odometer || 0;
+  if (vehicle.litrometer !== undefined) patch.litrometer = vehicle.litrometer || 0;
+  if (vehicle.telemetryRollingAvgKml !== undefined) patch.telemetryRollingAvgKml = vehicle.telemetryRollingAvgKml || 0;
+  if (vehicle.lastLocation !== undefined) patch.lastLocation = vehicle.lastLocation || undefined;
+  if (vehicle.ignition !== undefined) patch.ignition = vehicle.ignition || false;
+  if (vehicle.ownership !== undefined) patch.ownership = vehicle.ownership || 'OWNED';
+  if (vehicle.revisionIntervalKm !== undefined) patch.revisionIntervalKm = vehicle.revisionIntervalKm || 0;
+  if (vehicle.lastPreventiveKm !== undefined) patch.lastPreventiveKm = vehicle.lastPreventiveKm || 0;
+  if (vehicle.lastPreventiveDate !== undefined) patch.lastPreventiveDate = vehicle.lastPreventiveDate || '';
+  if (vehicle.branchId !== undefined) patch.branchId = vehicle.branchId || '';
+
+  return sanitize(patch);
+};
+
 const DEFAULT_SETTINGS: SystemSettings = {
   minTreadDepth: 3,
   warningTreadDepth: 5,
@@ -1126,7 +1162,7 @@ export const storageService = {
       }
       for (const update of validUpdates) {
         try {
-          await db.collection("public_vehicle_rgs").doc(update.id).set(toPublicVehicleRg(update as Vehicle), { merge: true });
+          await db.collection("public_vehicle_rgs").doc(update.id).set(toPublicVehicleRgPatch(update), { merge: true });
         } catch (error) {
           console.warn("Nao foi possivel atualizar RG publico no lote de veiculos:", update.id, error);
         }

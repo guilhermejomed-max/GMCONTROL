@@ -923,13 +923,18 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
       });
 
       let importedCount = 0;
+      const updatesBatch: Array<{ id: string; sascarCode: string }> = [];
       for (const vehicle of vehicles) {
         const cleanPlate = vehicle.plate.replace(/[^A-Z0-9]/g, '').substring(0, 7).toUpperCase();
         const code = codeMap.get(cleanPlate);
         if (code && vehicle.sascarCode !== code) {
-          await onUpdateVehicle({ ...vehicle, sascarCode: code });
+          updatesBatch.push({ id: vehicle.id, sascarCode: code });
           importedCount++;
         }
+      }
+
+      if (updatesBatch.length > 0) {
+        await storageService.updateVehicleBatch(orgId, updatesBatch);
       }
 
       if (importedCount > 0) {
@@ -939,7 +944,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
     };
 
     importCodes();
-  }, [vehicles, onUpdateVehicle]);
+  }, [vehicles, orgId]);
   
   // Bulk Actions State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -1215,13 +1220,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             ...vehicleData
           };
           await onUpdateVehicle(updatedVehicle);
-          const linkedBrandModel = vehicleBrandModels.find(bm => bm.id === updatedVehicle.brandModelId);
-          if (linkedBrandModel && updatedVehicle.type && linkedBrandModel.type !== updatedVehicle.type) {
-            await storageService.updateVehicleBrandModel(orgId, {
-              ...linkedBrandModel,
-              type: updatedVehicle.type
-            });
-          }
       } else {
         // Create new vehicle
         const newVehicle: Vehicle = {
@@ -1230,13 +1228,6 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
           totalCost: 0
         };
         await onAddVehicle(newVehicle);
-        const linkedBrandModel = vehicleBrandModels.find(bm => bm.id === newVehicle.brandModelId);
-        if (linkedBrandModel && newVehicle.type && linkedBrandModel.type !== newVehicle.type) {
-          await storageService.updateVehicleBrandModel(orgId, {
-            ...linkedBrandModel,
-            type: newVehicle.type
-          });
-        }
       }
       
       setIsAdding(false);
@@ -1363,10 +1354,13 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
             lat: latitude, lng: longitude, address: address, city: city, state: state, updatedAt: new Date().toISOString()
           };
 
-          await onUpdateVehicle({ ...vehicle, lastLocation: locationUpdate });
+          await storageService.updateVehicleBatch(orgId, [{ id: vehicle.id, lastLocation: locationUpdate }]);
         } catch (error) {
           console.error("Erro ao obter endereco", error);
-          await onUpdateVehicle({ ...vehicle, lastLocation: { lat: latitude, lng: longitude, address: 'Coordenadas GPS (Manual)', city: 'Desconhecida', state: '', updatedAt: new Date().toISOString() } });
+          await storageService.updateVehicleBatch(orgId, [{
+            id: vehicle.id,
+            lastLocation: { lat: latitude, lng: longitude, address: 'Coordenadas GPS (Manual)', city: 'Desconhecida', state: '', updatedAt: new Date().toISOString() }
+          }]);
         } finally {
           setUpdatingLocationId(null);
         }
@@ -3220,7 +3214,7 @@ export const VehicleManager: FC<VehicleManagerProps> = ({
                     <option value="">Selecione uma Marca/Modelo</option>
                     {vehicleBrandModels.map(bm => (
                       <option key={bm.id} value={bm.id}>
-                        {bm.brand} - {bm.model} ({bm.type})
+                        {bm.brand} - {bm.model}
                       </option>
                     ))}
                   </select>

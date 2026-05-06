@@ -866,11 +866,15 @@ export const App = () => {
             }
           }
           // Migrate Vehicles
+          const vehicleFuelUpdates: Array<{ id: string; fuelType: string }> = [];
           for (const v of vehicles) {
             if (!v.fuelType) {
-              await storageService.updateVehicle(orgId, { ...v, fuelType: 'DIESEL S10' });
+              vehicleFuelUpdates.push({ id: v.id, fuelType: 'DIESEL S10' });
               migratedCount++;
             }
+          }
+          if (vehicleFuelUpdates.length > 0) {
+            await storageService.updateVehicleBatch(orgId, vehicleFuelUpdates);
           }
           // Migrate Fuel Entries
           for (const e of fuelEntries) {
@@ -1283,17 +1287,15 @@ const distance = R * c; // in metres
     const vehicle = vehicles.find(v => v.plate === plate);
     if (!vehicle) return;
 
-    const updatedVehicle: Vehicle = {
-      ...vehicle,
+    await storageService.updateVehicleBatch(orgId, [{
+      id: vehicle.id,
       lastLocation: {
         ...vehicle.lastLocation,
         lat: base.lat,
         lng: base.lng,
         address: `Simulacao: ${base.name}`
       }
-    };
-
-    await storageService.updateVehicle(orgId, updatedVehicle);
+    }]);
     addToast('info', 'Simulacao', `Localizacao do veiculo ${plate} atualizada para ${base.name}`);
   };
 
@@ -1518,10 +1520,7 @@ const distance = R * c; // in metres
           }
 
           if (Object.keys(updates).length > 0) {
-              await storageService.updateVehicle(orgId, {
-                  ...vehicle,
-                  ...updates
-              });
+              await storageService.updateVehicleBatch(orgId, [{ id: vehicle.id, ...updates }]);
               
               // Auto-update tires
               const tiresOnVehicle = tires.filter(t => t.vehicleId === vehicle.id);
@@ -2005,7 +2004,7 @@ const distance = R * c; // in metres
         }
 
         if (needsUpdate) {
-          await storageService.updateVehicle(orgId, updatedVehicle);
+          await storageService.updateVehicleBatch(orgId, [{ id: vehicle.id, odometer: updatedVehicle.odometer }]);
         }
       }
     } catch (error) {
