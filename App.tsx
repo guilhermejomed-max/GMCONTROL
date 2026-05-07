@@ -1990,7 +1990,18 @@ const distance = R * c; // in metres
   const handleAddFuelEntry = async (entry: FuelEntry) => {
     try {
       await storageService.addFuelEntry(orgId, entry);
-      addToast('success', 'Abastecimento Registrado', `Lancamento para o veiculo ${entry.vehiclePlate} realizado com sucesso.`);
+      setFuelEntries(prev => {
+        if (prev.some(item => item.id === entry.id)) return prev;
+        return [entry, ...prev].sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+      });
+      const savedOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      addToast(
+        'success',
+        savedOffline ? 'Salvo no dispositivo' : 'Abastecimento Registrado',
+        savedOffline
+          ? `Lancamento para ${entry.vehiclePlate} sera enviado quando a internet voltar.`
+          : `Lancamento para o veiculo ${entry.vehiclePlate} realizado com sucesso.`
+      );
       
       // Update vehicle odometer and litrometro if entry values are higher
       const vehicle = vehicles.find(v => v.id === entry.vehicleId);
@@ -2005,6 +2016,7 @@ const distance = R * c; // in metres
 
         if (needsUpdate) {
           await storageService.updateVehicleBatch(orgId, [{ id: vehicle.id, odometer: updatedVehicle.odometer }]);
+          setVehicles(prev => prev.map(item => item.id === vehicle.id ? { ...item, odometer: updatedVehicle.odometer } : item));
         }
       }
     } catch (error) {

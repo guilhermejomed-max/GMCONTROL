@@ -134,6 +134,191 @@ const applyBrandModelTypeOverride = (model: VehicleBrandModel): VehicleBrandMode
   return overrideType ? { ...model, type: overrideType } : model;
 };
 
+const isGasFuelEntry = (entry: Partial<FuelEntry>): boolean => {
+  const fuelType = String(entry.fuelType || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+
+  return entry.category === 'GAS' ||
+    fuelType.includes('GNV') ||
+    fuelType.includes('GAS') ||
+    Number(entry.kg || 0) > 0;
+};
+
+const normalizeFuelEntry = (entry: FuelEntry): FuelEntry => {
+  const liters = Number(entry.liters || 0);
+  const kg = Number(entry.kg || 0);
+  if (isGasFuelEntry(entry) && liters <= 0 && kg > 0) {
+    return { ...entry, liters: kg, category: 'GAS' };
+  }
+  return entry;
+};
+
+const isEmbeddedFileUrl = (value: unknown): boolean => {
+  return typeof value === 'string' && /^data:[^;]+;base64,/i.test(value);
+};
+
+const stripEmbeddedFileUrls = (urls?: string[]): string[] => {
+  return (urls || []).filter(url => !isEmbeddedFileUrl(url));
+};
+
+const cleanOccurrencePayload = <T extends Partial<Occurrence>>(payload: T): T => {
+  const cleaned: any = { ...payload };
+
+  if (Array.isArray(cleaned.photoUrls)) {
+    cleaned.photoUrls = stripEmbeddedFileUrls(cleaned.photoUrls);
+  }
+
+  if (Array.isArray(cleaned.chat)) {
+    cleaned.chat = cleaned.chat.map((message: any) => ({
+      ...message,
+      attachments: Array.isArray(message.attachments)
+        ? message.attachments.filter((attachment: any) => !isEmbeddedFileUrl(attachment?.url))
+        : message.attachments,
+    }));
+  }
+
+  return cleaned as T;
+};
+
+const cleanChatMessagePayload = (message: any) => ({
+  ...message,
+  attachments: Array.isArray(message.attachments)
+    ? message.attachments.filter((attachment: any) => !isEmbeddedFileUrl(attachment?.url))
+    : message.attachments,
+});
+
+type OfflineWriteOperation = 'set' | 'update' | 'delete';
+
+interface OfflineWriteItem {
+  id: string;
+  collection: string;
+  docId: string;
+  operation: OfflineWriteOperation;
+  data?: any;
+  createdAt: string;
+}
+
+const OFFLINE_WRITE_QUEUE_KEY = 'gm_offline_write_queue_v1';
+
+const isBrowserStorageAvailable = () => typeof localStorage !== 'undefined';
+
+const isOfflineNow = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+const readOfflineQueue = (): OfflineWriteItem[] => {
+  try {
+    if (!isBrowserStorageAvailable()) return [];
+    const parsed = JSON.parse(localStorage.getItem(OFFLINE_WRITE_QUEUE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeOfflineQueue = (queue: OfflineWriteItem[]) => {
+  try {
+    if (isBrowserStorageAvailable()) {
+      localStorage.setItem(OFFLINE_WRITE_QUEUE_KEY, JSON.stringify(queue));
+    }
+  } catch (error) {
+    console.warn('[Offline Sync] Nao foi possivel salvar a fila local:', error);
+  }
+};
+
+const isOfflineWriteError = (error: unknown): boolean => {
+  const anyError = error as any;
+  const code = String(anyError?.code || '').toLowerCase();
+  const message = error instanceof Error ? error.message : String(error || '');
+  return isOfflineNow() ||
+    code.includes('unavailable') ||
+    code.includes('network') ||
+    /offline|network|unavailable|failed to fetch|internet|client is offline/i.test(message);
+};
+
+const enqueueOfflineWrite = (item: Omit<OfflineWriteItem, 'id' | 'createdAt'>) => {
+  const queue = readOfflineQueue();
+  const existingIndex = queue.findIndex((queued) =>
+    queued.collection === item.collection &&
+    queued.docId === item.docId &&
+    queued.operation === item.operation
+  );
+
+  const queuedItem: OfflineWriteItem = {
+    ...item,
+    id: `${item.collection}:${item.docId}:${item.operation}`,
+    data: item.data ? sanitize(item.data) : undefined,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (existingIndex >= 0) {
+    queue[existingIndex] = {
+      ...queue[existingIndex],
+      ...queuedItem,
+      data: {
+        ...(queue[existingIndex].data || {}),
+        ...(queuedItem.data || {}),
+      },
+    };
+  } else {
+    queue.push(queuedItem);
+  }
+
+  writeOfflineQueue(queue);
+};
+
+const applyQueuedCollectionChanges = <T extends { id: string }>(collectionName: string, records: T[]): T[] => {
+  const byId = new Map(records.map((record) => [record.id, record]));
+  readOfflineQueue()
+    .filter((item) => item.collection === collectionName)
+    .forEach((item) => {
+      if (item.operation === 'delete') {
+        byId.delete(item.docId);
+        return;
+      }
+      const current = byId.get(item.docId) || ({ id: item.docId } as T);
+      byId.set(item.docId, { ...current, ...(item.data || {}), id: item.docId } as T);
+    });
+  return Array.from(byId.values());
+};
+
+const flushOfflineQueue = async () => {
+  if (!db || isOfflineNow()) return;
+
+  const queue = readOfflineQueue();
+  if (queue.length === 0) return;
+
+  const remaining: OfflineWriteItem[] = [];
+
+  for (let index = 0; index < queue.length; index++) {
+    const item = queue[index];
+    try {
+      const ref = db.collection(item.collection).doc(item.docId);
+      if (item.operation === 'delete') {
+        await ref.delete();
+      } else {
+        await ref.set(sanitize(item.data || {}), { merge: true });
+      }
+    } catch (error) {
+      remaining.push(item);
+      if (isOfflineWriteError(error)) {
+        console.warn('[Offline Sync] Conexao caiu durante a sincronizacao. O restante ficou na fila local.');
+        remaining.push(...queue.slice(index + 1));
+        break;
+      }
+      console.warn('[Offline Sync] Nao foi possivel sincronizar item da fila:', item, error);
+    }
+  }
+
+  writeOfflineQueue(remaining);
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    void flushOfflineQueue();
+  });
+}
+
 const toPublicVehicleRg = (vehicle: Vehicle) => sanitize({
   id: vehicle.id,
   plate: vehicle.plate || '',
@@ -778,14 +963,31 @@ export const storageService = {
   getPaginatedFuelEntries: async (orgId: string, limitCount: number = 50, lastDoc?: any): Promise<{ data: FuelEntry[], lastDoc: any }> => {
     if (mockUser || !db) return { data: LocalDB.get(`fuel_entries`, []).sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, limitCount), lastDoc: null };
     try {
+      void flushOfflineQueue();
       let query = db.collection("fuel_entries").orderBy("date", "desc").limit(limitCount);
       if (lastDoc) query = query.startAfter(lastDoc);
       const snapshot = await query.get();
+      const data = applyQueuedCollectionChanges<FuelEntry>(
+        'fuel_entries',
+        snapshot.docs.map(doc => normalizeFuelEntry({ ...(doc.data() as FuelEntry), id: doc.id }))
+      )
+        .map(normalizeFuelEntry)
+        .sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, limitCount);
       return {
-        data: snapshot.docs.map(doc => doc.data() as FuelEntry),
+        data,
         lastDoc: snapshot.docs[snapshot.docs.length - 1]
       };
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        return {
+          data: applyQueuedCollectionChanges<FuelEntry>('fuel_entries', [])
+            .map(normalizeFuelEntry)
+            .sort((a:any,b:any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, limitCount),
+          lastDoc: null
+        };
+      }
       handleFirestoreError(error, OperationType.LIST, "fuel_entries_paginated");
       return { data: [], lastDoc: null };
     }
@@ -875,6 +1077,7 @@ export const storageService = {
 
   subscribeToVehicles: (orgId: string, callback: (vehicles: Vehicle[]) => void) => {
     if (mockUser || !db) return LocalDB.subscribe(`vehicles`, callback);
+    void flushOfflineQueue();
     return db.collection("vehicles").onSnapshot((snapshot) => {
       const vehiclesByPlate = new Map<string, Vehicle>();
       snapshot.forEach((doc) => {
@@ -886,8 +1089,14 @@ export const storageService = {
           vehiclesByPlate.set(key, vehicle);
         }
       });
-      callback(Array.from(vehiclesByPlate.values()));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, "vehicles"));
+      callback(applyQueuedCollectionChanges<Vehicle>('vehicles', Array.from(vehiclesByPlate.values())).map(applyVehicleTypeOverride));
+    }, (error) => {
+      if (isOfflineWriteError(error)) {
+        callback(applyQueuedCollectionChanges<Vehicle>('vehicles', []).map(applyVehicleTypeOverride));
+        return;
+      }
+      handleFirestoreError(error, OperationType.LIST, "vehicles");
+    });
   },
 
   addVehicle: async (orgId: string, vehicle: Vehicle) => {
@@ -1253,12 +1462,28 @@ export const storageService = {
   },
 
   updateVehicleBatch: async (orgId: string, updates: any[]) => {
+    const validUpdates = updates.filter(update => update.id);
     if (mockUser || !db) {
-        updates.forEach(u => { if(u.id) LocalDB.update(`vehicles`, u.id, u); });
+        validUpdates.forEach(u => LocalDB.update(`vehicles`, u.id, u));
         return;
     }
+    const queueVehicleUpdates = () => {
+      validUpdates.forEach(update => {
+        enqueueOfflineWrite({
+          collection: 'vehicles',
+          docId: update.id,
+          operation: 'update',
+          data: { ...update, orgId },
+        });
+      });
+    };
+
+    if (isOfflineNow()) {
+      queueVehicleUpdates();
+      return;
+    }
+
     try {
-      const validUpdates = updates.filter(update => update.id);
       for (let i = 0; i < validUpdates.length; i += 240) {
         const batch = db.batch();
         validUpdates.slice(i, i + 240).forEach(update => {
@@ -1275,6 +1500,10 @@ export const storageService = {
         }
       }
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        queueVehicleUpdates();
+        return;
+      }
       handleFirestoreError(error, OperationType.WRITE, "vehicles_batch");
     }
   },
@@ -1454,24 +1683,58 @@ export const storageService = {
 
   subscribeToServiceOrders: (orgId: string, callback: (orders: ServiceOrder[]) => void, limitCount: number = 50) => {
     if (mockUser || !db) return LocalDB.subscribe(`service_orders`, (data) => callback(data.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
+    void flushOfflineQueue();
     return db.collection("service_orders").orderBy("createdAt", "desc").limit(limitCount).onSnapshot(snapshot => {
       const orders: ServiceOrder[] = [];
       snapshot.forEach(doc => orders.push(doc.data() as ServiceOrder));
-      callback(orders);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, "service_orders"));
+      callback(
+        applyQueuedCollectionChanges<ServiceOrder>('service_orders', orders)
+          .sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      );
+    }, (error) => {
+      if (isOfflineWriteError(error)) {
+        callback(applyQueuedCollectionChanges<ServiceOrder>('service_orders', []));
+        return;
+      }
+      handleFirestoreError(error, OperationType.LIST, "service_orders");
+    });
   },
 
   addServiceOrder: async (orgId: string, order: ServiceOrder) => {
     if (mockUser || !db) { LocalDB.add(`service_orders`, order); return; }
+    const queueOrder = () => enqueueOfflineWrite({
+      collection: 'service_orders',
+      docId: order.id,
+      operation: 'set',
+      data: { ...order, orgId },
+    });
+    if (isOfflineNow()) {
+      queueOrder();
+      return;
+    }
     try {
       await db.collection("service_orders").doc(order.id).set(sanitize(order));
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        queueOrder();
+        return;
+      }
       handleFirestoreError(error, OperationType.CREATE, `service_orders/${order.id}`);
     }
   },
 
   updateServiceOrder: async (orgId: string, orderId: string, updates: Partial<ServiceOrder>) => {
     if (mockUser || !db) { LocalDB.update(`service_orders`, orderId, updates); return; }
+    const queueOrderUpdate = () => enqueueOfflineWrite({
+      collection: 'service_orders',
+      docId: orderId,
+      operation: 'update',
+      data: { ...updates, id: orderId, orgId },
+    });
+    if (isOfflineNow()) {
+      queueOrderUpdate();
+      return;
+    }
     try {
       // Logic for trigger: if status is being updated to CONCLUIDO, fetch the OS and complete occurrence.
       if (updates.status === 'CONCLUIDO') {
@@ -1497,6 +1760,10 @@ export const storageService = {
 
       await db.collection("service_orders").doc(orderId).update(sanitize(updates));
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        queueOrderUpdate();
+        return;
+      }
       handleFirestoreError(error, OperationType.UPDATE, `service_orders/${orderId}`);
     }
   },
@@ -1504,6 +1771,16 @@ export const storageService = {
   updateServiceOrderBatch: async (orgId: string, updates: { id: string, updates: Partial<ServiceOrder> }[]) => {
     if (mockUser || !db) {
       updates.forEach(u => LocalDB.update(`service_orders`, u.id, u.updates));
+      return;
+    }
+    const queueOrderUpdates = () => updates.forEach(u => enqueueOfflineWrite({
+      collection: 'service_orders',
+      docId: u.id,
+      operation: 'update',
+      data: { ...u.updates, id: u.id, orgId },
+    }));
+    if (isOfflineNow()) {
+      queueOrderUpdates();
       return;
     }
     try {
@@ -1514,6 +1791,10 @@ export const storageService = {
       });
       await batch.commit();
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        queueOrderUpdates();
+        return;
+      }
       handleFirestoreError(error, OperationType.WRITE, "service_orders_batch");
     }
   },
@@ -1932,9 +2213,10 @@ export const storageService = {
   },
 
   addOccurrence: async (orgId: string, occurrence: Occurrence) => {
-    if (mockUser || !db) { LocalDB.add(`occurrences`, occurrence); logActivity(orgId, "Nova Ocorrencia", `Veiculo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES'); return; }
+    const cleanOccurrence = cleanOccurrencePayload(occurrence);
+    if (mockUser || !db) { LocalDB.add(`occurrences`, cleanOccurrence); logActivity(orgId, "Nova Ocorrencia", `Veiculo: ${occurrence.vehiclePlate} - ${occurrence.reasonName}`, 'VEHICLES'); return; }
     try {
-      await db.collection("occurrences").doc(occurrence.id).set(sanitize(occurrence));
+      await db.collection("occurrences").doc(occurrence.id).set(sanitize(cleanOccurrence));
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `occurrences/${occurrence.id}`);
     }
@@ -1942,25 +2224,27 @@ export const storageService = {
   },
 
   updateOccurrence: async (orgId: string, id: string, updates: Partial<Occurrence>) => {
-    if (mockUser || !db) { LocalDB.update(`occurrences`, id, updates); return; }
+    const cleanUpdates = cleanOccurrencePayload(updates);
+    if (mockUser || !db) { LocalDB.update(`occurrences`, id, cleanUpdates); return; }
     try {
-      await db.collection("occurrences").doc(id).update(sanitize(updates));
+      await db.collection("occurrences").doc(id).update(sanitize(cleanUpdates));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `occurrences/${id}`);
     }
   },
 
   addOccurrenceChat: async (orgId: string, occurrenceId: string, message: any) => {
+    const cleanMessage = cleanChatMessagePayload(message);
     if (mockUser || !db) {
       const occ = LocalDB.getOne<Occurrence>('occurrences', occurrenceId);
       if (occ) {
-        LocalDB.update('occurrences', occurrenceId, { chat: [...(occ.chat || []), message] });
+        LocalDB.update('occurrences', occurrenceId, { chat: [...(occ.chat || []), cleanMessage] });
       }
       return;
     }
     try {
       await db.collection("occurrences").doc(occurrenceId).update({
-        chat: firebase.firestore.FieldValue.arrayUnion(message)
+        chat: firebase.firestore.FieldValue.arrayUnion(cleanMessage)
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `occurrences/${occurrenceId}/chat`);
@@ -2212,49 +2496,113 @@ export const storageService = {
 
   // --- FUEL MANAGEMENT ---
   subscribeToFuelEntries: (orgId: string, callback: (entries: FuelEntry[]) => void, limitCount: number = 50) => {
-    if (mockUser || !db) return LocalDB.subscribe(`fuel_entries`, (data) => callback(data.sort((a:any,b:any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())), []);
+    if (mockUser || !db) return LocalDB.subscribe(`fuel_entries`, (data) => callback(data.map(normalizeFuelEntry).sort((a:any,b:any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())), []);
+    void flushOfflineQueue();
     return db.collection("fuel_entries").orderBy("date", "desc").limit(limitCount).onSnapshot((snapshot) => {
       const entries: FuelEntry[] = [];
-      snapshot.forEach((doc) => entries.push(doc.data() as FuelEntry));
-      callback(entries);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, "fuel_entries"));
+      snapshot.forEach((doc) => entries.push(normalizeFuelEntry({ ...(doc.data() as FuelEntry), id: doc.id })));
+      callback(
+        applyQueuedCollectionChanges<FuelEntry>('fuel_entries', entries)
+          .map(normalizeFuelEntry)
+          .sort((a:any,b:any) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime())
+      );
+    }, (error) => {
+      if (isOfflineWriteError(error)) {
+        callback(applyQueuedCollectionChanges<FuelEntry>('fuel_entries', []).map(normalizeFuelEntry));
+        return;
+      }
+      handleFirestoreError(error, OperationType.LIST, "fuel_entries");
+    });
   },
 
   getFuelEntries: async (orgId: string): Promise<FuelEntry[]> => {
-    if (mockUser || !db) return LocalDB.get(`fuel_entries`, []);
+    if (mockUser || !db) return LocalDB.get(`fuel_entries`, []).map(normalizeFuelEntry);
     try {
+      void flushOfflineQueue();
       const snapshot = await db.collection("fuel_entries").orderBy("date", "desc").get();
-      return snapshot.docs.map(doc => doc.data() as FuelEntry);
+      return applyQueuedCollectionChanges<FuelEntry>(
+        'fuel_entries',
+        snapshot.docs.map(doc => normalizeFuelEntry({ ...(doc.data() as FuelEntry), id: doc.id }))
+      ).map(normalizeFuelEntry);
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        return applyQueuedCollectionChanges<FuelEntry>('fuel_entries', []).map(normalizeFuelEntry);
+      }
       handleFirestoreError(error, OperationType.LIST, "fuel_entries");
       return [];
     }
   },
 
   addFuelEntry: async (orgId: string, entry: FuelEntry) => {
-    if (mockUser || !db) { LocalDB.add(`fuel_entries`, entry); logActivity(orgId, "Novo Abastecimento", `Veiculo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES'); return; }
-    try {
-      await db.collection("fuel_entries").doc(entry.id).set(sanitize(entry));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `fuel_entries/${entry.id}`);
+    const data = normalizeFuelEntry({ ...entry, orgId });
+    if (mockUser || !db) { LocalDB.add(`fuel_entries`, data); logActivity(orgId, "Novo Abastecimento", `Veiculo: ${data.vehiclePlate} - ${data.liters}L`, 'VEHICLES'); return; }
+    const queueFuelEntry = () => enqueueOfflineWrite({
+      collection: 'fuel_entries',
+      docId: data.id,
+      operation: 'set',
+      data,
+    });
+
+    if (isOfflineNow()) {
+      queueFuelEntry();
+      console.info(`[Offline Sync] Abastecimento ${data.id} salvo no dispositivo para sincronizar depois.`);
+      return;
     }
-    logActivity(orgId, "Novo Abastecimento", `Veiculo: ${entry.vehiclePlate} - ${entry.liters}L`, 'VEHICLES');
+
+    try {
+      await db.collection("fuel_entries").doc(data.id).set(sanitize(data));
+    } catch (error) {
+      if (isOfflineWriteError(error)) {
+        queueFuelEntry();
+        console.info(`[Offline Sync] Abastecimento ${data.id} salvo no dispositivo para sincronizar depois.`);
+        return;
+      }
+      handleFirestoreError(error, OperationType.CREATE, `fuel_entries/${data.id}`);
+    }
+    logActivity(orgId, "Novo Abastecimento", `Veiculo: ${data.vehiclePlate} - ${data.liters}L`, 'VEHICLES');
   },
 
   updateFuelEntry: async (orgId: string, id: string, updates: Partial<FuelEntry>) => {
     if (mockUser || !db) { LocalDB.update(`fuel_entries`, id, updates); return; }
+    const queueFuelUpdate = () => enqueueOfflineWrite({
+      collection: 'fuel_entries',
+      docId: id,
+      operation: 'update',
+      data: { ...updates, id, orgId },
+    });
+    if (isOfflineNow()) {
+      queueFuelUpdate();
+      return;
+    }
     try {
       await db.collection("fuel_entries").doc(id).update(sanitize(updates));
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        queueFuelUpdate();
+        return;
+      }
       handleFirestoreError(error, OperationType.UPDATE, `fuel_entries/${id}`);
     }
   },
 
   deleteFuelEntry: async (orgId: string, id: string) => {
     if (mockUser || !db) { LocalDB.delete(`fuel_entries`, id); return; }
+    const queueFuelDelete = () => enqueueOfflineWrite({
+      collection: 'fuel_entries',
+      docId: id,
+      operation: 'delete',
+    });
+    if (isOfflineNow()) {
+      queueFuelDelete();
+      return;
+    }
     try {
       await db.collection("fuel_entries").doc(id).delete();
     } catch (error) {
+      if (isOfflineWriteError(error)) {
+        queueFuelDelete();
+        return;
+      }
       handleFirestoreError(error, OperationType.DELETE, `fuel_entries/${id}`);
     }
   },
@@ -2722,8 +3070,11 @@ export const storageService = {
         });
     };
 
-    if (mockUser || !storage) {
+    if (mockUser) {
         return await getFallbackDataUrl(file);
+    }
+    if (!storage) {
+        throw new Error("Storage nao esta configurado. Nao foi possivel anexar o arquivo.");
     }
     
     try {
@@ -2733,8 +3084,7 @@ export const storageService = {
 
         const fileRef = storage.ref().child(path);
         
-        // Timeout reduzido para 12 segundos (com compressao deve ser instantaneo)
-        const TIMEOUT_MS = 12000;
+        const TIMEOUT_MS = 45000;
         const timeoutPromise = new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error(`Timeout de ${TIMEOUT_MS/1000}s`)), TIMEOUT_MS)
         );
@@ -2745,8 +3095,8 @@ export const storageService = {
         const downloadUrl = await fileRef.getDownloadURL();
         return downloadUrl;
     } catch (error: any) {
-        console.warn("[StorageService] Falha no upload real, usando fallback local imediato.");
-        return await getFallbackDataUrl(file);
+        console.warn("[StorageService] Falha no upload real:", error);
+        throw new Error("Nao foi possivel enviar o arquivo para o Storage. Verifique a conexao e tente novamente.");
     }
   },
 
@@ -2759,13 +3109,16 @@ export const storageService = {
         });
     };
 
-    if (mockUser || !storage) {
+    if (mockUser) {
         return await getFallbackDataUrl(file);
+    }
+    if (!storage) {
+        throw new Error("Storage nao esta configurado. Nao foi possivel anexar o arquivo.");
     }
     
     try {
         const fileRef = storage.ref().child(path);
-        const TIMEOUT_MS = 20000;
+        const TIMEOUT_MS = 60000;
         const timeoutPromise = new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error(`Timeout de ${TIMEOUT_MS/1000}s`)), TIMEOUT_MS)
         );
@@ -2776,8 +3129,8 @@ export const storageService = {
         const downloadUrl = await fileRef.getDownloadURL();
         return downloadUrl;
     } catch (error: any) {
-        console.warn("[StorageService] Falha no upload de arquivo, usando fallback local.");
-        return await getFallbackDataUrl(file);
+        console.warn("[StorageService] Falha no upload de arquivo:", error);
+        throw new Error("Nao foi possivel enviar o arquivo para o Storage. Verifique a conexao e tente novamente.");
     }
   },
 
