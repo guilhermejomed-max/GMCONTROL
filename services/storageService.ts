@@ -159,8 +159,23 @@ const isEmbeddedFileUrl = (value: unknown): boolean => {
   return typeof value === 'string' && /^data:[^;]+;base64,/i.test(value);
 };
 
+const MAX_EMBEDDED_OCCURRENCE_BYTES = 650 * 1024;
+const MAX_EMBEDDED_CHAT_BYTES = 300 * 1024;
+
+const estimateBase64Bytes = (value: string): number => {
+  const base64 = value.split(',')[1] || value;
+  return Math.ceil((base64.length * 3) / 4);
+};
+
 const stripEmbeddedFileUrls = (urls?: string[]): string[] => {
-  return (urls || []).filter(url => !isEmbeddedFileUrl(url));
+  let embeddedBytes = 0;
+  return (urls || []).filter(url => {
+    if (!isEmbeddedFileUrl(url)) return true;
+    const bytes = estimateBase64Bytes(url);
+    if (embeddedBytes + bytes > MAX_EMBEDDED_OCCURRENCE_BYTES) return false;
+    embeddedBytes += bytes;
+    return true;
+  });
 };
 
 const cleanOccurrencePayload = <T extends Partial<Occurrence>>(payload: T): T => {
@@ -171,10 +186,17 @@ const cleanOccurrencePayload = <T extends Partial<Occurrence>>(payload: T): T =>
   }
 
   if (Array.isArray(cleaned.chat)) {
+    let chatEmbeddedBytes = 0;
     cleaned.chat = cleaned.chat.map((message: any) => ({
       ...message,
       attachments: Array.isArray(message.attachments)
-        ? message.attachments.filter((attachment: any) => !isEmbeddedFileUrl(attachment?.url))
+        ? message.attachments.filter((attachment: any) => {
+            if (!isEmbeddedFileUrl(attachment?.url)) return true;
+            const bytes = estimateBase64Bytes(attachment.url);
+            if (chatEmbeddedBytes + bytes > MAX_EMBEDDED_CHAT_BYTES) return false;
+            chatEmbeddedBytes += bytes;
+            return true;
+          })
         : message.attachments,
     }));
   }
@@ -185,7 +207,9 @@ const cleanOccurrencePayload = <T extends Partial<Occurrence>>(payload: T): T =>
 const cleanChatMessagePayload = (message: any) => ({
   ...message,
   attachments: Array.isArray(message.attachments)
-    ? message.attachments.filter((attachment: any) => !isEmbeddedFileUrl(attachment?.url))
+    ? message.attachments.filter((attachment: any) =>
+        !isEmbeddedFileUrl(attachment?.url) || estimateBase64Bytes(attachment.url) <= MAX_EMBEDDED_CHAT_BYTES
+      )
     : message.attachments,
 });
 
@@ -3059,6 +3083,38 @@ export const storageService = {
     });
   },
 
+  compressImageToDataUrl: async (file: File, maxWidth = 900, maxHeight = 900, quality = 0.45): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem.'));
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('Nao foi possivel processar a imagem.'));
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height && width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                } else if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(width));
+                canvas.height = Math.max(1, Math.round(height));
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+  },
+
   uploadImage: async (path: string, file: File): Promise<string> => {
     console.log(`[StorageService] Preparando upload: ${path} (${(file.size / 1024).toFixed(1)} KB)`);
     
@@ -3096,6 +3152,11 @@ export const storageService = {
         return downloadUrl;
     } catch (error: any) {
         console.warn("[StorageService] Falha no upload real:", error);
+        const fallbackDataUrl = await storageService.compressImageToDataUrl(file);
+        if (estimateBase64Bytes(fallbackDataUrl) <= MAX_EMBEDDED_OCCURRENCE_BYTES) {
+            console.warn("[StorageService] Usando fallback comprimido para imagem pequena.");
+            return fallbackDataUrl;
+        }
         throw new Error("Nao foi possivel enviar o arquivo para o Storage. Verifique a conexao e tente novamente.");
     }
   },
@@ -3130,6 +3191,13 @@ export const storageService = {
         return downloadUrl;
     } catch (error: any) {
         console.warn("[StorageService] Falha no upload de arquivo:", error);
+        if (file.type?.startsWith('image/')) {
+            const fallbackDataUrl = await storageService.compressImageToDataUrl(file, 700, 700, 0.4);
+            if (estimateBase64Bytes(fallbackDataUrl) <= MAX_EMBEDDED_CHAT_BYTES) {
+                console.warn("[StorageService] Usando fallback comprimido para anexo pequeno.");
+                return fallbackDataUrl;
+            }
+        }
         throw new Error("Nao foi possivel enviar o arquivo para o Storage. Verifique a conexao e tente novamente.");
     }
   },
