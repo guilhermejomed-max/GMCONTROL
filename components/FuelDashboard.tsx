@@ -95,8 +95,22 @@ export const FuelDashboard: React.FC<Props> = ({
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [currentModelPage, setCurrentModelPage] = useState(1);
-  const ENTRIES_PER_PAGE = 12;
+  const ENTRIES_PER_PAGE = 6;
   const MODELS_PER_PAGE = 12;
+
+  const getEntrySortId = (entry: FuelEntry) => {
+    const match = String(entry.id || '').match(/\d+/);
+    return match ? Number(match[0]) || 0 : 0;
+  };
+
+  const sortEntriesDesc = (a: FuelEntry, b: FuelEntry) => {
+    const dateA = new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime();
+    const dateB = new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    const odometerDiff = Number(b.odometer || 0) - Number(a.odometer || 0);
+    if (odometerDiff !== 0) return odometerDiff;
+    return getEntrySortId(b) - getEntrySortId(a);
+  };
 
   // Form states
   const [newStation, setNewStation] = useState<Partial<FuelStation>>({
@@ -193,7 +207,7 @@ export const FuelDashboard: React.FC<Props> = ({
       const lowerSearch = historySearchTerm.toLowerCase();
       filtered = filtered.filter(e => e.vehiclePlate.toLowerCase().includes(lowerSearch));
     }
-    return [...filtered].sort((a, b) => new Date(b.date + (b.date.includes('T') ? '' : 'T12:00:00')).getTime() - new Date(a.date + (a.date.includes('T') ? '' : 'T12:00:00')).getTime());
+    return [...filtered].sort(sortEntriesDesc);
   }, [allFuelEntries, filterVehicleId, historySearchTerm, periodFilter, startDate, endDate]);
 
   const paginatedEntries = useMemo(() => {
