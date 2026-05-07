@@ -24,14 +24,14 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const isGasImport = fuelCategory === 'GAS';
   const expectedColumns = isGasImport
-    ? ['NOME DO POSTO', 'DATA', 'PLACA', 'QUANTIDADE KG', 'QUANTIDADE M3', 'VALOR', 'ULTIMO KM', 'KM ATUAL']
+    ? ['NOME DO POSTO', 'DATA', 'PLACA', 'QUANTIDADE KG', 'QUANTIDADE M3', 'VALOR', 'ULTIMO KM', 'KM RODADO', 'KM ATUAL']
     : ['CNPJ', 'DATA', 'PLACA', 'QUANTIDADE DE LITROS ABASTECIDO', 'VALOR', 'ULTIMO KM', 'KM ATUAL'];
   const modalTitle = isGasImport ? 'Importar Abastecimentos a Gas' : 'Importar Abastecimentos';
   const modalSubtitle = isGasImport
     ? 'LAYOUT DE GAS VIA ARQUIVO EXCEL (.XLSX, .XLS)'
     : 'LAYOUT DE DIESEL / LIQUIDO VIA ARQUIVO EXCEL (.XLSX, .XLS)';
   const layoutHint = isGasImport
-    ? '* O layout de gas continua usando nome do posto, quantidade KG e/ou quantidade M3.'
+    ? '* No layout de gas, KM ATUAL pode vir preenchido diretamente ou ser calculado por ULTIMO KM + KM RODADO.'
     : '* No layout de diesel/liquido, VALOR deve ser o valor total do abastecimento; o preco unitario sera calculado pelos litros.';
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,7 +174,14 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       
       const odometer = parseNum(normalizedRow['KM ATUAL'] || normalizedRow['ODOMETRO'] || normalizedRow['KM']);
       const lastOdo = parseNum(normalizedRow['ULTIMO KM'] || normalizedRow['KM ANTERIOR']);
-      const kmDriven = parseNum(normalizedRow['KM RODADO'] || normalizedRow['DISTANCIA']);
+      const kmDriven = parseNum(
+        normalizedRow['KM RODADO'] ||
+        normalizedRow['KM RODADOS'] ||
+        normalizedRow['KM PERCORRIDO'] ||
+        normalizedRow['KM PERCORRIDOS'] ||
+        normalizedRow['DISTANCIA'] ||
+        normalizedRow['DISTANCIA RODADA']
+      );
       
       const vehicle = vehicles.find(v => v.plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() === plate);
       const branch = normalizedCnpj ? branches.find(b => b.cnpj.replace(/\D/g, '') === normalizedCnpj) : undefined;
