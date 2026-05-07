@@ -121,7 +121,13 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
     };
 
     const normalizeHeader = (value: string): string =>
-      String(value).trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+      String(value)
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[Â³Ã‚]/g, '3')
+        .replace(/\s+/g, ' ')
+        .toUpperCase();
 
     data.forEach((row: any, i) => {
       const normalizedRow: any = {};
@@ -135,8 +141,21 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
       const normalizedCnpj = cnpj.replace(/\D/g, '');
       const stationNameFromRow = String(normalizedRow['NOME DO POSTO'] || normalizedRow['POSTO'] || '').trim();
       
-      const m3 = isGasImport ? parseNum(normalizedRow['QUANTIDADE M3']) : 0;
-      const kilograms = isGasImport ? parseNum(normalizedRow['QUANTIDADE KG']) : 0;
+      const m3 = isGasImport ? parseNum(
+        normalizedRow['QUANTIDADE M3'] ||
+        normalizedRow['QUANTIDADE M 3'] ||
+        normalizedRow['QUANTIDADE M'] ||
+        normalizedRow['M3'] ||
+        normalizedRow['M 3'] ||
+        normalizedRow['M'] ||
+        normalizedRow['METROS CUBICOS']
+      ) : 0;
+      const kilograms = isGasImport ? parseNum(
+        normalizedRow['QUANTIDADE KG'] ||
+        normalizedRow['KG'] ||
+        normalizedRow['QUILOS'] ||
+        normalizedRow['QUILOGRAMAS']
+      ) : 0;
       const liters = isGasImport
         ? (m3 > 0 ? m3 : parseNum(normalizedRow['QUANTIDADE DE LT ABASTECIDO'] || normalizedRow['LITROS'] || normalizedRow['QUANTIDADE'] || normalizedRow['QTD']))
         : parseNum(
@@ -322,7 +341,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
                     <AlertTriangle className="h-5 w-5" /> Erros Encontrados ({results.errors.length})
                   </h4>
                   <ul className="text-[11px] text-red-500 font-bold space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
-                    {results.errors.map((err, idx) => <li key={idx} className="flex gap-2"><span>•</span> {err}</li>)}
+                    {results.errors.map((err, idx) => <li key={idx} className="flex gap-2"><span>â€¢</span> {err}</li>)}
                   </ul>
                 </div>
               )}
@@ -347,7 +366,7 @@ export const FuelImportModal: React.FC<ImportModalProps> = React.memo(({ onClose
                         <tr key={idx} className="text-xs hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                           <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{e.date}</td>
                           <td className="p-4 font-black text-slate-800 dark:text-white">{e.vehiclePlate}</td>
-                          <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{e.liters.toLocaleString()} {e.category === 'GAS' ? 'm³' : 'L'}</td>
+                          <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{(Number(e.liters) || Number(e.kg) || 0).toLocaleString()} {e.category === 'GAS' ? 'm3' : 'L'}</td>
                           <td className="p-4 font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(e.totalCost)}</td>
                           <td className="p-4 font-medium text-slate-500">{e.stationName || '-'}</td>
                         </tr>

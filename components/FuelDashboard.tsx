@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+﻿import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { Vehicle, FuelEntry, Driver, Branch, FuelStation, FuelType } from '../types';
 import { 
   Fuel, 
@@ -60,8 +60,8 @@ export const FuelDashboard: React.FC<Props> = ({
   hasMore,
   fuelCategory = 'LIQUID' // Default
 }) => {
-  const unit = fuelCategory === 'GAS' ? 'm³' : 'L';
-  const unitKm = fuelCategory === 'GAS' ? 'KM/m³' : 'KM/L';
+  const unit = fuelCategory === 'GAS' ? 'm3' : 'L';
+  const unitKm = fuelCategory === 'GAS' ? 'KM/m3' : 'KM/L';
 
   const allFuelEntries = useMemo(() => {
     return allFuelEntriesRaw.filter(e => {
@@ -402,8 +402,8 @@ export const FuelDashboard: React.FC<Props> = ({
   // Handlers
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalLiters = Number(newEntry.liters) || (fuelCategory === 'GAS' ? Number(newEntry.kg || 0) : 0);
-    if (!newEntry.vehicleId || finalLiters <= 0 || !newEntry.unitPrice || !newEntry.odometer) return;
+    const finalVolume = Number(newEntry.liters) || (fuelCategory === 'GAS' ? Number(newEntry.kg || 0) : 0);
+    if (!newEntry.vehicleId || finalVolume <= 0 || !newEntry.unitPrice || !newEntry.odometer) return;
 
     const vehicle = vehicles.find(v => v.id === newEntry.vehicleId);
     const driver = drivers.find(d => d.id === newEntry.driverId);
@@ -439,10 +439,10 @@ export const FuelDashboard: React.FC<Props> = ({
       vehiclePlate: vehicle?.plate || '',
       date: newEntry.date || new Date().toISOString().split('T')[0],
       odometer: entryOdometer,
-      liters: finalLiters,
+      liters: finalVolume,
       kg: newEntry.kg ? Number(newEntry.kg) : undefined,
       unitPrice: Number(newEntry.unitPrice),
-      totalCost: finalLiters * Number(newEntry.unitPrice),
+      totalCost: finalVolume * Number(newEntry.unitPrice),
       fuelType: newEntry.fuelType || (fuelCategory === 'GAS' ? 'GNV' : 'DIESEL S10'),
       category: fuelCategory,
       stationName: stationName,
@@ -795,7 +795,7 @@ export const FuelDashboard: React.FC<Props> = ({
         fuelStations={fuelStations}
         lastOdometer={lastOdometer}
         currentKmPerLiter={currentKmPerLiter}
-        unit={unit === 'm³' ? 'm³' : 'Litros'}
+        unit={unit}
         unitKm={unitKm}
       />
 
@@ -831,3 +831,4 @@ export const FuelDashboard: React.FC<Props> = ({
     </div>
   );
 };
+

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BarChart3, Zap, Truck, History } from 'lucide-react';
 import { Vehicle, FuelEntry, Branch } from '../types';
+import { getFuelVolume } from '../lib/fuelUtils';
 
 interface ModelDetailsModalProps {
   data: {
@@ -69,7 +70,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
 
                 if (sorted.length >= 2) {
                   const kmDiff = sorted[sorted.length - 1].odometer - sorted[0].odometer;
-                  const litersSum = sorted.slice(1).reduce((acc: number, e: FuelEntry) => acc + e.liters, 0);
+                  const litersSum = sorted.slice(1).reduce((acc: number, e: FuelEntry) => acc + getFuelVolume(e), 0);
                   vAvg = litersSum > 0 ? (kmDiff / litersSum) : 0;
                 }
 
@@ -121,7 +122,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = React.memo(({
                     <tr key={e.id} className="text-xs">
                       <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{new Date(e.date + (e.date.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR')}</td>
                       <td className="py-3 font-black text-slate-800 dark:text-white">{e.vehiclePlate}</td>
-                      <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{e.liters.toLocaleString()}{unit}</td>
+                      <td className="py-3 font-bold text-slate-600 dark:text-slate-400">{getFuelVolume(e).toLocaleString()}{unit}</td>
                       <td className="py-3 font-black text-emerald-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(e.totalCost)}</td>
                       <td className="py-3 font-medium text-slate-500 truncate max-w-[150px]">{e.stationName}</td>
                       <td className="py-3 font-medium text-slate-500">{branches.find(b => b.id === e.branchId)?.name || '-'}</td>

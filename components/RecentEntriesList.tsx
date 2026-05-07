@@ -1,7 +1,7 @@
 import React from 'react';
 import { Truck, MapPin, User, Trash2, Fuel, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FuelEntry, Branch } from '../types';
-import { calculateEntryEfficiency } from '../lib/fuelUtils';
+import { calculateEntryEfficiency, getFuelVolume } from '../lib/fuelUtils';
 
 interface RecentEntriesListProps {
   entries: FuelEntry[];
@@ -30,6 +30,7 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
     <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar w-full h-full min-h-[400px]">
       {entries.map((entry) => {
         const entryAvg = calculateEntryEfficiency(entry, allFuelEntries);
+        const volume = getFuelVolume(entry);
 
         return (
           <div key={entry.id} className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm group relative overflow-hidden hover:border-blue-200 dark:hover:border-blue-800 transition-all">
@@ -47,7 +48,7 @@ export const RecentEntriesList: React.FC<RecentEntriesListProps> = React.memo(({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-white mt-1">{entry.liters.toLocaleString()}{unit} • {entry.fuelType}</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-white mt-1">{volume.toLocaleString()}{unit} - {entry.fuelType}</p>
                 </div>
               </div>
               <div className="text-right">

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Fuel, X, Truck, Calendar, Droplets, DollarSign, User, Store, MapPin, TrendingUp } from 'lucide-react';
 import { Vehicle, Driver, FuelStation, FuelEntry } from '../types';
 
@@ -32,6 +32,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
   unitKm = 'KM/L'
 }) => {
   if (!isOpen) return null;
+  const currentVolume = Number(newEntry.liters || 0) || Number(newEntry.kg || 0);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-2 sm:p-4">
@@ -130,7 +131,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
               </div>
             </div>
 
-            {unit === 'm³' && (
+            {unit === 'm3' && (
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Quantidade (KG)</label>
                 <div className="relative">
@@ -247,7 +248,7 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-orange-400">Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((newEntry.liters || 0) * (newEntry.unitPrice || 0))}</p>
+                <p className="text-[10px] font-bold text-orange-400">Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(currentVolume * (newEntry.unitPrice || 0))}</p>
               </div>
             </div>
           )}
@@ -272,3 +273,4 @@ export const FuelEntryModal: React.FC<FuelEntryModalProps> = React.memo(({
     </div>
   );
 });
+
